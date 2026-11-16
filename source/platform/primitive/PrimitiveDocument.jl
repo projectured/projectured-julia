@@ -200,8 +200,8 @@ function evaluate_operation(editor, op::ReplaceNumberRangeOperation)
     split = _split_replace_reference(op.reference)
     split === nothing && return            # no editable slot (e.g. projection-introduced span)
     target_path, field_name, range_step = split
-    target = evaluate_reference(document, target_path)
     field = Symbol(field_name)
+    target = _get_field_holder(evaluate_reference(document, target_path), field)
     old = getproperty(target, field)
     setproperty!(target, field,
                  splice_number(old === nothing ? "" : string(old),
@@ -214,8 +214,8 @@ function evaluate_operation(editor, op::ReplaceStringRangeOperation)
     split = _split_replace_reference(op.reference)
     split === nothing && return            # no editable slot (e.g. projection-introduced span)
     target_path, field_name, range_step = split
-    target = evaluate_reference(document, target_path)
     field = Symbol(field_name)
+    target = _get_field_holder(evaluate_reference(document, target_path), field)
     value = getproperty(target, field)
     # A text layer edits a number with a string edit, and the number ignores it
     # the way it ignores a number edit. A `Bool` is a `Number` to Julia and not
@@ -231,6 +231,15 @@ function evaluate_operation(editor, op::ReplaceStringRangeOperation)
         splice_value!(target, field, value, range_step.start, range_step.stop, op.replacement)
     end
     _replace_selection_with_cursor!(document, op)
+end
+
+# The document that holds `field` for an edit at `target`: `target` itself, or the
+# document that it shows when it has no such field, as a view shows its content
+# (`get_edited_field`). The caret of the edit stays on `target`.
+function _get_field_holder(target, field::Symbol)
+    hasproperty(target, field) && return target
+    shown = get_edited_field(target)
+    shown === nothing ? target : getproperty(target, shown)
 end
 
 # Whether `field` of `target` is declared to hold a number and not a text, read

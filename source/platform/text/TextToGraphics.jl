@@ -120,9 +120,20 @@ end
 _get_plain_text_color(::Nothing) = get_theme_defaults(TextTheme).plain_text.color
 _get_plain_text_color(theme) = make_theme_cell(StyleColor, theme, values -> values.plain_text.color)
 
+# The projections that lay out the lines of a text, and their IO maps. The layout
+# helpers and the readers below serve both: `TextToGraphics` draws the caret of the
+# block as well, and `TextBlockToGraphicsCanvas` draws the lines only.
+const _TextLayoutProjection = Union{TextToGraphics, TextBlockToGraphicsCanvas}
+const _TextLayoutIoMap = Union{TextToGraphicsIoMap, TextBlockToGraphicsCanvasIoMap}
+
+# The place of the stack of lines in the canvas that the IO map draws: after the
+# band of the selection in `TextToGraphics`, and first in `TextBlockToGraphicsCanvas`.
+_get_line_stack_index(::TextToGraphicsIoMap) = 2
+_get_line_stack_index(::TextBlockToGraphicsCanvasIoMap) = 1
+
 # The line spacing of one print of `p`: the one that the context `ctx` sets, as a
 # table sets single spacing for its cells, or else the default of `p`.
-function _get_line_spacing(p::TextToGraphics, ctx)
+function _get_line_spacing(p::_TextLayoutProjection, ctx)
     spacing = ctx === nothing ? nothing : get_property(ctx, :line_spacing, nothing)
     spacing === nothing ? p.line_spacing : spacing
 end
@@ -229,10 +240,18 @@ end
 # not in step with the elements of a line.
 function map_reference_forward(p::TextToGraphics, iomap, reference)
     iomap isa TextToGraphicsIoMap || return nothing
+    if iomap.input.elements isa ListNode
+        reference isa Reference || return nothing
+        reference = strip_reference_types(reference)
+        return reference isa EmptyReference ? EmptyReference() : _map_list_lines_forward(p, iomap, reference)
+    end
+    _map_text_forward(p, iomap, reference)
+end
+
+function _map_text_forward(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa EmptyReference && return EmptyReference()
-    iomap.input.elements isa ListNode && return _map_list_lines_forward(p, iomap, reference)
     places = iomap.places
     range = _find_text_forward_range(iomap.input, reference, places)
     range === nothing && return nothing
@@ -251,7 +270,7 @@ function map_reference_forward(p::TextToGraphics, iomap, reference)
             (a < b && !_hl_piece_blank(segment, a, b)) || continue
         end
         start == stop || (base + segment.char_start <= start && stop <= base + segment.char_end) ||
-            return _map_text_region(p, places, coordinates, bases, start, stop)
+            return _map_text_region(p, places, coordinates, bases, start, stop, _get_line_stack_index(iomap))
         node = _find_segment_node(iomap, segment)
         node === nothing && return nothing
         return concat_references(node,
@@ -268,16 +287,18 @@ end
 # their spans, after the smallest node that holds them: the canvas of their line,
 # when one line holds all of them, and else the stack of lines. The rows are in the
 # frame of the stack; a line starts where the one after it ends. The line of the
-# rows is the last line of the range that starts at or above their top.
-function _map_text_region(p::TextToGraphics, places::_TextPlaces, coordinates, bases, start::Int, stop::Int)
+# rows is the last line of the range that starts at or above their top. The stack
+# is the element `stack_index` of the canvas of the text.
+function _map_text_region(p::_TextLayoutProjection, places::_TextPlaces, coordinates, bases, start::Int, stop::Int,
+                          stack_index::Int)
     rows = _compute_span_rows(coordinates, bases, start, stop, p)
     isempty(rows) && return nothing
     left = minimum(row[1] for row in rows)
     top = minimum(row[2] for row in rows)
     right = maximum(row[1] + row[3] for row in rows)
     bottom = maximum(row[2] + row[4] for row in rows)
-    stack = ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
-                                                                                 EmptyReference()))
+    stack = ConcreteReference(FieldReferenceStep("elements"),
+                              ConcreteReference(RangeReferenceStep(stack_index - 1, stack_index), EmptyReference()))
     count = length(places.lines[])
     get_top(L) = Int(places.get_line_cells(L).y[])
     lines = unique(segment.span_path[1] for segment in coordinates)
@@ -309,13 +330,14 @@ function _find_text_forward_range(text::TextBlock, reference, places::_TextPlace
 end
 
 # The reference of the text node that draws `segment`: the canvas of each line
-# is in the stack of lines, the second element of the text's canvas, and the node
-# is the text of the segment at its place in the canvas of its line, the line that
-# its span path names.
-function _find_segment_node(iomap::TextToGraphicsIoMap, segment::SegmentCoordinate)
+# is in the stack of lines, an element of the text's canvas
+# (`_get_line_stack_index`), and the node is the text of the segment at its place
+# in the canvas of its line, the line that its span path names.
+function _find_segment_node(iomap::_TextLayoutIoMap, segment::SegmentCoordinate)
+    index = _get_line_stack_index(iomap)
     top = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
-    length(top) >= 2 || return nothing
-    stack = unwrap_cell(top[2])
+    length(top) >= index || return nothing
+    stack = unwrap_cell(top[index])
     stack isa GraphicsCanvas || return nothing
     lines = unwrap_cell(getfield(stack, :elements))
     lines isa CellVector || return nothing
@@ -331,7 +353,7 @@ function _find_segment_node(iomap::TextToGraphicsIoMap, segment::SegmentCoordina
             Int(unwrap_cell(getfield(node, :x))) == segment.x || continue
             String(unwrap_cell(getfield(node, :text))) == segment.text || continue
             (top_of_line <= Int(unwrap_cell(getfield(node, :y))) < top_of_line + segment.height) || continue
-            return ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
+            return ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(index - 1, index),
                 ConcreteReference(FieldReferenceStep("elements"),
                     ConcreteReference(RangeReferenceStep(line_index - 1, line_index),
                         ConcreteReference(FieldReferenceStep("elements"),
@@ -348,6 +370,10 @@ end
 # The reader of a click and the reader of that path read this map.
 function map_reference_backward(p::TextToGraphics, iomap, reference)
     iomap isa TextToGraphicsIoMap || return nothing
+    _map_text_backward(p, iomap, reference)
+end
+
+function _map_text_backward(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, reference)
     point = find_reference_point(reference)
     # The coordinates of the segments are in the frame of the stack of lines, which
     # stands inside the space around the text.
@@ -432,20 +458,21 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Union{D
 end
 
 # The selection that a pointer at `(x, y)` makes: the caret there, or with `extend`
-# the range from the anchor of the selection to the caret there.
-function _find_pointer_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int,
-                                 extend::Bool)
-    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+# the range from the anchor of `selection` to the caret there. `selection` is the
+# caret of the block itself, or the caret of a view of it (`TextView.jl`).
+function _find_pointer_selection(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, x::Int, y::Int,
+                                 extend::Bool, selection = iomap.input.selection)
+    caret = _map_text_backward(p, iomap, PointReferenceStep(x, y))
     caret === nothing && return nothing
     extend || return caret
     point = get_flat_caret(iomap.input, caret)
-    ends = _find_text_selection_ends(iomap.input, iomap.input.selection, iomap.places)
+    ends = _find_text_selection_ends(iomap.input, selection, iomap.places)
     (point === nothing || ends === nothing) ? caret : _make_flat_selection_reference(ends.anchor, point)
 end
 
 # The word (`count == 2`) or the line (`count >= 3`) at the point, as a selection.
-function _make_unit_selection(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int, count::Int)
-    caret = map_reference_backward(p, iomap, PointReferenceStep(x, y))
+function _make_unit_selection(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, x::Int, y::Int, count::Int)
+    caret = _map_text_backward(p, iomap, PointReferenceStep(x, y))
     caret === nothing && return nothing
     point = get_flat_caret(iomap.input, caret)
     point === nothing && return ReplaceSelectionOperation(caret)
@@ -459,7 +486,7 @@ end
 # above or below it that places a segment, so only the lines from the one above to
 # the one below are read. A line is found by its real offset, which rounds to the
 # place of its canvas, so the lines next to it are read too.
-function _find_caret_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
+function _find_caret_at_point(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, x::Int, y::Int)
     places = iomap.places
     places === nothing && return nothing
     L = first(find_place_at(places.distances, Float64(y), length(places.lines[])))
@@ -482,7 +509,15 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # only the span structure and the flat-character selection — no layout.
     op = _gesture_op(iomap, evt)
     op === nothing || return op
+    _read_geometry_key(p, iomap, iomap.input, iomap.input.selection, evt)
+end
 
+# The keys that this layer resolves with the layout of the lines: plain Up, Down,
+# Home, End, Page Up and Page Down, and their Shift forms. `styled` and `selection`
+# are the lines and the caret: of the block itself, or of a view of it
+# (`TextView.jl`).
+function _read_geometry_key(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, styled::TextBlock,
+                            selection, evt::KeyDown)
     # `read_gesture` returned nothing: either it *declined* a tree gesture
     # (Alt+arrow, plain arrow while structural) so an outer syntax layer can own
     # it, or it is a key this layer must resolve with pixel geometry (plain
@@ -494,12 +529,11 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined = @gesture_case evt begin
         when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
         when(KeyDown(k), k in (:up, :down, :left, :right) &&
-                         is_structural_selection(iomap.input.selection)) => :decline
+                         is_structural_selection(selection)) => :decline
         when(KeyDown(k), k === :tab || k === :return) => :decline
     end
     declined === nothing || return nothing
 
-    styled = iomap.input
     # A block whose elements are a lazy list is drawn line by line and keeps no
     # geometry of the whole, so no key moves along its lines. The list can be
     # endless, so it is not walked either.
@@ -513,9 +547,9 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # the caret and the line next to its row.
     places = iomap.places
     extend = evt.modifiers.shift && !evt.modifiers.ctrl
-    ends = extend ? _find_text_selection_ends(styled, styled.selection, places) : nothing
+    ends = extend ? _find_text_selection_ends(styled, selection, places) : nothing
     extend && ends === nothing && return nothing
-    current = get_flat_cursor_coordinate(styled, styled.selection, places)
+    current = get_flat_cursor_coordinate(styled, selection, places)
     current === nothing && return nothing
     segments = _get_line_segments(places, current.span[1])
     found = _find_caret_coordinate(styled, segments, current, places)
@@ -575,7 +609,7 @@ end
 # scroll pane around the text to scroll by the distance that the caret went, so
 # the caret keeps its row on the screen. With no height that shows, or when the
 # caret does not move, the key goes on.
-function _read_page_key(p::TextToGraphics, iomap::TextToGraphicsIoMap, row, char::Int, ends, step::Int)
+function _read_page_key(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, row, char::Int, ends, step::Int)
     page = iomap.visible_height
     (page isa Real && page > 0) || return nothing
     styled, places = iomap.input, iomap.places
@@ -658,6 +692,113 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         return _print_listnode(p, spacing, styled)
     end
     space = ctx === nothing ? (0, 0, 0, 0) : ctx.space
+    lines = _print_text_lines(p, spacing, styled, space)
+
+    # The caret/highlight stay a single selection-driven `overlay`, laid out in
+    # absolute coordinates over the whole stack, so a pure caret move still
+    # invalidates only the two overlay rects (dimension A): the spans never read
+    # the selection. `overlay` reads only the lines that the selection touches,
+    # and lays out the line of the caret with the same `_layout_group` pass the line
+    # runs, so the caret lands exactly where the glyph it sits against was drawn.
+    #
+    # The overlay is laid out from the **stored** selection, live or dormant, so a
+    # dormant caret still has a place on the screen. `is_live` decides only how it
+    # is painted. Reading the raw cell is what makes a dormant selection visible at
+    # all: the property answers `nothing` for one, which is the default that keeps
+    # every other reader correct.
+    selection_cell = getfield(styled, :selection)
+    overlay = Cell(@computation _layout_overlay(p, spacing, styled, _get_stored_path(selection_cell[]),
+                                                lines.block_font, lines.places))
+    is_live = Cell(@computation _is_live_selection(selection_cell[]))
+    marks = _make_selection_marks(p, overlay, is_live, space)
+    # `highlight_offset` keeps its value of 1 — the rasterized-image click path
+    # (`_find_caret_at_element_point`) indexes the coord_map past the single
+    # leading highlight element (the highlight sub-canvas, holding the per-row
+    # rects).
+    # That path is only reached when a *leaf* canvas is rasterized by
+    # GraphicsCanvasToGraphicsImage; this canvas is non-leaf (it nests the highlight
+    # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
+    # reader instead, but the value is preserved for the rasterized-image path.
+    highlight_offset = Cell(1)
+    # Top canvas: the line stack with the selection-driven caret/highlight overlays
+    # floating above it in absolute coordinates. A fixed vector, so its membership
+    # never regenerates — the highlight's per-selection churn is confined to the
+    # highlight sub-canvas's own element vector. The stack, the overlays and the
+    # regions stand inside the space, and the extent of the top canvas holds it.
+    top_elements = CellVector(Cell[Cell(marks.band), Cell(lines.stack), Cell(marks.caret),
+                                   Cell(lines.ibeam), Cell(lines.span_shapes)])
+    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), lines.width, lines.height,
+                            top_elements, layout_none, true, Cell(nothing))
+    TextToGraphicsIoMap(p, styled, canvas, spacing, lines.char_to_coord, highlight_offset, lines.first_baseline,
+                        lines.groups, lines.line_cells, space, lines.places, get_visible_height(ctx))
+end
+
+# The band under the selection and the caret, as graphics that persist across
+# moves: `overlay` holds their geometry, the caret and the rows of the band, and
+# `is_live` whether the selection is the live one. `p` gives their colors, their
+# width and the radius of the band, and they stand inside `space`, the space
+# around the text.
+function _make_selection_marks(p, overlay::Cell, is_live::Cell, space)
+    space_left, space_top, _, _ = space
+    # Persistent overlay elements. Their geometry cells read the selection-
+    # dependent `overlay`; a zero width hides them when inactive (the renderer
+    # skips a zero-width rect, and the bounds machinery ignores it).
+    caret_color = p.caret_color
+    dormant_caret_color = p.dormant_caret_color
+    caret_width = Int32(p.caret_width)
+    cursor_rect = GraphicsRect(0, 0, 0, 0; color = caret_color)
+    # A dormant caret is drawn muted: the pane it belongs to still remembers where
+    # the caret is, and shows it, but the keyboard is not on it.
+    set_cell_computation!(getfield(cursor_rect, :color),
+                       () -> is_live[] ? caret_color : dormant_caret_color)
+    set_cell_computation!(getfield(cursor_rect, :x),
+                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1] + space_left)))
+    set_cell_computation!(getfield(cursor_rect, :y),
+                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2] + space_top)))
+    set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : caret_width)
+    set_cell_computation!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
+
+    # A structural selection hugs its content per visual row (see `_compute_span_rows`),
+    # so the highlight is a *vector* of rects, not one box. They live in their own
+    # sub-canvas (a single top-canvas slot, below), each a persistent `GraphicsRect`
+    # keyed by row index and reused across re-layouts; the k-th reads `overlay`'s k-th
+    # rect (a zero width hides a rect whose row no longer exists, matching the cursor).
+    hl_color = p.highlight_color
+    hl_color_dormant = p.dormant_highlight_color
+    hl_radius = p.highlight_radius
+    hl_cache = Dict{Int,GraphicsRect}()
+    _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
+    function get_highlight_rect(k::Int)
+        haskey(hl_cache, k) && return hl_cache[k]
+        r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = hl_radius)
+        set_cell_computation!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
+        set_cell_computation!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
+        set_cell_computation!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
+        set_cell_computation!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
+        set_cell_computation!(getfield(r, :h), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[4])))
+        hl_cache[k] = r
+        r
+    end
+    # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
+    # so a caret move that keeps the same row count reuses the exact rects. Evict rows
+    # that no longer exist so the cache cannot grow unbounded across selections.
+    highlight_elements = CellVector(Computation(function ()
+        n = length(overlay[].highlight)
+        out = Any[get_highlight_rect(k) for k in 1:n]
+        for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
+        out
+    end))
+    highlight_canvas = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), Cell(Int32(0)), Cell(Int32(0)),
+                                      highlight_elements, layout_none, false, Cell(nothing))
+    (band = highlight_canvas, caret = cursor_rect)
+end
+
+# The lines of `styled` as a stack of line canvases, laid out by `p` at the line
+# spacing `spacing` inside `space`, the space around the text: the stack, the table
+# of its segments, the places of its lines, its size with the space, the pointer
+# regions over it and the baseline of its first line. Nothing here reads a
+# selection.
+function _print_text_lines(p::_TextLayoutProjection, spacing::LineSpacing, styled::TextBlock, space)
     space_left, space_top, space_right, space_bottom = space
     # Per-line decomposition (printer locality — dimension B). The output is a
     # vertical stack of one reactive sub-canvas per `TextLine` — a structural
@@ -765,74 +906,6 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     end
     text_places = _TextPlaces(lines_cell, group_lines, get_line_cells, distances, caret_lengths, box_lengths)
 
-    # The caret/highlight stay a single selection-driven `overlay`, laid out in
-    # absolute coordinates over the whole stack, so a pure caret move still
-    # invalidates only the two overlay rects (dimension A): the spans never read
-    # the selection. `overlay` reads only the lines that the selection touches,
-    # and lays out the line of the caret with the same `_layout_group` pass the line
-    # runs, so the caret lands exactly where the glyph it sits against was drawn.
-    #
-    # The overlay is laid out from the **stored** selection, live or dormant, so a
-    # dormant caret still has a place on the screen. `is_live` decides only how it
-    # is painted. Reading the raw cell is what makes a dormant selection visible at
-    # all: the property answers `nothing` for one, which is the default that keeps
-    # every other reader correct.
-    selection_cell = getfield(styled, :selection)
-    overlay = Cell(@computation _layout_overlay(p, spacing, styled, _get_stored_path(selection_cell[]),
-                                                block_font, text_places))
-    is_live = Cell(@computation _is_live_selection(selection_cell[]))
-
-    # Persistent overlay elements. Their geometry cells read the selection-
-    # dependent `overlay`; a zero width hides them when inactive (the renderer
-    # skips a zero-width rect, and the bounds machinery ignores it).
-    caret_color = p.caret_color
-    dormant_caret_color = p.dormant_caret_color
-    caret_width = Int32(p.caret_width)
-    cursor_rect = GraphicsRect(0, 0, 0, 0; color = caret_color)
-    # A dormant caret is drawn muted: the pane it belongs to still remembers where
-    # the caret is, and shows it, but the keyboard is not on it.
-    set_cell_computation!(getfield(cursor_rect, :color),
-                       () -> is_live[] ? caret_color : dormant_caret_color)
-    set_cell_computation!(getfield(cursor_rect, :x),
-                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1] + space_left)))
-    set_cell_computation!(getfield(cursor_rect, :y),
-                          () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2] + space_top)))
-    set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : caret_width)
-    set_cell_computation!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
-
-    # A structural selection hugs its content per visual row (see `_compute_span_rows`),
-    # so the highlight is a *vector* of rects, not one box. They live in their own
-    # sub-canvas (a single top-canvas slot, below), each a persistent `GraphicsRect`
-    # keyed by row index and reused across re-layouts; the k-th reads `overlay`'s k-th
-    # rect (a zero width hides a rect whose row no longer exists, matching the cursor).
-    hl_color = p.highlight_color
-    hl_color_dormant = p.dormant_highlight_color
-    hl_radius = p.highlight_radius
-    hl_cache = Dict{Int,GraphicsRect}()
-    _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
-    function get_highlight_rect(k::Int)
-        haskey(hl_cache, k) && return hl_cache[k]
-        r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = hl_radius)
-        set_cell_computation!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
-        set_cell_computation!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
-        set_cell_computation!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
-        set_cell_computation!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
-        set_cell_computation!(getfield(r, :h), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[4])))
-        hl_cache[k] = r
-        r
-    end
-    # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
-    # so a caret move that keeps the same row count reuses the exact rects. Evict rows
-    # that no longer exist so the cache cannot grow unbounded across selections.
-    highlight_elements = CellVector(Computation(function ()
-        n = length(overlay[].highlight)
-        out = Any[get_highlight_rect(k) for k in 1:n]
-        for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
-        out
-    end))
-    highlight_canvas = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), Cell(Int32(0)), Cell(Int32(0)),
-                                      highlight_elements, layout_none, false, Cell(nothing))
-
     # Vertical stack of line sub-canvases. Its membership reads only `lines_cell`
     # (structure); `get_line_cells` builds/looks up cells without forcing them, so
     # no content is read here and the stack stays valid across content edits.
@@ -876,27 +949,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         end
         out
     end))
-    # `highlight_offset` keeps its value of 1 — the rasterized-image click path
-    # (`_find_caret_at_element_point`) indexes the coord_map past the single
-    # leading highlight element (the highlight sub-canvas, holding the per-row
-    # rects).
-    # That path is only reached when a *leaf* canvas is rasterized by
-    # GraphicsCanvasToGraphicsImage; this canvas is non-leaf (it nests the highlight
-    # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
-    # reader instead, but the value is preserved for the rasterized-image path.
-    highlight_offset = Cell(1)
     canvas_w = Cell(Computation(() -> Int32(get_total_before(widths, length(lines_cell[]) + 1))))
     canvas_h = Cell(Computation(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
     end))
-    # Top canvas: the line stack with the selection-driven caret/highlight overlays
-    # floating above it in absolute coordinates. A fixed vector, so its membership
-    # never regenerates — the highlight's per-selection churn is confined to the
-    # highlight sub-canvas's own element vector. A left click on the text puts the
-    # caret at the point, so the last element is an I-beam over the box of the
-    # lines. The stack, the overlays and the regions stand inside the space, and
-    # the extent of the top canvas holds it.
+    # A left click on the text puts the caret at the point, so an I-beam lies over
+    # the box of the lines.
     ibeam = GraphicsPointerShape(space_left, space_top, () -> canvas_w[], () -> canvas_h[], :ibeam)
     # A span that names a pointer shape, such as a link with the hand, has a region
     # of its shape over each of its segments, after the I-beam, so it wins there.
@@ -904,13 +963,9 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     span_shapes = GraphicsCanvas(Cell(Int32(space_left)), Cell(Int32(space_top)), canvas_w, canvas_h,
                                  CellVector(Computation(() -> _make_span_shape_regions(styled, char_to_coord))),
                                  layout_none, true, Cell(nothing))
-    top_elements = CellVector(Cell[Cell(highlight_canvas), Cell(lines_stack), Cell(cursor_rect),
-                                   Cell(ibeam), Cell(span_shapes)])
     space_width, space_height = space_left + space_right, space_top + space_bottom
     outer_w = space_width == 0 ? canvas_w : Cell(@computation Int32(canvas_w[] + space_width))
     outer_h = space_height == 0 ? canvas_h : Cell(@computation Int32(canvas_h[] + space_height))
-    canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), outer_w, outer_h,
-                            top_elements, layout_none, true, Cell(nothing))
     # The baseline of the first line: the one of the layout of the first line,
     # at the place of that line.
     first_baseline = Cell(Computation(function ()
@@ -919,8 +974,9 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         baseline = first_line.layout[].first_baseline
         baseline === nothing ? nothing : Int(first_line.y[]) + baseline + space_top
     end))
-    TextToGraphicsIoMap(p, styled, canvas, spacing, char_to_coord, highlight_offset, first_baseline,
-                        lines_cell, get_line_cells, space, text_places, get_visible_height(ctx))
+    (stack = lines_stack, char_to_coord = char_to_coord, width = outer_w, height = outer_h,
+     ibeam = ibeam, span_shapes = span_shapes, first_baseline = first_baseline,
+     groups = lines_cell, line_cells = get_line_cells, places = text_places, block_font = block_font)
 end
 
 # The pointer regions of the spans of `text` that name a shape: one over each
@@ -1000,7 +1056,7 @@ _find_group_line(styled::TextBlock, group) = group.line > 0 ? styled.elements[gr
 # baseline and is as high as the font at its place. `distance` is the real sum of
 # the line distances of the group, where the next group starts, and `height`
 # reaches the lowest ink of the group.
-function _layout_group(p::TextToGraphics, spacing::LineSpacing, group, y0::Int, cursor_pos,
+function _layout_group(p::_TextLayoutProjection, spacing::LineSpacing, group, y0::Int, cursor_pos,
                        collect_spans::Bool, block_font::Cell)
     start_x = p.start_x + _indent_width(p, group, block_font)
     g = _GroupLayout(spacing, y0, start_x)
@@ -1155,7 +1211,7 @@ _GroupLayout(spacing::LineSpacing, y0::Int, start_x::Int) =
 # Close the open line of `g`: find its baseline, place its pieces on it, and move
 # the distance on. `font` sizes a line that has no box. A line that does not
 # `count` places its pieces where the next line begins and adds no height.
-function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, collect_spans::Bool)
+function _close_line!(g::_GroupLayout, p::_TextLayoutProjection, font, counts::Bool, collect_spans::Bool)
     spacing = g.spacing
     if !isempty(g.boxes)
         metrics = compute_line_metrics(g.boxes)
@@ -1221,7 +1277,7 @@ end
 
 # Locate the caret and the selection highlight in the same absolute coordinates
 # the line sub-canvases render into, from the lines that the selection touches.
-function _layout_overlay(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell,
+function _layout_overlay(p::_TextLayoutProjection, spacing::LineSpacing, styled::TextBlock, sel, block_font::Cell,
                          places::_TextPlaces)
     (cursor = _compute_overlay_caret(p, spacing, styled, sel, block_font, places),
      highlight = _compute_overlay_highlight(p, sel, places))
@@ -1231,7 +1287,7 @@ end
 # flat offset, laid out again with the caret by the very layout the line runs, at
 # the place of the line. The layout of a line names its spans `[1, j]`. The caret
 # of a range stands at its moving end.
-function _compute_overlay_caret(p::TextToGraphics, spacing::LineSpacing, styled::TextBlock, sel,
+function _compute_overlay_caret(p::_TextLayoutProjection, spacing::LineSpacing, styled::TextBlock, sel,
                                 block_font::Cell, places::_TextPlaces)
     ends = _find_text_selection_ends(styled, sel, places)
     ends === nothing && return nothing
@@ -1248,7 +1304,7 @@ end
 
 # The rows of the highlight of `sel` (see `_compute_span_rows`), from the segments
 # of the lines that its range touches and the flat base of each of their spans.
-function _compute_overlay_highlight(p::TextToGraphics, sel, places::_TextPlaces)
+function _compute_overlay_highlight(p::_TextLayoutProjection, sel, places::_TextPlaces)
     range = _highlight_char_range(sel)
     range === nothing && return NTuple{4,Int}[]
     coordinates, bases = _collect_flat_range_segments(places, range, p.start_y)
@@ -1279,7 +1335,7 @@ _box_flat_length(::TextDocument) = 0
 # `TextLine`, not a span, so it carries no font of its own: measure it in the font
 # of the line's first glyph span — an indented line is a code line, so that is the
 # font the indent would have had.
-function _indent_width(p::TextToGraphics, group, block_font::Cell)
+function _indent_width(p::_TextLayoutProjection, group, block_font::Cell)
     group.indentation > 0 || return 0
     for (_, span) in group.spans
         font = _element_font(span)
@@ -1373,7 +1429,7 @@ function _fill_placement(span, key, x, y, w, h)
     (kind = :fill, key = key, x = x, y = y, w = w, h = h, color = fill)
 end
 
-_persistent_graphic!(p::TextToGraphics, cache, layout, pl) =
+_persistent_graphic!(p::_TextLayoutProjection, cache, layout, pl) =
     get!(() -> pl.kind === :fill ? _make_persistent_rect(layout, pl) :
                                    _make_persistent_text(p, layout, pl),
          cache, pl.key)
@@ -1386,14 +1442,14 @@ _persistent_graphic!(p::TextToGraphics, cache, layout, pl) =
 # for a run that names `color_default`. The colour cell of each text that draws a
 # span reads it, and no layout does, so a new colour of a span, as a delimiter lit
 # by the pointer takes, repaints the texts of that span and lays out no line.
-function _get_drawn_color(p::TextToGraphics, span::TextString)
+function _get_drawn_color(p::_TextLayoutProjection, span::TextString)
     color = span.font_color::StyleColor
     is_color_equal(color, color_default) ? p.plain_color::StyleColor : color
 end
 
 # A key belongs to one occurrence of one span, so the text of a key reads the
 # colour of the span of its first placement.
-function _make_persistent_text(p::TextToGraphics, layout, pl0)
+function _make_persistent_text(p::_TextLayoutProjection, layout, pl0)
     key = pl0.key
     span = pl0.span
     gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y); font = pl0.font, color = _get_drawn_color(p, span))
@@ -1665,21 +1721,26 @@ function _find_next_row(places::_TextPlaces, L::Int, segments::Vector{SegmentCoo
     end
 end
 
+# The count of the elements that the canvas of the text holds before its segments:
+# the band of the selection in `TextToGraphics`, and none in
+# `TextBlockToGraphicsCanvas`.
+_get_highlight_offset(iomap::TextToGraphicsIoMap) = iomap.highlight_offset
+_get_highlight_offset(::TextBlockToGraphicsCanvasIoMap) = 0
+
 # The caret that a path of the graphics leaf names: an element
 # (`ElementReferenceStep(segment_i)`, 1-based) and a pixel offset inside it
 # (`PointReferenceStep(rx, ry)`), as `GraphicsCanvasToGraphicsImage` maps a point.
 # The matching SegmentCoordinate in char_to_coord gives the segment, and the
 # x-offset gives the character position with `_char_position_at_x`.
-function _find_caret_at_element_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
+function _find_caret_at_element_point(p::_TextLayoutProjection, iomap::_TextLayoutIoMap, path)
     path isa ConcreteReference || return nothing
     h1 = get_reference_head(path)
     h1 isa RangeReferenceStep || return nothing
     i  = h1.start + 1
     rest = get_reference_tail(path)
 
-    # Adjust for highlight rects prepended before text segments
-    hl_off = iomap.highlight_offset
-    i -= hl_off
+    # Adjust for the elements that stand before the text segments
+    i -= _get_highlight_offset(iomap)
     # The drawn elements, and not the places of empty lines, which draw nothing.
     coord_map = filter(_draws_glyph, iomap.char_to_coord)
     (i < 1 || i > length(coord_map)) && return nothing
@@ -1809,7 +1870,7 @@ the last line ends at the node's last char — never the empty box a single boun
 rect painted to the right of the `{`/`}` lines. Rows are returned top-to-bottom; the
 caller paints each as a persistent highlight rect (light blue, ~25% alpha, rounded).
 """
-function _compute_span_rows(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_span_rows(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::_TextLayoutProjection)
     rows = Dict{Int,NTuple{4,Int}}()   # row y => (x_left, x_right, y_top, y_bot)
     order = Int[]                      # rows in first-seen order (deduped to sort)
     for sc in coord_map
@@ -1860,7 +1921,7 @@ the live overlay. `_layout_overlay` today paints the single `_compute_span_geo`
 bounding rect; generalising it to a per-row rect vector (the same render path a
 multi-line stream highlight needs) is the remaining wiring.
 """
-function _compute_column_geo(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::TextToGraphics)
+function _compute_column_geo(coord_map::Vector{SegmentCoordinate}, span_flat_offsets::Dict{SpanPath,Int}, hl_start::Int, hl_stop::Int, p::_TextLayoutProjection)
     # Resolve a flat offset to its (x, y_top, y_bottom) via the segment it falls in.
     function _col(off)
         for sc in coord_map

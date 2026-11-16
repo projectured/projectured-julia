@@ -51,6 +51,7 @@ include("../../../test/domain/markdown/MarkdownImagePictureTest.jl")
 include("../../../test/domain/markdown/MarkdownLinkTargetTest.jl")
 include("../../../test/domain/markdown/MarkdownCodeBlockEditTest.jl")
 include("../../../test/domain/markdown/projection/MarkdownThemeTest.jl")
+include("../../../test/domain/markdown/projection/MarkdownViewTest.jl")
 include("../../../test/domain/markdown/MarkdownSuite.jl")
 
 end # module ProjecturedMarkdownTest

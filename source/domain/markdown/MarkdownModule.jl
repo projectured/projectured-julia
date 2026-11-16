@@ -16,6 +16,7 @@ import ..CellModule: set_cell_computation!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
+import ..ProjectionAlgebraModule: make_content_view
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
@@ -42,6 +43,7 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownToSyntax
 export MarkdownFile, PRED_REF_LANGUAGE, MarkdownFileFormat, get_markdown_section
 export MarkdownRootToVerticalLayout
+export MarkdownView, MarkdownTextView, MarkdownParagraphView, MarkdownHeadingView, MarkdownRootView
 export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownTable, MarkdownTableRow, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion
 
 
@@ -52,6 +54,7 @@ include("MarkdownToSyntax.jl")
 include("MarkdownFile.jl")
 include("MarkdownLinkTarget.jl")
 include("MarkdownToLayout.jl")
+include("MarkdownView.jl")
 
 
 # What this slice registers when it loads: the file extensions it owns, and

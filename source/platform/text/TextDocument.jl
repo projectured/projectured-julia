@@ -1181,11 +1181,14 @@ function _text_span_infos(text::TextBlock)
     infos
 end
 
+# The key helpers below read the caret `selection` over the lines of `text`: the
+# caret of the block itself, or the caret of a view of it (`TextView.jl`).
+
 # Insert (replace the selected flat range with) `str` at the text cursor. Produces
 # a `ReplaceTextRangeOperation` in the flat coordinate; it is lowered to a
 # span/domain edit as it threads up the projection chain.
-function _text_insert(text::TextBlock, str::AbstractString)
-    sel = _text_flat_selection(text)
+function _text_insert(text::TextBlock, str::AbstractString, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     ReplaceTextRangeOperation(make_flat_range_reference(sel[1], sel[2]), str)
 end
@@ -1193,14 +1196,14 @@ end
 # Enter: a break at the cursor. A projection that gives a value of one line
 # declines the break when it maps the edit back, so the key goes on to the bindings
 # around the text, such as the one that makes the value of a type-in.
-_text_break(text::TextBlock) = _text_insert(text, "\n")
+_text_break(text::TextBlock, selection = text.selection) = _text_insert(text, "\n", selection)
 
 # Backspace / Delete: the flat range to remove. A non-empty selection is deleted;
 # a caret removes the char before it (backspace) / after it (delete), clamped at
 # the ends. At the start of the text of a line (backspace) or at its end (delete) it
 # removes the break and the indentation of the lower line, so the two lines join.
-function _text_delete(text::TextBlock, key::Symbol)
-    sel = _text_flat_selection(text)
+function _text_delete(text::TextBlock, key::Symbol, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     rng = s != e ? (s, e) :
@@ -1240,8 +1243,8 @@ end
 # join, as Backspace and Delete join them. Else the key removes the word of
 # `_find_word_range`, and where there is no word to remove, the character that
 # Backspace or Delete removes.
-function _text_word_delete(text::TextBlock, key::Symbol)
-    sel = _text_flat_selection(text)
+function _text_word_delete(text::TextBlock, key::Symbol, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     rng = s != e ? (s, e) :
@@ -1317,9 +1320,9 @@ end
 # to the next stop replace the range. With a range over more than one line, each
 # line of the range takes the spaces of one stop at the start of its text, and the
 # range stays on the lines. Each edit is marked as a change of the indentation.
-function _text_indent(text::TextBlock)
+function _text_indent(text::TextBlock, selection = text.selection)
     text.elements isa ListNode && return nothing
-    ends = _find_text_selection_ends(text, text.selection)
+    ends = _find_text_selection_ends(text, selection)
     ends === nothing && return nothing
     start, stop = minmax(ends.anchor, ends.moving)
     line_range = _find_flat_line_range(text, start)
@@ -1342,9 +1345,9 @@ end
 # of the caret, or of each line of the range, and the selection keeps its place in
 # the text. Each edit is marked as a change of the indentation. With no space to
 # remove, the key goes on.
-function _text_outdent(text::TextBlock)
+function _text_outdent(text::TextBlock, selection = text.selection)
     text.elements isa ListNode && return nothing
-    ends = _find_text_selection_ends(text, text.selection)
+    ends = _find_text_selection_ends(text, selection)
     ends === nothing && return nothing
     lines = _find_selected_lines(text, minmax(ends.anchor, ends.moving)...)
     lines === nothing && return nothing
@@ -1369,8 +1372,8 @@ end
 
 # Ctrl+Left / Ctrl+Right: word-wise cursor motion over the flat stream. Acts on
 # the near end of the selection (left end for :left, right end for :right).
-function _text_word_motion(text::TextBlock, direction::Symbol)
-    sel = _text_flat_selection(text)
+function _text_word_motion(text::TextBlock, direction::Symbol, selection = text.selection)
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     chars = _flat_chars(text)
     newf = direction === :left ?
@@ -1383,15 +1386,15 @@ end
 # range collapses to its near end, and so does a part selected as a whole: the
 # caret goes to its start or its end. A whole part with no character declines, so
 # the syntax layer moves to the part beside it.
-function _text_char_motion(text::TextBlock, direction::Symbol)
-    whole = _find_whole_flat_range(text.selection, text)
+function _text_char_motion(text::TextBlock, direction::Symbol, selection = text.selection)
+    whole = _find_whole_flat_range(selection, text)
     if whole !== nothing
         (s, e) = whole
         s == e && return nothing
         return ReplaceSelectionOperation(make_flat_caret_reference(direction === :left ? s : e))
     end
-    is_structural_selection(text.selection) && return nothing
-    sel = _text_flat_selection(text)
+    is_structural_selection(selection) && return nothing
+    sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     s, e = sel
     newf = if s == e
@@ -1415,9 +1418,9 @@ _find_whole_flat_range(_, ::TextBlock) = nothing
 # anchor. When the moving end passes the anchor, the direction of the range turns.
 # From a caret, the key's direction makes the range. Declines when a whole element
 # is selected, as the plain motion does.
-function _text_extend(text::TextBlock, motion::Symbol)
-    is_structural_selection(text.selection) && return nothing
-    ends = _find_text_selection_ends(text, text.selection)
+function _text_extend(text::TextBlock, motion::Symbol, selection = text.selection)
+    is_structural_selection(selection) && return nothing
+    ends = _find_text_selection_ends(text, selection)
     ends === nothing && return nothing
     anchor, moving = ends
     total = _text_flat_total(text)
@@ -1957,22 +1960,24 @@ _find_flat_place(text::TextBlock, flat::Int, line_index = get_flat_offsets(text)
     something(_flat_to_span(text, flat, line_index), _find_flat_image_place(text, flat, line_index),
               Some(nothing))
 
-# Standalone-TextBlock application. For a projected document the op is lowered
-# upstream and never arrives here. v1 handles the in-span case (caret or range
-# within one span); a cross-span range or an offset on a break/indentation gap
-# declines (leaves the document unchanged) — break-joins and multi-span edits are
-# a later pass.
+# The edit of a text that the reference names: a `TextBlock`, or the text of a
+# `TextView`, whose caret stays on the view. A projected text lowers the edit of one
+# run upstream, so only a text, a view, and an edit of the lines arrive here. It
+# handles a caret or a range within one span and an edit of the lines; a cross-span
+# range or an offset on a break or an indentation gap declines and leaves the
+# document unchanged.
 function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     document = editor.document
     split = _split_text_range_reference(op.reference)
     split === nothing && return
     block_path, start, stop = split
-    block = try
+    target = try
         evaluate_reference(document, block_path)
     catch
         return
     end
-    block isa TextBlock || return
+    block = _find_edited_text(target)
+    block === nothing && return
     offsets = get_flat_offsets(block)
     if _is_line_edit(block, start, stop, op.replacement, offsets)
         newpos = _splice_lines!(block, start, stop, op.replacement)
@@ -1983,6 +1988,9 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     end
     image_edit = _make_image_edit(block, start, stop, op.replacement, offsets)
     if image_edit !== nothing
+        # An element write puts its caret into the lines that it writes, so through
+        # a view it would leave the caret in the content that the views share.
+        block === target || return
         evaluate_operation(editor, reroot_operation(image_edit, Tuple(get_reference_steps(block_path))))
         return
     end
@@ -1997,6 +2005,11 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
     clear_selection!(document)
     set_selection!(document, newref)
 end
+
+# The text that an edit of a text changes: the block itself, or the content of a
+# view (`TextView.jl`); `nothing` for any other document.
+_find_edited_text(target) = nothing
+_find_edited_text(block::TextBlock) = block
 
 # The pair registers the flat edit: the kernel reroots its reference and maps it
 # back through a projection. Under a document the edit stays flat; in the text of

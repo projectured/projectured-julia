@@ -294,11 +294,53 @@ state, and the code keeps them apart.
 - **A view document of one kind of content takes the suffix `View`**
   ([naming-rules.md](naming-rules.md)).
 
-A fold has no view document yet. The JSON, Markdown, YAML, XML and reStructuredText
-types declare a `collapsed` field that no projection reads: the fold that a person
-makes is a cell of the syntax node that each print makes, so two views fold apart,
-and a new print of a part loses its fold. The workflow and conversation types keep
-their fold in the content, which every view shares and a save writes.
+### A type that has views
+
+For a type that has views, the caret and the fold live in the view, and the
+content holds neither.
+
+- **A `ContentView` is the supertype of the views of a content.** A view keeps the
+  content that it shows in the field `viewed`. Each view type has one field for
+  each child field of its content, and that field holds the views of the children,
+  such as `JsonArrayView.elements`. A view is a tree with one node for each node of
+  its content, so a path of the content is a path of the view.
+- **The state of one view is in the view.** The caret, the part under the pointer,
+  the folds (`collapsed` of a `SyntaxNodeView` and of a `JsonArrayView`, `closed_folds`
+  of a `TextView`) and the look of a text (`wrap`, `line_spacing`) belong to one
+  view. Two views of one content keep two carets and two folds. The content is
+  shared, saved and compared with no state of a view.
+- **A view type has a method of `make_content_view`** for its content type. A
+  content type with no such method has no view, and prints as content.
+- **A content type that has a view has no field `viewed`.** A view type names the
+  content in `viewed`, so a path that names a field of the content must not meet a
+  field of that name. A viewing step throws an error for a view whose content has such a field.
+- **A field of a view hides the field of its content with the same name.** A view
+  type chooses the names of its state, such as `collapsed`, so that its content
+  does not use them.
+- **A view owns no place that takes a pasted value.** A paste and a cut do not
+  write into a view. The container that holds a view owns its place, and a paste
+  replaces the whole view there.
+
+These types have views: `TextBlock` (`TextView`); `SyntaxLeaf` and `SyntaxNode`
+(`SyntaxLeafView`, `SyntaxNodeView`); the JSON types that `JsonView.jl` defines,
+which are `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString` and `JsonArray`; and
+the four Markdown types that `MarkdownView.jl` defines: `MarkdownText`,
+`MarkdownParagraph`, `MarkdownHeading` and `MarkdownRoot`. A JSON object, an object
+entry and every other Markdown type print as content inside a view and take no
+caret in their text there.
+
+Every other type and every other chain has no view: the type keeps its caret in
+its own selection field. The widgets have no views. A
+text of a widget keeps its caret in a `TextView`, and the widget itself keeps its
+own caret. A view reads the whole list of its children: there is no view of a lazy
+list.
+
+Only the folds of the syntax, JSON and text views are state of a view. The YAML,
+XML, reStructuredText and Markdown types declare a `collapsed` field that no
+projection reads: the fold that a person makes is a cell of the syntax node that
+each print makes, so two views fold apart, and a new print of a part loses its
+fold. The workflow and conversation types keep their fold in the content, which
+every view shares and a save writes.
 
 ## Enforcement
 

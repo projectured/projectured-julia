@@ -163,7 +163,7 @@ so a document with no selection never looks dormant.
 function is_live_selection end
 
 """
-    map_selection_forward(source, map) -> image or nothing
+    map_selection_forward(source, map; live = true) -> image or nothing
 
 The forward image of `source`'s selection, carrying its live/dormant state.
 
@@ -174,5 +174,29 @@ end of the chain has nothing left to paint pale.
 
 `map` receives the stored path and returns the image, normally through
 `map_reference_forward`.
+
+`live` says whether the place of the print is on the path of the live selection
+(`is_live_place` of the printer context). A document that is at two places stores
+one selection, and the live path reaches it through one of them: with
+`live = false`, the image of a live selection is a dormant one.
 """
 function map_selection_forward end
+
+"""
+    has_live_selection_below(document, steps) -> Bool
+
+Whether `document` holds a live selection whose path starts with `steps`, the
+steps from `document` to one of its children. The live selection is one path from
+the root, and each document on it stores the part below itself, so this says
+whether the path goes on from `document` into that child.
+
+A printer context asks it for each child of a parent, to tell the child whether
+its place is on the path of the live selection (`is_live_place`).
+
+# Example
+
+    set_selection!(document, @reference(document, children[2]))
+    steps = (FieldReferenceStep("children"), ElementReferenceStep(2))
+    has_live_selection_below(document, steps)     # true
+"""
+function has_live_selection_below end

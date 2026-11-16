@@ -165,6 +165,33 @@ selection works everywhere for free.
 node's selection and does not need the path to the root. See
 [selection.md](../package/kernel/selection.md).
 
+#### A view of a content
+
+For a type that has a view, the caret and the folds are not in the document. The
+document is a **content**. A `ContentView` holds what it shows in the field
+`viewed`, and holds the state of one showing. A view of a compound holds the views
+of its children under the name of the child field of its content, and a path of
+the content is a path of the view.
+
+```julia
+array  = JsonArray([JsonString("a"), JsonString("b")])
+view_a = JsonArrayView(array)          # view_a.viewed === array
+view_b = make_sibling_view(view_a)     # a second view of the same array
+replace_selection!(view_a, @reference(view_a, elements[2].value{1}))
+view_a.elements[2].selection           # the caret of view_a, below the second element
+view_b.selection                       # nothing: view_b keeps a caret of its own
+array.selection                        # nothing: the content holds no caret
+view_a.collapsed = true                # closes the array in view_a only
+```
+
+`make_content_view(content)` makes the view of a content, and gives `nothing` for
+a type that has none. A parent view makes the views of its children with
+`make_child_views`, so each child takes the view of its own type. A step of a
+chain, wrapped in `ViewingProjection`, prints the content of a view with the
+projection of the content and gives the view of the next domain. See
+[the selection guide](../package/kernel/selection.md) and
+[the projection system](../package/kernel/projection-system.md).
+
 ### 2.5 Gesture — what the user did
 
 A **gesture** is a backend-independent input event.

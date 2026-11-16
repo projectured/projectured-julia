@@ -14,9 +14,9 @@ The JSON domain, `ProjecturedJSON`, holds JSON data as a tree of reactive docume
 | `JsonBool` | `value::Bool` | `true` or `false` |
 | `JsonNumber` | `value::Union{Real, Nothing}` | the number |
 | `JsonString` | `value::String` | the escaped text in quotes |
-| `JsonArray` | `elements`, `collapsed` | `[a, b]` |
-| `JsonObject` | `entries`, `collapsed` | `{"k": v}` |
-| `JsonObjectEntry` | `key::String`, `value`, `collapsed` | `"k": v` |
+| `JsonArray` | `elements` | `[a, b]` |
+| `JsonObject` | `entries` | `{"k": v}` |
+| `JsonObjectEntry` | `key::String`, `value` | `"k": v` |
 
 `elements` and `entries` are `CellVector{Document}` fields, so an element of an array or an object can be a document of any domain. `@forward_vector_protocol` lets you index a `JsonArray` as a vector, and `@adapt_map_protocol` lets you use a `JsonObject` as a map from key to value. A `JsonNumber` holds `nothing` while you delete all of its text. The printer then shows the hint "enter json number" and does not call `string` on the value. A text that a number can not show yet, such as `-` or `1e`, makes the number a `JsonInsertion` that holds the text. A key that makes the exact text of a number turns it back into a `JsonNumber`, and Enter commits any text that parses as a number. A `JsonBool` takes no text: a key gesture changes it.
 
@@ -54,6 +54,24 @@ The `@gestures` tables of `source/domain/json/JsonDocument.jl` hold every struct
 A rule with no key has a name, and the command palette runs it by that name; see [gesturehelp.md](../../platform/gesturehelp/gesturehelp.md). The sort is stable, and an entry that is still a placeholder stays at the end.
 
 The retype rules have the guard `_json_replaceable`. It returns `false` when the selection names a `JsonObjectEntry`, so an entry stays a key and value pair and you retype its value instead.
+
+### The views
+
+Five JSON types have a view ([JsonView.jl](../../../../source/domain/json/JsonView.jl)): `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView` and `JsonArrayView`, all subtypes of `JsonView <: ContentView`. A `JsonObject` and a `JsonObjectEntry` have none. The view keeps what it shows in `viewed`, and the caret is a path of the content, such as `.value{3}` in a string view. The caret and the fold are in the view, and the JSON document holds neither.
+
+`JsonArrayView(viewed, elements, collapsed)` holds the view of each element in `elements`, in the order of the elements of the array, and follows them by identity (`make_child_views`). A path such as `.elements[2].value{3}` is a path of the array and of its view. `collapsed` is the fold of the view, which another view of the same array does not share. An element with no view, such as an object, has `nothing` in its place and prints as content.
+
+The chain of views wraps the stages that the chain has already:
+
+```julia
+ChainingProjection(RecursiveProjection(ViewingProjection(JsonToSyntax())),            # JsonArrayView -> SyntaxNodeView
+                   RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),   # -> TextView
+                   TextFolding(),
+                   RecursiveProjection(TypeDispatchingProjection(
+                       TextView => TextViewToGraphicsCanvas(), TextBlock => TextBlockToGraphicsCanvas(; measure))))
+```
+
+No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the node of the array, whose children are the views of the nodes of the elements and whose fold is the fold of the array view. The key table `@gestures JsonView` replaces the node that the caret names with null, false, true, a string, an array, an object or a number (the keys `n`, `f`, `t`, `"`, `[`, `{` and a digit). `@gestures JsonArrayView` appends an element with `,` to the innermost array around the caret, as an edit of the content that goes through the view (`make_content_edit`). A JSON part inside a Markdown view takes a `JsonArrayView` with no code in either domain ([markdown.md](../markdown/markdown.md#views)). The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view.
 
 ### The text form
 
@@ -172,7 +190,7 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 
 ## Limits
 
-- No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. [plan/pending/collapse-expand-syntax-nodes.md](../../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
+- The fold of an array is state of a `JsonArrayView`. In a chain with no view, such as `JsonToSyntax()` on a `JsonArray`, the fold that a person makes is a cell of the syntax node that the print makes, and a new print of the array loses it. A `JsonObject` and a `JsonObjectEntry` have no view, so no fold of theirs exists, and inside a view they print as content and take no caret in their text.
 - `,` appends at the end of the container, not after the selected element.
 - The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

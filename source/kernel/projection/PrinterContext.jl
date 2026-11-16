@@ -33,7 +33,8 @@ Downward-flowing per-invocation context for `print_document`.
   gives none, the space is 0 on each side. So a printer that does not know the
   space can not pass it one level too deep.
 - `properties` — open-ended `Dict{Symbol, Any}` for per-projection data
-  (theme, focus, debug flags, …).
+  (theme, focus, debug flags, …). It also carries the live flag of the place of
+  the context, which a parent tells each child (`is_live_place`).
 - `clock` — the animation clock a printer subscribes to for animated
   output. The default is a new `Clock` that no code writes, so an animation
   printed with it stays at time 0. A caller that animates gives the root context
@@ -59,8 +60,9 @@ properties that a parent sets for its subtree.
 
 See also `make_child_context`, which makes the context of a child,
 `make_reference_cell`, which makes a cell of a path that follows the path of a
-context, and `with_exact_size`, `with_bounded_size` and `with_property`, which
-change one part.
+context, `is_live_place`, which says whether the live selection reaches the place
+of a context, and `with_exact_size`, `with_bounded_size` and `with_property`,
+which change one part.
 """
 struct PrinterContext
     reference::Union{ImmutableCell{Any}, Cell}
@@ -191,12 +193,19 @@ already-typed parent reference. This preserves the strict-typing invariant
 across the print recursion.
 `current_doc` is any document (not a `ReferenceStep`/`Reference`,
 which select the other methods).
+
+The parent also tells the child whether its place is on the path of the live
+selection: the place of the child is live when the place of `ctx` is live and the
+live selection of `current_doc` goes on into the child (`is_live_place`). A method
+that gets no `current_doc` gives the child the flag of `ctx` as it is.
 """
 function make_child_context(ctx::PrinterContext, current_doc::Document,
                             first::ReferenceStep, rest::ReferenceStep...)
-    relative = annotate_reference_types(current_doc, Reference(first, rest...))
-    _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx);
-                 reference = make_reference_cell(reference -> concat_references(reference, relative), ctx))
+    steps = (first, rest...)
+    relative = annotate_reference_types(current_doc, Reference(steps...))
+    child = _with_ranges(ctx, _get_width_range(ctx), _get_height_range(ctx);
+                         reference = make_reference_cell(reference -> concat_references(reference, relative), ctx))
+    with_live_place(child, () -> _is_child_place_live(ctx, current_doc, steps))
 end
 
 """
@@ -250,8 +259,10 @@ index cell.
 make_element_context(ctx::PrinterContext, index::AbstractCell, make_steps) =
     _make_element_context(ctx, index, i -> Reference(make_steps(i)...))
 
-make_element_context(ctx::PrinterContext, current_doc::Document, index::AbstractCell, make_steps) =
-    _make_element_context(ctx, index, i -> annotate_reference_types(current_doc, Reference(make_steps(i)...)))
+function make_element_context(ctx::PrinterContext, current_doc::Document, index::AbstractCell, make_steps)
+    child = _make_element_context(ctx, index, i -> annotate_reference_types(current_doc, Reference(make_steps(i)...)))
+    with_live_place(child, () -> _is_child_place_live(ctx, current_doc, make_steps(index[])))
+end
 
 function _make_element_context(ctx::PrinterContext, index::AbstractCell, make_relative)
     reference = if ctx.reference isa ImmutableCell && index isa ImmutableCell
@@ -414,3 +425,60 @@ Look up `key` in `ctx.properties`, returning `default` when missing.
 """
 get_property(ctx::PrinterContext, key::Symbol, default=nothing) =
     get(ctx.properties, key, default)
+
+"""
+    is_live_place(ctx) -> Bool
+
+Whether the place of `ctx` is on the path of the live selection. The live
+selection is one path from the root. A document that is at two places stores one
+selection, and the path reaches it through one of the places, so only the print of
+that place shows the selection as live; the print of any other place shows the
+same stored path as a dormant selection.
+
+The root is live. A parent tells each child: `make_child_context(ctx, parent,
+steps...)` gives the child a live place when the place of the parent is live and
+the live selection of the parent goes on into the child. The answer follows the
+selection, so read it in a computation. `nothing` in place of a context is a live
+place.
+
+Use it where a print shows the selection of its input: take the selection as live
+only when `is_live_selection` of the input and this both say so.
+`make_output_path_cells` and `set_output_path_computations!` do this with their
+`context` keyword.
+
+# Example
+
+    is_live = Cell(@computation is_live_selection(input) && is_live_place(ctx))
+"""
+is_live_place(ctx::PrinterContext) = _read_live_place(get_property(ctx, :live_place))
+is_live_place(::Nothing) = true
+
+_read_live_place(::Nothing) = true
+_read_live_place(is_live) = is_live()::Bool
+
+"""
+    with_live_place(ctx, is_live) -> PrinterContext
+
+A copy of `ctx` whose place is on the path of the live selection when `is_live()`
+answers `true`. `is_live` reads the cells that decide it, so a computation that
+calls `is_live_place` follows them.
+
+Use it in a recursion that knows the parent of a child better than
+`make_child_context` does, such as a recursion that prints the view of a child in
+the place of its content.
+
+# Example
+
+    steps = (FieldReferenceStep("children"), ElementReferenceStep(2))
+    child = with_live_place(child, () -> is_live_place(ctx) && has_live_selection_below(view, steps))
+"""
+with_live_place(ctx::PrinterContext, is_live) = with_property(ctx, :live_place, is_live)
+
+# Whether the child at `steps` of `document`, whose context is `ctx`, is at a live
+# place. A document with no selection field stores no part of the path, so its
+# child takes the flag of its place as it is.
+function _is_child_place_live(ctx::PrinterContext, document, steps)
+    is_live_place(ctx) || return false
+    hasfield(typeof(document), :selection) || return true
+    has_live_selection_below(document, steps)
+end

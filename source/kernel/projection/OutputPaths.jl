@@ -3,7 +3,7 @@
 # of path of the input.
 
 """
-    make_output_path_cells(input, map_forward; dormant = true) -> NamedTuple
+    make_output_path_cells(input, map_forward; dormant = true, context = nothing) -> NamedTuple
 
 The cells of every kind of path of the output document that a printer makes from
 `input`, as keyword arguments for the constructor of the output: `selection` and
@@ -12,6 +12,11 @@ The cells of every kind of path of the output document that a printer makes from
 `nothing`. The selection carries a dormant selection as one
 (`map_selection_forward`); with `dormant = false` it maps only a live one, for an
 output that routes keys by its selection. The part under the pointer maps as it is.
+
+`context` is the printer context of the print. With it, the selection of the output
+is live only when the place of the print is on the path of the live selection
+(`is_live_place`): a document that is at two places shows its selection as live at
+one of them. With `nothing`, the stored state of `input` decides alone.
 
 Use it wherever a printer wires the selection of its output: the one forward map of
 the place then wires every kind of path, and a later kind needs no code there.
@@ -26,29 +31,31 @@ the place then wires every kind of path, and a later kind needs no code there.
     end)
     output = TextBlock(elements; paths...)
 """
-make_output_path_cells(input, map_forward; dormant::Bool = true) =
+make_output_path_cells(input, map_forward; dormant::Bool = true, context = nothing) =
     map(compute -> Cell(@computation(compute())),
-        _get_output_path_computations(input, map_forward, dormant))
+        _get_output_path_computations(input, map_forward, dormant, context))
 
 """
-    set_output_path_computations!(output, input, map_forward; dormant = true) -> output
+    set_output_path_computations!(output, input, map_forward; dormant = true, context = nothing) -> output
 
 Set the computation of every path cell of `output`, which a printer built already,
 as [`make_output_path_cells`](@ref) makes them: each holds the forward image of the
 same kind of path of `input` through `map_forward`. A field that `output` does not
-have is left out.
+have is left out. `context` is the printer context of the print, as for
+`make_output_path_cells`.
 """
-function set_output_path_computations!(output, input, map_forward; dormant::Bool = true)
-    for (name, compute) in pairs(_get_output_path_computations(input, map_forward, dormant))
+function set_output_path_computations!(output, input, map_forward; dormant::Bool = true, context = nothing)
+    for (name, compute) in pairs(_get_output_path_computations(input, map_forward, dormant, context))
         hasfield(typeof(output), name) && set_cell_computation!(getfield(output, name), compute)
     end
     output
 end
 
 # One computation for each kind of path of an output document, by field name.
-_get_output_path_computations(input, map_forward, dormant::Bool) =
-    (selection = dormant ? () -> map_selection_forward(input, map_forward) :
-                           () -> (is_live_selection(input) ? map_selection_forward(input, map_forward) : nothing),
+_get_output_path_computations(input, map_forward, dormant::Bool, context) =
+    (selection = dormant ? () -> map_selection_forward(input, map_forward; live = is_live_place(context)) :
+                           () -> ((is_live_selection(input) && is_live_place(context)) ?
+                                  map_selection_forward(input, map_forward) : nothing),
      mouse_target = () -> map_mouse_target_forward(input, map_forward))
 
 """

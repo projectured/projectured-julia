@@ -47,10 +47,11 @@ using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: replace_wrapped_document!, get_edited_field
+import ..DocumentModule: replace_wrapped_document!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionAlgebraModule: make_content_view
 
 export TextSpanReferenceStep
 export TextColumnReferenceStep
@@ -64,7 +65,7 @@ export TextTheme, ScaledTextTheme
 export ReferenceTheme, ScaledReferenceTheme
 export TextToGraphics, TextToGraphicsIoMap
 export TextGutter, TextGutterToGraphics, TextBlockToScrollLayout, TextBlockToScrollLayoutIoMap
-export TextFold, TextFolding, TextFoldingIoMap
+export TextFold, TextFolding, TextFoldingIoMap, TextViewFoldingIoMap
 export TextBlockToString, TextStringToString, TextSpacingToString, TextGraphicsToString,
        TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
@@ -72,7 +73,8 @@ export WordWrapping, WordWrappingIoMap
 export make_text_pattern
 export FilteredText, FilteredTextToText, FilteredTextToTextIoMap
 export TextFirstLine, TextFirstLineIoMap
-export TextView, make_text_view, TextViewToGraphics, TextViewToGraphicsIoMap
+export TextView, TextViewToGraphicsCanvas, TextViewToGraphicsCanvasIoMap
+export TextBlockToGraphicsCanvas, TextBlockToGraphicsCanvasIoMap
 export HighlightedText, HighlightedTextToText, HighlightedTextToTextIoMap, HighlightSegment
 export MarkedText, TextMark, MarkedTextToText, compute_moved_text_marks, make_marked_text_lines
 export SelectionInverting, SelectionInvertingIoMap, SelectionSegment
@@ -87,7 +89,9 @@ include("TextColumnReferenceStep.jl")
 include("TextRangeReferenceStep.jl")
 include("TextDocument.jl")
 include("TextTheme.jl")
+include("TextBlockToGraphicsCanvas.jl")
 include("TextToGraphics.jl")
+include("TextView.jl")
 include("TextGutterToGraphics.jl")
 include("TextBlockToScrollLayout.jl")
 include("TextToString.jl")
@@ -95,7 +99,6 @@ include("FaultToText.jl")
 include("TextLineNumbering.jl")
 include("TextFolding.jl")
 include("WordWrapping.jl")
-include("TextView.jl")
 include("TextPattern.jl")
 include("FilteredTextToText.jl")
 include("TextFirstLine.jl")

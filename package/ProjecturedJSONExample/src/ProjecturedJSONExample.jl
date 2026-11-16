@@ -44,11 +44,16 @@ end
 
 include("../../../example/domain/json/JsonDocumentExample.jl")
 include("../../../example/domain/json/JsonProjectionExample.jl")
+include("../../../example/domain/json/JsonViewDocumentExample.jl")
+include("../../../example/domain/json/JsonViewProjectionExample.jl")
 
 export make_json_document_example, make_json_null_document_example, make_json_bool_document_example
 export make_json_number_document_example, make_json_insertion_document_example, make_json_string_document_example
 export make_json_array_document_example, make_json_object_document_example, make_json_object_entry_document_example
 export make_json_projection_example, make_json_console_projection_example, make_json_sorted_projection_example
 export make_json_null_projection_example, make_json_string_projection_example
+export make_json_string_view_document_example, make_json_string_view_projection_example
+export make_json_array_view_document_example, make_json_array_view_projection_example
+export make_json_view_places_document_example
 
 end # module ProjecturedJSONExample

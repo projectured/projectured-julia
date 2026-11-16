@@ -230,6 +230,64 @@ When the focus returns to a document with a dormant selection, the next
 extending the incoming path with the dormant one it finds at the point the two
 diverge.
 
+### A document at two places
+
+The live selection is one path from the root. A document that two containers
+hold stores one selection, and the path reaches it through one of the two places.
+The stored state can not tell the places apart, so the print of each place asks
+its printer context: `is_live_place(ctx)` says whether the place of the print is
+on the path of the live selection.
+
+The printer context of each child carries the answer. `make_child_context(ctx, parent, steps...)` gives the
+child a live place when the place of the parent is live and the live selection of
+the parent goes on into the child (`has_live_selection_below(parent, steps)`). The
+root is live. A context made with no parent document gives the child the flag of
+the parent as it is.
+
+A print takes the selection of its input as live only when the stored state and
+the place both say so:
+
+```julia
+is_live = Cell(@computation is_live_selection(input) && is_live_place(ctx))
+```
+
+`make_output_path_cells` and `set_output_path_computations!` do the same with the
+keyword `context = ctx`, and `map_selection_forward` with the keyword `live`. So
+the place that the path reaches shows a live selection, and every other place of
+the same document shows the same stored path as a dormant one. The flag is a
+computation over the selections of the documents above the place, so it follows
+the selection with no new print.
+
+### A selection through views
+
+A type that has views keeps no part of the path in its content. The caret goes
+through the views, and the content holds none ([architecture-rules.md](../../rule/architecture-rules.md#content-documents-and-view-documents)).
+The path is still one path from the root, and its steps are the steps of the
+content. The walk that stores the path enters a child view by the name of its
+field, such as `.elements[2]`. It stops at the view where the next step names a
+field that the view does not have, such as `.value{3}`, because the walk enters a
+child only when the document has that field. So `view.elements[2].selection`
+holds `.value{3}`, and the `JsonString` below it holds nothing.
+
+- **Each view keeps its caret while the focus is elsewhere.** A `ContentView`
+  answers `has_dormant_selection` with `true`. When a write moves the path away,
+  the view keeps its part as a dormant selection, and a later path that comes back
+  makes it live again.
+- **One view at two places has one caret.** The place that the live selection
+  reaches draws it live, and the other place draws it dormant
+  (`is_live_place`). `ViewRecursion` gives a child view the flag of its place: the
+  place of the parent is live and the live caret of the parent goes on into the
+  child. Two views of one content are different documents, so each keeps its own
+  caret.
+- **A write of the stored path repairs the parts below it.** When a write of a
+  value puts a document into a place on the path, that document holds no part of
+  the path, or another part, or a dormant one. The write walks the path again from
+  the first document that does not hold its part (`_repair_selection_chain!`) and
+  writes no cell above it. A paste that puts a new view into a place uses this.
+- **A text view keeps a flat caret.** The caret of a `TextView` is a place such as
+  `{3}` in the flat string of its text, and it never enters the `TextBlock` that
+  the view shows, so a block that two views share holds none.
+
 ## Selection stored in each domain type
 
 Different domains interpret selection paths differently, but always as the same
@@ -246,7 +304,8 @@ are elements or characters.
 | `JsonObject` | `[i] + <entry path>` — into entry `i` (1-based) |
 | `SyntaxLeaf` | `.open/.value/.close + {k}` — cursor at offset `k` in the named span |
 | `SyntaxNode` | `[i] + <child path>` — into child `i`; or `.open/.close + {k}` for delimiter |
-| `TextBlock` | `{k}` — flat cursor at offset `k` in the flat string of the lines |
+| `TextBlock` | `{k}` — flat cursor at offset `k` in the flat string of the lines; a `TextBlock` under a `TextView` holds none, the view holds it |
+| `TextView`, `SyntaxLeafView`, `SyntaxNodeView`, a JSON view, a Markdown view | The path of its content, such as `.value{3}` or `.elements[2].value{3}` |
 
 `GraphicsText`, `GraphicsRect`, and `GraphicsCanvas` are **not** selectable
 containers. They are terminal output; the selection mechanism does not enter

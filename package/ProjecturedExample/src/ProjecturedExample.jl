@@ -73,6 +73,7 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportDocumentExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "MarkdownJsonViewDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "WorkflowCompleteDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "NaturalDocumentExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneDocumentExample.jl"))
@@ -84,6 +85,7 @@ include(joinpath(_EXAMPLE_DIR, "ClipboardProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "DraggingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FocusingProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "FormulaReportProjectionExample.jl"))
+include(joinpath(_EXAMPLE_DIR, "MarkdownJsonViewProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "PaneProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "VersioningProjectionExample.jl"))
 include(joinpath(_EXAMPLE_DIR, "UndoProjectionExample.jl"))
@@ -178,6 +180,8 @@ export make_formula_insertion_document_example, make_formula_invoice_document_ex
 export make_formula_queue_document_example, make_formula_estimate_document_example
 export make_formula_grid_projection_example
 export make_formula_report_document_example, make_formula_report_projection_example
+export make_markdown_json_view_document_example, make_markdown_json_view_projection_example,
+       make_markdown_json_to_syntax, markdown_json_view_example
 export make_workflow_complete_document_example
 export make_chart_document_example, make_chart_projection_example,
        make_chart_pipeline_example,
@@ -377,7 +381,8 @@ export make_json_console_projection_example
 export record_assistant_conversation_video
 export json_typein_live, json_select_and_edit_live, json_insert_live, json_build_live, json_build_example
 export generate_example_screenshots, update_guide_screenshots
-export json_example, json_sorted_example, json_insertion_example
+export json_example, json_sorted_example, json_insertion_example, json_string_view_example,
+       json_array_view_example, json_view_places_example
 export yaml_example
 export xml_example, mixed_example, natural_example, syntax_example, text_example, plain_text_example, text_with_image_example
 export object_example, object_to_widget_example, nested_object_to_widget_example, line_numbering_example, word_wrapping_example, text_filtering_example, text_highlighting_example

@@ -15,7 +15,7 @@ The clipboard is a wrapper document around the whole content of a window:
 
 `ClipboardSliceToAnyProjection` prints the content on display through the recursion, at the context of the clipboard's own `content` step, and prints the stored `slice` through the recursion too, only while `display_slice` is set. Its output is a computed cell that chooses the content's output or the slice's output by that cell. So Ctrl+/ toggles the view with a plain cell write, and only the child on display prints again. The output has no node for the clipboard itself: a reference forward loses the `content` or `slice` step, and a reference backward gets it again. `ClipboardCollectionToAnyProjection` prints its `elements` vector as one document the same way, only while `display_collection` is set, so only a projection that draws a vector can render it.
 
-The reader has seven gestures, in a gesture table of the projection:
+The reader has eight gestures, in a gesture table of the projection:
 
 | Key | Gesture | What it stores or does |
 | --- | --- | --- |
@@ -23,8 +23,9 @@ The reader has seven gestures, in a gesture table of the projection:
 | Ctrl+Shift+C | copy the reference | Julia code that gives the selected document, as text |
 | Ctrl+X | cut | what a copy of a range stores, or the selected document itself; and the content's Delete at the same selection |
 | Ctrl+N | note | the selected document itself, not a copy: a live bookmark |
-| Ctrl+V | paste | the stored document replaces the selection |
+| Ctrl+V | paste | the stored document replaces the selection; for a stored view of a content, a second view of the same content does |
 | Ctrl+Shift+V | paste a copy | a copy of the stored document replaces the selection |
+| Ctrl+Alt+V | paste the same view | the stored document itself replaces the selection, a stored view too |
 | Ctrl+/ | toggle | shows the stored document instead of the content |
 
 A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`.
@@ -60,6 +61,20 @@ A stored document that is no plain text, pasted at such a text cursor, goes firs
 A stored document that is no plain text, pasted while the selection names a whole document, goes first to that document, by the same `make_pasted_document_operation`. A dashboard takes it as a new card and a workflow step as an element, so a paste on the row of a dashboard in an explorer adds a card. Only when the document takes nothing does the paste replace it, by the three checks above.
 
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. The pane slice adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
+
+### Pastes of a view
+
+A stored document can be a view (`ContentView`) of a content. A view keeps the caret and the folds of one showing, so three pastes of it give three results:
+
+| Keys | The content | The view |
+| --- | --- | --- |
+| Ctrl+C, then Ctrl+V | a copy | a new view |
+| Ctrl+N, then Ctrl+V | the same content | a new view |
+| Ctrl+N, then Ctrl+Alt+V ("Paste the same view") | the same content | the same view at a second place |
+
+Ctrl+C stores a copy of the view: a new view of a copy of the content, with the folds of the view (`copy_document` of a `ContentView`). Ctrl+N stores the view itself. Ctrl+V puts in what `make_pasted_document` answers for the stored document, which for a view is `make_sibling_view(stored)`: a second view of the content of the stored view. It starts with the folds of the stored view and its caret as a dormant one, and it never is the stored view. Ctrl+Alt+V puts the stored view itself, so its two places share one caret and one fold, and the place that the live selection reaches draws the caret live ([selection.md](../../kernel/selection.md#a-selection-through-views)). Ctrl+Shift+V puts a copy, as for any document. A paste selects what it puts in as a whole; the caret of the stored view waits in the new view as a dormant one.
+
+A view owns no place that takes a pasted value (`is_admitted_by_declared_type` of a `ContentView` answers `false`), and a cut takes an element out of a list only when the owner of the list accepts the change (`_is_slot_accepting`, the check that a paste makes). So a paste and a cut do not write into a view: its parts are the views of the parts of its content. A paste can replace the whole view at the place that its container owns, and a cut of a view that is an element of a layout takes it out of the layout.
 
 ### The reference
 

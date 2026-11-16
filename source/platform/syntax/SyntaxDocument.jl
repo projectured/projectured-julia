@@ -674,25 +674,37 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
     KeyDown(:home; ctrl, alt) => "Select the root node" =>
         ReplaceSelectionOperation(EmptyReference())
     KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
-    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
-        sel = doc.selection
-        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
-                                             _promote_to_structural(sel)
-        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    end
-    when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
-        new_path = _tree_navigate(doc, doc.selection, k)
-        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    end
-    when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" => begin
-        sel = doc.selection
-        _is_tree_selection(sel) || return nothing
-        # The text takes a plain Left or Right on an element that has a character
-        # and puts the caret at its start or its end.
-        k in (:left, :right) && _has_rendered_text(_find_selected_node(doc, sel)) && return nothing
-        new_path = _tree_navigate(doc, sel, k)
-        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    end
+    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => _toggle_syntax_cursor(doc, doc.selection)
+    when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
+        _navigate_syntax_tree(doc, doc.selection, k)
+    when(KeyDown(k;), k in (:up, :down, :left, :right)) => "Navigate the tree" =>
+        _navigate_selected_syntax_node(doc, doc.selection, k)
+end
+
+# The key helpers of a syntax node or leaf read the caret `selection` over `node`:
+# the caret of the node itself, or the caret of a view of it (`SyntaxView.jl`).
+
+# Ctrl+Space: a whole node becomes a caret at the start of its first text, and a
+# caret becomes the whole node.
+function _toggle_syntax_cursor(node, selection)
+    new_path = _is_tree_selection(selection) ? _descend_to_text_cursor(node, selection) :
+                                               _promote_to_structural(selection)
+    new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+end
+
+# An arrow with Alt: the next node of the tree in `direction`.
+function _navigate_syntax_tree(node::SyntaxCompound, selection, direction::Symbol)
+    new_path = _tree_navigate(node, selection, direction)
+    new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
+end
+
+# A plain arrow on a whole node: the next node of the tree in `direction`. The text
+# takes a plain Left or Right on an element that has a character and puts the caret
+# at its start or its end.
+function _navigate_selected_syntax_node(node::SyntaxCompound, selection, direction::Symbol)
+    _is_tree_selection(selection) || return nothing
+    direction in (:left, :right) && _has_rendered_text(_find_selected_node(node, selection)) && return nothing
+    _navigate_syntax_tree(node, selection, direction)
 end
 
 # The node that the tree selection `sel` names inside `node`, or `nothing`.
@@ -885,10 +897,5 @@ _descend_to_text_cursor(::SyntaxLeaf, _sel) =
     KeyDown(:home; ctrl, alt) => "Select the whole leaf" =>
         ReplaceSelectionOperation(EmptyReference())
     KeyDown(:a; ctrl) => "Select all" => ReplaceSelectionOperation(EmptyReference())
-    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => begin
-        sel = doc.selection
-        new_path = _is_tree_selection(sel) ? _descend_to_text_cursor(doc, sel) :
-                                             _promote_to_structural(sel)
-        new_path === nothing ? nothing : ReplaceSelectionOperation(new_path)
-    end
+    KeyDown(:space; ctrl) => "Toggle structural / text cursor" => _toggle_syntax_cursor(doc, doc.selection)
 end

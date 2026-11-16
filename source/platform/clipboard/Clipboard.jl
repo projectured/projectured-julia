@@ -224,6 +224,21 @@ around what a person sees, such as a pane tab around the document it shows.
 find_clipboard_document(document) = document isa Document ? document : nothing
 
 """
+    make_pasted_document(stored) -> Document
+
+The document that a paste puts in for `stored`, the document that a copy, a cut or
+a note stored. `stored` itself by default, so a paste of a noted document puts
+that document at a second place.
+
+A view of a content answers a second view of the same content
+(`make_sibling_view`), which starts with the folds and the caret of `stored`. A
+paste then gives a view with a caret of its own, and never the same view twice;
+the gesture "Paste the same view" puts `stored` itself.
+"""
+make_pasted_document(stored) = stored
+make_pasted_document(stored::ContentView) = make_sibling_view(stored)
+
+"""
     ClipboardCopyPolicy()
 
 The policy of the copy that a copy gesture stores. It copies as the plain copy
@@ -303,10 +318,11 @@ end
 # The edit that takes the whole selected document out of its slot, or `nothing`
 # when the slot must not change: the `place`, the path from the clipboard
 # document to the nearest document above the slot that is not a list, and the
-# `operation`, relative to that place. From a list the element goes, and the
-# selection names the element that takes its place, the one before it, or the
-# document that holds the list. A field takes the empty document of the domain
-# of what it held, by the rules of a paste.
+# `operation`, relative to that place. From a list the element goes, when the
+# owner of the list admits a write of that slot, and the selection names the
+# element that takes its place, the one before it, or the document that holds the
+# list. A field takes the empty document of the domain of what it held, by the
+# rules of a paste.
 function _make_whole_delete(input)
     slot = _find_writable_slot(input)
     slot === nothing && return nothing
@@ -314,6 +330,9 @@ function _make_whole_delete(input)
     (place, rest) = _split_at_place(input, slot.path)
     if step isa RangeReferenceStep && is_element_collection(slot.parent)
         step.stop == step.start + 1 || return nothing
+        # The owner of the list decides whether its list changes, as it decides for
+        # a paste. A view owns no place, so no element goes from the list of a view.
+        _is_slot_accepting(slot.parent, step, slot.document, slot.owner) || return nothing
         steps = get_reference_steps(rest)
         return (; place, operation = _make_element_delete(steps, step.stop, length(slot.parent)))
     end

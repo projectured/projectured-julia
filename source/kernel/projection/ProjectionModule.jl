@@ -61,7 +61,7 @@ selection mechanism.
 
 | Fragment | Contract |
 |---|---|
-| [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
+| [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree; `is_live_place` — whether the live selection reaches the place of a context |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
 | [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
@@ -99,7 +99,8 @@ export ProjectionReferenceStep, make_introduced_reference, is_introduced_referen
        has_introduced_step, find_introduced_path, normalize_named_node_reference
 export PrinterContext, make_child_context, make_element_context, make_reference_cell,
        with_exact_size, with_bounded_size, with_size_range, with_inner_size, get_exact_width,
-       get_exact_height, with_free_axis, with_clock, with_property, get_property
+       get_exact_height, with_free_axis, with_clock, with_property, get_property,
+       is_live_place, with_live_place
 export make_children_container, get_children_container_type,
        get_projection_gesture_bindings
 export read_projection_gesture

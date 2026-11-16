@@ -7,6 +7,9 @@
 # `ProjecturedExample` umbrella.
 
 const json_example           = Example("json",           make_json_document_example,           make_json_projection_example)
+const json_string_view_example = Example("json_string_view", make_json_string_view_document_example, make_json_string_view_projection_example)
+const json_array_view_example = Example("json_array_view", make_json_array_view_document_example, make_json_array_view_projection_example)
+const json_view_places_example = Example("json_view_places", make_json_view_places_document_example, make_json_array_view_projection_example)
 const json_sorted_example    = Example("json_sorted",    make_json_document_example,           make_json_sorted_projection_example)
 # A bare `JsonInsertion` (the typed-name insertion buffer) under the FULL json projection, so
 # the placeholder can be authored into any JSON value (the leaf insertion
@@ -158,6 +161,9 @@ const formula_queue_example  = Example("formula_queue",   make_formula_queue_doc
 const formula_estimate_example = Example("formula_estimate", make_formula_estimate_document_example, make_formula_projection_example)
 # A Markdown page that holds a sheet: a loan repayment report.
 const formula_report_example = Example("formula_report",  make_formula_report_document_example, make_formula_report_projection_example)
+# A Markdown document that holds a JSON array, in one view at two places: the view
+# of the document, and the view of its JSON part alone.
+const markdown_json_view_example = Example("markdown_json_view", make_markdown_json_view_document_example, make_markdown_json_view_projection_example)
 # `versioning_example` is deliberately kept OUT of the `examples` registry below
 # (like `clipboard_example`). The version-elimination projection selects one of
 # several `ObjectVersion`s by criterion and re-roots edits under
@@ -186,6 +192,9 @@ const domain_examples = Example[
     json_example,
     json_sorted_example,
     json_insertion_example,
+    json_string_view_example,
+    json_array_view_example,
+    json_view_places_example,
     yaml_example,
     xml_example,
     mixed_example,
@@ -263,6 +272,7 @@ const domain_examples = Example[
     formula_invoice_example,
     formula_queue_example,
     formula_report_example,
+    markdown_json_view_example,
     versioning_example,
     undo_example,
     undo_history_example,

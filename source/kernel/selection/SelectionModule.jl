@@ -16,7 +16,8 @@ atomically — it is never half-applied.
 A selection that a document keeps when the focus leaves it is **dormant**.
 `has_dormant_selection` says whether a document keeps one,
 `get_stored_selection` and `is_live_selection` read the path and whether it is
-live, and `map_selection_forward` carries that state through a projection.
+live, `has_live_selection_below` says whether the live path goes on into a child,
+and `map_selection_forward` carries that state through a projection.
 
 A selection's payload is a `Reference` stored on a `Document`, which is why
 these primitives live above references and the document contract.
@@ -39,7 +40,7 @@ using ..ReferenceModule
 export get_selection, clear_selection!, set_selection!,
        var"@selected", replace_selection!, SelectionMismatchException,
        has_dormant_selection, get_stored_selection,
-       is_live_selection, map_selection_forward
+       is_live_selection, has_live_selection_below, map_selection_forward
 
 include("SelectionInterface.jl")
 include("SelectionDefaults.jl")

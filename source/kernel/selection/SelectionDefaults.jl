@@ -30,12 +30,22 @@ _is_live_value(value::SelectionDocument) = value.live
 # is `false` by default, because most callers guard on `nothing` before mapping.
 # A projection that **introduces** a selection maps `nothing` to a real image, so
 # such a caller passes `true` and lets the mapper answer for the missing path.
-function map_selection_forward(source, map; map_missing::Bool = false)
+function map_selection_forward(source, map; map_missing::Bool = false, live::Bool = true)
     path = get_stored_selection(source)
     (path === nothing && !map_missing) && return nothing
     image = map(path)
     image === nothing && return nothing
-    is_live_selection(source) ? image : SelectionDocument(; primary = image, live = false)
+    (live && is_live_selection(source)) ? image : SelectionDocument(; primary = image, live = false)
+end
+
+function has_live_selection_below(document, steps)
+    is_live_selection(document) || return false
+    path = get_stored_selection(document)
+    for step in steps
+        (path isa ConcreteReference && path.head == step) || return false
+        path = path.tail
+    end
+    true
 end
 
 get_stored_selection(document) = _get_stored_path(_get_selection_value(document))
@@ -256,6 +266,11 @@ end
 #     then fix the parent path's `.tail` cell in place to keep the chain shared
 #     — so cells *above* the divergence stay untouched too.
 #
+#   * Where the path is the stored one, no cell is written while each document
+#     on it holds its part. A write of a value can put another document into a
+#     place on the path; that document then takes its part, and the documents
+#     below it theirs (`_repair_selection_chain!`).
+#
 # The eager reactive engine has no value-equality short-circuit (see
 # ReactiveCell.jl), so the whole point is to avoid the *writes*, not to rely on the
 # engine to absorb redundant ones.
@@ -269,8 +284,10 @@ function _sync_selection!(document, path, owner = nothing)
     old = _get_stored_path(stored)
     # A live write through a node revives it: the wrapper goes, the path stays.
     stored isa SelectionDocument && (cell[] = old)
-    (old isa Reference && path isa Reference && is_reference_equal(old, path)) &&
+    if old isa Reference && path isa Reference && is_reference_equal(old, path)
+        _repair_selection_chain!(document, old)
         return old
+    end
 
     if old isa ConcreteReference && path isa ConcreteReference
         old_child = _selection_child(document, old)
@@ -306,6 +323,24 @@ function _sync_selection!(document, path, owner = nothing)
         nc === nothing || set_selection!(nc, path.tail)
     end
     return path
+end
+
+# Make each document below `document` on its stored path `path` hold its part of
+# the path as a live selection. The parts agree after a write of a selection. A
+# write of a value can put another document into a place on the path, which holds
+# no part, another part or a dormant one. From the first document that does not
+# hold its part, the walk writes the parts again; above it, no cell is written.
+function _repair_selection_chain!(document, path)
+    path isa ConcreteReference || return
+    child = _selection_child(document, path)
+    child === nothing && return
+    tail = path.tail
+    if hasfield(typeof(child), :selection)
+        stored = getfield(child, :selection)[]
+        (stored === tail || (stored isa Reference && is_reference_equal(stored, tail))) ||
+            return _set_selection_walk!(child, tail)
+    end
+    _repair_selection_chain!(child, tail)
 end
 
 # The child Document that `path`'s head step descends into, or `nothing` when

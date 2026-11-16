@@ -55,6 +55,7 @@ import ..CellModule: set_cell_computation!
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..NaturalModule: make_syntax_to_text_projection
+import ..ProjectionAlgebraModule: make_content_view, map_view_state!, read_view_operation
 
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_computation!,
@@ -77,6 +78,7 @@ export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSy
        default_factory, default_completion, parse_completion
 export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
+export SyntaxLeafView, SyntaxNodeView
 export FaultToSyntax
 export MarkedTextToSyntaxLeaf
 
@@ -84,6 +86,7 @@ export MarkedTextToSyntaxLeaf
 include("SyntaxDocument.jl")
 include("SyntaxTheme.jl")
 include("SyntaxToText.jl")
+include("SyntaxView.jl")
 include("FaultToSyntax.jl")
 include("ObjectToSyntax.jl")
 include("ObjectFieldToSyntax.jl")

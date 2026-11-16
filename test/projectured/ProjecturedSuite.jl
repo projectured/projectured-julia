@@ -207,6 +207,7 @@ include("projection/UndoRoundTripTest.jl")
 include("projection/GestureMapTest.jl")
 include("projection/ReferenceInspectorTest.jl")
 include("projection/TextInkTest.jl")
+include("projection/MarkdownJsonViewTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
 include("projection/TableSelectionTest.jl")
@@ -596,6 +597,9 @@ function test_integration()
     # Every gesture that makes a recorded change is taken back, and the document
     # returns to the text it had.
     test_undo_round_trip()
+    # A JSON part of a Markdown document, in the view of the document and at a
+    # place of its own.
+    test_markdown_json_view()
     # The guards of the first window and of the gestures of the binary are
     # measurements: `tool/measure-compile-ahead.jl` runs them, by hand and before
     # each release, as documentation/design/compile-ahead.md (U7) says.
@@ -696,7 +700,7 @@ export test_collapse_roundtrip
 export test_tree_navigation, test_tree_navigations, test_tree_navigations_complete, explore_tree_selections
 export test_assistant_mvp, test_assistant_stream, test_window_frame_guards, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
-export test_undo_round_trip
+export test_undo_round_trip, test_markdown_json_view
 export test_application, test_file_workloads, test_scroll_work, test_pointed_part, test_history_sweep, test_file_watch_window, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,

@@ -43,6 +43,31 @@ The image holds its picture as a tab holds the file that it shows. `MarkdownRoot
 
 An edit changes no hold. An image that an edit adds, or whose url an edit changes, holds no picture until the next load of the page, and it shows its url until then.
 
+### Views
+
+Four Markdown types have a view ([MarkdownView.jl](../../../../source/domain/markdown/MarkdownView.jl)), all subtypes of `MarkdownView <: ContentView`:
+
+| View | Shows | Holds its children as |
+| --- | --- | --- |
+| `MarkdownTextView` | a `MarkdownText` | none |
+| `MarkdownParagraphView` | a `MarkdownParagraph` | `content` |
+| `MarkdownHeadingView` | a `MarkdownHeading` | `content` |
+| `MarkdownRootView` | a `MarkdownRoot` | `elements` |
+
+A view keeps what it shows in `viewed` and holds the views of the children under the name of the child field of its content, so `.elements[2].content[1].content{3}` is a path of the document and of its view. The caret is in the view. Every other Markdown type (the lists, the code block, the quote, the table, the link and the others) has no view, and prints as content inside a view; the caret in its text is not available there, and a caret names it only as a whole. The `collapsed` field of a Markdown type is read by no view.
+
+A child takes the view of its own type (`make_content_view`). So an element of a `MarkdownRoot` that is a `JsonArray` takes a `JsonArrayView`, with its own caret and fold, and neither domain names the other:
+
+```julia
+root = MarkdownRoot([MarkdownParagraph([MarkdownText("The values:")]),
+                     JsonArray([JsonString("a")])])
+view = MarkdownRootView(root)
+view.elements[1]    # a MarkdownParagraphView
+view.elements[2]    # a JsonArrayView
+```
+
+The stage that prints both domains to the syntax is one table in which each domain keeps its own row (`MarkdownDocument => MarkdownToSyntax()`, `JsonDocument => JsonToSyntax()`, `Vector{Cell} => CopyingProjection()`), wrapped in a `ViewingProjection`. The view of the JSON part and the view of the Markdown document print through the same stages, and a key goes to the view of the JSON part first when the caret is in it. The view of the JSON array can also have a place of its own, such as `view.elements[2]` in a second pane, which shows the same caret and the same fold.
+
 ## The text form
 
 `parse_markdown` reads the blocks and the inlines listed above. It reads the Markdown that the documentation tools write: a list item takes the lines below it that start no block, a run of lines indented by 4 columns is a code block with no language, a Julia admonition (`!!! note "title"` and an indented body) is a quote whose first paragraph is the title in bold, and a GitHub table is a `MarkdownTable`. A `|` escaped as `\|` is a pipe in its entry. The parser joins the lines of a paragraph with a space, so a page printed back is not always the text it was read from: a paragraph is one line, an indented code block is fenced, an admonition is a quote, and an ordered list has bullets. `MarkdownFile` is the file type, for `.md` and `.markdown`. A reference to a node in another file is a fenced code block with the language `pred-ref`, because a fence is the opaque block of Markdown.
