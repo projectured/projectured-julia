@@ -316,10 +316,11 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   1 fail and 1 broken: the fail is the time guard `FormulaFrameGuardTest.jl:67`, a ratio
   of 3.7 and 4.5 to the limit 3.0, which fails on main too (4.2 on `3fd04ea4b`, run
   alone).
-- [ ] **6. omnet-julia and inet-julia follow,** in worktrees of their own and in the same
+- [x] **6. omnet-julia and inet-julia follow,** in worktrees of their own and in the same
   landing: the NED, INI, test, result, event log and fingerprint files. Test:
   `Pkg.precompile()` of `environment/all` of omnet-julia with no warning, and its suites
-  that open a file.
+  that open a file. **Done** 2026-11-16: omnet-julia branch `file-format` (its plan, steps
+  1 to 5), inet-julia branch `file-format` (its two lists only); see §10.
 - [ ] **7. The documentation of §7** (the documentation part is done 2026-11-16, see §10; the compile-ahead lists remain), and the record of the compile-ahead lists again,
   because they name the old types. Test: `test_documentation()`, `test_naming()`,
   `test_arguments()`, `test_exports()`, `test_package_graph()`, the layering guards, then
@@ -1080,3 +1081,25 @@ table.
      layout is a row of the kind of its schema".
 - **omnet-julia.** The three assertions of the fingerprint store follow P6 (the omnet plan
   §10), and the INI module says that its format and its natural notation are methods.
+
+**2026-11-16, step 6 and the record of step 7.**
+
+- **The projectured lists** (`f4e2b1352`). `record_repository_calls!()` and then
+  `record_application_calls!("ProjecturedBuild", "projectured")` on the merged branch, in
+  one job of 12 GB: 22 package lists and 29 application lists, 50 minutes, peak 9.1 GB. Two
+  tries at 7.5 GB were killed for lack of memory in the precompile of `ProjecturedPlatform`
+  with its new list. The workload of `ProjecturedExample` fails for 4 of its 142 examples,
+  the same 4 as the record of main by another session (`json_sorted`, `filesystem`,
+  `files`, `chart`). No list names a removed file type. A count of the calls that do not
+  resolve finds only format calls of `Dates` and `Printf`, which the count can not rebuild,
+  and one closure of a scratch module of a formula example.
+- **omnet-julia** (its plan, steps 1 to 5): the formats, the natural notation as a method,
+  one file type, and its lists recorded again after these (`b4275aa1d`); the suites equal
+  main, and the three assertions of the fingerprint store follow P6. A precompile of every
+  omnet package gives no warning of a stale list.
+- **inet-julia** has no code change. Its two lists record again in an environment whose
+  sources name the three branches (`e42f144`), and its precompile gives no warning.
+- **The XML defect** of §10, step 5, still waits for the owner. Its fix changes only
+  `ProjecturedXML`, so its list records again alone after the fix: the lists below it are
+  fresh.
+
