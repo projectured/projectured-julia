@@ -1,4 +1,5 @@
-# Fragment of `MarkdownModule` — `MarkdownFile`, the `.md` file on disk.
+# Fragment of `MarkdownModule` — `MarkdownFile`, the `.md` file on disk, and
+# `MarkdownFileFormat`, its format.
 #
 # A cross-file reference is written in Markdown as a fenced block in the
 # `pred-ref` language holding the marker. The file writes one where the save
@@ -42,6 +43,25 @@ make_reference_leaf(::MarkdownFile, marker::AbstractString) =
 find_reference_marker(node::MarkdownCodeBlock) =
     _is_marker_block(node) ? parse_marker_text(strip(_unwrap(getfield(node, :code)))) : nothing
 parse_file_content(::Type{<:MarkdownFile}, text::AbstractString) = parse_markdown(text)
+
+"""
+    MarkdownFileFormat()
+
+The format of a `.md` or `.markdown` file: its string is the Markdown text of
+one page, a `MarkdownDocument`, and its file is a `MarkdownFile`. A new file
+takes `.md`. A reference to another file is a fenced block in the `pred-ref`
+language that holds the marker.
+"""
+struct MarkdownFileFormat <: FileFormat end
+
+get_file_format_extensions(::MarkdownFileFormat) = (".md", ".markdown")
+get_file_format_domain(::MarkdownFileFormat) = MarkdownDocument
+parse_document_string(::MarkdownFileFormat, string::AbstractString) =
+    parse_markdown(string)
+make_reference_leaf(::MarkdownFileFormat, marker::AbstractString) =
+    MarkdownCodeBlock(PRED_REF_LANGUAGE, make_marker_text(marker))
+get_file_type(::MarkdownFileFormat) = MarkdownFile
+get_file_format(::MarkdownFile) = MarkdownFileFormat()
 
 # ── The `section` vocabulary function ──────────────────────────────────────
 

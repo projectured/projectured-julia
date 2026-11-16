@@ -19,7 +19,9 @@ import ..NavigatorModule: find_navigator_target
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
-                              splice_named_file!
+                              splice_named_file!,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..DisplayModule: make_workload_file
 import ..DocumentModule: get_view_state_fields
 import ..DomainModule: acquire_document!, release_document!
@@ -37,7 +39,7 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
        MarkdownImageToStyledNode, MarkdownListToStyledNode,
        MarkdownToSyntax
-export MarkdownFile, PRED_REF_LANGUAGE, get_markdown_section
+export MarkdownFile, PRED_REF_LANGUAGE, MarkdownFileFormat, get_markdown_section
 export MarkdownRootToVerticalLayout
 export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownTable, MarkdownTableRow, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion
 

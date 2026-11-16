@@ -1,4 +1,5 @@
-# Fragment of `JsonModule` — `JsonFile`, the `.json` file on disk.
+# Fragment of `JsonModule` — `JsonFile`, the `.json` file on disk, and
+# `JsonFileFormat`, its format.
 #
 # A cross-file reference is written in JSON as a string whose whole value is a
 # marker. The file writes one where the save cuts, and the load splices the node
@@ -25,6 +26,23 @@ parse_file_content(::Type{<:JsonFile}, text::AbstractString) = parse_json(text)
 
 # Emit runs the `JsonToSyntax → SyntaxToText → TextToString` chain.
 emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
+
+"""
+    JsonFileFormat()
+
+The format of a `.json` file: its string is the JSON text of one
+`JsonDocument`, and its file is a `JsonFile`. A reference to another file is a
+JSON string whose whole value is the marker.
+"""
+struct JsonFileFormat <: FileFormat end
+
+get_file_format_extensions(::JsonFileFormat) = (".json",)
+get_file_format_domain(::JsonFileFormat) = JsonDocument
+parse_document_string(::JsonFileFormat, string::AbstractString) = parse_json(string)
+make_reference_leaf(::JsonFileFormat, marker::AbstractString) =
+    JsonString(make_marker_text(marker))
+get_file_type(::JsonFileFormat) = JsonFile
+get_file_format(::JsonFile) = JsonFileFormat()
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its

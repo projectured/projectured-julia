@@ -166,10 +166,12 @@ function test_file_format()
         @test find_file_format(:TLY) === format
         @test find_file_format("a.no-such-extension") === nothing
         @test find_file_format(:nosuchextension) === nothing
-        # A path with no extension does not name a format by its file name.
-        @test find_file_format("tally") !== format
-        # A type with a field is no format.
-        @test find_file_format(".tally-field") === nothing
+        # A path with no extension does not name a format by its file name: it
+        # names the format of `""`, plain text.
+        @test find_file_format("tally") === TextFileFormat()
+        # A type with a field is no format, so its extension is a path with no
+        # extension too.
+        @test find_file_format(".tally-field") === TextFileFormat()
     end
 
     @testset "an extension that two formats declare is an error that names both" begin

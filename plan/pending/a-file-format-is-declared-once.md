@@ -240,10 +240,18 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   `test_pred_file()`, `test_text_file()`, `test_naming()`, `test_package_graph()`,
   `test_platform_layering()`, `test_exports()`, `test_arguments()`,
   `test_documentation()`. See §10.
-- [ ] **3. Each format is declared.** The eight domains, plain text, `.pred`, the pictures
+- [x] **3. Each format is declared.** The eight domains, plain text, `.pred`, the pictures
   and the source files of the language server each get a format type and its methods. The
   old tables stay for this step. Test: one contract test over `collect_file_formats()`: the
   extensions, the domain, and parse then print of the workload text of each format.
+  **Done** 2026-11-16, with the Julia fix `285f60d1b` before it. `test_file_format_contract()`
+  297 pass and 1 fail: the XML assertion of the contract test fails until the owner
+  decides the white space of an XML text (§10). Equal to the baseline, with the same
+  failures: the eight domain suites, `test_languageserver()`, `test_file_format()`,
+  `test_pred_file()`, `test_text_file()`, `test_file_project()`, `test_serialization()`,
+  `test_file_tab()`, the three natural tests, and the guards `test_naming()`,
+  `test_exports()`, `test_arguments()`, `test_documentation()`, `test_package_graph()` and
+  `test_platform_layering()`. `test_julia()` 793 pass, with the 1 failure of the baseline.
 - [ ] **4. The natural slice reads the seams.** Add `make_syntax_projection`,
   `find_natural_file_format`, `make_document_expression` and the general method of
   `make_document_string`. `parse_natural_text`, `print_natural_text`,
@@ -450,3 +458,105 @@ table.
   `collect_file_formats()` must check them too, or check only the formats of the packages
   of the product.
 
+
+**2026-11-16, step 3: each format is declared.**
+
+- **Where each lives.** Each format is a type with no field beside the file type of today,
+  in the same fragment, and its module exports it: `JsonFileFormat` (`JsonFile.jl`),
+  `XmlFileFormat`, `YamlFileFormat`, `SqlFileFormat`, `MarkdownFileFormat`,
+  `RstFileFormat`, `JuliaFileFormat` and `MathFileFormat` in their domains,
+  `TextFileFormat` (`TextFile.jl`) and `PredFileFormat` (`PredFile.jl`) in the
+  serialization slice, `ImageFileFormat` (`Image.jl`) in the style slice, and
+  `SourceFileFormat` (`LanguageServerDocument.jl`) in the language server adapter. Each
+  module imports the seams that it extends. The old functions on the file types do not
+  change and call no new method.
+- **The extensions.** The same 26 extensions as the calls of
+  `register_file_document_type!`, and no extension that two formats declare, so
+  `find_file_format` raises no error. The first is the extension of a new file: `.yaml`
+  and `.md`, as `_FORMATS` names them, and not the shorter `.yml` that
+  `find_file_extension` answers (§3). Three formats have no default today: plain text
+  takes `(".txt", "")`, so a new file has an extension that names its format again; the
+  pictures keep the order of the loop of `StyleModule` (`.png` first); the source files
+  take the keys of `SOURCE_FILE_LANGUAGES` in the order of their names (`.c` first), so
+  the table stays the one place that names them.
+- **The domains** are those of `get_file_domain`: `Union{}` for plain text and a source
+  file, `Document` for `.pred` and a picture. `is_file_domain_node` has a method for
+  `.pred` and math only, as today. The picture declares `is_editable_file_format` false
+  and `read_file_content`, and no parser and no string.
+- **`make_document_string` in this step** has a method for the three formats whose string
+  is not the print of a tree: plain text (the string as it is), `.pred`
+  (`print_pred_text`) and a source file (the text of its marked text, also through a
+  history, as `emit_text`). The `.pred` method writes no line break at the end, because
+  by P6 the write adds it, and it does not add the name of the file to a
+  `FileCutException`, which `emit_text` does: a format knows no file name, so that note
+  belongs to the write of step 5. No other format writes a string that is not a tree.
+- **One body for `is_written_in_file` of `.pred`.** The method on `PredFile` and the
+  method on `PredFileFormat` both call the private `_is_written_in_pred_file`. The other
+  methods of the formats are one line each and repeat the line of the file type, which
+  step 5 removes.
+- **A path with no extension names plain text.** `TextFileFormat` declares `""`, so
+  `find_file_format("tally")` and `find_file_format(".tally-field")` give
+  `TextFileFormat()`. The test of step 2 asserted `nothing` for the second; it now
+  asserts plain text, as the rule of step 2 says (a string that no format declares is a
+  path).
+- **The contract test** is `test_file_format_contract()` in
+  `test/projectured/serializer/FileFormatContractTest.jl`, where every domain and the
+  language server are loaded; `test_documents()` runs it. A row of `make_workload_file`
+  counts for the format of its file name, so the five `.pred` rows (book, chart, graph,
+  research, workflow) test the `.pred` format. The formats with no workload text are
+  named and asserted: `ImageFileFormat`, `SourceFileFormat`, and the two formats of
+  `FileFormatTest.jl`.
+- **"The same text" is a fixed point.** The workload text of JSON, XML, YAML, SQL and
+  Julia is not in the layout of their printer (the record of step 1), so the first print
+  is not the workload text. The test parses the workload text, prints it, parses the
+  print, and asserts that the second print equals the first. Where the format declares
+  `make_document_string`, the test also asserts that `emit_text` writes the same string,
+  or the string and one line break.
+- **For step 4.** The methods of `.pred` and of a source file take a document of any
+  type. A general method `make_document_string(::FileFormat, ::Document)` would be
+  ambiguous with them for a `Document`; the general method takes an untyped document, or
+  the two methods take a narrower type.
+- **The export guard.** `LanguageServerModule.jl` fails the guard on main ("the names are
+  not in the order that `LanguageServerDocument.jl` defines them"). The longer import
+  moves that statement from line 39 to line 42; the violation is the same.
+- **Two defects of today that step 3 shows.** Each one is on main, and each one breaks the
+  promise of `parse_document_string`: the string of a document parses to an equal
+  document. The Julia defect is fixed in its own commit, `285f60d1b`. The XML defect waits
+  for the owner, and the landing waits for that answer.
+  - **The print of XML is not stable.** `parse_xml` keeps the white space around a text
+    that is not white space alone (`XmlParser.jl:114` drops only a text of white space
+    alone), and the printer writes a text on a line of its own with an indentation. So
+    the string that a save writes today, `"<person>\n  <name>\n    Alice\n  </name>\n</person>"`,
+    reads and prints as `"<person>\n  <name>\n    \n        Alice\n      \n  </name>\n</person>"`:
+    each load and save of an XML file adds white space. The contract test fails at
+    this row, and at no other.
+  - **The print of Julia drops the comma of a tuple of one element.**
+    `JuliaTupleToSyntaxNode` (`JuliaToSyntax.jl:461`) writes the elements between
+    `(` and `)` with `, ` between them, so `(".jl",)` prints as `(".jl")`, a string in
+    parentheses: the save of a Julia file changes what the code means.
+    `JuliaParserTest.jl` reads `JuliaFile.jl` as a fixture, and the new line
+    `get_file_format_extensions(::JuliaFileFormat) = (".jl",)` makes its test "a real
+    file keeps every comment, in order" fail (line 309): the print of the print is not
+    the print. **Fixed** in `285f60d1b`: the close of the tuple is a computed text, `,)`
+    for one element and `)` otherwise, as the close of a top level writes its `;`. The
+    fixture is not changed. A test prints, parses and navigates `(".jl",)`, and the comma
+    follows a `push!` and a `deleteat!` through the same IO map.
+- **Question for the owner: is the white space at the start and the end of an XML text
+  data or layout?** Two places can fix the XML defect. (1) Layout, the recommendation of
+  the assistant: the parser removes the white space around a text, and the printer stays;
+  a text whose spaces matter, such as `<code>  x</code>`, loses them. This follows the
+  owner's rule of 2026-11-03: no layout in the tree, and the printer makes the layout.
+  (2) Data: the parser keeps it, and the printer writes each text as it is, on the line of
+  its tags; a text between child elements needs a rule of its own. (3) Later: a known
+  failure, and a plan of its own. Until the answer, the XML row of the contract test fails.
+- **For step 6.** Today a format of another package can register itself on top of `.txt`
+  or of a name with no extension, which plain text declares. With one format for each
+  extension, such a format is an error of `find_file_format`. The inventory of omnet-julia
+  found none, and step 6 checks it again.
+- **A caret does not reach the places inside a Julia string** in the chain
+  `JuliaToSyntax → SyntaxToText → TextToGraphics`, with
+  `test_position_navigation(...; check_reaches_all = true)`: `".jl"` alone leaves 4 places
+  unreached, `[".jl"]` 4, `f(".jl")` 6 (also the 2 places of the name `f`), and
+  `(".jl",)` 4. No Julia test asked for every place before. This plan does not fix it,
+  and the editor is not checked. The tuple test checks the navigation with no
+  `check_reaches_all`.

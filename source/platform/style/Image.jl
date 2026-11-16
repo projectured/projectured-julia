@@ -1,8 +1,8 @@
 # Fragment of `StyleModule`.
 #
 # The image document domain. Provides the picture of a file, a memory-backed image
-# document and the file document of a picture file. The first two share the
-# abstract `ImageDocument` base.
+# document, and the file document of a picture file with its format. The first two
+# share the abstract `ImageDocument` base.
 # ── Abstract base ──────────────────────────────────────────────────────────
 
 """
@@ -249,6 +249,23 @@ ImageFile(filename::AbstractString) = ImageFile(String(filename), Image(filename
 get_file_domain(::Type{<:ImageFile}) = Document
 is_editable_file_type(::Type{<:ImageFile}) = false
 read_file_content(::Type{<:ImageFile}, path::AbstractString) = Image(path)
+
+"""
+    ImageFileFormat()
+
+The format of a picture file, `.png`, `.jpg`, `.jpeg`, `.bmp` or `.gif`: its file
+is an `ImageFile`, whose content is the `Image` of the path, which reads nothing
+when it is made. A person does not edit such a file, and the format has no
+string: it declares no parser and no conversion of a document to a string.
+"""
+struct ImageFileFormat <: FileFormat end
+
+get_file_format_extensions(::ImageFileFormat) = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+get_file_format_domain(::ImageFileFormat) = Document
+is_editable_file_format(::ImageFileFormat) = false
+read_file_content(::ImageFileFormat, path::AbstractString) = Image(path)
+get_file_type(::ImageFileFormat) = ImageFile
+get_file_format(::ImageFile) = ImageFileFormat()
 
 # A load of the file gives the history a new picture of the same path. The file keeps
 # the picture that holds the pixels, which asks for the new ones, and the new picture

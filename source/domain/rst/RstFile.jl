@@ -1,4 +1,5 @@
-# Fragment of `RstModule` — `RstFile`, the `.rst` file on disk.
+# Fragment of `RstModule` — `RstFile`, the `.rst` file on disk, and
+# `RstFileFormat`, its format.
 #
 # A cross-file reference is written in reStructuredText as a `pred-ref`
 # directive whose argument is the marker. The file writes one where the save
@@ -35,6 +36,23 @@ find_reference_marker(node::RstDirective) =
     _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE ?
         parse_marker_text(strip(_unwrap(getfield(node, :argument)))) : nothing
 parse_file_content(::Type{<:RstFile}, text::AbstractString) = parse_rst(text)
+
+"""
+    RstFileFormat()
+
+The format of a `.rst` file: its string is the reStructuredText of one
+document, an `RstDocument`, and its file is an `RstFile`. A reference to another
+file is a `pred-ref` directive whose argument is the marker.
+"""
+struct RstFileFormat <: FileFormat end
+
+get_file_format_extensions(::RstFileFormat) = (".rst",)
+get_file_format_domain(::RstFileFormat) = RstDocument
+parse_document_string(::RstFileFormat, string::AbstractString) = parse_rst(string)
+make_reference_leaf(::RstFileFormat, marker::AbstractString) =
+    RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
+get_file_type(::RstFileFormat) = RstFile
+get_file_format(::RstFile) = RstFileFormat()
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 

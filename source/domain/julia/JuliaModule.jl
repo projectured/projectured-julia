@@ -18,7 +18,9 @@ import ..ArrangementModule: get_arrangement_value
 import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text,
-                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
+                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..WidgetModule: compute_code_pieces, make_graphics_projection
 import ..DisplayModule: make_workload_file
 
@@ -29,7 +31,8 @@ export compute_julia_signature, get_julia_expression_without_comments
 export JuliaTheme, ScaledJuliaTheme
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 export JuliaObjectToSyntaxLeaf
-export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
+export JuliaFile, PRED_REF_FUNCTION_NAME, JuliaFileFormat, find_julia_definition,
+       get_julia_definition_name
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
        JuliaNothingToSyntaxLeaf, JuliaSymbolToSyntaxLeaf, JuliaCharToSyntaxLeaf,

@@ -197,6 +197,28 @@ emit_text(file::SourceFile) = _find_marked_text(get_file_content(file)).text
 # A source file holds no document of a domain, so nothing in it is a reference.
 get_file_domain(::Type{<:SourceFile}) = Union{}
 
+"""
+    SourceFileFormat()
+
+The format of a source file of a language that a language server serves, by
+each extension of `SOURCE_FILE_LANGUAGES`, such as `.c` or `.hpp`: its string is
+the text of the file, which a `MarkedText` holds, and its file is a
+`SourceFile`. The format has no domain, so nothing in the text is a reference.
+"""
+struct SourceFileFormat <: FileFormat end
+
+# The extensions in the order of their names, so a new file takes `.c`.
+const _SOURCE_FILE_EXTENSIONS = Tuple(sort!(collect(keys(SOURCE_FILE_LANGUAGES))))
+
+get_file_format_extensions(::SourceFileFormat) = _SOURCE_FILE_EXTENSIONS
+get_file_format_domain(::SourceFileFormat) = Union{}
+parse_document_string(::SourceFileFormat, string::AbstractString) =
+    MarkedText(text = String(string))
+# The text that the content holds, also when a history holds the marked text.
+make_document_string(::SourceFileFormat, document) = _find_marked_text(document).text
+get_file_type(::SourceFileFormat) = SourceFile
+get_file_format(::SourceFile) = SourceFileFormat()
+
 # The open of a tab acquires the file: it watches the file on disk, as every file
 # does, and takes the server of the editor for the command of the file. It starts
 # no process; the first work of the background cell does.

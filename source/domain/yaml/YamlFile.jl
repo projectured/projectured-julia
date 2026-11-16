@@ -1,4 +1,5 @@
-# Fragment of `YamlModule` — `YamlFile`, the `.yaml` (and `.yml`) file on disk.
+# Fragment of `YamlModule` — `YamlFile`, the `.yaml` (and `.yml`) file on disk,
+# and `YamlFileFormat`, its format.
 #
 # A cross-file reference is written in YAML as a string scalar whose whole
 # value is the marker, the same way JSON uses a string. The file writes one
@@ -26,6 +27,23 @@ parse_file_content(::Type{<:YamlFile}, text::AbstractString) = parse_yaml(text)
 
 # Emit runs the `YamlToSyntax → SyntaxToText → TextToString` chain.
 emit_text(f::YamlFile) = print_natural_text(get_file_content(f))
+
+"""
+    YamlFileFormat()
+
+The format of a `.yaml` or `.yml` file: its string is the YAML text of one
+`YamlDocument`, and its file is a `YamlFile`. A new file takes `.yaml`. A
+reference to another file is a string scalar whose whole value is the marker.
+"""
+struct YamlFileFormat <: FileFormat end
+
+get_file_format_extensions(::YamlFileFormat) = (".yaml", ".yml")
+get_file_format_domain(::YamlFileFormat) = YamlDocument
+parse_document_string(::YamlFileFormat, string::AbstractString) = parse_yaml(string)
+make_reference_leaf(::YamlFileFormat, marker::AbstractString) =
+    YamlString(make_marker_text(marker))
+get_file_type(::YamlFileFormat) = YamlFile
+get_file_format(::YamlFile) = YamlFileFormat()
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its

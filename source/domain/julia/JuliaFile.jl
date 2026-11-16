@@ -1,4 +1,5 @@
-# Fragment of `JuliaModule` — `JuliaFile`, the `.jl` file on disk.
+# Fragment of `JuliaModule` — `JuliaFile`, the `.jl` file on disk, and
+# `JuliaFileFormat`, its format.
 #
 # A cross-file reference is written in Julia as a `pred_ref("…")` call whose one
 # argument is the marker, so the file stays valid Julia. The file writes one
@@ -48,6 +49,25 @@ function find_reference_marker(node::JuliaCall)
     parse_marker_text((args[1] isa Cell ? args[1][] : args[1]).value)
 end
 parse_file_content(::Type{<:JuliaFile}, text::AbstractString) = parse_julia(text)
+
+"""
+    JuliaFileFormat()
+
+The format of a `.jl` file: its string is the Julia code of one
+`JuliaDocument`, and its file is a `JuliaFile`. A reference to another file is a
+`pred_ref("…")` call whose one argument is the marker, so the file stays valid
+Julia.
+"""
+struct JuliaFileFormat <: FileFormat end
+
+get_file_format_extensions(::JuliaFileFormat) = (".jl",)
+get_file_format_domain(::JuliaFileFormat) = JuliaDocument
+parse_document_string(::JuliaFileFormat, string::AbstractString) = parse_julia(string)
+make_reference_leaf(::JuliaFileFormat, marker::AbstractString) =
+    JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME),
+              JuliaDocument[JuliaString(make_marker_text(marker))])
+get_file_type(::JuliaFileFormat) = JuliaFile
+get_file_format(::JuliaFile) = JuliaFileFormat()
 
 # ── The `definition` vocabulary function ───────────────────────────────────
 #

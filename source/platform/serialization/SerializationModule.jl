@@ -51,10 +51,10 @@ export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text
 export FileFormat, get_file_format_extensions, parse_document_string, make_document_string,
        get_file_format_domain, is_editable_file_format, get_file_type, get_file_format,
        collect_file_formats, find_file_format
-export TextFile
+export TextFile, TextFileFormat
 export parse_path_text, print_path_text
-export PredFile, PredText, parse_pred_text, print_pred_text, pred_arguments, make_pred_document,
-       is_pred_document
+export PredFile, PredFileFormat, PredText, parse_pred_text, print_pred_text,
+       pred_arguments, make_pred_document, is_pred_document
 
 
 include("BinarySerialization.jl")

@@ -1,4 +1,5 @@
-# Fragment of `SqlModule` — `SqlFile`, the `.sql` file on disk.
+# Fragment of `SqlModule` — `SqlFile`, the `.sql` file on disk, and
+# `SqlFileFormat`, its format.
 #
 # A cross-file reference is written in SQL as a string-literal scalar value
 # whose whole value is the marker, the same way JSON and YAML use a string. The
@@ -28,3 +29,20 @@ parse_file_content(::Type{<:SqlFile}, text::AbstractString) = parse_sql_text(tex
 
 # Emit runs the `SqlToSyntax → SyntaxToText → TextToString` chain.
 emit_text(f::SqlFile) = print_natural_text(get_file_content(f))
+
+"""
+    SqlFileFormat()
+
+The format of a `.sql` file: its string is the SQL text of one `SqlDocument`,
+and its file is a `SqlFile`. A reference to another file is a string literal
+whose whole value is the marker.
+"""
+struct SqlFileFormat <: FileFormat end
+
+get_file_format_extensions(::SqlFileFormat) = (".sql",)
+get_file_format_domain(::SqlFileFormat) = SqlDocument
+parse_document_string(::SqlFileFormat, string::AbstractString) = parse_sql_text(string)
+make_reference_leaf(::SqlFileFormat, marker::AbstractString) =
+    SqlScalarValue(make_marker_text(marker))
+get_file_type(::SqlFileFormat) = SqlFile
+get_file_format(::SqlFile) = SqlFileFormat()

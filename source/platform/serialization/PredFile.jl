@@ -1,4 +1,5 @@
-# Fragment of `SerializationModule` — `PredFile`, the `.pred` file on disk.
+# Fragment of `SerializationModule` — `PredFile`, the `.pred` file on disk, and
+# `PredFileFormat`, its format.
 #
 # A `.pred` file holds one document, written as its own constructor:
 #
@@ -71,6 +72,17 @@ A `.pred` file: any document, written as its own constructor.
     disk::FileDiskState = FileDiskState()
 end
 
+"""
+    PredFileFormat()
+
+The format of a `.pred` file: its string is one document of any type that no
+text format owns, written as its own constructor, and its file is a `PredFile`.
+A reference to another file is the call of the marker, written where the value
+would be, and a document of a text format that no file of the set writes is the
+text of that format in a tagged string.
+"""
+struct PredFileFormat <: FileFormat end
+
 # What a `.pred` file holds is a document of any type that no text format owns.
 # A node of the domain of a format, such as a JSON value or an XML element,
 # belongs to a file of that format, so a `.pred` file that holds one writes a
@@ -82,6 +94,14 @@ get_file_domain(::Type{<:PredFile}) = Document
 is_file_domain_node(::PredFile, node) = node isa PredReference || is_pred_document(node)
 
 is_written_inline(::PredFile, node) = _find_inline_extension(node) !== nothing
+
+get_file_format_extensions(::PredFileFormat) = (".pred",)
+get_file_format_domain(::PredFileFormat) = Document
+is_file_domain_node(::PredFileFormat, node) =
+    node isa PredReference || is_pred_document(node)
+is_written_inline(::PredFileFormat, node) = _find_inline_extension(node) !== nothing
+get_file_type(::PredFileFormat) = PredFile
+get_file_format(::PredFile) = PredFileFormat()
 
 # The extension of the format of `node`, when its name without the dot can tag a
 # string: `".json"`, but not an extension such as `".c++"`.
@@ -149,7 +169,11 @@ _is_format_node(node) =
 # document built for itself — is not written, not cut, and not an orphan. A field
 # the call writes as a rendering — a formula's code, written as its text — holds
 # no node the walk could reach, so it is not walked and not cut either.
-function is_written_in_file(file::PredFile, node, name::Symbol)
+is_written_in_file(::PredFile, node, name::Symbol) = _is_written_in_pred_file(node, name)
+is_written_in_file(::PredFileFormat, node, name::Symbol) =
+    _is_written_in_pred_file(node, name)
+
+function _is_written_in_pred_file(node, name::Symbol)
     node isa Document || return true
     positional, keywords = pred_arguments(node)
     any(pair -> first(pair) === name && _holds_document(last(pair)), keywords) && return true
@@ -165,9 +189,14 @@ _holds_document(value) =
 # The reference this format spells: the call itself, printed where the value
 # would be.
 make_reference_leaf(::PredFile, marker::AbstractString) = PredReference(String(marker))
+make_reference_leaf(::PredFileFormat, marker::AbstractString) =
+    PredReference(String(marker))
 find_reference_marker(reference::PredReference) = reference.marker
 
 parse_file_content(::Type{<:PredFile}, text::AbstractString) = parse_pred_text(text)
+parse_document_string(::PredFileFormat, string::AbstractString) = parse_pred_text(string)
+# The string of the document alone; the write of a file adds its line break.
+make_document_string(::PredFileFormat, document) = print_pred_text(document)
 
 function emit_text(f::PredFile)
     try

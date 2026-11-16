@@ -1,4 +1,5 @@
-# Fragment of `XmlModule` — `XmlFile`, the `.xml` file on disk.
+# Fragment of `XmlModule` — `XmlFile`, the `.xml` file on disk, and
+# `XmlFileFormat`, its format.
 #
 # A cross-file reference is written in XML as a `pred:ref` element whose one
 # text child is the marker. The file writes one where the save cuts, and the
@@ -35,6 +36,23 @@ find_reference_marker(node::XmlElement) =
 parse_file_content(::Type{<:XmlFile}, text::AbstractString) = parse_xml(text)
 
 emit_text(f::XmlFile) = print_natural_text(get_file_content(f))
+
+"""
+    XmlFileFormat()
+
+The format of a `.xml` file: its string is the XML text of one root element, an
+`XmlDocument`, and its file is an `XmlFile`. A reference to another file is a
+`pred:ref` element whose one text child is the marker.
+"""
+struct XmlFileFormat <: FileFormat end
+
+get_file_format_extensions(::XmlFileFormat) = (".xml",)
+get_file_format_domain(::XmlFileFormat) = XmlDocument
+parse_document_string(::XmlFileFormat, string::AbstractString) = parse_xml(string)
+make_reference_leaf(::XmlFileFormat, marker::AbstractString) =
+    XmlElement(PRED_REF_ELEMENT_TAG, XmlAttribute[], [XmlText(make_marker_text(marker))])
+get_file_type(::XmlFileFormat) = XmlFile
+get_file_format(::XmlFile) = XmlFileFormat()
 
 # A `pred:ref` element with a single text child is a marker.
 function _is_marker_element(node::XmlElement)

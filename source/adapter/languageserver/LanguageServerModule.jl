@@ -27,7 +27,10 @@ using JSON3
 import ..DomainModule: acquire_document!, release_document!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
-import ..SerializationModule: parse_file_content, emit_text, get_file_domain
+import ..SerializationModule: parse_file_content, emit_text, get_file_domain,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, make_document_string,
+                              get_file_type, get_file_format
 import ..WidgetModule: make_graphics_projection
 
 export LanguageServerException, LanguageServerConnection, is_language_server_running,
@@ -36,7 +39,8 @@ export LanguageServerException, LanguageServerConnection, is_language_server_run
 export SEMANTIC_TOKEN_ROLES, compute_semantic_text_marks, close_language_server_document!,
        convert_semantic_tokens
 export LanguageServers, get_language_server!, stop_language_servers!
-export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, LanguageServerText,
+export SOURCE_FILE_LANGUAGES, find_source_file_language, SourceFile, SourceFileFormat,
+       LanguageServerText,
        make_language_server_text, compute_language_server_marks, StoreLanguageServerAnswerOperation,
        make_source_file_code_projection
 

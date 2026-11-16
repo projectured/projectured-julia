@@ -17,7 +17,10 @@ module MathModule
 
 using ..KernelModule
 using ..PlatformModule
-import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_content, emit_text
+import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_content,
+                              emit_text, get_file_format_extensions,
+                              get_file_format_domain, parse_document_string,
+                              get_file_type, get_file_format
 using ..KernelModule
 using ..PlatformModule
 
@@ -53,7 +56,7 @@ export MathIoMap, MathConfig, MathMetrics, compute_math_metrics, MathToGraphics,
        MathFunctionToGraphics, MathAccentToGraphics, MathMatrixToGraphics,
        MathCaseToGraphics, MathCasesToGraphics
 export MathInsertion, MathVariable, MathBinaryOperation, MathParenthesized, MathAssignment, MathSymbol, MathText
-export parse_math, MathFile
+export parse_math, MathFile, MathFileFormat
 
 
 include("MathDocument.jl")

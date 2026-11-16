@@ -38,7 +38,9 @@ import ..NavigatorModule: find_navigator_target
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
-                              splice_named_file!
+                              splice_named_file!,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..DisplayModule: make_workload_file
 import ..DocumentModule: get_view_state_fields
 import ..DomainModule: acquire_document!, release_document!
@@ -67,7 +69,7 @@ export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstSectionToStyledNode, RstFigureToStyledNode, RstImageToStyledNode,
        RstLiteralIncludeToStyledLeaf, RstEnumeratedListToStyledNode,
        RstToSyntax
-export RstFile, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
+export RstFile, RstFileFormat, find_rst_section, get_rst_title_text, PRED_REF_DIRECTIVE
 export RstRootToVerticalLayout, RstSectionToVerticalLayout
 export RstRoot, RstSection, RstParagraph, RstText, RstLiteral, RstEmphasis, RstStrong, RstRole, RstReference, RstSubstitutionReference, RstFootnoteReference, RstLiteralBlock, RstLineBlock, RstListItem, RstBulletList, RstEnumeratedList, RstDefinitionItem, RstDefinitionList, RstField, RstFieldList, RstBlockQuote, RstTransition, RstComment, RstTarget, RstSubstitutionDefinition, RstFootnote, RstTableCell, RstTableRow, RstGridTable, RstDirectiveOption, RstLiteralInclude, RstFigure, RstCodeBlock, RstImage, RstVideo, RstAudio, RstAdmonition, RstToctree, RstMathBlock, RstRawBlock, RstRoleDefinition, RstDirective, RstInsertion
 

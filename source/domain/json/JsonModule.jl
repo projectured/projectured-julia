@@ -15,7 +15,7 @@ Four fragments share the namespace:
 - [`JsonToSyntax.jl`](JsonToSyntax.jl) — the projection to `SyntaxModule`, one
   rule per document type.
 - [`JsonFile.jl`](JsonFile.jl) — `JsonFile`, a `FileDocument` whose content is a
-  `JsonDocument`.
+  `JsonDocument`, and `JsonFileFormat`, its format.
 
 The slice depends on the engine packages and on no other domain. `__init__`
 registers what the slice owns: the `.json` extension, the natural notation
@@ -30,12 +30,15 @@ using ..PlatformModule
 import ..FileFormatModule: make_document_seed
 import ..PrimitiveModule: make_incomplete_number_document
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
-                              find_reference_marker, parse_file_content
+                              find_reference_marker, parse_file_content,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
+export JsonFileFormat
 
 
 include("JsonDocument.jl")

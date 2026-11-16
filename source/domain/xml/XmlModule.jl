@@ -18,7 +18,9 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..FileFormatModule: make_document_seed
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
-                              find_reference_marker, parse_file_content
+                              find_reference_marker, parse_file_content,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_xml, parse_xml_file
@@ -26,7 +28,7 @@ export XmlTheme, ScaledXmlTheme
 export XmlInsertionToSyntaxLeaf, XmlTextToSyntaxLeaf, XmlAttributeToSyntaxNode,
        XmlElementToSyntaxNode,
        XmlToSyntax
-export XmlFile, PRED_REF_ELEMENT_TAG
+export XmlFile, PRED_REF_ELEMENT_TAG, XmlFileFormat
 export XmlDocument, XmlElement, XmlAttribute, XmlText, XmlNothing, XmlInsertion
 
 

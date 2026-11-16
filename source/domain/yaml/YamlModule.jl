@@ -13,7 +13,9 @@ using ..PlatformModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
-                              find_reference_marker, parse_file_content
+                              find_reference_marker, parse_file_content,
+                              get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, get_file_type, get_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_yaml, parse_yaml_file
@@ -22,7 +24,7 @@ export YamlInsertionToSyntaxLeaf, YamlNullToSyntaxLeaf, YamlBoolToSyntaxLeaf, Ya
        YamlStringToSyntaxLeaf, YamlSequenceToSyntaxNode, YamlSequenceToBlockSyntaxNode, YamlMappingToSyntaxNode,
        YamlToSyntax
 export YamlDocument, YamlNull, YamlBool, YamlNumber, YamlString, YamlNothing, YamlInsertion, YamlSequence, YamlMapping, YamlMappingEntry
-export YamlFile
+export YamlFile, YamlFileFormat
 
 
 include("YamlDocument.jl")
