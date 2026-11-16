@@ -85,6 +85,32 @@ function test_julia_to_syntax()
         @test occursin("A \\\$value.", String(print_document(_julia_text_projection(), docstring).output))
     end
 
+    @testset "a tuple of one element keeps its comma, and the navigation of its places stays consistent" begin
+        tuple = parse_julia("(\".jl\",)")
+        @test tuple isa JuliaTuple && length(tuple.elements) == 1
+        printed = String(print_document(_julia_text_projection(), tuple).output)
+        @test printed == "(\".jl\",)"
+        again = parse_julia(printed)
+        @test again isa JuliaTuple && length(again.elements) == 1
+        @test again.elements[1] isa JuliaString && again.elements[1].value == ".jl"
+        # A tuple of no element and of two elements prints no comma at the end.
+        for code in ("()", "(1, 2)")
+            @test String(print_document(_julia_text_projection(), parse_julia(code)).output) == code
+        end
+        # The comma follows the count of the elements through the same IoMap.
+        counted = parse_julia("(1,)")
+        iomap = print_document(_julia_text_projection(), counted)
+        @test String(iomap.output) == "(1,)"
+        push!(counted.elements, JuliaInteger(2))
+        @test String(iomap.output) == "(1, 2)"
+        deleteat!(counted.elements, 2)
+        @test String(iomap.output) == "(1,)"
+        projection = ChainingProjection(RecursiveProjection(JuliaToSyntax()),
+                                        RecursiveProjection(SyntaxToText()),
+                                        TextToGraphics(measure = FixedMeasure(10, 14, 4, 0)))
+        test_position_navigation("a Julia tuple of one element", parse_julia("(\".jl\",)"), projection)
+    end
+
     @testset "the print of each comment is Julia that parses" begin
         for document in (JuliaComment(" a note"), JuliaMultilineComment(" a\nnote "),
                          JuliaEndOfLineComment(JuliaCall(JuliaIdentifier("f"), [JuliaIdentifier("x")]), " a note"))

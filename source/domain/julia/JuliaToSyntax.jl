@@ -458,10 +458,12 @@ end
     delim::StyleText = get_julia_style(nothing, :punctuation_text)
 end
 
+# A tuple of one element writes a comma after it, `(a,)`: without the comma the
+# parentheses hold one value and no tuple.
 @projection_template JuliaTupleToSyntaxNode JuliaTuple (p, t) ->
     SyntaxNode(collection(:elements);
                open=TextString("(", p.delim),
-               close=TextString(")", p.delim),
+               close=TextString(() -> length(t.elements) == 1 ? ",)" : ")", p.delim),
                sep=TextString(", ", p.delim))
 
 # ── JuliaArrayToSyntaxNode ──────────────────────────────────────────────────
