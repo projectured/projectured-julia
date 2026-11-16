@@ -19,9 +19,10 @@ Five fragments share the namespace:
 - [`JsonView.jl`](JsonView.jl) — the views of the JSON documents, which keep the
   state of one view of a document.
 
-The slice depends on the engine packages and on no other domain. `__init__`
-registers what the slice owns: the `.json` extension, the natural notation
-that starts at the syntax rung, and the document types that a model may name.
+The slice depends on the engine packages and on no other domain. The format
+gives the `.json` extension by a method, and the natural notation is a method
+that starts at the syntax rung. `__init__` registers only the sentence that
+tells a model what a JSON document is.
 """
 module JsonModule
 

@@ -6,8 +6,8 @@
 # `apply` of the answer writes the natural size or the failure, and no cell whose
 # value stays the same.
 #
-# The file of a picture (`ImageFile`) is a file that a person does not edit. Its
-# extensions are registered, the read of a file makes a picture that reads nothing,
+# The file of a picture (`ImageFile`) is a file that a person does not edit. Each
+# of its extensions finds its format, the read of a file makes a picture that reads nothing,
 # a change of the file adds one to the `read_count` of the picture that the file
 # keeps, and a copy of a picture is a new picture that reads nothing.
 
