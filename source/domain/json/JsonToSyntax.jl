@@ -189,9 +189,6 @@ function json_escape(s::AbstractString)
     String(take!(buf))
 end
 
-# The document an empty `.json` starts from.
-make_document_seed(::Val{:json}) = JsonInsertion()
-
 # The natural notation of a JSON document, which is also how a model reads and
 # writes one.
 make_syntax_projection(::Type{<:JsonDocument}; appearance) =

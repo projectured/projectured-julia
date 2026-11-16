@@ -7,7 +7,7 @@
     SOURCE_FILE_LANGUAGES
 
 The language and the command of the language server of each extension of a
-source file. The adapter registers each extension as a `SourceFile`.
+source file. Each extension is one of `SourceFileFormat`, whose file is a `SourceFile`.
 
 `clangd` runs with no index in the background, so it writes no index into the
 folder of a project. It reads an included header from the open documents first
@@ -191,11 +191,6 @@ end
 _compute_source_file_marks(answer::Nothing, text::AbstractString) = TextMark[]
 _compute_source_file_marks(answer, text::AbstractString) =
     compute_moved_text_marks(answer.marks, answer.text, text)
-
-parse_file_content(::Type{<:SourceFile}, text::AbstractString) = MarkedText(text = String(text))
-emit_text(file::SourceFile) = _find_marked_text(get_file_content(file)).text
-# A source file holds no document of a domain, so nothing in it is a reference.
-get_file_domain(::Type{<:SourceFile}) = Union{}
 
 """
     SourceFileFormat()

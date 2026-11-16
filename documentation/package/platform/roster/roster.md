@@ -125,7 +125,7 @@ A `RecordTable` is a document that holds its own records and shows them as a tab
 
 ```julia
 path = joinpath(folder, "ledger.pred")
-write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path)
+write_document_file!(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path)
 tab = open_file!(path)
 ledger = get_edited_document(tab)
 insert_elements!(ledger.records, length(ledger.records) + 1,

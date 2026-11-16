@@ -38,18 +38,18 @@ line.
 end
 
 """
-A `.lines` file, which holds a [`PredFileLines`](@ref).
+The format of a `.lines` file, which holds a [`PredFileLines`](@ref).
 """
-@document struct PredFileLinesFile <: FileDocument
-    filename::String
-    content::Any = nothing
-    disk::FileDiskState = FileDiskState()
-end
+struct PredFileLinesFileFormat <: FileFormat end
 
-SerializationModule.get_file_domain(::Type{<:PredFileLinesFile}) = PredFileLines
-SerializationModule.parse_file_content(::Type{<:PredFileLinesFile}, text::AbstractString) =
-    PredFileLines(lines = String.(split(text, '\n')))
-SerializationModule.emit_text(file::PredFileLinesFile) = join(get_file_content(file).lines, '\n')
+SerializationModule.get_file_format_extensions(::PredFileLinesFileFormat) = (".lines",)
+SerializationModule.get_file_format_domain(::PredFileLinesFileFormat) = PredFileLines
+SerializationModule.parse_document_string(::PredFileLinesFileFormat, string::AbstractString) =
+    PredFileLines(lines = String.(split(string, '\n')))
+SerializationModule.make_document_string(::PredFileLinesFileFormat, page) = join(page.lines, '\n')
+
+"A `.lines` file."
+const PredFileLinesFile = File{PredFileLinesFileFormat}
 
 """
 A page of lines and a view of them, a document that is state of the view and no
@@ -63,16 +63,18 @@ end
 ProjecturedKernel.DocumentModule.get_view_state_fields(::Type{<:PredFileViewedLines}) = (:view,)
 
 """
-A `.viewed` file, which holds a [`PredFileViewedLines`](@ref).
+The format of a `.viewed` file, which holds a [`PredFileViewedLines`](@ref).
 """
-@document struct PredFileViewedLinesFile <: FileDocument
-    filename::String
-    content::Any = nothing
-    disk::FileDiskState = FileDiskState()
-end
+struct PredFileViewedLinesFileFormat <: FileFormat end
 
-SerializationModule.get_file_domain(::Type{<:PredFileViewedLinesFile}) = PredFileViewedLines
-SerializationModule.emit_text(file::PredFileViewedLinesFile) = join(get_file_content(file).lines, '\n')
+SerializationModule.get_file_format_extensions(::PredFileViewedLinesFileFormat) = (".viewed",)
+SerializationModule.get_file_format_domain(::PredFileViewedLinesFileFormat) = PredFileViewedLines
+SerializationModule.parse_document_string(::PredFileViewedLinesFileFormat, string::AbstractString) =
+    PredFileViewedLines(lines = String.(split(string, '\n')))
+SerializationModule.make_document_string(::PredFileViewedLinesFileFormat, page) = join(page.lines, '\n')
+
+"A `.viewed` file."
+const PredFileViewedLinesFile = File{PredFileViewedLinesFileFormat}
 
 """
 A document of the tests that holds a list of other documents.
@@ -99,11 +101,10 @@ function test_pred_file()
 
     @testset "a save leaves out a document that a field of view state holds" begin
         page = PredFileViewedLines(lines = ["one", "two"], view = PredFileHolder(name = "view"))
-        @test cut_file_text(PredFileViewedLinesFile("page.viewed", page)) == "one\ntwo"
+        @test cut_file_text(PredFileViewedLinesFile("page.viewed", page)) == "one\ntwo\n"
     end
 
     @testset "a document of a format that no file writes is written inline, in the text of its format" begin
-        register_file_document_type!(".lines", PredFileLinesFile)
         page = PredFileLines(lines = ["one \"two\"", "", "three \"\""])
         holder = PredFileHolder(name = "work", elements = Any[page, PredFileLines(lines = ["x"])])
         text = cut_file_text(PredFile("work.pred", holder))
@@ -125,7 +126,6 @@ function test_pred_file()
     end
 
     @testset "a document written inline at two places is one document when the file loads" begin
-        register_file_document_type!(".lines", PredFileLinesFile)
         page = PredFileLines(lines = ["shared"])
         holder = PredFileHolder(elements = Any[page, page])
         directory = mktempdir()
@@ -143,7 +143,6 @@ function test_pred_file()
     end
 
     @testset "a document that a file of its format writes is a marker into that file" begin
-        register_file_document_type!(".lines", PredFileLinesFile)
         page = PredFileLines(lines = ["kept"])
         directory = mktempdir()
         try
@@ -248,7 +247,6 @@ function test_pred_file()
     end
 
     @testset "a file saved alone with an absolute name names itself relative to its folder" begin
-        register_file_document_type!(".lines", PredFileLinesFile)
         page = PredFileLines(lines = ["shared"])
         directory = mktempdir()
         try

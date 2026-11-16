@@ -39,7 +39,7 @@ find_natural_file_format(::JsonDocument) = JsonFileFormat()
 | --- | --- | --- |
 | `make_syntax_projection(type; appearance)` | the projection of the documents of `type` to syntax | `make_natural_projection`, `get_natural_entries`, `make_document_string` |
 | `make_syntax_projection(format; appearance)` | the notation of the domain of `format`; a second format of a domain declares a method of its own | `make_document_string` |
-| `find_natural_file_format(document)` | the format that writes `document` when nobody names one, or `nothing` | the fence of a code part, the label and the parser of a part of a conversation, `export_document` |
+| `find_natural_file_format(document)` | the format that writes `document` when nobody names one, or `nothing` | the fence of a code part, the label and the parser of a part of a conversation, the guard of `write_document_file!` |
 | `make_document_expression(document)` | the `Expr` that runs `document`; a document that is no code runs as its own value | the evaluator of the conversation slice |
 | `make_syntax_to_text_projection(; appearance)` | the step from syntax to text | `make_natural_projection` |
 
@@ -103,7 +103,7 @@ The natural slice depends on the kernel and on the text, layout, widget, graphic
 
 **Prose.** `make_prose_document(text)` makes the document of a run of prose written in Markdown. It answers the document that the Markdown parser of the seam reads from `text`, when a format of the session reads `:md`. Else, or when the parse fails, it answers a text block of `text`. The conversation, the assistant and the work plan make their prose with it.
 
-The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). Each `XFile` type prints its content with `print_natural_text` in `emit_text`. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The [application slice](../application/application.md) draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
+The file-format slice reads and writes files with `print_natural_text` and `parse_natural_text`; see [fileformat.md](../fileformat/fileformat.md). The general method of `make_document_string` prints the content of each file of a domain format through the syntax notation of the domain. The assistant checks `make_natural_projection(document, :string)` before it gives a document to the model as text. The [application slice](../application/application.md) draws every tab through `NaturalToGraphics`, with rows in `extra` for the documents that have a designed view.
 
 ## Design decisions
 

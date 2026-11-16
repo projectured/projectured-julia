@@ -10,7 +10,7 @@ using ProjecturedMath.MathModule: MathDocument, MathVariable, MathSymbol, MathTe
                                   MathBigOperator, MathDifferential, MathDerivative, MathFunction,
                                   MathAccent, MathMatrix, MathCase, MathCases, MathInsertion
 using ProjecturedPlatform.NaturalModule: print_natural_text
-using ProjecturedPlatform.SerializationModule: save_file!, load_file, get_file_content, emit_text
+using ProjecturedPlatform.SerializationModule: save_file!, load_file, get_file_content, cut_file_text
 using ProjecturedPlatform.PrimitiveModule: PrimitiveNumber
 import ProjecturedMathExample
 
@@ -155,7 +155,7 @@ function test_math_parser()
         loaded = load_file(directory, "queue.math")
         @test loaded isa MathFile
         @test _math_equal(get_file_content(loaded), tree)
-        @test emit_text(loaded) == "W = 1/(μ - λ)\n"
+        @test cut_file_text(loaded) == "W = 1/(μ - λ)\n"
         rm(directory; recursive = true, force = true)
     end
 

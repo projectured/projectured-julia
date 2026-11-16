@@ -1150,10 +1150,6 @@ function _escape_julia_docstring(text::AbstractString)
     String(take!(buffer))
 end
 
-# ── Natural-format registration ─────────────────────────────────────────────
-# Julia's seams for import_document / export_document / read+write_document_file.
-make_document_seed(::Val{:jl}) = JuliaInsertion()
-
 # ── What this domain's natural notation is ──────────────────────────────────
 make_syntax_projection(::Type{<:JuliaDocument}; appearance) =
     JuliaToSyntax(; theme = get_scaled_theme!(appearance, JuliaTheme),

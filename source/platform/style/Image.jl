@@ -211,6 +211,21 @@ set_cell_computation!(img::ImageMemory, f::Function) = (set_cell_computation!(ge
 # ── ImageFile ──────────────────────────────────────────────────────────────
 
 """
+    ImageFileFormat()
+
+The format of a picture file, `.png`, `.jpg`, `.jpeg`, `.bmp` or `.gif`: its file
+is an `ImageFile`, whose content is the `Image` of the path, which reads nothing
+when it is made. A person does not edit such a file, and the format has no
+string: it declares no parser and no conversion of a document to a string.
+"""
+struct ImageFileFormat <: FileFormat end
+
+get_file_format_extensions(::ImageFileFormat) = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
+get_file_format_domain(::ImageFileFormat) = Document
+is_editable_file_format(::ImageFileFormat) = false
+read_file_content(::ImageFileFormat, path::AbstractString) = Image(path)
+
+"""
     ImageFile(filename)
 
 The file document of a picture file: `content` is the [`Image`](@ref) that the file
@@ -238,34 +253,9 @@ See also `open_file_document!` and `DashboardCard`.
 
 For the assistant.
 """
-@document struct ImageFile <: FileDocument
-    filename::String
-    content::Any
-    disk::FileDiskState = FileDiskState()
-end
+const ImageFile = File{ImageFileFormat}
 
 ImageFile(filename::AbstractString) = ImageFile(String(filename), Image(filename))
-
-get_file_domain(::Type{<:ImageFile}) = Document
-is_editable_file_type(::Type{<:ImageFile}) = false
-read_file_content(::Type{<:ImageFile}, path::AbstractString) = Image(path)
-
-"""
-    ImageFileFormat()
-
-The format of a picture file, `.png`, `.jpg`, `.jpeg`, `.bmp` or `.gif`: its file
-is an `ImageFile`, whose content is the `Image` of the path, which reads nothing
-when it is made. A person does not edit such a file, and the format has no
-string: it declares no parser and no conversion of a document to a string.
-"""
-struct ImageFileFormat <: FileFormat end
-
-get_file_format_extensions(::ImageFileFormat) = (".png", ".jpg", ".jpeg", ".bmp", ".gif")
-get_file_format_domain(::ImageFileFormat) = Document
-is_editable_file_format(::ImageFileFormat) = false
-read_file_content(::ImageFileFormat, path::AbstractString) = Image(path)
-get_file_type(::ImageFileFormat) = ImageFile
-get_file_format(::ImageFile) = ImageFileFormat()
 
 # A load of the file gives the history a new picture of the same path. The file keeps
 # the picture that holds the pixels, which asks for the new ones, and the new picture
@@ -301,8 +291,7 @@ it before it takes a file document of the path, so an image never holds a page.
     is_picture_file_path("media/throughput.png")   # true
     is_picture_file_path("notes.md")               # false
 """
-is_picture_file_path(path::AbstractString) =
-    has_file_document_type(path) && get_file_document_type(path) <: ImageFile
+is_picture_file_path(path::AbstractString) = find_file_format(path) isa ImageFileFormat
 
 """
     find_held_picture(picture, path) -> ImageFile or nothing

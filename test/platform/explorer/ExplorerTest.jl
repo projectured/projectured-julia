@@ -1813,7 +1813,7 @@ function test_explorer()
                 @test _explorer_run_frames_until(editor, () -> _explorer_is_file_read(later))
                 reads = count(record -> record.description == "the text of a file", get_background_work_store(editor).records)
                 @test reads == 1 && state.loaded_count >= 0
-                @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk\n"
+                @test getfield(get_wrapped_document(get_file_content(later)), :value)[] == "later on disk"
                 @test _explorer_draw_file_view(editor, later_view) == 1
                 evaluate_operation(editor, ReleaseDocumentOperation(later_view))
                 evaluate_operation(editor, ReleaseDocumentOperation(tab_view))

@@ -153,10 +153,6 @@ function xml_escape_attr(s::AbstractString)
     String(take!(buf))
 end
 
-# ── Natural-format registration ─────────────────────────────────────────────
-# XML's seams for import_document / export_document / read+write_document_file.
-make_document_seed(::Val{:xml}) = XmlInsertion()
-
 # ── What this domain's natural notation is ──────────────────────────────────
 make_syntax_projection(::Type{<:XmlDocument}; appearance) =
     XmlToSyntax(; theme = get_scaled_theme!(appearance, XmlTheme),

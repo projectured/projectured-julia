@@ -15,7 +15,6 @@
 # registers a factory here from its `__init__` — a mutation, not a second
 # method: replacing a method during precompilation is fatal, and this seam
 # exists precisely so an optional package can take over without one.
-# `register_file_document_type!` is registered the same way, for the same reason.
 const _PREFERRED_ENGINE = Ref{Any}(nothing)
 
 """

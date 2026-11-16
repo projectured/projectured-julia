@@ -44,7 +44,7 @@ mktempdir() do dir
     write(path, "{\"greeting\": \"hello\"}")
 
     @testset "the file's content draws through NaturalToGraphics" begin
-        file = make_file(get_file_document_type(path), path, read(path, String))
+        file = make_file(find_file_format(path), path, read(path, String))
         @test file isa JsonFile
         text = render(file)
         @test !occursin("no natural rendering", text)
@@ -52,7 +52,7 @@ mktempdir() do dir
     end
 
     @testset "Ctrl+S writes the changed content to disk" begin
-        file = make_file(get_file_document_type(path), path, read(path, String))
+        file = make_file(find_file_format(path), path, read(path, String))
         file.content = parse_json("{\"greeting\": \"goodbye\"}")
         op = read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
         @test op isa Operation
@@ -63,7 +63,7 @@ mktempdir() do dir
     # F5 answers the reload and a selection of the whole file. The selection
     # needs an editor, so the case evaluates the reload alone.
     @testset "F5 reads the file back, and selects the whole file" begin
-        file = make_file(get_file_document_type(path), path, read(path, String))
+        file = make_file(find_file_format(path), path, read(path, String))
         write(path, "{\"greeting\": \"reloaded\"}")
         op = read_gesture(file, KeyDown(:f5, ModifierKeys(); time = 0.0))
         @test op isa CompoundOperation
@@ -91,7 +91,7 @@ mktempdir() do dir
     # the content; the file's own keys still answer.
     @testset "a press inside the file reaches its content" begin
         write(path, "{\"greeting\": \"hello\"}")
-        file = make_file(get_file_document_type(path), path, read(path, String))
+        file = make_file(find_file_format(path), path, read(path, String))
         renderer = NaturalToGraphics(measure = _stub)
         iomap = print_document(renderer, nothing, file,
                                PrinterContext(EmptyReference(), Cell(600), Cell(400),
@@ -110,7 +110,7 @@ mktempdir() do dir
     # reaches the content of the file through the view.
     @testset "a view draws the band of its file above it, and the file still takes a press" begin
         write(path, "{\"greeting\": \"hello\"}")
-        file = make_file(get_file_document_type(path), path, read(path, String))
+        file = make_file(find_file_format(path), path, read(path, String))
         get_file_disk_state(file).band = FileBand(; message = "a.json changed on disk.",
                                                     choices = ["Load it" => _FileBandChoiceProbe()])
         view = make_file_view(file)

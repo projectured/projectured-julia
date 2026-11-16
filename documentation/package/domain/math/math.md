@@ -106,7 +106,7 @@ A key goes to the selected child first, and a node acts only when the child retu
 
 ### The file
 
-`MathFile` is the file type for `.math`. It holds one formula in its linear form, and `emit_text` writes `print_natural_text` of the content. Neither the linear form nor the tree can hold a reference to another file, so a node of a `.math` file belongs to that file alone. A `MathFile` with no content holds a `MathInsertion`.
+`MathFile`, the short name of `File{MathFileFormat}`, is the file of `.math`. It holds one formula in its linear form, and its string is `print_natural_text` of the content. Neither the linear form nor the tree can hold a reference to another file, so a node of a `.math` file belongs to that file alone. A `MathFile` with no content holds a `MathInsertion`.
 
 ### The theme
 
@@ -129,7 +129,7 @@ It declares `make_syntax_projection(::Type{<:MathDocument}; appearance)` with `M
 
 - `register_natural_syntax!(:math, …)` with `MathToSyntax`;
 - `register_natural_graphics!(:math, …)` with `make_math_to_graphics_dispatch`, so a tab draws a formula in two dimensions;
-- `register_file_document_type!(".math", MathFile)`.
+- `MathFileFormat`, with the extension `.math`, and `make_document_seed(::Type{MathDocument})`, a `MathInsertion`.
 
 `make_math_to_graphics_dispatch` drops the `PrimitiveNumber` and `PrimitiveString` rows of `MathToGraphics`. A number in a formula then draws through the general renderer, and its text baseline puts it on the line of the formula.
 

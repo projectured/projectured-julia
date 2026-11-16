@@ -6,24 +6,6 @@
 # file does.
 
 """
-    MathFile(filename, content)
-
-A file document whose `content` is a `MathDocument`, written as its linear
-form.
-"""
-@document struct MathFile <: FileDocument
-    filename::String
-    content::Document = MathInsertion()
-    disk::FileDiskState = FileDiskState()
-end
-
-get_file_domain(::Type{<:MathFile}) = MathDocument
-# A number in a formula is a primitive, and the file writes it as its own.
-is_file_domain_node(::MathFile, node) = node isa MathDocument || node isa PrimitiveNumber
-parse_file_content(::Type{<:MathFile}, text::AbstractString) = parse_math(strip(text))
-emit_text(f::MathFile) = print_natural_text(get_file_content(f)) * "\n"
-
-"""
     MathFileFormat()
 
 The format of a `.math` file: its string is one formula, a `MathDocument`, in its
@@ -35,10 +17,19 @@ struct MathFileFormat <: FileFormat end
 
 get_file_format_extensions(::MathFileFormat) = (".math",)
 get_file_format_domain(::MathFileFormat) = MathDocument
+# A number in a formula is a primitive, and the file writes it as its own.
 is_file_domain_node(::MathFileFormat, node) =
     node isa MathDocument || node isa PrimitiveNumber
 parse_document_string(::MathFileFormat, string::AbstractString) =
     parse_math(strip(string))
-get_file_type(::MathFileFormat) = MathFile
-get_file_format(::MathFile) = MathFileFormat()
 find_natural_file_format(::MathDocument) = MathFileFormat()
+# A new file starts as the insertion of a formula.
+make_document_seed(::Type{MathDocument}) = MathInsertion()
+
+"""
+    MathFile(filename, content)
+
+A file of [`MathFileFormat`](@ref), whose `content` is a `MathDocument`, written
+as its linear form.
+"""
+const MathFile = File{MathFileFormat}

@@ -30,27 +30,25 @@ using ..ReferenceModule
 using Serialization
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_edited_field, get_view_state_fields, is_field_walked
+import ..DocumentModule: get_edited_field, get_view_state_fields, is_field_walked, get_document_schema_name
 import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation
 export FileDocument, is_file_document,
        FileDiskState, FileBand, get_file_disk_state,
-       get_filename, format_home_path, get_file_content, emit_text,
+       get_filename, format_home_path, get_file_content,
        save_project!, load_project,
-       register_file_document_type!, get_file_document_type, has_file_document_type,
        register_marker_function!, get_marker_function, evaluate_marker,
        get_pred_type, is_pred_constructible,
        parse_marker_text, get_document_section
-export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text, load_file, parse_file_content,
-       find_file_extension,
-       get_file_domain, is_file_domain_node, make_reference_leaf, find_reference_marker,
-       make_marker_text, is_own_content, make_file, is_editable_file_type, read_file_content,
+export FileProject, FileCutException, save_file!, save_file_text!, cut_file_text, load_file,
+       is_file_domain_node, make_reference_leaf, find_reference_marker,
+       make_marker_text, is_own_content, make_file, read_file_content,
        is_written_in_file, is_written_inline, make_inline_leaf, find_held_file, splice_held_files!,
        splice_named_file!
-export FileFormat, get_file_format_extensions, parse_document_string, make_document_string,
-       get_file_format_domain, is_editable_file_format, get_file_type, get_file_format,
-       collect_file_formats, find_file_format
+export FileFormat, File, make_document_seed, get_file_format_extensions, parse_document_string,
+       make_document_string, get_file_format_domain, is_editable_file_format, get_file_type,
+       get_file_format, collect_file_formats, find_file_format
 export TextFile, TextFileFormat
 export parse_path_text, print_path_text
 export PredFile, PredFileFormat, PredText, parse_pred_text, print_pred_text,
@@ -59,9 +57,9 @@ export PredFile, PredFileFormat, PredText, parse_pred_text, print_pred_text,
 
 include("BinarySerialization.jl")
 include("FileProject.jl")
+include("FileFormat.jl")
 include("FileCut.jl")
 include("FileSplice.jl")
-include("FileFormat.jl")
 include("TextFile.jl")
 include("PredFile.jl")
 

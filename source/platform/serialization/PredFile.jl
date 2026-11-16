@@ -17,7 +17,7 @@
 # `node(file("a.json"), "entries[1].value")` — is a call in the same
 # vocabulary, so this format writes its own references.
 #
-# One file type covers every domain: the first token names the document type, so
+# One format covers every domain: the first token names the document type, so
 # a domain gets a file notation by registering its types.
 #
 # A document of a text format that no file of the set writes, such as a JSON value
@@ -62,17 +62,6 @@ end
 Base.show(io::IO, t::PredText) = print(io, "PredText(", repr(t.extension), ", ", repr(t.text), ")")
 
 """
-    PredFile(filename, content)
-
-A `.pred` file: any document, written as its own constructor.
-"""
-@document struct PredFile <: FileDocument
-    filename::String
-    content::Any = nothing
-    disk::FileDiskState = FileDiskState()
-end
-
-"""
     PredFileFormat()
 
 The format of a `.pred` file: its string is one document of any type that no
@@ -83,6 +72,14 @@ text of that format in a tagged string.
 """
 struct PredFileFormat <: FileFormat end
 
+"""
+    PredFile(filename, content)
+
+A `.pred` file: any document, written as its own constructor. The file of
+[`PredFileFormat`](@ref).
+"""
+const PredFile = File{PredFileFormat}
+
 # What a `.pred` file holds is a document of any type that no text format owns.
 # A node of the domain of a format, such as a JSON value or an XML element,
 # belongs to a file of that format, so a `.pred` file that holds one writes a
@@ -90,34 +87,46 @@ struct PredFileFormat <: FileFormat end
 # no file of the set writes it. A reference it already carries is its own too: a
 # marker naming a file outside the loaded set stays a reference, and the file
 # writes it back as it found it.
-get_file_domain(::Type{<:PredFile}) = Document
-is_file_domain_node(::PredFile, node) = node isa PredReference || is_pred_document(node)
-
-is_written_inline(::PredFile, node) = _find_inline_extension(node) !== nothing
-
 get_file_format_extensions(::PredFileFormat) = (".pred",)
 get_file_format_domain(::PredFileFormat) = Document
 is_file_domain_node(::PredFileFormat, node) =
     node isa PredReference || is_pred_document(node)
-is_written_inline(::PredFileFormat, node) = _find_inline_extension(node) !== nothing
-get_file_type(::PredFileFormat) = PredFile
-get_file_format(::PredFile) = PredFileFormat()
+is_written_inline(::PredFileFormat, node) = _find_inline_format(node) !== nothing
 
-# The extension of the format of `node`, when its name without the dot can tag a
-# string: `".json"`, but not an extension such as `".c++"`.
-function _find_inline_extension(node)
-    extension = find_file_extension(node)
-    extension !== nothing && Base.isidentifier(extension[2:end]) ? extension : nothing
+# The format that writes `node` in a file of its own: a format of the session whose
+# domain holds it, other than a format of any document, such as `.pred`, or of no
+# document, such as plain text. Of two such formats, the first of
+# `collect_file_formats`. The domain passes an inference barrier: inference merges
+# the domain `Union{}` of a text file with another domain `D` into a subtype of `D`,
+# and folds the `isa` to the answer for `D` (Julia 1.11 to 1.13), so with no other
+# format a `.pred` file would take every document for a node of a text file.
+function _find_domain_format(node)
+    for format in collect_file_formats()
+        domain = Base.inferencebarrier(get_file_format_domain(format))
+        domain !== Document && domain !== Union{} && node isa domain && return format
+    end
+    nothing
+end
+
+# The format of `node` that a `.pred` file writes inline, when the first extension of
+# the format without the dot can tag a string: `".json"`, but not an extension such
+# as `".c++"`.
+function _find_inline_format(node)
+    format = _find_domain_format(node)
+    format === nothing && return nothing
+    extensions = get_file_format_extensions(format)
+    (!isempty(extensions) && Base.isidentifier(first(extensions)[2:end])) ? format : nothing
 end
 
 # The text of `node` is what a file of its format alone would hold, so a node that
 # it holds at two places is one node when the text is read again.
 function make_inline_leaf(file::PredFile, node, path::Reference)
-    extension = _find_inline_extension(node)
+    format = _find_inline_format(node)
+    extension = first(get_file_format_extensions(format))
     filename = _INLINE_FILENAME * extension
     text = try
         # A held file inside an inline value is named against the current working folder.
-        cut_file_text(get_file_document_type(filename)(filename, node), ".")
+        _cut_file_string(get_file_type(format)(filename, node), ".")
     catch e
         e isa FileCutException || rethrow()
         throw(FileCutException(repr(get_filename(file)) * " writes the " * string(nameof(typeof(node))) *
@@ -135,9 +144,10 @@ const _INLINE_FILENAME = "inline"
 # with its markers into itself joined.
 function _read_inline_text(tag::Symbol, text::AbstractString)
     filename = _INLINE_FILENAME * "." * String(tag)
-    has_file_document_type(filename) ||
+    format = find_file_format(tag)
+    format === nothing &&
         error("a .pred file holds a text tagged ", tag, ", and no loaded format has the extension .", tag)
-    file = make_file(get_file_document_type(filename), filename, text)
+    file = get_file_type(format)(filename, parse_document_string(format, text))
     _splice!(FileProject(".", Any[file]))
     get_file_content(file)
 end
@@ -146,21 +156,10 @@ end
     is_pred_document(document) -> Bool
 
 Whether a `.pred` file holds `document` itself: a document that the domain of no
-registered text format owns. A JSON value or an XML element belongs to a file of
-its format, and a `.pred` file writes a reference to that file.
+text format of the session owns. A JSON value or an XML element belongs to a file
+of its format, and a `.pred` file writes a reference to that file.
 """
-is_pred_document(document) = document isa Document && !_is_format_node(document)
-
-# Whether `node` is in the domain of a registered format other than `.pred`. The
-# domain passes an inference barrier: inference merges the domain `Union{}` of a
-# text file with another domain `D` into a subtype of `D`, and folds the `isa` to
-# the answer for `D` (Julia 1.11 to 1.13), so with no other format a `.pred` file
-# would take every document for a node of a text file.
-_is_format_node(node) =
-    any(values(_FILE_DOCUMENT_TYPES)) do T
-        domain = Base.inferencebarrier(get_file_domain(T))
-        domain !== Document && node isa domain
-    end
+is_pred_document(document) = document isa Document && _find_domain_format(document) === nothing
 
 # A `.pred` file writes the call `pred_arguments` gives and nothing else, so
 # that is what it walks: a field that the call writes as a keyword with its name,
@@ -169,11 +168,7 @@ _is_format_node(node) =
 # document built for itself — is not written, not cut, and not an orphan. A field
 # the call writes as a rendering — a formula's code, written as its text — holds
 # no node the walk could reach, so it is not walked and not cut either.
-is_written_in_file(::PredFile, node, name::Symbol) = _is_written_in_pred_file(node, name)
-is_written_in_file(::PredFileFormat, node, name::Symbol) =
-    _is_written_in_pred_file(node, name)
-
-function _is_written_in_pred_file(node, name::Symbol)
+function is_written_in_file(::PredFileFormat, node, name::Symbol)
     node isa Document || return true
     positional, keywords = pred_arguments(node)
     any(pair -> first(pair) === name && _holds_document(last(pair)), keywords) && return true
@@ -188,24 +183,13 @@ _holds_document(value) =
 
 # The reference this format spells: the call itself, printed where the value
 # would be.
-make_reference_leaf(::PredFile, marker::AbstractString) = PredReference(String(marker))
 make_reference_leaf(::PredFileFormat, marker::AbstractString) =
     PredReference(String(marker))
 find_reference_marker(reference::PredReference) = reference.marker
 
-parse_file_content(::Type{<:PredFile}, text::AbstractString) = parse_pred_text(text)
 parse_document_string(::PredFileFormat, string::AbstractString) = parse_pred_text(string)
 # The string of the document alone; the write of a file adds its line break.
 make_document_string(::PredFileFormat, document) = print_pred_text(document)
-
-function emit_text(f::PredFile)
-    try
-        print_pred_text(get_file_content(f)) * "\n"
-    catch e
-        e isa FileCutException || rethrow()
-        throw(FileCutException("save: " * repr(get_filename(f)) * " " * e.message))
-    end
-end
 
 # ── What a document's file form is ───────────────────────────────────────────
 

@@ -16,33 +16,10 @@ The info string that tags a fenced code block as a cross-file marker:
 """
 const PRED_REF_LANGUAGE = "pred-ref"
 
-"""
-    MarkdownFile(filename, content)
-
-A file document whose `content` is a `MarkdownDocument`. See the
-module docstring for the fenced-block marker convention.
-"""
-@document struct MarkdownFile <: FileDocument
-    filename::String
-    content::Document = MarkdownRoot()
-    disk::FileDiskState = FileDiskState()
-end
-
-emit_text(f::MarkdownFile) = print_natural_text(get_file_content(f))
-
 _unwrap(x) = x isa AbstractCell ? x[] : x
 
 _is_marker_block(node::MarkdownCodeBlock) =
     _unwrap(getfield(node, :language)) == PRED_REF_LANGUAGE
-
-# What the file writes itself, and how it spells a reference to what it does
-# not: a fenced block in the `pred-ref` language holding the marker.
-get_file_domain(::Type{<:MarkdownFile}) = MarkdownDocument
-make_reference_leaf(::MarkdownFile, marker::AbstractString) =
-    MarkdownCodeBlock(PRED_REF_LANGUAGE, make_marker_text(marker))
-find_reference_marker(node::MarkdownCodeBlock) =
-    _is_marker_block(node) ? parse_marker_text(strip(_unwrap(getfield(node, :code)))) : nothing
-parse_file_content(::Type{<:MarkdownFile}, text::AbstractString) = parse_markdown(text)
 
 """
     MarkdownFileFormat()
@@ -58,11 +35,23 @@ get_file_format_extensions(::MarkdownFileFormat) = (".md", ".markdown")
 get_file_format_domain(::MarkdownFileFormat) = MarkdownDocument
 parse_document_string(::MarkdownFileFormat, string::AbstractString) =
     parse_markdown(string)
+# What the file writes itself, and how it spells a reference to what it does
+# not: a fenced block in the `pred-ref` language holding the marker.
 make_reference_leaf(::MarkdownFileFormat, marker::AbstractString) =
     MarkdownCodeBlock(PRED_REF_LANGUAGE, make_marker_text(marker))
-get_file_type(::MarkdownFileFormat) = MarkdownFile
-get_file_format(::MarkdownFile) = MarkdownFileFormat()
+find_reference_marker(node::MarkdownCodeBlock) =
+    _is_marker_block(node) ? parse_marker_text(strip(_unwrap(getfield(node, :code)))) : nothing
 find_natural_file_format(::MarkdownDocument) = MarkdownFileFormat()
+# A new file starts as an empty page, which takes the edits of its first block.
+make_document_seed(::Type{MarkdownDocument}) = MarkdownRoot()
+
+"""
+    MarkdownFile(filename, content)
+
+A file of [`MarkdownFileFormat`](@ref), whose `content` is a `MarkdownDocument`.
+See the module docstring for the fenced-block marker convention.
+"""
+const MarkdownFile = File{MarkdownFileFormat}
 
 # ── The `section` vocabulary function ──────────────────────────────────────
 

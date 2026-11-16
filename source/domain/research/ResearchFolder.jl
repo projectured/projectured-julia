@@ -32,7 +32,7 @@ function collect_study_blocks(study::ResearchStudy)
     blocks = Pair{String, Any}[]
     # The walk enters only what the file of the study writes as a node: the code of
     # a formula, for one, is written as its text.
-    file = PredFile(RESEARCH_STUDY_FILE_NAME, study)
+    format = PredFileFormat()
     seen = IdDict{Any, Bool}(study => true)
     study.report === nothing || (seen[study.report] = true)
     # A block takes the count of the blocks after its stem, unless its stem names it
@@ -52,14 +52,14 @@ function collect_study_blocks(study::ResearchStudy)
             push!(blocks, get_filename(value) => value)
             return
         end
-        extension = find_file_extension(value)
-        if extension !== nothing
+        block_format = find_natural_file_format(value)
+        if block_format !== nothing
             name = numbered ? stem * "-" * string(length(blocks) + 1) : stem
-            push!(blocks, name * extension => value)
+            push!(blocks, name * first(get_file_format_extensions(block_format)) => value)
             return
         end
         for name in fieldnames(typeof(value))
-            (is_view_state_field(name) || !is_written_in_file(file, value, name)) && continue
+            (is_view_state_field(name) || !is_written_in_file(format, value, name)) && continue
             raw = getfield(value, name)
             add!(stem, raw isa AbstractCell ? raw[] : raw)
         end
@@ -84,7 +84,7 @@ function collect_study_blocks(study::ResearchStudy)
             if is_file_document(element)
                 add!("report", element)
             elseif element isa Document && !haskey(seen, element) && !(element isa ResearchItem) &&
-                   find_file_extension(element) === nothing
+                   find_natural_file_format(element) === nothing
                 seen[element] = true
                 push!(blocks, "report-" * string(index) * ".pred" => element)
             end
@@ -101,7 +101,7 @@ function _make_block_file(name::AbstractString, block)
     endswith(name, ".pred") && return PredFile(name, block)
     block isa MarkdownDocument && !(block isa MarkdownRoot) &&
         return MarkdownFile(name, MarkdownRoot(elements = Any[block]))
-    get_file_document_type(name)(name, block)
+    get_file_type(find_file_format(name))(name, block)
 end
 
 """

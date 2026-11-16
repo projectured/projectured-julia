@@ -128,11 +128,11 @@ function test_clipboard_edits()
     set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = String(text); true))
     dir = mktempdir()
     try
-        write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"city\": \"Paris\", \"list\": [11, 22, 33]}"),
+        write_document_file!(parse_natural_text(:json, "{\"name\": \"Alice\", \"city\": \"Paris\", \"list\": [11, 22, 33]}"),
                             joinpath(dir, "a.json"))
-        write_document_file(parse_natural_text(:yaml, "name: Alice\ncity: Paris\n"), joinpath(dir, "a.yaml"))
-        write_document_file(parse_natural_text(:md, "# Title\n\nSome text here.\n"), joinpath(dir, "a.md"))
-        write_document_file(PrimitiveString("one two three"), joinpath(dir, "notes.txt"))
+        write_document_file!(parse_natural_text(:yaml, "name: Alice\ncity: Paris\n"), joinpath(dir, "a.yaml"))
+        write_document_file!(parse_natural_text(:md, "# Title\n\nSome text here.\n"), joinpath(dir, "a.md"))
+        write_document_file!(PrimitiveString("one two three"), joinpath(dir, "notes.txt"))
         entry(w, k) = _ce_file(w).content.content.entries[k]
 
         @testset "a cut of a range takes it out, and Ctrl+Z puts it back" begin

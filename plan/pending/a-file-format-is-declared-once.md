@@ -279,7 +279,7 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   `test_assistant_composer_panel()`, and the tests of the three logs `test_tool_views()`,
   `test_gesture_log_in_tab()`, `test_message_log()`, `test_gesture_log()`,
   `test_tool_themes()`, `test_message_log_feed()` and `test_fault_catching()`.
-- [ ] **5. One file type, one read, one write.** First prove with a small program that
+- [x] **5. One file type, one read, one write.** First prove with a small program that
   `@document struct File{F}` works with a parameter that no field uses, and that a `.pred`
   file writes and reads `File{JsonFileFormat}`. Then add `File{F}`, the short names and
   `make_document_seed(domain)`; move the methods of §3 that name a file type; make
@@ -289,6 +289,28 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   the only difference is the line break of P6. Test: `test_serialization()`,
   `test_file_project()`, `test_pred_file()`, `test_text_file()`, `test_file_tab()`, and the
   suite of each of the eight domains.
+  **Done** 2026-11-16. The proof passes with no change of the kernel (§10). The record
+  differs from step 1 by the line break of P6 and by the inputs that the old export
+  refused (§10). Equal to the baseline, with the same failures: `test_serialization()`
+  58, `test_file_project()` 169 and 1 broken, `test_pred_file()` 87, `test_text_file()`
+  40, `test_file_tab()` 34, `test_workflow_file()` and `test_marker_vocabulary()` 56 and 1
+  error, `test_json()` 405, `test_xml()` 86, `test_yaml()` 64 and 2 broken, `test_sql()`
+  671, `test_markdown()` 346, `test_rst()` 140, `test_julia()` 793 and 1 fail,
+  `test_math()` 221 and 1 fail, `test_languageserver()` 114, the three natural tests 33,
+  the eleven editor tests of the umbrella 1241, 2 fail and 2 broken, and the guards
+  `test_naming()`, `test_exports()` (37 fail; the line of `LanguageServerModule.jl` is 41
+  now), `test_arguments()`, `test_documentation()`, `test_package_graph()` 562,
+  `test_platform_layering()` and `test_platform_slice_edges()`. `test_file_format()` 61
+  (55) and `test_file_format_contract()` 350 and 1 fail (305 and 1) change with the step
+  (§10). Not in the list and equal to the baseline: `test_research()` 386, `test_book()`
+  55, `test_workflow()` 314, `test_chart()` 642, `test_image()` 144, `test_file_dialog()`
+  28 and 1 fail, `test_roster_program()` 21, `test_open_page_operation()` 103,
+  `test_link()` 2109, `test_roster_facets()` 26 and `test_file_change_store()` 242, each
+  with the strings of P6 (§10); `test_explorer()` 507, where the baseline fails one
+  assertion of a repeat (`ExplorerTest.jl:1908`), which passes now. `test_formula()` 310,
+  1 fail and 1 broken: the fail is the time guard `FormulaFrameGuardTest.jl:67`, a ratio
+  of 3.7 and 4.5 to the limit 3.0, which fails on main too (4.2 on `3fd04ea4b`, run
+  alone).
 - [ ] **6. omnet-julia and inet-julia follow,** in worktrees of their own and in the same
   landing: the NED, INI, test, result, event log and fingerprint files. Test:
   `Pkg.precompile()` of `environment/all` of omnet-julia with no warning, and its suites
@@ -712,3 +734,223 @@ table.
   again. Until step 6, each of the three `__init__` calls a function that projectured-julia
   no longer defines, so omnet-julia does not load with this branch (§9, "Downstream
   methods"). Not checked here: step 6 runs its precompile.
+
+
+**2026-11-16, step 5: one file type, one read, one write.**
+
+- **The proof.** `/var/tmp/projectured-julia-file-format-depot/step5/proof.jl` ran on the
+  branch before the first edit, 30 assertions pass. It declares
+  `@document struct ProofFile{F<:FileFormat} <: FileDocument` in `Main`. The stem is
+  `ProofFile{F, C1, …, C5}`: the format comes before the layout parameters, so
+  `ProofFile{JsonFileFormat}` is the file of the format in each cell layout, and
+  `copy_document` of each cell kind keeps the format. The default of `content` can name
+  `F`. The bare name constructs nothing, because nothing binds `F`, and the stem with its
+  format has no keyword constructor; no code builds a file with keywords. The native
+  layout `MProofFile{F}` exists and is no `ProofFile{F}`; no code of the platform builds
+  the native layout of a file. **So a method and an `isa` test use `File{F}` or the short
+  name**, and `@document` needs no change of the kernel. A `.pred` file that holds the
+  file writes `file("a.json")`, and the splice puts the `ProofFile{JsonFileFormat}` back
+  in its place. A file written as its own constructor prints `ProofFile(…)`, and the
+  print does not read back, because the name loses the format; no save writes a file in
+  that way. Two facts that the plan did not know: the table of `@gestures JsonFile` is
+  not found, because `collect_document_gesture_bindings` asks the concrete type and the
+  whole stem, not the stem with its format bound (P10 said that it is found); a method on
+  `Type{<:JsonFile}` is found for each cell layout.
+- **Where each thing lives** (P4). `FileFormat.jl` holds `File{F}`, the generic
+  `make_document_seed` with its method for the domain `Union{}` (the empty string), the
+  defaults `get_file_type(format) = File{typeof(format)}` and
+  `get_file_format(::File{F}) = F()`, the generic `read_file_content` with the docstring
+  that the assistant reads, and `make_file`. It is included right after `FileProject.jl`,
+  because the cut keeps the format of its file. `FileCut.jl` asks each seam of
+  `get_file_format(file)`; `FileSplice.jl` reads the file of a set in the format that its
+  extension names. The default seed, `DocumentNothing()` for a domain with no method, is in
+  `DocumentFile.jl` of the file-format slice, where the default of
+  `make_document_seed(::Val)` was: the serialization slice uses no slice of the platform,
+  and `DocumentNothing` is of the domain slice.
+- **The short names** (P8): `JsonFile`, `XmlFile`, `YamlFile`, `MarkdownFile`, `RstFile`,
+  `MathFile`, `SqlFile` and `JuliaFile` in their domains, `TextFile` and `PredFile` in the
+  serialization slice, `ImageFile` in the style slice, each with the docstring of the old
+  struct, and each exported by its module: `@document` exports a stem, not a constant.
+  `ImageFile(filename)` stays, a method of `File{ImageFileFormat}`. `SourceFile` keeps its
+  struct (O4) and declares `get_file_type` and `get_file_format`.
+- **The seeds** (P7), each in the fragment of its format, as
+  `make_document_seed(::Type{JsonDocument})`: `JsonInsertion`, `XmlInsertion`,
+  `YamlInsertion`, `SqlInsertion`, `JuliaInsertion` and `MathInsertion`; `MarkdownRoot()`
+  and `RstRoot()`. A `JsonFile` made with no content held `JsonNothing()` and holds
+  `JsonInsertion()` now; a `PredFile` held `nothing` and holds `DocumentNothing()`.
+- **P6.** The default of `read_file_content(format, path)` and of
+  `make_file(format, filename, text)` removes one line break at the end of the text before
+  the parse. `cut_file_text`, `save_file!` and `save_project!` write the string and one
+  line break. The string with no line break is the private `_cut_file_string`, which a
+  `.pred` file writes inline. A format whose file is its own content builds itself in its
+  `make_file` from the whole text, so it removes the line break itself, as the `NoteFile`
+  of `TextFileTest.jl` does. The emit of `.pred` kept its note of the file name on a
+  `FileCutException` (`save: "x.pred" …`); the cut adds it now, for each format.
+- **The one read and the one write.** `read_document_file(path)`: `.pdoc` is the binary
+  snapshot; any other path finds its format (`find_file_format`), a missing file gives
+  `make_document_for(path)`, the seed of the domain, and a file that exists is
+  `load_file`, so a marker of a file into itself is spliced for each format; the natural
+  read of `import_document` spliced none. `write_document_file!(document, path)`: `.pdoc`,
+  or `save_file!` of a file of the format with the document, which keeps the guard of
+  `export_document` (a natural format of the path that is not the format of the
+  document). `ExportDocumentOperation` and `ImportDocumentOperation` stay and call the two.
+  `NaturalFormat.jl` goes; the two operations are in `DocumentFile.jl`.
+  `read_file_content_again(format, path)` takes the format of the file that reads again.
+- **What goes.** The eleven structs; `_FILE_DOCUMENT_TYPES`,
+  `register_file_document_type!` and its 21 calls with their `__init__` lines,
+  `get_file_document_type`, `has_file_document_type`, `find_file_extension`,
+  `import_document`, `export_document`, `write_document_file`; the forms on a file type
+  `emit_text`, `parse_file_content`, `get_file_domain`, `is_editable_file_type`,
+  `read_file_content(::Type)`, `make_file(::Type, …)`, `is_file_domain_node(file, …)`,
+  `is_written_in_file(file, …)`, `is_written_inline(file, …)`,
+  `make_reference_leaf(file, …)` and `make_document_seed(::Val)`; the methods
+  `get_file_type` and `get_file_format` of each format that has the default; the two
+  methods `find_navigator_target(::MarkdownFile, …)` and `(::RstFile, …)`. No kernel file
+  changes.
+- **The name of a type** (§9), searched with `nameof(typeof(`, `typename(` and
+  `get_document_schema_name` in `source/`. Changed: the three builds of a file from its
+  type (`_with_content`, `_make_plain_file`, `_read_file_again` and the background read
+  in `DocumentFile.jl`) make `get_file_type(get_file_format(file))`; the error of a save
+  of a held file with no name, and the facet `type` of a file in a roster, use the name
+  that a reader gives the file (below). Not changed, and they say `File` for a file:
+  `describe_document` (the menu entry "Show File in the explorer"), the descriptions of
+  `DocumentRelease.jl` in the gesture log ("acquire the File that enters the window"),
+  "This File has no command now." of `PartCommands.jl`, the kind of a row in the filter
+  of the explorer (one kind `File` for each format), `show` of a document, and the
+  `.pred` text of a file written as its own constructor.
+- **Proposed by the assistant: a gesture table of the file of one format is a method on
+  `Type{<:JsonFile}`.** `@gestures JsonFile` writes a method on `Type{File{JsonFileFormat}}`,
+  which the walk of the kernel never asks (the proof). So the tables of JSON, XML and YAML
+  are `get_document_gesture_bindings_own(::Type{<:JsonFile}) = _JSON_FILE_BINDINGS`, as
+  the table of Julia already was a method. The tables stay on the file type, through the
+  short name (P10). Rejected: a change of the walk in `source/kernel/binding/`, which is
+  not sealed, because a change of the kernel is the owner's; `@gestures <:JsonFile`,
+  because the macro takes a type.
+- **Proposed by the assistant: a reader names the file of a format by the name of the
+  format without `Format`,** `get_document_schema_name(::Type{<:File{F}})`, so `JsonFile`
+  for `File{JsonFileFormat}`. The kernel says that this function gives "the name to show a
+  reader". It gives a roster (`compute_item_facet(::FileDocument, ::Val{:type})`, so a
+  table of files groups `TextFile` and `JsonFile` apart, as `test_roster_program` asserts),
+  the inspector and the error of a save a name for each format, and the reader of a
+  `.pred` file builds a file by that name, so the marker `TextFile("page.txt", "hello")`
+  of `test_text_file` builds a `TextFile` again. Rejected: a new seam of a format for the
+  name, which is a new function; a search of the module of the format for its short name,
+  a scan of names at each call that gives no name to a format with no short name; the
+  name `File{JsonFileFormat}`, which the grammar of a marker can not write.
+- **Proposed by the assistant: one `find_navigator_target(file::FileDocument, target)` in
+  the navigator slice.** §5 moves the method from the file to the document. The two
+  methods of a file did one thing, after what the document names: a relative path to a
+  file beside the file, which only the file knows. So the navigator slice has one method
+  for each file document, and Markdown and RST keep the method of their root. **A person
+  sees this:** a link in a file of each format to a file beside it opens that file.
+- **Proposed by the assistant: the format that a `.pred` file writes inline is read from
+  `collect_file_formats()`.** `find_natural_file_format` is of the natural slice, which
+  the serialization slice can not use, so the private `_find_domain_format(node)` gives
+  the first format of the session whose domain holds the node, other than `Document` and
+  `Union{}`, and `is_pred_document` asks it too. The tag of the text is the first
+  extension of the format, so a YAML value is tagged `yaml"…"` where
+  `find_file_extension` gave the shorter `yml"…"`; a file with `yml"…"` still reads. The
+  research domain names a block file by the first extension too (`.yaml`).
+- **Proposed by the assistant: the file types of the tests are formats.** `NoteFile`,
+  `PredFileLinesFile`, `PredFileViewedLinesFile`, `_ShoutedFile` and `_ReadOnlyProbeFile`
+  become `NoteFileFormat` (with its struct, a file that is its own content),
+  `PredFileLinesFileFormat`, `PredFileViewedLinesFileFormat`, `_ShoutedFileFormat` and
+  `_ReadOnlyProbeFileFormat`, declared at the top of their test files; the last two have
+  no extension, `()`. So they are formats of each session that loads
+  `ProjecturedPlatformTest`, where a registration in a testset held an extension for the
+  rest of the session. The contract test names them in its list. Each format has a file
+  type now, so the contract test makes a file of each format: of the workload text, of an
+  empty text for a format that a person edits, and of the seed of the domain for one that
+  a person does not edit.
+- **The record.** `record.jl` into
+  `/var/tmp/projectured-julia-file-format-depot/step5/record`, then `diff -r`: of the 88
+  strings, 41 are the string of step 1 and one line break (P6), and 12 are equal: the save
+  of Julia, math, `.pred`, plain text and no extension, which wrote the line break before.
+  The export of Julia and math is now equal to their save. The SQL file ends with an empty
+  line, `SELECT\n  name\nFROM\n  people\n\n`, because the printer of SQL ends its string
+  with a line break of its own. The other differences are not P6: the export of plain
+  text, of a path with no extension, of `.markdown` and of the six `.pred` inputs writes
+  now, where `import_document` refused them, and each is the save of step 1 (the save of
+  `.markdown` and one line break); the export and the save of a picture raise
+  "make_document_string: the documents of ImageFileFormat have no syntax notation", where
+  they raised "unsupported extension" and "emit_text: no method"; the export of a source
+  file raises "could not write …; the log says why", where it raised "unsupported
+  extension", and its save answers `false` as before.
+- **What a person sees.** A saved JSON, XML, YAML, SQL, Markdown, RST or plain text file
+  ends with a line break (P6), and a saved SQL file with an empty line. A new YAML or math
+  file starts as an insertion, and a new Markdown or RST file as an empty page, where all
+  four were an empty document (P7). A link in a file of any format to a file beside it
+  opens that file. A `.pred` file tags an inline YAML value `yaml"…"`. The texts of the
+  list above say `File` for a file. A new source file of the language server holds an
+  empty `PrimitiveString`, the seed of `Union{}`, which its format does not write (its
+  save raises an error; before, it held a `DocumentNothing`, and its save was refused with
+  a log).
+- **Tests that change with the step.** The calls of a removed function take the new one.
+  A saved string takes the line break of P6: `TextFileTest.jl` (5), `PredFileTest.jl` (1),
+  `SerializationTest.jl` (1), `RosterFacetTest.jl` (1) and `FileChangeStoreTest.jl` (8,
+  such as `"saved\n\n"` for the save of the text `"saved\n"`, and its hash). A read
+  string loses its line break: `FileChangeStoreTest.jl` (19, such as `"one"` for a file
+  `"one\n"`, and `"BYE"` for the read of `"bye\n"` in a format of the test) and
+  `ExplorerTest.jl` (1). `FileFormatTest.jl` replaces the
+  testset of the forms on a file type with one of `File{F}`, the seed and the line break
+  of `make_file`: `test_file_format()` 61 pass (55). `test_file_format_contract()` 350
+  pass and 1 fail (305 and 1): the five formats of the tests add 43 assertions, and
+  `TallyLogFileFormat` has a file type now, 2 more; the fail is the XML row, now at line
+  82.
+- **For step 6: the calls in omnet-julia and inet-julia** (`main` of each; omnet-julia
+  `6b6375c93`), besides the three `register_natural_domain!` calls of step 4. Each of the
+  six file types of omnet-julia defines its struct and methods of removed functions.
+  - `source/legacy/ned/NedFile.jl` and `NedModule.jl`: `@document struct NedFile`,
+    `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf(::NedFile, …)`,
+    `make_document_seed(::Val{:ned})`, `register_file_document_type!(".ned", NedFile)`,
+    the imports of `make_document_seed` from `FileFormatModule` and of `emit_text`,
+    `get_file_domain`, `parse_file_content` from `SerializationModule`.
+  - `source/legacy/ini/IniFile.jl` and `IniModule.jl`: the same for `IniFile` and `.ini`,
+    with `make_document_seed(::Val{:ini})` and `@gestures IniFile` (a method on
+    `Type{<:IniFile}`, as in step 5).
+  - `source/legacy/testfile/LegacyTestFile.jl` and `LegacyTestModule.jl`: the same for
+    `LegacyTestFile` and `.test`, with `is_file_domain_node(::LegacyTestFile, node)` and
+    `make_document_seed(::Val{:test})`.
+  - `source/legacy/result/presentation/LegacyResultFile.jl`: `get_file_domain`,
+    `is_editable_file_type`, `read_file_content(::Type{<:LegacyResultFile}, path)`,
+    `register_file_document_type!(".sca" / ".vec", …)`, and the calls
+    `read_file_content(LegacyResultFile, path)` at lines 232 and 385; the struct keeps its
+    own type (O4).
+  - `source/legacy/result/presentation/LegacyEventLogFile.jl`: `get_file_domain`,
+    `is_editable_file_type`, `read_file_content(::Type)`,
+    `register_file_document_type!(".elog", …)`.
+  - `source/legacy/simulator/presentation/LegacyFingerprintStore.jl`:
+    `is_editable_file_type`, `get_file_domain`, `parse_file_content`, `emit_text`, and
+    `parse_file_content(LegacyFingerprintStoreFile, text)` at line 234.
+  - `source/ide/StudyVerbs.jl:369`: `get_file_document_type(filename)` and
+    `make_file(T, filename, text)`; `source/ide/CampaignVerbs.jl:500`:
+    `has_file_document_type(path) && make_file(get_file_document_type(path), …)`;
+    `source/ide/IdeWorkload.jl:106, 108, 359`: `make_file(get_file_document_type("Net.ned"), …)`,
+    `make_file(get_file_document_type("study.ini"), …)` and
+    `type <: FileDocument && !is_editable_file_type(type)`;
+    `source/ide/LegacyBaselineFileView.jl:71`: `read_file_content(LegacyResultFile, path)`.
+  - Tests: `test/legacy/ini/IniFileNoteTest.jl:27, 49` (`parse_file_content`),
+    `test/legacy/result/LegacyResultFileTest.jl:67` (`is_editable_file_type`),
+    `test/legacy/simulation/LegacyFingerprintStoreTest.jl:21, 83`,
+    `test/legacy/simulation/LegacyResultFolderTest.jl:517` (`read_file_content` of the
+    type), `test/legacy/simulation/MiniProjectRoundTripTest.jl:53, 54`
+    (`make_file(OmnetLegacy.NedFile, …)`, `make_file(OmnetLegacy.IniFile, …)`).
+  - Search corpora that name a removed function as an answer:
+    `example/ide/SearchContextCorpus.jl:132` (`write_document_file`) and
+    `example/ide/SearchUntunedCodeCorpus.jl:86, 87` (`import_document`).
+  - `source/ide/LegacyIniFileEntryToWidget.jl:150` calls `find_navigator_target(file, section)`,
+    which the method of step 5 for a file document answers; it needs no change.
+  - inet-julia names no removed function. It names `MarkdownFile` and `ImageFile`
+    (`package/InetQueuingExample/src/InetQueuingExample.jl:67`,
+    `test/model/queuing/tutorial.jl:538`), which the short names keep.
+- **For step 7.** The record of the compile-ahead lists: the load warns that 100 of the
+  978 recorded calls of `ProjecturedRST`, 358 of the 3297 of `ProjecturedJulia`, 43 of the
+  411 of `ProjecturedBook` and 49 of the 488 of `ProjecturedResearch` no longer resolve.
+  The system text changes in two lines, by the removed exports: the line of
+  `FileFormatModule` has its new first sentence and names `write_document_file!` in place
+  of `export_document`, `import_document` and `write_document_file`, and the types of
+  `SerializationModule` hold `File`. `describe_natural_formats()`, the docstrings of
+  `parse_natural_text` and `describe_natural_formats`, the insertions and the syntax rows
+  are byte-equal to step 4; the docstring of `print_natural_text` names
+  `write_document_file!` in place of `export_document`
+  (`/var/tmp/projectured-julia-file-format-depot/step5/after`, by `step4/capture.jl`).

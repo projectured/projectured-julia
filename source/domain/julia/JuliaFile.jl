@@ -12,22 +12,6 @@ expression: `pred_ref("<<file(\\"path\\")>>")`.
 """
 const PRED_REF_FUNCTION_NAME = "pred_ref"
 
-"""
-    JuliaFile(filename, content)
-
-A file document whose `content` is a `JuliaDocument`. See the module
-docstring for the `pred_ref(...)` marker convention.
-"""
-@document struct JuliaFile <: FileDocument
-    filename::String
-    content::Document = JuliaNothing()
-    disk::FileDiskState = FileDiskState()
-end
-
-# The text of the file ends with a line break, which the print of its last statement
-# does not write.
-emit_text(f::JuliaFile) = print_natural_text(get_file_content(f)) * "\n"
-
 function _is_marker_call(node::JuliaCall)
     callee = node.callee
     callee isa JuliaIdentifier || return false
@@ -37,18 +21,6 @@ function _is_marker_call(node::JuliaCall)
     arg = args[1] isa Cell ? args[1][] : args[1]
     arg isa JuliaString
 end
-
-# What the file writes itself, and how it spells a reference to what it does
-# not: a `pred_ref("…")` call with the marker as its one string argument.
-get_file_domain(::Type{<:JuliaFile}) = JuliaDocument
-make_reference_leaf(::JuliaFile, marker::AbstractString) =
-    JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME), JuliaDocument[JuliaString(make_marker_text(marker))])
-function find_reference_marker(node::JuliaCall)
-    _is_marker_call(node) || return nothing
-    args = getfield(node, :arguments)[]
-    parse_marker_text((args[1] isa Cell ? args[1][] : args[1]).value)
-end
-parse_file_content(::Type{<:JuliaFile}, text::AbstractString) = parse_julia(text)
 
 """
     JuliaFileFormat()
@@ -63,12 +35,27 @@ struct JuliaFileFormat <: FileFormat end
 get_file_format_extensions(::JuliaFileFormat) = (".jl",)
 get_file_format_domain(::JuliaFileFormat) = JuliaDocument
 parse_document_string(::JuliaFileFormat, string::AbstractString) = parse_julia(string)
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred_ref("…")` call with the marker as its one string argument.
 make_reference_leaf(::JuliaFileFormat, marker::AbstractString) =
     JuliaCall(JuliaIdentifier(PRED_REF_FUNCTION_NAME),
               JuliaDocument[JuliaString(make_marker_text(marker))])
-get_file_type(::JuliaFileFormat) = JuliaFile
-get_file_format(::JuliaFile) = JuliaFileFormat()
+function find_reference_marker(node::JuliaCall)
+    _is_marker_call(node) || return nothing
+    args = getfield(node, :arguments)[]
+    parse_marker_text((args[1] isa Cell ? args[1][] : args[1]).value)
+end
 find_natural_file_format(::JuliaDocument) = JuliaFileFormat()
+# A new file starts as the insertion of a first statement.
+make_document_seed(::Type{JuliaDocument}) = JuliaInsertion()
+
+"""
+    JuliaFile(filename, content)
+
+A file of [`JuliaFileFormat`](@ref), whose `content` is a `JuliaDocument`. See
+the module docstring for the `pred_ref(...)` marker convention.
+"""
+const JuliaFile = File{JuliaFileFormat}
 
 # ── The `definition` vocabulary function ───────────────────────────────────
 #
@@ -207,4 +194,4 @@ end
 const _JULIA_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_julia_call_note; description = "Show the function that is called")]
 
-get_document_gesture_bindings_own(::Type{JuliaFile}) = _JULIA_FILE_BINDINGS
+get_document_gesture_bindings_own(::Type{<:JuliaFile}) = _JULIA_FILE_BINDINGS

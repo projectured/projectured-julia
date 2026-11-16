@@ -8,16 +8,20 @@ file of its file type gives the format back. For each text of
 `make_workload_file`: the format of its name parses it, prints the document, and
 reads the printed string back to a document that prints the same string. A
 format with no workload text is named in a list, so a new format is not skipped
-without a word.
+without a word. The text of a file of each format is its string and one line
+break.
 """
 function test_file_format_contract()
 @testset "FileFormat: the contract of each format of the session" begin
     formats = collect_file_formats()
     rows = [make_workload_file(type) for type in collect_workload_file_types()]
-    # A picture and a source file have no workload text; `TallyFileFormat` and
-    # `TallyLogFileFormat` are the formats of `FileFormatTest.jl`.
+    # A picture and a source file have no workload text; the other formats are the
+    # formats that the tests of the serialization slice and of the store of file
+    # changes declare.
     formats_without_workload = [:ImageFileFormat, :SourceFileFormat,
-                                :TallyFileFormat, :TallyLogFileFormat]
+                                :TallyFileFormat, :TallyLogFileFormat, :NoteFileFormat,
+                                :PredFileLinesFileFormat, :PredFileViewedLinesFileFormat,
+                                :_ShoutedFileFormat, :_ReadOnlyProbeFileFormat]
 
     @testset "no two formats declare one extension" begin
         declared = [extension for format in formats
@@ -41,17 +45,22 @@ function test_file_format_contract()
                     isempty(extension) || @test find_file_format(Symbol(extension[2:end])) === format
                 end
                 @test get_file_format_domain(format) isa Type
-                if hasmethod(get_file_type, Tuple{typeof(format)})
-                    # The file of the first extension, with the workload text of
-                    # the format, or with no text.
-                    name = "a" * (isempty(extensions) ? "" : first(extensions))
-                    row = findfirst(row -> find_file_format(row.name) === format, rows)
-                    path = joinpath(folder, name)
-                    write(path, row === nothing ? "" : rows[row].text)
-                    file = get_file_type(format)(name, read_file_content(format, path))
-                    @test file isa get_file_type(format)
-                    @test get_file_format(file) === format
+                # The file of the first extension, with the workload text of the
+                # format; with no workload text, the file of an empty text of a
+                # format that a person edits, or the file of the seed of its domain.
+                name = "a" * (isempty(extensions) ? "" : first(extensions))
+                row = findfirst(row -> find_file_format(row.name) === format, rows)
+                path = joinpath(folder, name)
+                file = if row !== nothing
+                    write(path, rows[row].text)
+                    get_file_type(format)(name, read_file_content(format, path))
+                elseif is_editable_file_format(format)
+                    make_file(format, name, "")
+                else
+                    get_file_type(format)(name, make_document_seed(get_file_format_domain(format)))
                 end
+                @test file isa get_file_type(format)
+                @test get_file_format(file) === format
             end
         end
     finally
@@ -63,13 +72,7 @@ function test_file_format_contract()
             format = find_file_format(row.name)
             @test format isa FileFormat
             if format isa FileFormat
-                # The printer of the format where it declares one, and the printer
-                # of its file otherwise.
-                is_declared(document) =
-                    hasmethod(make_document_string, Tuple{typeof(format), typeof(document)})
-                make_string(document) =
-                    is_declared(document) ? make_document_string(format, document) :
-                                            emit_text(get_file_type(format)(row.name, document))
+                make_string(document) = make_document_string(format, document)
                 document = parse_document_string(format, row.text)
                 domain = get_file_format_domain(format)
                 domain === Union{} || @test document isa domain
@@ -77,12 +80,8 @@ function test_file_format_contract()
                 @test printed isa String
                 again = parse_document_string(format, printed)
                 @test make_string(again) == printed
-                # A format that declares its string writes what its file writes,
-                # without the line break that the write of a file adds.
-                if is_declared(document)
-                    @test emit_text(get_file_type(format)(row.name, document)) in
-                          (printed, printed * "\n")
-                end
+                # The text of a file of the format is the string and one line break.
+                @test cut_file_text(get_file_type(format)(row.name, document)) == printed * "\n"
             end
         end
     end

@@ -304,7 +304,7 @@ Use it to read a document as text.
     people_1 = get_edited_document(find_pane("people.json"))
     people_text_1 = print_natural_text(people_1)
 
-See also `parse_natural_text` and `export_document`.
+See also `parse_natural_text` and `write_document_file!`.
 
 For the assistant.
 """

@@ -61,21 +61,10 @@ _normalize_rst_name(name::AbstractString) = lowercase(join(split(name), " "))
 _get_rst_target_name(target::AbstractString) = startswith(target, "#") ? chop(target; head = 1, tail = 0) : target
 
 # A document names its targets and its sections, and an address outside the editor.
+# Its file names also a file beside it by a relative path.
 find_navigator_target(root::RstRoot, target::AbstractString) =
     something(_find_rst_target(root, _normalize_rst_name(_get_rst_target_name(target)), ReferenceStep[]),
               find_web_url(target), Some(nothing))
-
-# A file names what its document names first, past the history inside the file: the
-# targets and the sections of the document, then an address outside the editor; and
-# else a file beside it by a relative path, when that file exists.
-function find_navigator_target(file::RstFile, target::AbstractString)
-    found = find_edited_document_target(file, target)
-    found === nothing || return found
-    path = first(split(target, '#'; limit = 2))
-    (isempty(path) || occursin(r"^[A-Za-z][A-Za-z0-9+.\-]*:", path)) && return nothing
-    candidate = normpath(joinpath(dirname(abspath(file.filename)), path))
-    isfile(candidate) ? candidate : nothing
-end
 
 # The part of `document` that the name `name` labels, depth first: the part after
 # a target of that name, the target itself when nothing follows it, or a section

@@ -182,7 +182,7 @@ These do something other than a single-slot write, so they stay their own types:
 | `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `screen/ScreenDocument.jl` | window state; an operation whose vocabulary belongs to one domain is declared with that domain's document |
 | `ToggleClipboardSliceOperation`, `ToggleClipboardCollectionOperation`, `SetVersionCriterionOperation` | `clipboard/ClipboardSliceToAny.jl`, `clipboard/ClipboardCollectionToAny.jl`, `versioning/VersioningToAny.jl` | switch *which child* a projection exposes. Each one writes a cell, and the output of the projection is a computed cell over it, so the stages after it print again with no `editor.iomap` drop |
 | `LoadDocumentOperation`, `SaveDocumentOperation` | `serialization/BinarySerialization.jl` | file I/O |
-| `SaveFileOperation`, `ExportDocumentOperation` | `fileformat/DocumentFile.jl`, `fileformat/NaturalFormat.jl` | file I/O |
+| `SaveFileOperation`, `ExportDocumentOperation` | `fileformat/DocumentFile.jl` | file I/O |
 | `UpdateDatabaseCellOperation`, `InsertDatabaseRowOperation` | `database/DatabaseDocument.jl` | SQL I/O |
 | `WriteOsClipboardOperation` | `clipboard/Clipboard.jl` | side-effecting OS-clipboard write — mirrors a copy/cut/note out to the system clipboard at evaluate time (best-effort; degrades to a no-op when no clipboard tool exists) |
 | `InvokeActionOperation(action)` | `widget/WidgetDocument.jl` | runs an `Action`'s callback — an effect, not a field write. The one activation operation: every control (button, menu item, toolbar entry, keyboard shortcut) is a view of an `Action` and answers a press with this. It names its own target, so a projection that hosts controls forwards it unchanged rather than re-rooting it |

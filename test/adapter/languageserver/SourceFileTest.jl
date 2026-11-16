@@ -97,7 +97,7 @@ function test_source_file()
 
 @testset "a C or C++ extension opens as a source file whose content is a marked text" begin
     for extension in (".c", ".h", ".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx", ".CC")
-        @test get_file_document_type("a" * extension) === SourceFile
+        @test get_file_type(find_file_format("a" * extension)) === SourceFile
     end
     directory = mktempdir()
     path = joinpath(directory, "hello.cc")
@@ -107,7 +107,8 @@ function test_source_file()
     @test file.content isa MarkedText
     @test file.content.text == _SF_SOURCE
     file.content.text = replace(_SF_SOURCE, "count" => "total")
-    @test emit_text(file) == replace(_SF_SOURCE, "count" => "total")
+    @test make_document_string(get_file_format(file), get_file_content(file)) ==
+          replace(_SF_SOURCE, "count" => "total")
 end
 
 @testset "a file that no tab acquired has no server and no marks" begin

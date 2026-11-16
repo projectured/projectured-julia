@@ -1,7 +1,7 @@
 """
 Tests for `TextFile`, the simplest file document, saved and loaded one at a
-time: the interface (`get_filename`, `get_file_content`, `emit_text`), the
-write gate, and recreation after an external deletion.
+time: the interface (`get_filename`, `get_file_content`, the string of its
+format), the write gate, and recreation after an external deletion.
 """
 
 using Test
@@ -21,14 +21,21 @@ says so with `is_own_content`, reads itself with `make_file`, and prints itself.
     disk::FileDiskState = FileDiskState()
 end
 
+"The format of a `.note` file, whose file is a `NoteFile`."
+struct NoteFileFormat <: FileFormat end
+
 SerializationModule.is_own_content(::NoteFile) = true
 SerializationModule.get_file_content(f::NoteFile) = f
-SerializationModule.get_file_domain(::Type{<:NoteFile}) = Document
-SerializationModule.emit_text(f::NoteFile) = f.title * "\n" * f.body
+SerializationModule.get_file_format(::NoteFile) = NoteFileFormat()
+SerializationModule.get_file_type(::NoteFileFormat) = NoteFile
+SerializationModule.get_file_format_extensions(::NoteFileFormat) = (".note",)
+SerializationModule.get_file_format_domain(::NoteFileFormat) = Document
+SerializationModule.make_document_string(::NoteFileFormat, f::NoteFile) = f.title * "\n" * f.body
 
-function SerializationModule.make_file(::Type{<:NoteFile}, filename::AbstractString,
+# The text of the file is its string and one line break.
+function SerializationModule.make_file(::NoteFileFormat, filename::AbstractString,
                                        text::AbstractString)
-    lines = split(String(text), "\n", limit = 2)
+    lines = split(chomp(String(text)), "\n", limit = 2)
     NoteFile(String(filename), String(lines[1]), String(length(lines) > 1 ? lines[2] : ""))
 end
 
@@ -44,14 +51,13 @@ function test_text_file()
     end
 
     @testset "a file may be its own content" begin
-        register_file_document_type!(".note", NoteFile)
         d = mktempdir()
         try
             note = NoteFile("a.note", "Title", "Body")
             # There is no `content` field to read through: the file is the tree.
             @test get_file_content(note) === note
             @test save_file!(note, d)
-            @test read(joinpath(d, "a.note"), String) == "Title\nBody"
+            @test read(joinpath(d, "a.note"), String) == "Title\nBody\n"
             # The parser built the file, so the load takes it as it is.
             back = load_file(d, "a.note")
             @test back isa NoteFile
@@ -60,7 +66,7 @@ function test_text_file()
             # And it saves beside a file of another kind, which is the only way
             # one file can name another.
             @test save_project!(FileProject(d, [note, TextFile("b.txt", "plain")]))
-            @test read(joinpath(d, "b.txt"), String) == "plain"
+            @test read(joinpath(d, "b.txt"), String) == "plain\n"
             # A tab holds the file itself under its absolute path, and a history
             # goes around the file, because no content inside it can hold one.
             path = joinpath(d, "a.note")
@@ -77,9 +83,9 @@ function test_text_file()
         end
     end
 
-    @testset "emit_text on TextFile is the identity" begin
-        @test emit_text(TextFile("x.txt", "abc")) == "abc"
-        @test emit_text(TextFile("x.txt", "")) == ""
+    @testset "the string of a TextFile is its content" begin
+        @test make_document_string(get_file_format(TextFile("x.txt", "abc")), "abc") == "abc"
+        @test make_document_string(get_file_format(TextFile("x.txt", "")), "") == ""
     end
 
     @testset "save_file! writes the root to base_dir/filename" begin
@@ -88,7 +94,7 @@ function test_text_file()
             f = TextFile("out.txt", "hello")
             save_file!(f, d)
             @test isfile(joinpath(d, "out.txt"))
-            @test read(joinpath(d, "out.txt"), String) == "hello"
+            @test read(joinpath(d, "out.txt"), String) == "hello\n"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -138,7 +144,7 @@ function test_text_file()
         try
             save_file!(TextFile("h.txt", "before"), d)
             save_file!(TextFile("h.txt", "after"), d)
-            @test read(joinpath(d, "h.txt"), String) == "after"
+            @test read(joinpath(d, "h.txt"), String) == "after\n"
         finally
             rm(d; recursive=true, force=true)
         end
@@ -152,7 +158,7 @@ function test_text_file()
             @test !isfile(joinpath(d, "h.txt"))
             save_file!(TextFile("h.txt", "value"), d)
             @test isfile(joinpath(d, "h.txt"))
-            @test read(joinpath(d, "h.txt"), String) == "value"
+            @test read(joinpath(d, "h.txt"), String) == "value\n"
         finally
             rm(d; recursive=true, force=true)
         end

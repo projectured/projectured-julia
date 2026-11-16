@@ -687,8 +687,7 @@ make_syntax_projection(::Type{<:MathDocument}; appearance) =
 # The rows that teach the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
 
-# One module, one `__init__`. The slice registers its rows here, and the file
-# extension it owns.
+# One module, one `__init__`. The slice registers its rows here.
 function __init__()
     register_natural_syntax!(:math, (; appearance) -> Pair{Type,Any}[MathDocument => MathToSyntax(;
         theme = get_scaled_theme!(appearance, MathTheme),
@@ -696,5 +695,4 @@ function __init__()
     register_natural_graphics!(:math, (; measure, appearance) ->
         make_math_to_graphics_dispatch(measure = measure,
                                        theme = get_scaled_theme!(appearance, MathTheme)))
-    register_file_document_type!(".math", MathFile)
 end

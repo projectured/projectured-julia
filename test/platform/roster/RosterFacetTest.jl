@@ -42,7 +42,7 @@ function test_roster_facets()
         push_undo_entry!(buffer, UndoEntry("an edit", nothing, nothing))
         @test row.values[3] == true
         evaluate_operation(nothing, SaveFileOperation(file))
-        @test read(joinpath(folder, "notes.txt"), String) == "text"
+        @test read(joinpath(folder, "notes.txt"), String) == "text\n"
         @test row.values[3] == false
         push_undo_entry!(buffer, UndoEntry("another edit", nothing, nothing))
         @test row.values[3] == true

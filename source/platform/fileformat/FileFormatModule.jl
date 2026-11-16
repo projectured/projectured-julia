@@ -1,19 +1,19 @@
 """
     FileFormatModule
 
-The functions `import_document` and `export_document` read a document from a file
-and write it to a file, and two editor operations call them.
+The functions `read_document_file` and `write_document_file!` read a document from
+a file and write it to a file, in the format that the extension of the path names;
+the file of a tab, and the operations that save it and read it again.
 
-What a natural notation *is* lives in the natural slice (`NaturalModule`): a
-domain declares the rung it starts at, the format it is written in, the
-extension that names that format back, and how to read the text in again.
-This module is the file half alone: it picks a parser by the extension of a
-path, and it writes what `print_natural_text` produced.
+What a format *is* lives in the serialization slice (`SerializationModule`): a
+format declares its extensions, its domain, its parser and its string. This
+module is the editor's half: it finds the format of a path, it reads and writes a
+file through it, and it keeps a file document and its file on disk together.
 
-Unlike the binary format ([`SerializationModule`](@ref)), this is portable
-and editable outside ProjecturEd, but lossy with respect to editor-only state:
-selection and collapse are not represented, and a document carrying an *insertion
-placeholder* has no valid natural-text form, so its export will not re-parse.
+Unlike the binary format ([`SerializationModule`](@ref)), a text format is
+portable and editable outside ProjecturEd, but lossy with respect to editor-only
+state: selection and collapse are not represented, and a document carrying an
+*insertion placeholder* has no valid text form, so its write will not re-parse.
 Round-trip on real data documents; not on editor scaffolding.
 """
 module FileFormatModule
@@ -50,7 +50,7 @@ using ..TreeModule
 import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate, is_field_walked
 import ..DomainModule: get_document_decoration, accepts_pasted_document, make_document_view, acquire_document!,
                        release_document!
-import ..SerializationModule: pred_arguments, make_pred_document, find_held_file
+import ..SerializationModule: pred_arguments, make_pred_document, find_held_file, make_document_seed
 import ..TreeModule: get_tree_children_steps
 using ..TextModule
 using ..WidgetModule
@@ -62,11 +62,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 import ..GraphicsModule: find_first_baseline
 
-export import_document, export_document,
-       ImportDocumentOperation, ExportDocumentOperation
-export write_document_file, read_document_file, make_document_for, make_document_seed,
-       make_file_tab, make_file_tab_content
-export export_document
+export write_document_file!, read_document_file, make_document_for,
+       ExportDocumentOperation, ImportDocumentOperation, make_file_tab, make_file_tab_content
 export SaveFileOperation, record_saved_state!, has_unsaved_edits, ReloadFileOperation,
        save_file_to_disk!, reload_file_from_disk!,
        compute_file_text, compute_file_text_hash, compute_file_stamp, read_file_content_again,
@@ -80,7 +77,6 @@ export OpenFileList, get_session_open_file_list, find_open_file_document, open_f
        OpenFileListToWidget
 
 
-include("NaturalFormat.jl")
 include("DocumentFile.jl")
 include("FileView.jl")
 include("FileViewToWidget.jl")

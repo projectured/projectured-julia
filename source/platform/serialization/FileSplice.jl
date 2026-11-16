@@ -13,65 +13,23 @@
 # marker is legal JSON: it renders as text and saves back as the same text, so
 # a project can be opened one file at a time and lose nothing.
 
-"""
-    parse_file_content(::Type{<:FileDocument}, text) -> Document
+# One file of a set, read in `format`: a file that a person edits from its text, any
+# other from what its format reads.
+function _read_set_file(format::FileFormat, base_dir::AbstractString, name::AbstractString)
+    path = joinpath(base_dir, name)
+    is_editable_file_format(format) ? make_file(format, name, read(path, String)) :
+                                      get_file_type(format)(String(name), read_file_content(format, path))
+end
 
-The content a file's text parses to, with no splice. Every file type defines
-it in one line, with the parser of its format.
-"""
-function parse_file_content end
-
-"""
-    make_file(::Type{T}, filename, text) -> file document
-
-The file `text` holds, named `filename`. The default wraps what
-[`parse_file_content`](@ref) read, which is what a file with a `content` field
-is. A file whose whole node is its content — see [`is_own_content`](@ref) —
-defines this instead, because its parser already built the file.
-"""
-make_file(T::Type, filename::AbstractString, text::AbstractString) =
-    T(String(filename), parse_file_content(T, text))
-
-"""
-    is_editable_file_type(::Type{<:FileDocument}) -> Bool
-
-Whether a person edits a file of this type in the editor. A file that a program
-writes and a person only reads, such as a result file of a simulation, answers
-`false`: the editor saves nothing of it, it is read through
-[`read_file_content`](@ref), and the feed of file changes reads it again when
-the time or the size of its file changes, with no read of its text. `true` by
-default. A method takes `Type{<:T}`, so it answers for each layout of a type.
-"""
-is_editable_file_type(::Type{<:FileDocument}) = true
-
-"""
-    read_file_content(::Type{T}, path) -> content
-
-The content of the file at `path`, as a file of type `T` reads it. A file of a
-type that a person does not edit ([`is_editable_file_type`](@ref)) is read with
-it, so a type whose file is too large to read whole, such as the vector file of
-a simulation, reads only what it needs. The default reads the text through
-[`parse_file_content`](@ref).
-
-Use it to read the content of a file of a given file type without opening a window on it.
-
-# Example
-
-    content_1 = read_file_content(JsonFile, "data.json")
-
-See also `get_file_content`.
-
-For the assistant.
-"""
-function read_file_content end
-
-read_file_content(T::Type{<:FileDocument}, path::AbstractString) = parse_file_content(T, read(path, String))
-
-# One file of a set: a file that a person edits from its text, any other from
-# what its type reads.
-_read_set_file(T::Type, base_dir::AbstractString, name::AbstractString) =
-    is_editable_file_type(T) ? make_file(T, name, read(joinpath(base_dir, name), String)) :
-                               T(String(name), read_file_content(T, joinpath(base_dir, name)))
+# The format that the extension of `name` names, or an error that says which
+# extension no format has.
+function _get_path_format(name::AbstractString)
+    format = find_file_format(name)
+    format === nothing &&
+        error("no file format of the session has the extension ", repr(lowercase(splitext(name)[2])),
+              " of ", repr(name))
+    format
+end
 
 """
     load_project(base_dir, filenames; follow = false, tolerant = false) -> FileProject
@@ -101,7 +59,7 @@ function load_project(base_dir::AbstractString, filenames::AbstractVector{<:Abst
         normpath(name) in opened && continue
         push!(opened, normpath(name))
         file = try
-            _read_set_file(get_file_document_type(name), base_dir, name)
+            _read_set_file(_get_path_format(name), base_dir, name)
         catch e
             tolerant || rethrow()
             @warn "a file of this set did not open" file = name reason =

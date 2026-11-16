@@ -425,16 +425,16 @@ function test_image()
     @testset "the extensions of a picture are an ImageFile that a person does not edit" begin
         folder = mktempdir()
         for extension in (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".PNG")
-            @test get_file_document_type("chart" * extension) === ImageFile
+            @test get_file_type(find_file_format("chart" * extension)) === ImageFile
         end
-        @test !is_editable_file_type(ImageFile)
+        @test !is_editable_file_format(ImageFileFormat())
         path = joinpath(folder, "a.png")
         write(path, "not a picture")
         # The read of the file makes a picture of its path and reads no byte.
         picture = read_document_file(path)
         @test picture isa Image && picture.filename == path && picture.read_count == 0
         @test picture.natural_size === nothing && picture.failure === nothing
-        @test read_file_content(ImageFile, path) isa Image
+        @test read_file_content(ImageFileFormat(), path) isa Image
         @test read_document_file(joinpath(folder, "missing.png")) isa DocumentNothing
         file = make_file_tab(path)
         @test file isa ImageFile && get_edited_document(file) isa Image

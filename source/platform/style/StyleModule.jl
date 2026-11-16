@@ -26,10 +26,8 @@ import ..DocumentModule: copy_document, get_document_title, get_view_state_field
                           replace_wrapped_document!
 import ..OperationModule: evaluate_operation
 import ..SerializationModule: is_pred_constructible, pred_arguments, make_pred_document,
-                              get_file_domain,
-                              is_editable_file_type, read_file_content, register_file_document_type!,
-                              get_file_format_extensions, get_file_format_domain,
-                              is_editable_file_format, get_file_type, get_file_format
+                              read_file_content, get_file_format_extensions, get_file_format_domain,
+                              is_editable_file_format
 
 export StyleColor, make_style_color, format_style_color, convert_text_to_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
@@ -84,7 +82,7 @@ export Inset, Point2D, inset_default,
        AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
        apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
 export ImageDocument, get_shown_picture, is_picture_file_path, find_held_picture,
-       set_cell_computation!, read_image_size, get_image_natural_size, ImageFileFormat
+       set_cell_computation!, read_image_size, get_image_natural_size, ImageFileFormat, ImageFile
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
 export FontRole, TextRole, ThemeText, ThemeFont
@@ -133,13 +131,5 @@ include("Theme.jl")
 include("Appearance.jl")
 include("ColorTheme.jl")
 include("FontTheme.jl")
-
-# One module, one `__init__`. Registration is runtime state that a precompiled
-# image does not keep.
-function __init__()
-    for extension in (".png", ".jpg", ".jpeg", ".bmp", ".gif")
-        register_file_document_type!(extension, ImageFile)
-    end
-end
 
 end # module

@@ -1,6 +1,6 @@
 # Round-trip tests for document persistence:
 #   - binary  save_document / load_document   (exact, lossless, any document)
-#   - natural import_document / export_document (printer/parser text, per domain)
+#   - natural read_document_file / write_document_file! (printer/parser text, per domain)
 # plus the four editor operations and the format guards.
 
 using Test
@@ -82,10 +82,10 @@ function test_serialization()
             ]
             for (ext, doc, T, text_stable) in cases
                 p = tempname() * ext
-                export_document(doc, p)
+                write_document_file!(doc, p)
                 @test isfile(p)
 
-                imported = import_document(p)
+                imported = read_document_file(p)
                 @test imported isa T
 
                 # Exporting the re-imported document is a fixed point for domains
@@ -93,26 +93,26 @@ function test_serialization()
                 # parser captures inter-element whitespace as text, so its text is
                 # only best-effort stable — we just require it re-imports.
                 if text_stable
-                    @test print_natural_text(imported) == read(p, String)
+                    @test print_natural_text(imported) * "\n" == read(p, String)
                 else
-                    @test import_document(p) isa T
+                    @test read_document_file(p) isa T
                 end
             end
         end
 
         @testset "export extension guard" begin
             # Writing one format's text under another known format's extension is
-            # rejected, so a later import_document can't pick the wrong parser.
-            @test_throws Exception export_document(parse_json("1"), tempname() * ".sql")
+            # rejected, so a later read_document_file can't pick the wrong parser.
+            @test_throws Exception write_document_file!(parse_json("1"), tempname() * ".sql")
 
             # `.yml` is a second extension of the YAML format, read by the same
             # parser, so a YAML document exports there and reads back. A `.json`
             # path is still rejected for it.
             yaml = parse_yaml("a: 1\n")
             p = tempname() * ".yml"
-            @test export_document(yaml, p) == p
-            @test import_document(p) isa YamlMapping
-            @test_throws Exception export_document(yaml, tempname() * ".json")
+            @test write_document_file!(yaml, p) == p
+            @test read_document_file(p) isa YamlMapping
+            @test_throws Exception write_document_file!(yaml, tempname() * ".json")
         end
 
         @testset "operations" begin

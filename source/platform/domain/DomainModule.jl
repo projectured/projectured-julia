@@ -12,8 +12,9 @@ of each document live in `DocumentRelease.jl`. The read of outside state for a
 document on a task of its own, `start_document_read!`, lives in `DocumentRead.jl`.
 
 The load/save/import/export document operations live with the serializers:
-binary `Save`/`LoadDocumentOperation` in `SerializationModule`, natural
-`Export`/`ImportDocumentOperation` in `FileFormatModule`.
+binary `Save`/`LoadDocumentOperation` in `SerializationModule`, and
+`Export`/`ImportDocumentOperation` in `FileFormatModule`, which write and read a
+file in the format of its extension.
 """
 module DomainModule
 

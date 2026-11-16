@@ -24,7 +24,7 @@ one value of a record later.
 # Example
 
     path_1 = joinpath(mktempdir(), "ledger.pred")
-    write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
+    write_document_file!(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
     tab_1 = open_file!(path_1)
     ledger_1 = get_edited_document(tab_1)
     insert_elements!(ledger_1.records, 1, [(number = 1, commit = "fd436d7", state = "waiting")])

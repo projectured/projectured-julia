@@ -1,5 +1,5 @@
-# Fragment of `SerializationModule` — a file format, the seams that a format
-# declares, and the searches over the formats of a session.
+# Fragment of `SerializationModule` — a file format, the file of a format, the seams
+# that a format declares, and the searches over the formats of a session.
 #
 # A format is a type with no field, a subtype of `FileFormat`, that the package of
 # the format declares. The package then adds a method of each seam for it: the
@@ -7,6 +7,11 @@
 # No registry holds a format and no `__init__` registers one. A search reads the
 # formats from the method table of `get_file_format_extensions`, so a format is
 # known as soon as its package is loaded.
+#
+# A file of a format is a `File{F}`: its name, its content and its state on disk.
+# The text of a file is the string of its content and one line break: the read
+# removes one line break at the end of the text before the parse, and the write of
+# a file adds one after the string.
 
 """
     FileFormat
@@ -28,13 +33,68 @@ format whose string is not the print of a syntax tree declares
 [`make_document_string`](@ref). The other seams have a default:
 [`is_editable_file_format`](@ref), [`read_file_content`](@ref),
 [`is_written_in_file`](@ref), [`is_written_inline`](@ref),
-[`is_file_domain_node`](@ref) and [`make_file`](@ref). A format that has a file
-type declares [`get_file_type`](@ref).
+[`is_file_domain_node`](@ref), [`get_file_type`](@ref) and [`make_file`](@ref).
+The domain of the format declares the empty document of a new file,
+[`make_document_seed`](@ref).
 
 [`find_file_format`](@ref) finds a format by an extension, a path or a short
 name, and [`collect_file_formats`](@ref) gives each format of the session.
 """
 abstract type FileFormat end
+
+"""
+    make_document_seed(domain::Type) -> document
+
+The empty document of a new file whose format has the domain `domain`, such as
+`JsonInsertion()` for `JsonDocument`: the insertion of the domain where a person
+types a first element, or the empty root where the root takes edits, as an empty
+Markdown page. It is also the content of a [`File`](@ref) that is made with no
+content. A domain declares a method for its type; a domain with none gives an
+empty document. The domain `Union{}`, of a file that holds no document, gives the
+empty string.
+
+# Example
+
+    make_document_seed(get_file_format_domain(find_file_format(".json")))   # JsonInsertion()
+"""
+function make_document_seed end
+
+make_document_seed(::Type{Union{}}) = ""
+
+"""
+    File{F<:FileFormat}(filename, content = make_document_seed(get_file_format_domain(F())))
+
+The document of a file of the format `F`: `filename`, the name of the file;
+`content`, what the file holds, as the format reads it; and `disk`, its state
+against the file on disk ([`FileDiskState`](@ref)). A file that is made with no
+content holds the empty document of the domain of its format
+([`make_document_seed`](@ref)). Its format is its type parameter:
+[`get_file_format`](@ref) answers `F()`, and [`get_file_type`](@ref) of a format
+answers `File{F}`, the file of each format that has no file type of its own.
+
+A package gives the file of its format a short name, as `const JsonFile =
+File{JsonFileFormat}`. The short name constructs a file, takes a method and
+answers an `isa` test for each cell layout of the file.
+
+# Example
+
+    file = File{JsonFileFormat}("people.json", parse_json("[]"))
+    file isa JsonFile                    # true
+    get_file_format(file)                # JsonFileFormat()
+"""
+@document struct File{F<:FileFormat} <: FileDocument
+    filename::String
+    content::Any = make_document_seed(get_file_format_domain(F()))
+    disk::FileDiskState = FileDiskState()
+end
+
+# A reader names the file of a format by the name of the format without `Format`,
+# `JsonFile` for `File{JsonFileFormat}`, which is also the short name that the
+# package of the format gives it. So a roster, an inspector and the error of a save
+# tell a file of one format from a file of another, and a `.pred` file names the
+# file of a format by that name.
+get_document_schema_name(::Type{<:File{F}}) where {F<:FileFormat} =
+    Symbol(chopsuffix(String(nameof(F)), "Format"))
 
 """
     get_file_format_extensions(format::FileFormat) -> Tuple of String
@@ -104,16 +164,33 @@ default.
 is_editable_file_format(::FileFormat) = true
 
 """
-    read_file_content(format::FileFormat, path::AbstractString) -> content
+    read_file_content(format, path) -> content
 
-The content of the file at `path`, as a file of `format` holds it. The default
-reads the string of the file and parses it with
+The content of the file at `path`, as a file of `format` holds it: the parsed
+tree of a JSON file, a `String` for a text file. The default reads the text of the
+file, removes one line break at its end, and parses the string with
 [`parse_document_string`](@ref). A format whose file is too large to read whole,
 such as the vector file of a simulation, reads only what it needs in a method of
-its own.
+its own, as a picture reads nothing.
+
+Use it to read the content of a file in a given format without opening a window on it.
+
+# Example
+
+    content_1 = read_file_content(find_file_format("data.json"), "data.json")
+
+See also `get_file_content` and `read_document_file`.
+
+For the assistant.
 """
+function read_file_content end
+
 read_file_content(format::FileFormat, path::AbstractString) =
-    parse_document_string(format, read(path, String))
+    parse_document_string(format, _remove_final_line_break(read(path, String)))
+
+# The string of the text of a file: the text without its one line break at the end.
+_remove_final_line_break(text::AbstractString) =
+    endswith(text, '\n') ? String(chop(text)) : String(text)
 
 """
     is_written_in_file(format::FileFormat, node, name::Symbol) -> Bool
@@ -142,7 +219,7 @@ the domain of the format that holds the marker `<<marker>>`, such as a JSON stri
 [`find_reference_marker`](@ref) of the leaf answers `marker` again. A format whose
 files can refer to other files declares a method.
 """
-make_reference_leaf(format::FileFormat, marker::AbstractString)
+function make_reference_leaf end
 
 """
     is_file_domain_node(format::FileFormat, node) -> Bool
@@ -159,30 +236,37 @@ is_file_domain_node(format::FileFormat, node) = node isa get_file_format_domain(
     get_file_type(format::FileFormat) -> Type
 
 The type of the document of a file of `format`: the type that holds the name of
-the file, its content and its state on disk. A format that has a file type
-declares a method. `get_file_type(get_file_format(file))(filename, content)` makes
-a file of the same format with another content.
+the file, its content and its state on disk. The default is
+[`File{F}`](@ref File) for the format `F`. A format whose file holds more, such as
+the source file of a language server, declares a method for its own type.
+`get_file_type(get_file_format(file))(filename, content)` makes a file of the
+same format with another content.
 """
 function get_file_type end
 
-"""
-    make_file(format::FileFormat, filename::AbstractString, string::AbstractString) -> file document
+get_file_type(format::FileFormat) = File{typeof(format)}
 
-The file named `filename` whose string is `string`, in `format`. The default makes
-a file of [`get_file_type`](@ref) with the content that
-[`parse_document_string`](@ref) reads. A format whose file is its own content
-declares a method that builds the file.
 """
-make_file(format::FileFormat, filename::AbstractString, string::AbstractString) =
-    get_file_type(format)(String(filename), parse_document_string(format, string))
+    make_file(format::FileFormat, filename::AbstractString, text::AbstractString) -> file document
+
+The file named `filename` whose text is `text`, in `format`. The default removes
+one line break at the end of `text`, and makes a file of [`get_file_type`](@ref)
+with the content that [`parse_document_string`](@ref) reads from the string. A
+format whose file is its own content declares a method that builds the file.
+"""
+make_file(format::FileFormat, filename::AbstractString, text::AbstractString) =
+    get_file_type(format)(String(filename), parse_document_string(format, _remove_final_line_break(text)))
 
 """
     get_file_format(file) -> FileFormat
 
 The format of `file`, a file document, read from its type and not from the
-extension of its name. A file type declares a method.
+extension of its name: `F()` for a [`File{F}`](@ref File). A file type of its own
+declares a method.
 """
 function get_file_format end
+
+get_file_format(::File{F}) where {F} = F()
 
 """
     collect_file_formats() -> Vector{FileFormat}

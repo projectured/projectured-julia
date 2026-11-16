@@ -45,47 +45,12 @@ end
 
 Base.showerror(io::IO, e::FileCutException) = print(io, e.message)
 
-# ── What a file type contributes ──────────────────────────────────────────────
-
-"""
-    get_file_domain(::Type{<:FileDocument}) -> Type
-
-The document type a file's content is made of: `JsonDocument` for a `JsonFile`.
-Every file type defines it in one line. A node of that type is written in the
-file; any other document is a cut.
-"""
-function get_file_domain end
-
-"""
-    is_file_domain_node(file, node) -> Bool
-
-Whether `node` is one the file writes itself. The default asks
-[`get_file_domain`](@ref); a file type whose domain is not one type overrides it.
-"""
-is_file_domain_node(file, node) = node isa get_file_domain(typeof(file))
-
-"""
-    is_written_in_file(file, node, name::Symbol) -> Bool
-
-Whether the file writes the field `name` of `node`, and so whether the save
-walks it. The default is `true`: a file writes the document it holds, whole.
-
-A format whose notation writes a reduced form of a node says so here, and the
-rest of that node is the document's own business. A `GestureLog` read from a
-file holds the live entries it records, and nothing writes that: without this
-the save would reach it, find no file of its domain, and call it an orphan.
-"""
-is_written_in_file(file, node, name::Symbol) = true
-
-"""
-    make_reference_leaf(file, marker::AbstractString) -> Document
-
-The file's own spelling of a reference: a `JsonString` whose value is the
-marker, a `pred:ref` element, a directive, a fence, a call. `marker` is the
-marker body without its `<<` `>>`; the leaf writes them. Every file type defines
-one.
-"""
-function make_reference_leaf end
+# ── What a file contributes ──────────────────────────────────────────────────
+#
+# What a file writes itself, which fields it writes, how it spells a reference,
+# and what it writes inline, are seams of its format (`FileFormat.jl`):
+# `is_file_domain_node`, `is_written_in_file`, `make_reference_leaf` and
+# `is_written_inline`. A walk of the save asks them of `get_file_format(file)`.
 
 """
     find_reference_marker(node) -> Union{Nothing, String}
@@ -99,20 +64,10 @@ find_reference_marker(::Any) = nothing
 make_marker_text(body::AbstractString) = _MARKER_OPEN * String(body) * _MARKER_CLOSE
 
 """
-    is_written_inline(file, node) -> Bool
-
-Whether `file` writes `node`, a document of another domain that no file of the
-set writes, in its own text: a `.pred` file writes a JSON value as the text of a
-JSON file, inside a string tagged with the extension. The default is `false`, and
-such a node is an orphan.
-"""
-is_written_inline(file, node) = false
-
-"""
     make_inline_leaf(file, node, path::Reference) -> Document
 
 The file's own spelling of `node`, a document that it writes inline, as
-[`is_written_inline`](@ref) says, at `path`. It throws a
+[`is_written_inline`](@ref) of its format says, at `path`. It throws a
 [`FileCutException`](@ref) where the text of the node can not be written.
 """
 function make_inline_leaf end
@@ -156,7 +111,7 @@ function _assign_owners(project::FileProject)
                 # writes rather than a cut: claim it here, and walk what it holds.
                 haskey(owner, content) || (owner[content] = (file, EmptyReference()))
                 for (steps, child) in _child_slots(content)
-                    is_written_in_file(file, content, _slot_field(steps)) || continue
+                    is_written_in_file(get_file_format(file), content, _slot_field(steps)) || continue
                     _own_walk!(owner, file, child, extend_reference(EmptyReference(), steps...),
                                kept, leaf_type, _is_fixed_slot(leaf_type, content, steps))
                 end
@@ -186,20 +141,20 @@ function _own_inline_walk!(owner, file, node, path::Reference, visited::IdDict)
     if entry === nothing
         # An immutable node of the file's domain is owned by no one; the walk goes
         # through it to what it holds.
-        if _is_value(node) && is_file_domain_node(file, node)
+        if _is_value(node) && is_file_domain_node(get_file_format(file), node)
             for (steps, child) in _child_slots(node)
-                is_written_in_file(file, node, _slot_field(steps)) || continue
+                is_written_in_file(get_file_format(file), node, _slot_field(steps)) || continue
                 _own_inline_walk!(owner, file, child, extend_reference(path, steps...), visited)
             end
         else
-            is_written_inline(file, node) && (owner[node] = (file, path))
+            is_written_inline(get_file_format(file), node) && (owner[node] = (file, path))
         end
         return
     end
     owner_file, owner_path = entry
     owner_file === file || return
     for (steps, child) in _child_slots(node)
-        is_written_in_file(file, node, _slot_field(steps)) || continue
+        is_written_in_file(get_file_format(file), node, _slot_field(steps)) || continue
         _own_inline_walk!(owner, file, child, extend_reference(owner_path, steps...), visited)
     end
 end
@@ -209,14 +164,14 @@ end
 function _own_walk!(owner, file, node, path::Reference, kept, leaf_type, at_fixed::Bool)
     node isa Document || return
     find_held_file(node) === nothing || return
-    is_file_domain_node(file, node) || return
+    is_file_domain_node(get_file_format(file), node) || return
     if !_is_value(node) || path isa EmptyReference
         haskey(owner, node) && return
         !at_fixed && haskey(kept, node) && return
         owner[node] = (file, path)
     end
     for (steps, child) in _child_slots(node)
-        is_written_in_file(file, node, _slot_field(steps)) || continue
+        is_written_in_file(get_file_format(file), node, _slot_field(steps)) || continue
         _own_walk!(owner, file, child, extend_reference(path, steps...), kept, leaf_type,
                    _is_fixed_slot(leaf_type, node, steps))
     end
@@ -232,7 +187,7 @@ _is_value(node) = !ismutable(node) &&
 # reference, such as a file whose format has no place for one.
 function _find_reference_leaf_type(file)
     try
-        typeof(make_reference_leaf(file, "file(\"x\")"))
+        typeof(make_reference_leaf(get_file_format(file), "file(\"x\")"))
     catch
         nothing
     end
@@ -257,7 +212,7 @@ function _collect_fixed_nodes!(fixed, file, leaf_type, node, visited)
     haskey(visited, node) && return
     visited[node] = true
     for (steps, child) in _child_slots(node)
-        is_written_in_file(file, node, _slot_field(steps)) || continue
+        is_written_in_file(get_file_format(file), node, _slot_field(steps)) || continue
         _is_fixed_slot(leaf_type, node, steps) && (fixed[child] = true)
         _collect_fixed_nodes!(fixed, file, leaf_type, child, visited)
     end
@@ -290,12 +245,14 @@ end
 
 # ── The cut ──────────────────────────────────────────────────────────────────
 
-# One cut of `file`: the owners of the set, the nodes that the copy wrote, and how
-# a marker names a file. A save alone (`strict`) names a file by its path relative
-# to `base_dir`; a project save names a file by the name that the file gives.
+# One cut of `file`, a file of `format`: the owners of the set, the nodes that the
+# copy wrote, and how a marker names a file. A save alone (`strict`) names a file by
+# its path relative to `base_dir`; a project save names a file by the name that the
+# file gives.
 struct _FileCut
     owner::IdDict{Any,Tuple{Any,Reference}}
     file::Any
+    format::FileFormat
     visited::IdDict{Any,Bool}
     strict::Bool
     base_dir::String
@@ -311,17 +268,17 @@ function _cut_copy(cut::_FileCut, node, path::Reference)
     held = find_held_file(node)
     held === nothing || return _make_held_file_leaf(cut, held, path)
     entry = get(cut.owner, node, nothing)
-    entry === nothing && _is_value(node) && is_file_domain_node(cut.file, node) &&
+    entry === nothing && _is_value(node) && is_file_domain_node(cut.format, node) &&
         return _rebuild(cut, node, path)
     entry === nothing &&
         throw(FileCutException(_orphan_message(cut.file, path, node, cut.strict)))
     owner_file, owner_path = entry
     owner_file === cut.file ||
-        return make_reference_leaf(cut.file, _make_reference_marker(cut, owner_file, owner_path))
+        return make_reference_leaf(cut.format, _make_reference_marker(cut, owner_file, owner_path))
     (haskey(cut.visited, node) || !_is_same_path(path, owner_path)) &&
-        return make_reference_leaf(cut.file, _make_reference_marker(cut, cut.file, owner_path))
+        return make_reference_leaf(cut.format, _make_reference_marker(cut, cut.file, owner_path))
     cut.visited[node] = true
-    is_file_domain_node(cut.file, node) || return make_inline_leaf(cut.file, node, path)
+    is_file_domain_node(cut.format, node) || return make_inline_leaf(cut.file, node, path)
     _rebuild(cut, node, path)
 end
 
@@ -343,9 +300,9 @@ _is_same_path(a::Reference, b::Reference) =
 function _make_held_file_leaf(cut::_FileCut, held, path::Reference)
     isempty(get_filename(held)) && throw(FileCutException(
         (cut.strict ? "save_file!: " : "save_project!: ") * repr(get_filename(cut.file)) *
-        " holds a " * string(nameof(typeof(held))) * " with no name at " * print_path_text(path) *
+        " holds a " * string(get_document_schema_name(typeof(held))) * " with no name at " * print_path_text(path) *
         "; save that file first with \"Save as\", so that this file can name it"))
-    make_reference_leaf(cut.file, "file(" * repr(_compute_marker_file_name(cut, held)) * ")")
+    make_reference_leaf(cut.format, "file(" * repr(_compute_marker_file_name(cut, held)) * ")")
 end
 
 function _orphan_message(file, path, node, strict::Bool)
@@ -369,7 +326,7 @@ function _rebuild(cut::_FileCut, node, path::Reference)
         raw = getfield(node, name)
         value = raw isa AbstractCell ? raw[] : raw
         copied = name === :mouse_target ? nothing :
-                 (is_view_state_field(T, name) || !is_written_in_file(cut.file, node, name)) ? value :
+                 (is_view_state_field(T, name) || !is_written_in_file(cut.format, node, name)) ? value :
                  _cut_field(cut, name, value, path)
         push!(args, raw isa AbstractCell ? make_similar_cell(raw, copied) : copied)
     end
@@ -440,7 +397,7 @@ written into, log the reason, write nothing, and return `false`.
 function save_project!(project::FileProject)
     owner = _assign_owners(project)
     texts = try
-        Any[(file, _cut_text(owner, file, false, project.base_dir)) for file in project.files]
+        Any[(file, _cut_string(owner, file, false, project.base_dir) * "\n") for file in project.files]
     catch e
         e isa FileCutException || rethrow()
         @error e.message
@@ -454,17 +411,21 @@ end
     cut_file_text(file, base_dir = ".") -> String
 
 The text that [`save_file!`](@ref) writes for `file` into `base_dir`: the graph
-cut at the file, and printed in the notation of its file type. A marker names a
-file by its path relative to `base_dir`. It writes nothing. It throws a
-[`FileCutException`](@ref) where the save refuses.
+cut at the file, printed as the string of its format, and one line break. A
+marker names a file by its path relative to `base_dir`. It writes nothing. It
+throws a [`FileCutException`](@ref) where the save refuses.
 
 Use it to compare a document with its file on disk.
 """
-function cut_file_text(file, base_dir::AbstractString = ".")
+cut_file_text(file, base_dir::AbstractString = ".") = _cut_file_string(file, base_dir) * "\n"
+
+# The string of `file` alone, cut into `base_dir`, with no line break after it: what
+# the text of the file holds, and what a `.pred` file writes inline.
+function _cut_file_string(file, base_dir::AbstractString)
     is_file_document(file) ||
         error("cut_file_text: not a file document (", typeof(file), ")")
     owner = _assign_owners(FileProject(base_dir, Any[file]))
-    String(_cut_text(owner, file, true, base_dir))
+    _cut_string(owner, file, true, base_dir)
 end
 
 """
@@ -505,20 +466,29 @@ function save_file_text!(file, base_dir::AbstractString)
     String(text)
 end
 
-# One file's text: cut the graph, then print the copy in the file's own
-# notation. Both halves can refuse — the cut at a node with no file, the
-# notation at a value it cannot write — and both refuse before anything is
-# written, so a save that cannot be finished leaves the directory as it was.
-function _cut_text(owner, file, strict::Bool, base_dir::AbstractString)
-    cut = _FileCut(owner, file, IdDict{Any,Bool}(), strict, String(base_dir))
+# One file's string: cut the graph, then print the copy as the string of the format
+# of the file. Both halves can refuse — the cut at a node with no file, the
+# string at a value it cannot write — and both refuse before anything is written,
+# so a save that cannot be finished leaves the directory as it was. The text of the
+# file is the string and one line break, which the write adds.
+function _cut_string(owner, file, strict::Bool, base_dir::AbstractString)
+    format = get_file_format(file)
+    cut = _FileCut(owner, file, format, IdDict{Any,Bool}(), strict, String(base_dir))
     content = get_file_content(file)
-    if is_own_content(file)
+    copy = if is_own_content(file)
         # The root is the file, so it is rebuilt rather than cut, and the copy is
-        # already the file the notation prints.
+        # already the file the format prints.
         cut.visited[content] = true
-        return emit_text(_rebuild(cut, content, EmptyReference()))
+        _rebuild(cut, content, EmptyReference())
+    else
+        _cut_copy(cut, content, EmptyReference())
     end
-    emit_text(_with_content(file, _cut_copy(cut, content, EmptyReference())))
+    try
+        String(make_document_string(format, copy))
+    catch e
+        e isa FileCutException || rethrow()
+        throw(FileCutException("save: " * repr(get_filename(file)) * " " * e.message))
+    end
 end
 
 function _write_texts!(base_dir::AbstractString, texts)
@@ -530,7 +500,3 @@ function _write_texts!(base_dir::AbstractString, texts)
         _write_if_changed(path, text)
     end
 end
-
-# A file of the same type and name whose content is `content`: what the domain's
-# `emit_text` prints.
-_with_content(file, content) = Base.typename(typeof(file)).wrapper(get_filename(file), content)

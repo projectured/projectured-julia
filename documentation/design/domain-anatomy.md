@@ -76,24 +76,23 @@ The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candi
 
 A domain with a text form has a parser, `parse_json`. The parsers are hand-written, because a domain has no third-party dependency. Each one reads a subset of its format, and the document of the domain says which subset.
 
-The file type is an `@document struct JsonFile <: FileDocument` with a `filename` and a `content`. It implements the contract of the serialization slice: `get_file_domain`, `parse_file_content`, `emit_text`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
+The format is a type of its own, `struct JsonFileFormat <: FileFormat end`, and its file is `File{JsonFileFormat}`, with the short name `const JsonFile = File{JsonFileFormat}`, which holds a `filename`, a `content` and a `disk` state. The format implements the seams of the serialization slice: `get_file_format_extensions`, `get_file_format_domain`, `parse_document_string`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
 
-`make_document_seed(::Val{:json})` gives the document that a new, empty `.json` file starts from.
+`make_document_seed(::Type{JsonDocument})` gives the document that a new, empty file of the domain starts from.
 
 ## The registration
 
-The domain declares its natural notation and the format of its documents with two methods, and the `__init__` of the module registers the file type:
+The domain declares its natural notation and the format of its documents with two methods, beside the methods of its format; no `__init__` registers the format:
 
 ```julia
 make_syntax_projection(::Type{<:JsonDocument}; appearance) = JsonToSyntax(; …)
 find_natural_file_format(::JsonDocument) = JsonFileFormat()
-register_file_document_type!(".json", JsonFile)
 ```
 
 The two methods, with the format `JsonFileFormat`, give the domain these, without more code:
 
 - `print_natural_text(document)` and `parse_natural_text(:json, text)`;
-- `import_document` and `export_document` by the file extension;
+- `read_document_file` and `write_document_file!` by the file extension;
 - a row in `NaturalToGraphics`, so that a tab draws the document when it has no designed view;
 - the text form that a tool gives to a language model.
 

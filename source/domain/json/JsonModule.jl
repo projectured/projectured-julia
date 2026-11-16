@@ -14,8 +14,8 @@ Five fragments share the namespace:
   to a document tree.
 - [`JsonToSyntax.jl`](JsonToSyntax.jl) — the projection to `SyntaxModule`, one
   rule per document type.
-- [`JsonFile.jl`](JsonFile.jl) — `JsonFile`, a `FileDocument` whose content is a
-  `JsonDocument`, and `JsonFileFormat`, its format.
+- [`JsonFile.jl`](JsonFile.jl) — `JsonFileFormat`, the format of a `.json` file,
+  and `JsonFile`, its file, whose content is a `JsonDocument`.
 - [`JsonView.jl`](JsonView.jl) — the views of the JSON documents, which keep the
   state of one view of a document.
 
@@ -29,20 +29,19 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..FileFormatModule: make_document_seed
+import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..PrimitiveModule: make_incomplete_number_document
 import ..ProjectionAlgebraModule: make_content_view
-import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
-                              find_reference_marker, parse_file_content,
+import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
-                              parse_document_string, get_file_type, get_file_format
+                              parse_document_string
 import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
-export JsonFileFormat
+export JsonFileFormat, JsonFile
 export JsonView, JsonNullView, JsonBoolView, JsonNumberView, JsonStringView, JsonArrayView
 
 
@@ -54,13 +53,10 @@ include("JsonFile.jl")
 include("JsonView.jl")
 
 
-# What this slice registers when it loads: the file extension it owns, and the
-# sentence that tells a model what a JSON document is.
+# What this slice registers when it loads: the sentence that tells a model what a
+# JSON document is. A JSON document is written as its text, so the domain offers
+# no name to a model.
 function __init__()
-    register_file_document_type!(".json", JsonFile)
-
-    # A JSON document is written as its text, so the domain offers no name to a
-    # model, and says what a JSON value is.
     register_assistant_api!(Any[];
         description = "A JSON value is a document that is written and read as its JSON text.")
 end

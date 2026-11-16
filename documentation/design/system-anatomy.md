@@ -505,7 +505,7 @@ not slices of the platform.)
    gesturelog      the log document, its printer, its recorder and its overlay
    fault           the fault report and log documents, the barrier projection that
                    catches, the four renderers and the safe mode
-   fileformat      NaturalFormat, DocumentFile
+   fileformat      DocumentFile
    filesystem      the file-system tree, the workspace, and the Explorer view
    natural         NaturalRegistry and NaturalProjection: render anything
    display         a value shown in an editor window beside the REPL

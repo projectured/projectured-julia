@@ -354,7 +354,7 @@ function test_assistant_verbs()
         path = joinpath(directory, "ledger.pred")
         answer = _run_assistant_code(editor, """
             path_1 = "$path"
-            write_document_file(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
+            write_document_file!(RecordTable("Ledger"; columns = ["number", "commit", "state"]), path_1)
             tab_1 = open_file!(path_1)
             show_pane!(tab_1)
             ledger_1 = get_edited_document(tab_1)

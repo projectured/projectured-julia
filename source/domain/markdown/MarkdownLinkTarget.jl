@@ -78,17 +78,9 @@ const _MARKDOWN_HEADING_BINDINGS = GestureBinding[
 end
 
 # A page names its headings and an address outside the editor; it has no file, so
-# it names no file.
+# it names no file. Its file names also a file beside it by a relative path.
 find_navigator_target(root::MarkdownRoot, target::AbstractString) =
     something(_find_markdown_heading(root, target, ReferenceStep[]), find_web_url(target), Some(nothing))
-
-# A file names the headings of its page, past the history inside the file, an address
-# outside the editor, and a file beside it by a relative path, when that file exists;
-# the part after `#` in such a path is not followed.
-function find_navigator_target(file::MarkdownFile, target::AbstractString)
-    startswith(target, "#") && return find_edited_document_target(file, target)
-    something(find_web_url(target), _find_link_file(file.filename, target), Some(nothing))
-end
 
 function _find_markdown_heading(root, target::AbstractString, steps::Vector{ReferenceStep})
     (startswith(target, "#") && root isa MarkdownRoot) || return nothing
@@ -101,11 +93,3 @@ function _find_markdown_heading(root, target::AbstractString, steps::Vector{Refe
     nothing
 end
 
-# The file that `target` names beside the file `filename`, or `nothing` for a URL,
-# an anchor, or a file that does not exist.
-function _find_link_file(filename::AbstractString, target::AbstractString)
-    path = first(split(target, '#'; limit = 2))
-    (isempty(path) || occursin(r"^[A-Za-z][A-Za-z0-9+.\-]*:", path)) && return nothing
-    found = normpath(joinpath(dirname(abspath(filename)), path))
-    isfile(found) ? found : nothing
-end

@@ -27,8 +27,7 @@ using JSON3
 import ..DomainModule: acquire_document!, release_document!
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
-import ..SerializationModule: parse_file_content, emit_text, get_file_domain,
-                              get_file_format_extensions, get_file_format_domain,
+import ..SerializationModule: get_file_format_extensions, get_file_format_domain,
                               parse_document_string, make_document_string,
                               get_file_type, get_file_format
 import ..WidgetModule: make_graphics_projection
@@ -48,12 +47,5 @@ include("LanguageServerConnection.jl")
 include("SemanticTokens.jl")
 include("LanguageServerSession.jl")
 include("LanguageServerDocument.jl")
-
-# Each extension of `SOURCE_FILE_LANGUAGES` opens as a `SourceFile`.
-function __init__()
-    for extension in keys(SOURCE_FILE_LANGUAGES)
-        register_file_document_type!(extension, SourceFile)
-    end
-end
 
 end # module LanguageServerModule

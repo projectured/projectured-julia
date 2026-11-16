@@ -41,7 +41,7 @@ function test_history_sweep()
                     write(joinpath(dir, folder, "f$k.jl"), "x = $k\n")
                 end
                 json = joinpath(dir, "a.json")
-                write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
+                write_document_file!(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
                 document, scene, composed, iomap =
                     _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
                                     files = true, focus_file = true)
@@ -124,7 +124,7 @@ function test_history_sweep()
         @testset "a run of typing is one step" begin
             mktempdir() do dir
                 json = joinpath(dir, "a.json")
-                write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\"}"), json)
+                write_document_file!(parse_natural_text(:json, "{\"name\": \"Alice\"}"), json)
                 document, scene, composed, iomap =
                     _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")),
                                     files = true, focus_file = true)

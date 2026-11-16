@@ -111,6 +111,8 @@ function test_file_format()
         @test !is_file_domain_node(format, "|")
         @test is_file_domain_node(log, 1)
         @test is_file_domain_node(log, TallyCount(count = 1))
+        @test is_written_in_file(TextFileFormat(), "x", :content)
+        @test !is_written_inline(TextFileFormat(), "x")
     end
 
     @testset "a file is read and made in its format" begin
@@ -138,12 +140,21 @@ function test_file_format()
         @test again isa TallyFile && get_file_content(again).count == 5
     end
 
-    @testset "the forms on a file type answer as before" begin
-        @test make_file(TextFile, "a.txt", "x") isa TextFile
-        @test get_file_content(make_file(TextFile, "a.txt", "x")) == "x"
-        @test is_editable_file_type(TextFile)
-        @test is_written_in_file(TextFile("a.txt", "x"), "x", :content)
-        @test !is_written_inline(TextFile("a.txt", "x"), "x")
+    @testset "a format with no file type of its own has the file File{F}" begin
+        log = TallyLogFileFormat()
+        @test get_file_type(log) === File{TallyLogFileFormat}
+        file = get_file_type(log)("run.log", TallyCount(count = 3))
+        @test file isa File{TallyLogFileFormat} && file isa FileDocument
+        @test get_file_format(file) === log
+        @test get_filename(file) == "run.log" && get_file_content(file).count == 3
+        # A file made with no content holds the seed of the domain of its format.
+        @test get_file_content(File{TallyLogFileFormat}("new.log")) isa typeof(make_document_seed(TallyDocument))
+        @test get_file_content(TextFile("new.txt")) == make_document_seed(Union{}) == ""
+        # The text of a file is its string and one line break: the make of a file
+        # removes one line break at the end of its text.
+        @test get_file_content(make_file(TextFileFormat(), "a.txt", "x\n")) == "x"
+        @test get_file_content(make_file(TextFileFormat(), "a.txt", "x\n\n")) == "x\n"
+        @test get_file_content(make_file(TextFileFormat(), "a.txt", "x")) == "x"
     end
 
     @testset "the session holds each format that a method declares, and no other type" begin

@@ -1,88 +1,104 @@
 # Fragment of `FileFormatModule`.
 #
-# Format-by-extension file I/O — the single "read/write a document file" seam that
-# bridges the two serializers and the domain insertion seeds:
+# The read and the write of a document by its path, and the file of a tab:
 #
-# | extension | write | read (exists) | read (missing) |
+# | path | write | read (exists) | read (missing) |
 # |-----------|-------|---------------|----------------|
 # | `.pdoc`   | binary `save_document` | `load_document` | `DocumentNothing` |
-# | natural   | `export_document`      | `import_document` | the domain's seed |
-# | a file type without a natural format (`.pred`, `.txt`, none) | `save_file!` | `load_file` | the extension's seed |
-# | a picture (`.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif`) | none: a person does not edit it | an `Image` of the path, which reads no byte | `DocumentNothing` |
+# | any other | `save_file!` in the format of the extension | `load_file` | the seed of the domain of the format |
 #
-# The natural formats are the ones a domain registered a parser for:
-# `.json`, `.xml`, `.yaml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The third
-# row takes the file type that `register_file_document_type!` names for the
-# extension. A text file holds a `String`, and an editor edits a
+# The format is the one that the extension of the path names (`find_file_format`),
+# and the text of a file is the string of the document in the format and one line
+# break. A picture is read as an `Image` of the path, which reads no byte, and a
+# person does not edit it. A text file holds a `String`, and an editor edits a
 # `PrimitiveString`, so a text file reads into one and writes from one.
 #
-# Opening a *non-existent* file yields the extension's seed — the domain insertion
-# placeholder registered on `make_document_seed` (`.json` → `JsonInsertion`, …), an
-# empty `PrimitiveString` for a text file, or a `DocumentNothing` otherwise — so a
-# new file starts as an editable seed that can be typed into and then saved. Used
-# by `make_file_tab` and the `FileDocument` save/reload keybindings below.
+# Opening a *non-existent* file yields the seed of the domain of its format
+# (`make_document_seed`: `JsonInsertion` for JSON, an empty page for Markdown, an
+# empty `PrimitiveString` for a text file, a `DocumentNothing` for a domain with no
+# seed), so a new file starts as an editable seed that can be typed into and then
+# saved. Used by `make_file_tab` and the `FileDocument` save/reload keybindings
+# below.
 #
-# The binary half and the file types call down to
-# [`SerializationModule`](@ref); the natural half needs the text printers.
+# The binary half and the formats call down to [`SerializationModule`](@ref).
 const _BINARY_EXT = ".pdoc"
 
 _ext(path::AbstractString) = lowercase(splitext(path)[2])
 
+_ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
+
+# A domain that declares no seed gives the empty document.
+make_document_seed(::Type) = DocumentNothing()
+
+# The format that the extension of `path` names, or an error that says which
+# extension no format has.
+function _get_path_format(path::AbstractString)
+    format = find_file_format(path)
+    format === nothing &&
+        error("no file format of the session has the extension ", repr(_ext(path)), " of ", repr(path))
+    format
+end
+
+# What an editor edits for the content of a file: a text file's `String` becomes a
+# `PrimitiveString`.
+_make_edited_content(content) = content isa AbstractString ? PrimitiveString(String(content)) : content
+
 """
-    make_document_seed(::Val{ext}) -> Document
+    write_document_file!(document, path) -> path
 
-The empty seed a non-existent file of extension `ext` opens as. Each source
-domain registers its insertion placeholder (`make_document_seed(::Val{:json}) =
-JsonInsertion()`); the default is a `DocumentNothing`.
-"""
-make_document_seed(::Val) = DocumentNothing()
-make_document_seed(::Val{:txt}) = PrimitiveString("")
-make_document_seed(::Val{Symbol("")}) = PrimitiveString("")
-
-# Whether the natural text reads the extension of `path`.
-_is_natural_path(path::AbstractString) = has_natural_parser(_ext_symbol(_ext(path)))
-
-# Whether `path` goes through a file type rather than a natural format.
-_is_registered_file_path(path::AbstractString) =
-    !_is_natural_path(path) && has_file_document_type(path)
-
-"""
-    write_document_file(document, path) -> path
-
-Write `document` to `path`, choosing the format by extension: the binary snapshot
-format for `.pdoc`, the natural text format for an extension a domain parses,
-and the registered file type for any other extension that has one (`.pred`,
-`.txt`, no extension). An extension with neither is written as natural text.
+Write `document` to the file at `path` in the format that the extension of `path`
+names ([`find_file_format`](@ref)): the string of the document in that format and
+one line break, as the save of a file writes it ([`save_file!`](@ref)). `.pdoc`
+is the binary snapshot format. A document of a natural format can not go to a path
+of another natural format, because a later read would parse the text with the
+wrong grammar; a second extension of the same format passes, so a YAML document
+can go to `.yaml` or `.yml`. A document that the file can not write alone, such as
+a node of another domain that needs a reference, is refused with an error, and the
+log says why.
 
 Use it to save a document to a file, in the format of the extension of the file.
 
 # Example
 
     notes_1 = read_document_file("notes.json")
-    write_document_file(notes_1, "notes_copy.json")
+    write_document_file!(notes_1, "notes_copy.json")
 
-See also `read_document_file` and `export_document`.
+See also `read_document_file` and `save_file_to_disk!`.
 
 For the assistant.
 """
-function write_document_file end
+function write_document_file! end
 
-function write_document_file(document::Document, path::AbstractString)
+function write_document_file!(document::Document, path::AbstractString)
     _ext(path) == _BINARY_EXT && return save_document(document, path)
-    _is_registered_file_path(path) && return _write_registered_file(document, path)
-    export_document(document, path)
+    format = _get_path_format(path)
+    named = has_natural_parser(_ext_symbol(_ext(path))) ? format : nothing
+    natural = find_natural_file_format(document)
+    (named === nothing || named === natural) ||
+        error("write_document_file!: a ", nameof(typeof(document)), " is written as ",
+              natural === nothing ? "no natural format" : first(get_file_format_extensions(natural)),
+              ", not as ", _ext(path))
+    # A text file holds the string of a `PrimitiveString`.
+    content = (document isa PrimitiveString && get_file_format_domain(format) === Union{}) ?
+              something(document.value, "") : document
+    file = get_file_type(format)(basename(path), content)
+    save_file!(file, dirname(abspath(path))) ||
+        error("write_document_file!: could not write $(repr(path)); the log says why")
+    path
 end
 
-write_document_file(document::ReferencedDocument, path::AbstractString) =
-    write_document_file(get_document(document), path)
+write_document_file!(document::ReferencedDocument, path::AbstractString) =
+    write_document_file!(get_document(document), path)
 
 """
     read_document_file(path) -> Document
 
-Read `path` into a document. When the file exists the format is chosen by
-extension, as [`write_document_file`](@ref) chooses it. When it does not exist,
-return a fresh extension-appropriate seed (see [`make_document_for`](@ref)) so a
-new file opens as an editable placeholder.
+Read the file at `path` into a document, in the format that the extension of
+`path` names, as [`write_document_file!`](@ref) writes it: the content of the file,
+with a reference to another file left as its leaf, and the text of a text file as
+a `PrimitiveString`. When the file does not exist, the answer is the empty seed of
+the domain of the format (see [`make_document_for`](@ref)), so a new file opens as
+an editable placeholder.
 
 Use it to read a file of any supported format into a document.
 
@@ -90,54 +106,74 @@ Use it to read a file of any supported format into a document.
 
     notes_1 = read_document_file("notes.json")
 
-See also `write_document_file` and `import_document`.
+See also `write_document_file!` and `read_file_content`.
 
 For the assistant.
 """
 function read_document_file end
 
 function read_document_file(path::AbstractString)
+    _ext(path) == _BINARY_EXT && return isfile(path) ? load_document(path) : DocumentNothing()
     isfile(path) || return make_document_for(path)
-    _ext(path) == _BINARY_EXT && return load_document(path)
-    _is_registered_file_path(path) && return _read_registered_file(path)
-    import_document(path)
-end
-
-# One file of a registered type, read with no other file around it: a reference
-# in it stays a leaf. A text file's `String` becomes a `PrimitiveString`.
-function _read_registered_file(path::AbstractString)
-    file = load_file(dirname(abspath(path)), basename(path))
-    content = get_file_content(file)
-    content isa AbstractString ? PrimitiveString(String(content)) : content
-end
-
-# The same file type, written alone: `save_file!` refuses a document that would
-# need a reference to another file, and logs why.
-function _write_registered_file(document::Document, path::AbstractString)
-    file_type = get_file_document_type(path)
-    content = document isa PrimitiveString ? something(document.value, "") : document
-    file = file_type(basename(path), content)
-    save_file!(file, dirname(abspath(path))) ||
-        error("write_document_file: could not write $(repr(path)); the log says why")
-    path
+    _make_edited_content(get_file_content(load_file(dirname(abspath(path)), basename(path))))
 end
 
 """
     make_document_for(path) -> Document
 
-The empty seed a *non-existent* file of `path`'s extension should open as: the
-domain's insertion placeholder for a registered natural format, or a
-`DocumentNothing` otherwise (see [`make_document_seed`](@ref)). Typing into the
-seed and saving creates the file.
+The empty seed a *non-existent* file at `path` opens as: the seed of the domain of
+the format that its extension names ([`make_document_seed`](@ref)), with the empty
+string of a text file as a `PrimitiveString`, and a `DocumentNothing` for `.pdoc`.
+Typing into the seed and saving creates the file.
 """
-make_document_for(path::AbstractString) = make_document_seed(Val(_ext_symbol(_ext(path))))
+function make_document_for(path::AbstractString)
+    _ext(path) == _BINARY_EXT && return DocumentNothing()
+    _make_edited_content(make_document_seed(get_file_format_domain(_get_path_format(path))))
+end
+
+"""
+    ExportDocumentOperation(path)
+
+Write `editor.document` to the file at `path` (see [`write_document_file!`](@ref)).
+A pure side effect; the document is not mutated.
+"""
+struct ExportDocumentOperation <: Operation
+    path::String
+end
+
+ExportDocumentOperation(path::AbstractString) = ExportDocumentOperation(String(path))
+
+# The file on disk changes, the document does not, so the way back is to do
+# nothing. A history steps over it rather than stopping at it.
+make_inverse_operation(document, ::ExportDocumentOperation) = DoNothingOperation()
+
+evaluate_operation(editor, op::ExportDocumentOperation) =
+    write_document_file!(editor.document, op.path)
+
+"""
+    ImportDocumentOperation(path)
+
+Replace `editor.document` with the document read from the file at `path` (see
+[`read_document_file`](@ref)). A whole-root swap: rebind `editor.document` and drop
+the cached `editor.iomap` so the next print rebuilds on the new root.
+"""
+struct ImportDocumentOperation <: Operation
+    path::String
+end
+
+ImportDocumentOperation(path::AbstractString) = ImportDocumentOperation(String(path))
+
+function evaluate_operation(editor, op::ImportDocumentOperation)
+    editor.document = read_document_file(op.path)
+    editor.iomap = nothing
+end
 
 """
     make_file_tab(path, wrap = identity) -> file document, or what `wrap` makes of it
 
-The file document a tab opens for `path`: the type its extension is registered
-under, holding the absolute path and [`read_document_file`](@ref)'s content. A
-path that does not exist opens as the empty seed of its extension, which
+The file document a tab opens for `path`: a file of the format that its extension
+names, holding the absolute path and [`read_document_file`](@ref)'s content. A
+path that does not exist opens as the empty seed of its format, which
 `read_document_file` already gives. The absolute path is what `SaveFileOperation`
 and `ReloadFileOperation` read the file back through, and what
 [`get_document_title`](@ref) takes its base name from; a tab opened from outside
@@ -167,16 +203,16 @@ See also `make_file_tab_content` and `read_document_file`.
 function make_file_tab end
 
 function make_file_tab(path::AbstractString, wrap = identity)
-    file_type = get_file_document_type(path)
+    format = _get_path_format(path)
     content = read_document_file(path)
     if !is_own_content(content)
-        file = file_type(abspath(path), wrap(content))
+        file = get_file_type(format)(abspath(path), wrap(content))
         _record_read_file_hash!(file)
         return file
     end
     # The read built the file with the name that its parser gives, which is not the
     # absolute path.
-    file = make_file(file_type, abspath(path), read(path, String))
+    file = make_file(format, abspath(path), read(path, String))
     _record_read_file_hash!(file)
     wrap(file)
 end
@@ -189,7 +225,7 @@ function _record_read_file_hash!(file::FileDocument)
     path = abspath(get_filename(file))
     state = get_file_disk_state(file)
     state.file_stamp = compute_file_stamp(path)
-    is_editable_file_type(typeof(file)) && (state.file_hash = compute_file_text_hash(path))
+    is_editable_file_format(get_file_format(file)) && (state.file_hash = compute_file_text_hash(path))
     nothing
 end
 
@@ -208,7 +244,7 @@ function make_unread_file(path::AbstractString, wrap = identity)
     seed = make_document_for(path)
     is_own_content(seed) &&
         throw(ArgumentError("The file at $path is its own content, so it can not be made unread."))
-    file = get_file_document_type(path)(abspath(path), wrap(seed))
+    file = get_file_type(_get_path_format(path))(abspath(path), wrap(seed))
     get_file_disk_state(file).loaded_count = -1
     ensure_file_text_cell!(file)
     file
@@ -273,7 +309,7 @@ for a save, because it changes no document.
 
 Ctrl+S answers it; code saves a file with `save_file_to_disk!`.
 
-See also `ReloadFileOperation` and `write_document_file`.
+See also `ReloadFileOperation` and `write_document_file!`.
 """
 struct SaveFileOperation <: Operation
     file::FileDocument
@@ -282,16 +318,14 @@ end
 
 SaveFileOperation(file::FileDocument; force::Bool = false) = SaveFileOperation(file, force)
 
-# `save_file!` dispatches on the file object and goes through each format's
-# own `emit_text`, so it writes a `TextFile`'s raw `String` content and a
-# `JsonFile`'s parsed tree alike. `write_document_file` takes a `::Document`
-# and would reject a `TextFile`, whose `content` field is a plain `String`,
-# not a `Document` — so it is not the uniform choice across every
-# `FileDocument`.
+# `save_file!` writes the string of the format of the file, so it writes a
+# `TextFile`'s raw `String` content and a `JsonFile`'s parsed tree alike.
+# `write_document_file!` takes a document and chooses the format by a path, and a
+# file has a format of its own.
 function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
     # A file that a person does not edit has nothing of a person to write.
-    is_editable_file_type(typeof(file)) || return nothing
+    is_editable_file_format(get_file_format(file)) || return nothing
     state = get_file_disk_state(file)
     # A file that is not read yet holds the seed of its extension, and a save would
     # write that over the file.
@@ -413,6 +447,9 @@ compute_item_facet(file::FileDocument, ::Val{:name}) = basename(String(get_filen
 compute_item_facet(file::FileDocument, ::Val{:folder}) = dirname(String(get_filename(file)))
 compute_item_facet(file::FileDocument, ::Val{:has_edits}) = has_unsaved_edits(get_file_content(file))
 compute_item_facet(file::FileDocument, ::Val{:state}) = _format_file_state(get_document_decoration(file))
+# The type of a file is the name that a reader gives the file of its format, such as
+# `JsonFile`.
+compute_item_facet(file::FileDocument, ::Val{:type}) = String(get_document_schema_name(typeof(file)))
 
 # The conditions of a file in words, in the order that a tooltip says them, with
 # commas between them; empty for a file with none.
@@ -456,7 +493,7 @@ function get_document_decoration(file::FileDocument)
     name = String(get_filename(file))
     conditions = DocumentCondition[]
     has_unsaved_edits(get_file_content(file)) === true && push!(conditions, DocumentCondition(:unsaved))
-    is_editable_file_type(typeof(file)) || push!(conditions, DocumentCondition(:read_only))
+    is_editable_file_format(get_file_format(file)) || push!(conditions, DocumentCondition(:read_only))
     if get_file_disk_state(file).band !== nothing
         is_unsaved = any(condition -> condition.name === :unsaved, conditions)
         filter!(condition -> condition.name !== :unsaved, conditions)
@@ -494,23 +531,24 @@ end
 
 # The file with the document that it holds and not a wrapper around it: a content
 # that carries a history writes what the history is about. The save walks the
-# content for nodes of the file's own domain, and a wrapper is not one. A file
-# that holds no document, such as a text file, holds a `String`, which the
-# editor edits as a `PrimitiveString` (`_read_registered_file`); the save takes
+# content for nodes of the domain of the format of the file, and a wrapper is not
+# one. A file that holds no document, such as a text file, holds a `String`, which
+# the editor edits as a `PrimitiveString` (`_make_edited_content`); the save takes
 # the string back out.
 function _make_plain_file(file::FileDocument)
+    format = get_file_format(file)
     content = get_wrapped_document(get_file_content(file))
-    (content isa PrimitiveString && get_file_domain(typeof(file)) === Union{}) &&
+    (content isa PrimitiveString && get_file_format_domain(format) === Union{}) &&
         (content = something(content.value, ""))
-    Base.typename(typeof(file)).wrapper(get_filename(file), content)
+    get_file_type(format)(get_filename(file), content)
 end
 
 """
     compute_file_text(file) -> String
 
 The text that `SaveFileOperation` writes for `file` now: the document that the
-file holds, without a wrapper such as a history, in the notation of the file
-type. It writes nothing.
+file holds, without a wrapper such as a history, as the string of the format of
+the file, and one line break. It writes nothing.
 
 Use it to compare a file document with its file on disk.
 
@@ -542,7 +580,7 @@ NaturalModule.print_natural_text(file::FileDocument) =
 Swap the document of the file of `file` into its `content`, a reactive write, so
 the projection renders it again: `content` when it is given, such as a document
 that a task read off the loop with [`read_file_content_again`](@ref), or else the file read again from disk now. A
-non-existent file seeds the insertion placeholder of its extension again.
+non-existent file holds the seed of its format again.
 
 In an editor, each `file("…")` of the new document gets the file document that the
 editor holds for that file, else a new one that reads nothing
@@ -552,7 +590,7 @@ reference stays a leaf.
 The file keeps the hash of the text that it read and takes its band away.
 `file_hash` is the hash that the task computed for `content`; with none, the
 file on disk is hashed now ([`compute_file_text_hash`](@ref)). A file that a person
-does not edit ([`is_editable_file_type`](@ref)) takes the hash of its time and its
+does not edit ([`is_editable_file_format`](@ref)) takes the hash of its time and its
 size, and reads no byte of its file. The file counts every
 change that was reported so far as read.
 
@@ -605,7 +643,7 @@ end
 # its text, or for a file that a person does not edit, the hash of its time and its
 # size, as the read on a task takes it. The latter reads no byte.
 _compute_loaded_file_hash(file::FileDocument, path::AbstractString) =
-    is_editable_file_type(typeof(file)) ? compute_file_text_hash(path) : hash(compute_file_stamp(path))
+    is_editable_file_format(get_file_format(file)) ? compute_file_text_hash(path) : hash(compute_file_stamp(path))
 
 # `content`, loaded for `file`, with each `file("…")` in it given the file document
 # that `editor` holds for that file, else a new one that reads nothing
@@ -650,34 +688,35 @@ function evaluate_operation(editor, op::KeepFileEditsOperation)
 end
 
 """
-    read_file_content_again(type, path) -> document
+    read_file_content_again(format, path) -> document
 
-The document that the file at `path` holds, read as the file type `type` reads
-it. An opener can choose a file type that its extension does not name, such as a
-store in a `.json` file, and the read does not hand that file to the parser of
-the extension. Any task can call it: it reads the file and makes a new document,
-which no computation reads yet.
+The document that the file at `path` holds, read in `format`, the format of the
+file document that reads it again. An opener can choose a format that the
+extension of its file does not name, such as a store in a `.json` file, and the
+read does not hand that file to the parser of the extension. A file that does not
+exist gives the seed of the format. Any task can call it: it reads the file and
+makes a new document, which no computation reads yet.
 """
-function read_file_content_again(type::Type, path::AbstractString)
-    is_extension_type = has_file_document_type(path) && get_file_document_type(path) === type
-    (isfile(path) && !is_extension_type) ? _read_own_file(type, path) : read_document_file(path)
+function read_file_content_again(format::FileFormat, path::AbstractString)
+    isfile(path) || return _make_edited_content(make_document_seed(get_file_format_domain(format)))
+    find_file_format(path) === format ? read_document_file(path) : _read_own_file(format, path)
 end
 
-# The document of the file of `file`, read again as its own file type reads it.
-_read_file_again(file::FileDocument) =
-    read_file_content_again(Base.typename(typeof(file)).wrapper, get_filename(file))
+# The document of the file of `file`, read again in its own format.
+_read_file_again(file::FileDocument) = read_file_content_again(get_file_format(file), get_filename(file))
 
-function _read_own_file(type, path::AbstractString)
-    content = is_editable_file_type(type) ? get_file_content(make_file(type, basename(path), read(path, String))) :
-                                            read_file_content(type, path)
-    content isa AbstractString ? PrimitiveString(String(content)) : content
+function _read_own_file(format::FileFormat, path::AbstractString)
+    content = is_editable_file_format(format) ?
+              get_file_content(make_file(format, basename(path), read(path, String))) :
+              read_file_content(format, path)
+    _make_edited_content(content)
 end
 
 # Both commands need a name; decline (no binding fires) when the file has
 # none — a "Save As" path picker for unnamed files is future work. A save also
 # declines for a file that a person does not edit.
 _save_file(doc::FileDocument)   =
-    (isempty(get_filename(doc)) || !is_editable_file_type(typeof(doc))) ? nothing : SaveFileOperation(doc)
+    (isempty(get_filename(doc)) || !is_editable_file_format(get_file_format(doc))) ? nothing : SaveFileOperation(doc)
 _reload_file(doc::FileDocument) =
     isempty(get_filename(doc)) ? nothing :
         CompoundOperation(Any[ReloadFileOperation(doc), ReplaceSelectionOperation(EmptyReference())])
@@ -733,7 +772,7 @@ save_file_to_disk!(file; editor = get_evaluation_editor()) =
 Read the open file again from the disk, as F5 does, so it holds what the disk
 holds now, and answer `file`. `file` is the tab of the file, as `open_file!`
 answers it, or the file itself. The edits that were not saved are lost. A file that
-is not on the disk any more holds the empty document of its extension.
+is not on the disk any more holds the empty document of its format.
 
 Use it to see what another program wrote to an open file.
 
@@ -813,13 +852,13 @@ end
 
 # The read that runs on a task after a frame, for each file that a frame asked for:
 # it waits until the file is whole and reads it. It reads no document of the editor.
-function _read_file_text_answer(path::String, type::Type, is_editable::Bool)
+function _read_file_text_answer(path::String, format::FileFormat, is_editable::Bool)
     try
         _wait_for_settled_file(path)
         stamp = compute_file_stamp(path)
         isfile(path) || return _FileTextAnswer(nothing, nothing, stamp, nothing)
         file_hash = is_editable ? compute_file_text_hash(path) : hash(stamp)
-        _FileTextAnswer(file_hash, read_file_content_again(type, path), stamp, nothing)
+        _FileTextAnswer(file_hash, read_file_content_again(format, path), stamp, nothing)
     catch exception
         _FileTextAnswer(nothing, nothing, nothing, CapturedException(exception, catch_backtrace()))
     end
@@ -835,11 +874,11 @@ end
 # of a frame read in parallel. Its inputs name the file and the count of the changes,
 # so it has no answer for a count that came after the last read.
 function _make_file_text_cell(file::FileDocument)
-    source = BackgroundSource(inputs -> Any[_read_file_text_answer(path, type, is_editable)
-                                           for (path, type, is_editable, _) in inputs];
+    source = BackgroundSource(inputs -> Any[_read_file_text_answer(path, format, is_editable)
+                                           for (path, format, is_editable, _) in inputs];
                               description = "the text of a file")
-    inputs = () -> (abspath(get_filename(file)), Base.typename(typeof(file)).wrapper,
-                    is_editable_file_type(typeof(file)), get_file_disk_state(file).read_count)
+    inputs = () -> (abspath(get_filename(file)), get_file_format(file),
+                    is_editable_file_format(get_file_format(file)), get_file_disk_state(file).read_count)
     make_background_cell(source, inputs;
                          apply = (inputs, answer) -> ApplyFileTextOperation(file, last(inputs), answer))
 end
@@ -959,7 +998,7 @@ function evaluate_operation(editor, op::ApplyFileTextOperation)
     state.file_stamp = answer.stamp
     (!was_unread && answer.file_hash == state.file_hash) && return nothing
     load = ReloadFileOperation(file; content = answer.content, file_hash = answer.file_hash)
-    if was_unread || !is_editable_file_type(typeof(file)) || has_unsaved_edits(get_file_content(file)) === false
+    if was_unread || !is_editable_file_format(get_file_format(file)) || has_unsaved_edits(get_file_content(file)) === false
         evaluate_operation(editor, load)
     else
         state.band = _make_changed_file_band(file, "Load it" => load,

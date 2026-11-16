@@ -4,8 +4,9 @@
 # A cross-file reference is written in XML as a `pred:ref` element whose one
 # text child is the marker. The file writes one where the save cuts, and the
 # load splices the node it names into its place. What this file contributes is
-# the four lines every format owes: its domain, its parser, how it spells a
-# reference leaf, and how it recognises one.
+# the lines every format owes: its extension, its domain, its parser, how it
+# spells a reference leaf, and how it recognises one; and the empty document of a
+# new file of the domain.
 
 """
 The XML tag identifying a cross-file marker element:
@@ -14,28 +15,8 @@ The XML tag identifying a cross-file marker element:
 """
 const PRED_REF_ELEMENT_TAG = "pred:ref"
 
-# The content is the root element.
-@document struct XmlFile <: FileDocument
-    filename::String
-    content::Document = XmlNothing()
-    disk::FileDiskState = FileDiskState()
-end
-
 # A cell may still be a cell mid-walk: a CellVector holds cells.
 _unwrap(x) = x isa AbstractCell ? x[] : x
-
-# What the file writes itself, and how it spells a reference to what it does
-# not: a `pred:ref` element with the marker as its one text child.
-get_file_domain(::Type{<:XmlFile}) = XmlDocument
-make_reference_leaf(::XmlFile, marker::AbstractString) =
-    XmlElement(PRED_REF_ELEMENT_TAG, XmlAttribute[], [XmlText(make_marker_text(marker))])
-find_reference_marker(node::XmlElement) =
-    _is_marker_element(node) ?
-        parse_marker_text(strip(_unwrap(getfield(_unwrap(_unwrap(getfield(node, :children))[1]), :content)))) :
-        nothing
-parse_file_content(::Type{<:XmlFile}, text::AbstractString) = parse_xml(text)
-
-emit_text(f::XmlFile) = print_natural_text(get_file_content(f))
 
 """
     XmlFileFormat()
@@ -49,11 +30,25 @@ struct XmlFileFormat <: FileFormat end
 get_file_format_extensions(::XmlFileFormat) = (".xml",)
 get_file_format_domain(::XmlFileFormat) = XmlDocument
 parse_document_string(::XmlFileFormat, string::AbstractString) = parse_xml(string)
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred:ref` element with the marker as its one text child.
 make_reference_leaf(::XmlFileFormat, marker::AbstractString) =
     XmlElement(PRED_REF_ELEMENT_TAG, XmlAttribute[], [XmlText(make_marker_text(marker))])
-get_file_type(::XmlFileFormat) = XmlFile
-get_file_format(::XmlFile) = XmlFileFormat()
+find_reference_marker(node::XmlElement) =
+    _is_marker_element(node) ?
+        parse_marker_text(strip(_unwrap(getfield(_unwrap(_unwrap(getfield(node, :children))[1]), :content)))) :
+        nothing
 find_natural_file_format(::XmlDocument) = XmlFileFormat()
+# A new file starts as the insertion of a root element.
+make_document_seed(::Type{XmlDocument}) = XmlInsertion()
+
+"""
+    XmlFile(filename, content)
+
+A file of [`XmlFileFormat`](@ref), whose `content` is the root element, an
+`XmlDocument`.
+"""
+const XmlFile = File{XmlFileFormat}
 
 # A `pred:ref` element with a single text child is a marker.
 function _is_marker_element(node::XmlElement)
@@ -117,6 +112,4 @@ end
 const _XML_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_xml_part_note; description = "Show the path of the part")]
 
-@gestures XmlFile begin
-    splice(_XML_FILE_BINDINGS)
-end
+get_document_gesture_bindings_own(::Type{<:XmlFile}) = _XML_FILE_BINDINGS

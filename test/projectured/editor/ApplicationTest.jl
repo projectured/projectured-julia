@@ -63,14 +63,14 @@ function _app_write_files(dir)
     paths = String[]
     for (name, format, text) in natural
         path = joinpath(dir, name)
-        write_document_file(parse_natural_text(format, text), path)
+        write_document_file!(parse_natural_text(format, text), path)
         push!(paths, path)
     end
     for (name, document) in [("b.pdoc", parse_natural_text(:json, "[1, 2]")),
                              ("c.pred", TestRun(name = "run")),
                              ("notes.txt", PrimitiveString("one\ntwo"))]
         path = joinpath(dir, name)
-        write_document_file(document, path)
+        write_document_file!(document, path)
         push!(paths, path)
     end
     paths
@@ -906,10 +906,10 @@ function test_application()
             end
 
             @testset "every format draws" begin
-                # `.pdoc` is the binary snapshot format, registered under no
-                # `FileDocument` type — `make_file_tab` cannot open it as a
-                # file tab, so the sweep skips what it cannot open.
-                openable = [p for p in paths if has_file_document_type(p)]
+                # `.pdoc` is the binary snapshot format, which no file format
+                # declares — `make_file_tab` cannot open it as a file tab, so
+                # the sweep skips what it cannot open.
+                openable = [p for p in paths if find_file_format(p) !== nothing]
                 for path in vcat([String[]], [[p] for p in openable])
                     document, projection = _app_make_window(path; root = dir,
                         assistant = make_application_assistant(:ollama))
@@ -930,7 +930,7 @@ function test_application()
                 get_wrapped_document(tab.content).entries[1].value.value = "Bob"
                 evaluate_operation(editor, operation)
                 @test occursin("Bob", read(json, String))
-                write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
+                write_document_file!(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
             end
 
             @testset "the window is filled by its chrome and its panes" begin

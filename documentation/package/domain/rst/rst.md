@@ -112,7 +112,7 @@ It declares one method, and its `__init__` makes three calls:
 | `make_syntax_projection(::Type{<:RstDocument}; appearance)`, with `RstToSyntax` | the source form for files, text export and the tools |
 | `register_natural_syntax!(:rst, …)` | the `:rendered` syntax for the general renderer |
 | `register_natural_graphics!(:rst_page, …)` | an `RstRoot` and an `RstSection` drawn as a stack of blocks |
-| `register_file_document_type!(".rst", RstFile)` | the file type |
+| `RstFileFormat`, with the extension `.rst`, and `const RstFile = File{RstFileFormat}` | the format and its file |
 
 ## Design decisions
 

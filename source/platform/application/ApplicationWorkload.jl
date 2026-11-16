@@ -611,7 +611,7 @@ make_workload_file(::Type{TextFile}) =
 Run the gestures of a file of `type` in the application window with
 [`run_application_workload`](@ref): open the file of [`make_workload_file`](@ref)
 from the Files pane, click the text that it draws, type a key, save, undo (only
-the click for a file type that a person does not edit); then
+the click for a file of a format that a person does not edit); then
 open a new tab, turn it into the name buffer and type a key, which lists every
 type of document that the session can make, cancel, and close the tab.
 
@@ -620,9 +620,10 @@ holds the code of these gestures on its documents.
 """
 function run_file_workload(type::Type; backend::Backend = WorkloadBackend(; events = Event[]))
     file = make_workload_file(type)
-    # A file of a type that a person does not edit, such as a file of results,
+    # A file of a format that a person does not edit, such as a file of results,
     # gets a click and no key, save or undo.
-    edits = type <: FileDocument && !is_editable_file_type(type) ?
+    format = find_file_format(file.name)
+    edits = format !== nothing && !is_editable_file_format(format) ?
             WorkloadStep[WorkloadClick(DrawnText(file.shown))] : _make_file_edit_steps(file.shown)
     steps = WorkloadStep[_make_file_open_steps(file.name, file.shown)..., edits...,
                          # The first key of the name buffer lists every type of

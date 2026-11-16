@@ -288,9 +288,3 @@ end
 make_syntax_projection(::Type{<:YamlDocument}; appearance) =
     YamlToSyntax(; theme = get_scaled_theme!(appearance, YamlTheme),
                  syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
-
-function __init__()
-    # Both spellings open as the same file document type.
-    register_file_document_type!(".yaml", YamlFile)
-    register_file_document_type!(".yml",  YamlFile)
-end

@@ -18,11 +18,10 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..NavigatorModule: find_navigator_target
 import ..ProjectionAlgebraModule: make_content_view
 import ..LinkModule: is_link, get_link_target, get_link_content
-import ..SerializationModule: emit_text, get_document_section,
-                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
-                              splice_named_file!,
+import ..SerializationModule: get_document_section, make_reference_leaf, find_reference_marker,
+                              splice_named_file!, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
-                              parse_document_string, get_file_type, get_file_format
+                              parse_document_string
 import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 import ..DocumentModule: get_view_state_fields
@@ -41,7 +40,7 @@ export MarkdownInsertionToSyntaxLeaf, MarkdownTextToSyntaxLeaf, MarkdownCodeToSy
        MarkdownEmphasisToStyledNode, MarkdownHeadingToStyledNode, MarkdownLinkToStyledNode,
        MarkdownImageToStyledNode, MarkdownListToStyledNode,
        MarkdownToSyntax
-export MarkdownFile, PRED_REF_LANGUAGE, MarkdownFileFormat, get_markdown_section
+export PRED_REF_LANGUAGE, MarkdownFileFormat, MarkdownFile, get_markdown_section
 export MarkdownRootToVerticalLayout
 export MarkdownView, MarkdownTextView, MarkdownParagraphView, MarkdownHeadingView, MarkdownRootView
 export MarkdownRoot, MarkdownHeading, MarkdownParagraph, MarkdownCodeBlock, MarkdownThematicBreak, MarkdownQuote, MarkdownList, MarkdownListItem, MarkdownTable, MarkdownTableRow, MarkdownText, MarkdownCode, MarkdownEmphasis, MarkdownStrong, MarkdownLink, MarkdownImage, MarkdownInsertion
@@ -57,15 +56,11 @@ include("MarkdownToLayout.jl")
 include("MarkdownView.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, and
-# the rows that draw a page in a tab.
+# What this slice registers when it loads: the rows that draw a page in a tab.
 function __init__()
     register_natural_syntax!(:markdown, (; appearance) -> Pair{Type,Any}[
         MarkdownDocument => MarkdownToSyntax(style = :rendered,
                                              theme = get_scaled_theme!(appearance, MarkdownTheme))])
-
-    register_file_document_type!(".md",       MarkdownFile)
-    register_file_document_type!(".markdown", MarkdownFile)
 
     # A page is a stack of blocks, and a block of prose breaks its lines at the
     # width the page offers. The four prose blocks say so; a code block and a

@@ -276,7 +276,7 @@ value shows its picture in the conversation. The conversation holds no document,
 that picture does not follow its file.
 
 `read_document_file(path)` reads a file into a document without a tab, and
-`write_document_file(document, path)` writes a document to a file.
+`write_document_file!(document, path)` writes a document to a file.
 
 The explorer is a tab of the window: a tree of sections and entries beside the
 page of the selected node. `find_explorer_content()` answers its root section,

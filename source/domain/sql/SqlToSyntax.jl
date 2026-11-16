@@ -1990,15 +1990,8 @@ SqlInsertionToSyntaxLeaf(; theme = nothing) =
     InsertionToSyntaxLeaf((ins, text, place::Type = Any) -> _sql_commit(text);
                           completion = parse_completion(parse_sql_text), theme)
 
-# ── Natural-format registration ─────────────────────────────────────────────
-# SQL's seams for import_document / export_document / read+write_document_file.
-make_document_seed(::Val{:sql}) = SqlInsertion()
-
 # ── What this domain's natural notation is ──────────────────────────────────
 make_syntax_projection(::Type{<:SqlDocument}; appearance) =
     SqlToSyntax(; theme = get_scaled_theme!(appearance, SqlTheme),
                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
 
-function __init__()
-    register_file_document_type!(".sql", SqlFile)
-end

@@ -9,14 +9,10 @@
 # `FileCut.jl` writes one where it cuts, in the file's own notation, and the
 # load in `FileSplice.jl` puts the node it names back in its place.
 #
-# What every format contributes, in one line each:
-#
-# - `get_file_domain(::Type{T})` — the document type the file's content is
-#   made of; a node of it is written in the file, any other document is a cut.
-# - `parse_file_content(::Type{T}, text)` — the parser of the format.
-# - `make_reference_leaf(file, marker)` — the file's spelling of a reference.
-# - `find_reference_marker(node)` — the marker a leaf carries, or `nothing`.
-# - `emit_text(file)` — the file's text, through the format's natural notation.
+# What a format of a file contributes is in `FileFormat.jl`: its domain, a node
+# of which is written in the file while any other document is a cut, its parser,
+# its string, and its spelling of a reference, `make_reference_leaf`, which
+# `find_reference_marker` of the leaf reads back.
 #
 # # The marker language
 #
@@ -46,7 +42,9 @@ A document that owns a text file. Every direct subtype declares three
 `@document` fields — `filename::String`, a format-native `content`, and
 `disk::FileDiskState = FileDiskState()` — so `get_filename(f)`, `get_file_content(f)`
 and `get_file_disk_state(f)` work uniformly. The constructor of a type makes a new
-`FileDiskState` for each file.
+`FileDiskState` for each file. The file of a format is a [`File`](@ref); a file
+that holds more declares a subtype of its own, with a method of
+[`get_file_format`](@ref).
 
 The abstract type is one of *two* ways to opt in; the other is the
 `is_file_document` trait (see below), for types that already have an
@@ -76,9 +74,8 @@ has a supertype of its own opts in with a method:
 
     is_file_document(::MyDomainFile) = true
 
-and contributes the same lines a `FileDocument` does: `get_file_domain`,
-`parse_file_content`, `make_reference_leaf`, `find_reference_marker` and
-`emit_text`.
+and declares its format, as a `FileDocument` of its own does, with a method of
+[`get_file_format`](@ref).
 """
 is_file_document(::Any)          = false
 is_file_document(::FileDocument) = true
@@ -235,81 +232,6 @@ is_own_content(::Any) = false
 # A person edits the document a file holds, or the file itself when it is its own
 # content.
 get_edited_field(file::FileDocument) = is_own_content(file) ? nothing : :content
-
-"""
-    emit_text(f) -> String
-
-Render a file document to the exact text that goes on disk. Concrete
-types override this: a raw-string leaf (`TextFile`) returns `content`,
-a parsed leaf (`JsonFile`, `XmlFile`, `JuliaFile`, `MarkdownFile`)
-projects `content` through the visual layer's `print_natural_text`. The
-default here just errors so a missing override fails loudly.
-"""
-emit_text(f) =
-    error("emit_text: no method defined for ", typeof(f),
-          " — every file document must contribute one (via `<: FileDocument` or the `is_file_document` trait)")
-
-# ── Registry: extension → concrete FileDocument type ──────────────────────
-
-const _FILE_DOCUMENT_TYPES = Dict{String, Type}()
-
-"""
-    register_file_document_type!(extension::AbstractString, T::Type)
-
-Wire an extension (e.g. `".json"`) to the concrete type that owns it.
-The load consults this registry when it opens a file by name. `T` may be
-a `FileDocument` subtype or a trait-based opt-in; the registry doesn't
-restrict.
-
-Registering `""` is fine — the empty extension is the fallback
-(`TextFile` claims it so any path with no extension loads as plain
-text).
-"""
-function register_file_document_type!(extension::AbstractString, T::Type)
-    _FILE_DOCUMENT_TYPES[String(extension)] = T
-    T
-end
-
-"""
-    get_file_document_type(path::AbstractString) -> Type
-
-Look up the concrete file-document type for `path` by its extension
-(case-insensitive). Errors if no format has claimed the extension —
-better a loud miss at load time than a silently-wrong parse.
-"""
-function get_file_document_type(path::AbstractString)
-    ext = lowercase(splitext(path)[2])
-    haskey(_FILE_DOCUMENT_TYPES, ext) && return _FILE_DOCUMENT_TYPES[ext]
-    error("get_file_document_type: no file document registered for extension ",
-          repr(ext), " — call register_file_document_type!(", repr(ext), ", …)")
-end
-
-"""
-    find_file_extension(document) -> Union{String, Nothing}
-
-The extension of the registered file type whose domain holds `document`, such as
-`".json"` for a JSON object, or `nothing` when no format but `.pred` writes it.
-Of two extensions of one type, such as `".md"` and `".markdown"`, it answers the
-shorter one.
-
-Use it to name a file for a node that a file of its own format must write.
-"""
-function find_file_extension(document)
-    for extension in sort!(collect(keys(_FILE_DOCUMENT_TYPES)); by = e -> (length(e), e))
-        domain = get_file_domain(_FILE_DOCUMENT_TYPES[extension])
-        domain !== Document && document isa domain && return extension
-    end
-    nothing
-end
-
-"""
-    has_file_document_type(path::AbstractString) -> Bool
-
-Whether a format claimed the extension of `path`, so that
-[`get_file_document_type`](@ref) answers instead of raising an error.
-"""
-has_file_document_type(path::AbstractString) =
-    haskey(_FILE_DOCUMENT_TYPES, lowercase(splitext(path)[2]))
 
 # ── The marker language ────────────────────────────────────────────────────
 #
@@ -712,13 +634,10 @@ end
 # One module, one `__init__`: the registrations of every fragment run from here.
 function __init__()
     register_marker_function!(:section, marker_section)
-    register_file_document_type!("",      TextFile)
-    register_file_document_type!(".txt",  TextFile)
-    register_file_document_type!(".pred", PredFile)
 end
 
-# The write gate: skip the write when the emitted text matches what's
-# already on disk. Reads as bytes, not as
+# The write gate: skip the write when the text matches what's already on
+# disk. Reads as bytes, not as
 # a decoded string, so a caller cannot trip the check with an encoding
 # difference the read wouldn't survive.
 function _write_if_changed(path::AbstractString, text::AbstractString)

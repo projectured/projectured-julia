@@ -26,13 +26,15 @@ A document graph can also be saved as text files that a version control system c
 
 **A file reference is a fact about storage, so it is never a node of the document.** In memory the graph is the real graph. A JSON object can hold an XML element, a shared subtree is one object, and a cycle is a cycle. Only the save writes references:
 
-1. Each node gets an owner: the first file of its own domain that reaches it through nodes of that domain. A node that no file of its domain reaches belongs to the first file that reaches it and can write it inline, in the text of its format, as a `.pred` file writes a JSON value; `is_written_inline(file, node)` says which file can, and `make_inline_leaf(file, node, path)` gives its spelling. Any other node that no file reaches is an orphan.
+1. Each node gets an owner: the first file of its own domain that reaches it through nodes of that domain. A node that no file of its domain reaches belongs to the first file that reaches it and can write it inline, in the text of its format, as a `.pred` file writes a JSON value; `is_written_inline(format, node)` of the format of the file says which file can, and `make_inline_leaf(file, node, path)` gives its spelling. Any other node that no file reaches is an orphan.
 2. Each file copies its content until it reaches a node that another file owns. There it writes a reference leaf in its own notation.
-3. `emit_text` prints the copy, and the file is written only when its bytes change.
+3. `make_document_string` of the format of the file prints the copy, the text of the file is that string and one line break, and the file is written only when its bytes change.
 
 `save_project!(project)` writes every file. If a node is an orphan, it logs the reason, writes nothing and returns `false`. `save_file!(file, base_dir)` writes one file with no project. A file document that its content holds is written as `file("…")`, with the path of that file relative to `base_dir` and `..` for a file outside it, and the save writes nothing of the held file. A held file with no name refuses the save. Any other node must be of the domain of the file, or one that the file writes inline. A node that the file holds at two places, and a cycle, are written once, and each other place holds a marker into the file itself, which names the file by its path relative to `base_dir`; `load_file(base_dir, filename)` loads the file as a set of one and splices those markers. A project save names each file by the name that the file gives. `cut_file_text(file, base_dir)` answers the text that `save_file!` writes, and writes nothing.
 
-`load_project(base_dir, filenames)` parses every file with its own format first; a reference leaf is then an ordinary leaf, such as a `JsonString` that holds a marker. It then walks each tree and replaces each reference leaf with the node that the marker names. Every tree exists before the first replacement, so two markers of one node get the same object and a cycle across files becomes a cycle in memory. A marker that names a file outside the set stays a leaf, so one file can be opened alone and saved back unchanged. `follow = true` also opens the files that the set names, and `tolerant = true` logs a file that does not open and keeps its markers as text.
+**The text of a file is the string of its content and one line break.** The write adds one line break after the string, and the read removes one line break at the end of the text before the parse, in `read_file_content` and `make_file`. So a saved JSON file ends with a line break, as a Julia file does, and a text that ends with an empty line reads back to the same string.
+
+`load_project(base_dir, filenames)` parses every file with the format that its extension names (`find_file_format`) first; a reference leaf is then an ordinary leaf, such as a `JsonString` that holds a marker. It then walks each tree and replaces each reference leaf with the node that the marker names. Every tree exists before the first replacement, so two markers of one node get the same object and a cycle across files becomes a cycle in memory. A marker that names a file outside the set stays a leaf, so one file can be opened alone and saved back unchanged. `follow = true` also opens the files that the set names, and `tolerant = true` logs a file that does not open and keeps its markers as text.
 
 `splice_held_files!(content, base_dir, find_file)` is the splice of an editor. It replaces each leaf of `content` whose marker is a whole `file("p")` with what `find_file(path)` answers for the absolute path of `p` against `base_dir`, and answers the content: `content` itself, or the answer when the whole content is such a leaf. `find_file` is asked once for each path, so two slots of one file hold one object. An answer `nothing` keeps the leaf, and a `node(…)`, a `section(…)` and any other verb stay leaves. The walk goes into a tuple and a named tuple, and it reads no disk. For each document that it visits it calls `splice_named_file!(node, find_file)`, with a `find_file` that takes a path as the node writes it, against `base_dir`: a type that names a file by a path, such as an image of a Markdown page, adds a method and keeps the answer in a field of view state. The default does nothing. It shares its walk with `load_project`, which resolves a leaf against a set of files. The file-format slice, the file-system slice and the explorer slice call it when a file enters an editor, with the file documents that the editor holds ([fileformat.md](../fileformat/fileformat.md)).
 
@@ -55,52 +57,59 @@ A marker is `<<expr>>`, where `expr` is a call:
 
 The first registration of a name wins. A second, different function logs a warning and is not used, because otherwise the order of the `__init__` calls would choose the winner. Two formats that need one name share a generic function instead: `section` calls `get_document_section`, and Markdown and RST each add a method for their own root type.
 
-### The contract of a file type
+### The file of a format
 
-A file type implements five functions, one line each:
+A format is a type of its own, `FileFormat`, apart from the domain and from the file ([fileformat.md](../fileformat/fileformat.md) is the home of the subject). The file of a format `F` is a `File{F}`: the fields `filename`, `content` and `disk`, with the format as its type parameter. `get_file_format(file)` answers `F()`, and `get_file_type(format)` answers `File{F}`. A package gives the file of its format a short name, `const JsonFile = File{JsonFileFormat}`, which constructs a file, takes a method and answers an `isa` test for each cell layout. A file that holds more than a name, a content and a disk state keeps a struct of its own and declares `get_file_format` and `get_file_type`, as `SourceFile` of the language server does. A reader names the file of a format by the name of the format without `Format` (`get_document_schema_name`), `JsonFile` for `File{JsonFileFormat}`, and a `.pred` file builds a file by that name.
+
+A format declares, one line each:
 
 | Function | What it returns | Default |
 | --- | --- | --- |
-| `get_file_domain(::Type{T})` | the document type of the content; a node of any other type is a cut | none |
-| `parse_file_content(::Type{T}, text)` | the content that the text parses to, with no marker replaced | none |
-| `emit_text(file)` | the exact text of the file, through the natural notation of the format | raises an error that names the type |
-| `make_reference_leaf(file, marker)` | the spelling of a reference in the format, for a marker body without `<<` and `>>` | none |
+| `get_file_format_extensions(format)` | the extensions, such as `(".yaml", ".yml")`; the first is for a new file | none |
+| `get_file_format_domain(format)` | the document type of the content; a node of any other type is a cut | none |
+| `parse_document_string(format, string)` | the content that the string parses to, with no marker replaced | none |
+| `make_document_string(format, document)` | the string of the document | the print of the syntax tree, for a domain with a syntax notation |
+| `make_reference_leaf(format, marker)` | the spelling of a reference in the format, for a marker body without `<<` and `>>` | none |
 | `find_reference_marker(node)` | the marker body that a leaf holds, or `nothing` | `nothing` |
 
 More have a default that fits most formats:
 
 | Function | Default | Override when |
 | --- | --- | --- |
-| `is_file_domain_node(file, node)` | `node isa get_file_domain(typeof(file))` | the domain of the file is not one type |
-| `is_written_in_file(file, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
-| `is_written_inline(file, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
+| `is_file_domain_node(format, node)` | `node isa get_file_format_domain(format)` | the domain of the format is not one type |
+| `is_written_in_file(format, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
+| `is_written_inline(format, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
 | `find_held_file(node)` | `node` for a file document, else `nothing` | a document shows a file and keeps the state of that showing, as the view of a file does, so a holder must save it as `file("…")` and write none of that state |
-| `is_editable_file_type(::Type{T})` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
-| `read_file_content(::Type{T}, path)` | the text of the file through `parse_file_content` | the type does not edit, and its file is too large to read whole, so it reads only what it needs |
+| `is_editable_file_format(format)` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
+| `read_file_content(format, path)` | the text of the file, less one line break, through `parse_document_string` | the format does not edit, and its file is too large to read whole, so it reads only what it needs |
+| `get_file_type(format)` | `File{F}` | the file holds more, in a struct of its own |
+| `make_file(format, filename, text)` | a file of `get_file_type` with the content of the text, less one line break | the file is its own content |
 
-A file of a type that a person does not edit is read through `read_file_content`
+The domain of the format declares `make_document_seed(domain)`, the empty document of a new file of the domain and the default content of a `File{F}`; a domain with none gives an empty document, and the domain `Union{}` of plain text gives the empty string.
+
+A file of a format that a person does not edit is read through `read_file_content`
 when it opens and when it is read again, and a save writes nothing of it.
 
-The JSON file type is the smallest full example:
+The JSON format is the smallest full example:
 
 ```julia
-@document struct JsonFile <: FileDocument
-    filename::String
-    content::JsonDocument = JsonNothing()
-    disk::FileDiskState = FileDiskState()
-end
-get_file_domain(::Type{<:JsonFile}) = JsonDocument
-make_reference_leaf(::JsonFile, marker::AbstractString) = JsonString(make_marker_text(marker))
+struct JsonFileFormat <: FileFormat end
+
+get_file_format_extensions(::JsonFileFormat) = (".json",)
+get_file_format_domain(::JsonFileFormat) = JsonDocument
+parse_document_string(::JsonFileFormat, string::AbstractString) = parse_json(string)
+make_reference_leaf(::JsonFileFormat, marker::AbstractString) = JsonString(make_marker_text(marker))
 find_reference_marker(leaf::JsonString) = parse_marker_text(leaf.value)
-parse_file_content(::Type{<:JsonFile}, text::AbstractString) = parse_json(text)
-emit_text(f::JsonFile) = print_natural_text(get_file_content(f))
+make_document_seed(::Type{JsonDocument}) = JsonInsertion()
+
+const JsonFile = File{JsonFileFormat}
 ```
 
 The field `disk` is the state of the file against its file on disk: `file_hash`, the hash of the text of the last load or save, and `band`, the band that says that the file changed on disk. `get_file_disk_state(file)` reads it. It is view state (`get_view_state_fields`), so a save writes none of it and a walk does not enter it, and the default of the field makes a new state for each file ([fileformat.md](../fileformat/fileformat.md)).
 
 `parse_marker_text` returns `nothing` for a string that is not a marker, so an ordinary string stays a string. Each format spells a reference with its own opaque unit: a JSON string, an XML `pred:ref` element, a Markdown fence, an RST directive. A file whose node is itself the content returns `true` from `is_own_content`, defines `get_file_content(f) = f` and builds itself in `make_file`.
 
-`register_file_document_type!(extension, T)` connects an extension to a file type, and `get_file_document_type(path)` finds it, without regard to case. `find_file_extension(document)` answers the extension of the file type whose domain holds a node, such as `".json"` for a JSON object, or `nothing` for a node that only a `.pred` file writes.
+No registry holds a format. `collect_file_formats()` reads the formats of the session from the methods of `get_file_format_extensions`, and `find_file_format(name)` finds the one format of an extension, a path or a short name, without regard to case; an extension that two formats declare is an error that names both.
 
 ### The `.pred` format
 
@@ -128,17 +137,17 @@ WorkflowStep(
 )
 ```
 
-The reader reads the string with the parser of the format that has the extension, and the file runs no macro. A node that the file holds at two places is written once, and the other place is a marker into the file, so the load gives one object again. A node that a file of its format writes in the same set is a marker into that file, as before. A text that the indent would change is written with every quote escaped and no indent, and a text that no tagged string holds, such as one with a carriage return, is refused. A tagged string is a value of the marker language too, so a marker in a JSON string may hold one. A `PredText` stands for such a node in the copy that the save prints.
+The reader reads the string with the parser of the format that has the extension, and the file runs no macro. The tag is the first extension of the format whose domain holds the node, among the formats of the session. A node that the file holds at two places is written once, and the other place is a marker into the file, so the load gives one object again. A node that a file of its format writes in the same set is a marker into that file, as before. A text that the indent would change is written with every quote escaped and no indent, and a text that no tagged string holds, such as one with a carriage return, is refused. A tagged string is a value of the marker language too, so a marker in a JSON string may hold one. A `PredText` stands for such a node in the copy that the save prints.
 
 **A type is a value too, written by its bare name.** A field that limits what a document can become holds types, such as `allowed_types = (PrimitiveNumber,)` of a type-in. The writer prints a type that a file may build as its name, and refuses any other type; the reader looks a bare name that starts with a capital up among the same types as the name of a call, and a name that no such type has is an error that names it. A bare name that starts with a small letter is a marker only when it is the name of a function that its package lets a file name, such as `is_task_search_field`, which a source of a roster holds as the function of its searches. The reader gives the function as a value and never calls it: a call is built only for a name with a capital, so a file still can not run code. A closure has no name that a reader can find, so the writer refuses it.
 
-`TextFile` holds a raw `String` and has no parser; its domain is `Union{}`, so it holds no document.
+`TextFile`, the file of `TextFileFormat`, holds a raw `String`, and its string is that content as it is; its domain is `Union{}`, so it holds no document.
 
 ## How it fits
 
-The serialization slice depends only on the kernel and the `Serialization` standard library, and on no domain. The file-format slice uses it for the binary half of `write_document_file` and `read_document_file`. Each domain with a file type depends on `ProjecturedPlatform` for it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows where the file type sits in a domain.
+The serialization slice depends only on the kernel and the `Serialization` standard library, and on no domain. The file-format slice uses it for the binary half of `write_document_file!` and `read_document_file`, and reads and writes each other file through the format of its extension. Each domain with a file type depends on `ProjecturedPlatform` for it; [domain-anatomy.md](../../../design/domain-anatomy.md) shows where the file type sits in a domain.
 
-Its `__init__` registers the `section` marker, `TextFile` for a path with no extension and for `.txt`, and `PredFile` for `.pred`. The domains register `.json`, `.xml`, `.md`, `.markdown`, `.rst`, `.yaml`, `.yml`, `.math`, `.sql` and `.jl`. `ProjecturedJulia` also registers the marker `definition`.
+Its `__init__` registers the `section` marker. Plain text declares a path with no extension and `.txt`, and `.pred` its own extension; the domains declare `.json`, `.xml`, `.md`, `.markdown`, `.rst`, `.yaml`, `.yml`, `.math`, `.sql` and `.jl` with their formats. `ProjecturedJulia` also registers the marker `definition`.
 
 ## Design decisions
 
@@ -156,7 +165,6 @@ Its `__init__` registers the `section` marker, `TextFile` for a path with no ext
 save_document(document, "state.pdoc")
 loaded = load_document("state.pdoc")
 
-register_file_document_type!(".json", JsonFile)          # in the __init__ of a domain
 register_marker_function!(:definition, (project, file, name) -> find_julia_definition(file, name))
 
 project = FileProject("data", Any[JsonFile("a.json", object), XmlFile("b.xml", element)])
@@ -169,6 +177,6 @@ text    = print_pred_text(document)
 
 ## Limits
 
-- `get_file_document_type` raises an error for an extension that no format registered. `TextFile` covers only a path with no extension and `.txt`, although the comment in `source/platform/serialization/TextFile.jl` calls it the fallback for any extension.
+- The load raises an error for an extension that no format declares. `TextFile` covers only a path with no extension and `.txt`.
 - A file written by an older `_VERSION` does not load. No migration exists.
 - A save that can not cut the graph writes no file of the project, and `save_project!` only logs the reason.

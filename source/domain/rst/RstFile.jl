@@ -7,35 +7,8 @@
 # verb, which names a section by its title, and the pictures that the figures and
 # the images of a file hold live here too.
 
-"""
-    RstFile(filename, content)
-
-A file document whose `content` is an `RstDocument`.
-"""
-@document struct RstFile <: FileDocument
-    filename::String
-    content::Document = RstRoot()
-    disk::FileDiskState = FileDiskState()
-end
-
-emit_text(f::RstFile) = print_natural_text(get_file_content(f))
-
-# ── Markers ───────────────────────────────────────────────────────────────────
-
 # A cell may still be a cell mid-walk: a CellVector holds cells.
 _unwrap(x) = x isa AbstractCell ? x[] : x
-
-# What the file writes itself, and how it spells a reference to what it does
-# not: a `pred-ref` directive whose argument is the marker. A `pred-ref` whose
-# argument is not a marker stays the directive it was, so a typing mistake shows
-# on the page instead of vanishing.
-get_file_domain(::Type{<:RstFile}) = RstDocument
-make_reference_leaf(::RstFile, marker::AbstractString) =
-    RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
-find_reference_marker(node::RstDirective) =
-    _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE ?
-        parse_marker_text(strip(_unwrap(getfield(node, :argument)))) : nothing
-parse_file_content(::Type{<:RstFile}, text::AbstractString) = parse_rst(text)
 
 """
     RstFileFormat()
@@ -49,11 +22,25 @@ struct RstFileFormat <: FileFormat end
 get_file_format_extensions(::RstFileFormat) = (".rst",)
 get_file_format_domain(::RstFileFormat) = RstDocument
 parse_document_string(::RstFileFormat, string::AbstractString) = parse_rst(string)
+# What the file writes itself, and how it spells a reference to what it does
+# not: a `pred-ref` directive whose argument is the marker. A `pred-ref` whose
+# argument is not a marker stays the directive it was, so a typing mistake shows
+# on the page instead of vanishing.
 make_reference_leaf(::RstFileFormat, marker::AbstractString) =
     RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
-get_file_type(::RstFileFormat) = RstFile
-get_file_format(::RstFile) = RstFileFormat()
+find_reference_marker(node::RstDirective) =
+    _unwrap(getfield(node, :name)) == PRED_REF_DIRECTIVE ?
+        parse_marker_text(strip(_unwrap(getfield(node, :argument)))) : nothing
 find_natural_file_format(::RstDocument) = RstFileFormat()
+# A new file starts as an empty document, which takes the edits of its first block.
+make_document_seed(::Type{RstDocument}) = RstRoot()
+
+"""
+    RstFile(filename, content)
+
+A file of [`RstFileFormat`](@ref), whose `content` is an `RstDocument`.
+"""
+const RstFile = File{RstFileFormat}
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 

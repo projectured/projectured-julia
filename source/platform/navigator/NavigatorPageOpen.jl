@@ -16,10 +16,20 @@ document names ([`find_edited_document_target`](@ref)), so a file with a history
 names the same parts as a file with none. An address outside the editor needs no
 page to resolve it, so a node that is no layer answers a `Url` for an address of the
 web or of mail (`find_web_url`) and `nothing` for any other target; a domain adds a method for
-its root, and for its file document when the file names more, such as a file beside
-it.
+its root. A file document names what its document names, and else a file beside it
+by a relative path, when that file exists; the part after `#` in such a path is not
+followed.
 """
 find_navigator_target(root, target::AbstractString) = find_edited_document_target(root, target)
+
+function find_navigator_target(file::FileDocument, target::AbstractString)
+    found = find_edited_document_target(file, target)
+    found === nothing || return found
+    path = first(split(target, '#'; limit = 2))
+    (isempty(path) || occursin(r"^[A-Za-z][A-Za-z0-9+.\-]*:", path)) && return nothing
+    candidate = normpath(joinpath(dirname(abspath(get_filename(file))), path))
+    isfile(candidate) ? candidate : nothing
+end
 
 """
     find_edited_document_target(layer, target) -> Reference, String, Url or nothing

@@ -60,33 +60,28 @@ _is_file_read(file) = get_file_disk_state(file).loaded_count >= get_file_disk_st
 _get_band_labels(file) = String[first(choice) for choice in get_file_disk_state(file).band.choices]
 _find_band_choice(file, label) = last(only(c for c in get_file_disk_state(file).band.choices if first(c) == label))
 
-# A file type that no extension names: an opener chooses it, as a store in a
-# `.json` file is chosen. It holds its text in capitals and writes it in small
-# letters.
-@document struct _ShoutedFile <: FileDocument
-    filename::String
-    content::Any
-    disk::FileDiskState = FileDiskState()
-end
-SerializationModule.get_file_domain(::Type{<:_ShoutedFile}) = Document
-SerializationModule.parse_file_content(::Type{<:_ShoutedFile}, text::AbstractString) =
-    PrimitiveString(uppercase(String(text)))
-SerializationModule.emit_text(file::_ShoutedFile) =
-    lowercase(something(getfield(get_file_content(file), :value)[], ""))
+# A format that no extension names: an opener chooses it, as a store in a `.json`
+# file is chosen. It holds its text in capitals and writes it in small letters.
+struct _ShoutedFileFormat <: FileFormat end
+const _ShoutedFile = File{_ShoutedFileFormat}
+SerializationModule.get_file_format_extensions(::_ShoutedFileFormat) = ()
+SerializationModule.get_file_format_domain(::_ShoutedFileFormat) = Document
+SerializationModule.parse_document_string(::_ShoutedFileFormat, string::AbstractString) =
+    PrimitiveString(uppercase(String(string)))
+SerializationModule.make_document_string(::_ShoutedFileFormat, document) =
+    lowercase(something(getfield(document, :value)[], ""))
 
-# A file type that a person does not edit, as a result file of a run is: it reads
-# its file itself and says only its size, and it notes the task of each read, so a
-# test sees that the drain reads none of it.
-@document struct _ReadOnlyProbeFile <: FileDocument
-    filename::String
-    content::Any
-    disk::FileDiskState = FileDiskState()
-end
+# A format that a person does not edit, as a result file of a run is: it reads its
+# file itself and says only its size, and it notes the task of each read, so a test
+# sees that the drain reads none of it.
+struct _ReadOnlyProbeFileFormat <: FileFormat end
+const _ReadOnlyProbeFile = File{_ReadOnlyProbeFileFormat}
 const _READ_ONLY_PROBE_READERS = Task[]
 const _READ_ONLY_PROBE_LOCK = ReentrantLock()
-SerializationModule.get_file_domain(::Type{<:_ReadOnlyProbeFile}) = Document
-SerializationModule.is_editable_file_type(::Type{<:_ReadOnlyProbeFile}) = false
-function SerializationModule.read_file_content(::Type{<:_ReadOnlyProbeFile}, path::AbstractString)
+SerializationModule.get_file_format_extensions(::_ReadOnlyProbeFileFormat) = ()
+SerializationModule.get_file_format_domain(::_ReadOnlyProbeFileFormat) = Document
+SerializationModule.is_editable_file_format(::_ReadOnlyProbeFileFormat) = false
+function SerializationModule.read_file_content(::_ReadOnlyProbeFileFormat, path::AbstractString)
     lock(() -> push!(_READ_ONLY_PROBE_READERS, current_task()), _READ_ONLY_PROBE_LOCK)
     PrimitiveString(string(filesize(path), " bytes"))
 end
@@ -179,9 +174,9 @@ function test_file_change_store()
                 @test drain_file_changes!(; store) == 1
                 # The watch read nothing: the file counts the change, and reads the file when a
                 # view of it is drawn.
-                @test get_file_disk_state(file).read_count == 1 && _get_watched_text(file) == "one\n"
+                @test get_file_disk_state(file).read_count == 1 && _get_watched_text(file) == "one"
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "two\n"
+                @test _get_watched_text(file) == "two"
                 @test get_file_disk_state(file).file_hash == hash("two\n") && get_file_disk_state(file).band === nothing
                 # A file written at once, by a rename over it, is seen too.
                 temporary = joinpath(dirname(path), "watched.tmp")
@@ -190,7 +185,7 @@ function test_file_change_store()
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "three\n"
+                @test _get_watched_text(file) == "three"
                 unwatch_document_file!(file; store)
                 @test !is_document_file_watched(file; store)
                 @test isempty(store.watchers)
@@ -206,21 +201,21 @@ function test_file_change_store()
                 watch_document_file!(file; store)
                 _edit_watched_text!(file, "saved\n")
                 @test evaluate_operation(nothing, SaveFileOperation(file)) === true
-                @test read(path, String) == "saved\n"
-                @test get_file_disk_state(file).file_hash == hash("saved\n")
+                @test read(path, String) == "saved\n\n"
+                @test get_file_disk_state(file).file_hash == hash("saved\n\n")
                 @test _wait_for_file_change(store)
                 # The write of the save counts as a change, and the read finds the hash of the
                 # file: nothing changes and nothing is logged.
                 @test (@test_logs drain_file_changes!(; store)) == 1
                 @test (@test_logs _read_file_text!(file)) === file
                 @test _get_watched_text(file) == "saved\n" && get_file_disk_state(file).band === nothing
-                @test get_file_disk_state(file).file_hash == hash("saved\n") && _is_file_read(file)
+                @test get_file_disk_state(file).file_hash == hash("saved\n\n") && _is_file_read(file)
                 # After the save, a change of another program reaches it again.
                 write(path, "theirs\n")
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "theirs\n"
+                @test _get_watched_text(file) == "theirs"
                 unwatch_document_file!(file; store)
             finally
                 close_file_change_store!(store)
@@ -260,7 +255,7 @@ function test_file_change_store()
                 @test (@test_logs _read_file_text!(file)) === file
                 @test get_file_disk_state(file).band === nothing && _get_watched_text(file) == "mine\n"
                 @test evaluate_operation(nothing, SaveFileOperation(file)) === true
-                @test read(path, String) == "mine\n"
+                @test read(path, String) == "mine\n\n"
                 # Load it: the file takes the document that the read found.
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
@@ -272,7 +267,7 @@ function test_file_change_store()
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
                 evaluate_operation(nothing, _find_band_choice(file, "Load it"))
-                @test _get_watched_text(file) == "last\n"
+                @test _get_watched_text(file) == "last"
                 @test get_file_disk_state(file).band === nothing && get_file_disk_state(file).file_hash == hash("last\n")
                 unwatch_document_file!(file; store)
             finally
@@ -289,7 +284,7 @@ function test_file_change_store()
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "one\n"
+                @test _get_watched_text(file) == "one"
                 @test _get_band_labels(file) == ["Load it", "Keep mine"]
                 unwatch_document_file!(file; store)
             finally
@@ -307,7 +302,7 @@ function test_file_change_store()
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "theirs\n"
+                @test _get_watched_text(file) == "theirs"
                 unwatch_document_file!(file; store)
             finally
                 close_file_change_store!(store)
@@ -324,13 +319,13 @@ function test_file_change_store()
             @test _get_band_labels(file) == ["Load it", "Keep mine"]
             # Keep mine writes over it.
             evaluate_operation(nothing, _find_band_choice(file, "Keep mine"))
-            @test read(path, String) == "mine\n"
-            @test get_file_disk_state(file).band === nothing && get_file_disk_state(file).file_hash == hash("mine\n")
+            @test read(path, String) == "mine\n\n"
+            @test get_file_disk_state(file).band === nothing && get_file_disk_state(file).file_hash == hash("mine\n\n")
             # Load it reads the file on disk now.
             write(path, "newer\n")
             @test evaluate_operation(nothing, SaveFileOperation(file)) === false
             evaluate_operation(nothing, _find_band_choice(file, "Load it"))
-            @test _get_watched_text(file) == "newer\n"
+            @test _get_watched_text(file) == "newer"
             @test get_file_disk_state(file).band === nothing && get_file_disk_state(file).file_hash == hash("newer\n")
             # A history in the file adds no step for a save and a keep.
             @test make_inverse_operation(nothing, SaveFileOperation(file)) isa DoNothingOperation
@@ -375,7 +370,7 @@ function test_file_change_store()
                 @test woken[] >= 1
                 @test drain_changes!(feed, nothing) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "two\n"
+                @test _get_watched_text(file) == "two"
                 @test drain_changes!(feed, nothing) == 0
                 unwatch_document_file!(file; store)
             finally
@@ -390,7 +385,7 @@ function test_file_change_store()
                 path = joinpath(folder, "note.txt")
                 write(path, "hello\n")
                 file = _ShoutedFile(path, UndoBuffer(PrimitiveString("HELLO\n")))
-                @test compute_file_text(file) == "hello\n"
+                @test compute_file_text(file) == "hello\n\n"
                 watch_document_file!(file; store)
                 write(path, "bye\n")
                 @test _wait_for_file_change(store)
@@ -398,7 +393,7 @@ function test_file_change_store()
                 _read_file_text!(file)
                 # Read by its own type, not by the text file that `.txt` names.
                 @test get_wrapped_document(get_file_content(file)) isa PrimitiveString
-                @test getfield(get_wrapped_document(get_file_content(file)), :value)[] == "BYE\n"
+                @test getfield(get_wrapped_document(get_file_content(file)), :value)[] == "BYE"
                 unwatch_document_file!(file; store)
             finally
                 close_file_change_store!(store)
@@ -410,7 +405,7 @@ function test_file_change_store()
             try
                 path = joinpath(mktempdir(), "results.vec")
                 write(path, "12345")
-                file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))
+                file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFileFormat(), path))
                 watch_document_file!(file; store)
                 lock(() -> empty!(_READ_ONLY_PROBE_READERS), _READ_ONLY_PROBE_LOCK)
                 write(path, "1234567890")
@@ -429,7 +424,7 @@ function test_file_change_store()
                 evaluate_operation(nothing, SaveFileOperation(file))
                 @test read(path, String) == "1234567890"
                 # A new file of the type reads no text for a hash.
-                @test get_file_disk_state(_ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))).file_hash === nothing
+                @test get_file_disk_state(_ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFileFormat(), path))).file_hash === nothing
                 unwatch_document_file!(file; store)
             finally
                 close_file_change_store!(store)
@@ -439,7 +434,7 @@ function test_file_change_store()
         @testset "F5 on a file that a person does not edit takes the hash of its time and size" begin
             path = joinpath(mktempdir(), "results.vec")
             write(path, "12345")
-            file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFile, path))
+            file = _ReadOnlyProbeFile(path, read_file_content(_ReadOnlyProbeFileFormat(), path))
             write(path, "1234567890")
             evaluate_operation(nothing, ReloadFileOperation(file))
             @test getfield(get_file_content(file), :value)[] == "10 bytes"
@@ -469,7 +464,7 @@ function test_file_change_store()
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 _read_file_text!(file)
-                @test _get_watched_text(file) == "a longer text\n"
+                @test _get_watched_text(file) == "a longer text"
                 unwatch_document_file!(file; store)
                 @test isempty(store.watchers)
             finally
@@ -594,7 +589,7 @@ function test_file_change_store()
                 @test _wait_for_file_change(store)
                 @test drain_file_changes!(; store) == 1
                 @test _run_frames_until(editor, () -> _is_file_read(file))
-                @test _get_watched_text(file) == "two\n" && get_file_disk_state(file).band === nothing
+                @test _get_watched_text(file) == "two" && get_file_disk_state(file).band === nothing
                 @test shown_children(tab_view) == 1 && shown_children(card_view) == 1
                 # After an edit the next rewrite shows the band above the file, in both views.
                 _edit_watched_text!(file, "mine\n")
@@ -634,7 +629,7 @@ function test_file_change_store()
                 # A draw of the view demands the text, and a task reads the file after the frame.
                 _draw_file_view(editor, view)
                 @test _run_frames_until(editor, () -> _is_file_read(file))
-                @test _get_watched_text(file) == "two\n" && get_file_disk_state(file).band === nothing
+                @test _get_watched_text(file) == "two" && get_file_disk_state(file).band === nothing
                 @test length(print_document(FileViewToWidget(), nothing, view, nothing).output.children) == 1
                 # The person types a letter, and the next rewrite shows the band.
                 _edit_watched_text!(file, "two x\n")
@@ -704,9 +699,9 @@ function test_file_change_store()
                 # The file changed while no one held it, so it counts the change when it is
                 # held again, and reads it when it is drawn.
                 evaluate_operation(editor, AcquireDocumentOperation(view))
-                @test state.read_count == 1 && state.loaded_count == 0 && _get_watched_text(file) == "one\n"
+                @test state.read_count == 1 && state.loaded_count == 0 && _get_watched_text(file) == "one"
                 @test _run_frames_until(editor, () -> state.loaded_count == 1)
-                @test _get_watched_text(file) == "two\n" && state.file_hash == hash("two\n")
+                @test _get_watched_text(file) == "two" && state.file_hash == hash("two\n")
                 @test any(record -> record.description == "the text of a file", get_background_work_store(editor).records)
                 evaluate_operation(editor, ReleaseDocumentOperation(view))
             finally
@@ -745,15 +740,15 @@ function test_file_change_store()
                 @test all(file -> get_file_disk_state(file).read_count == 1, files)
                 _run_frames_until(editor, () -> false; seconds = 1.0)
                 @test isempty(get_background_work_store(editor).records)
-                @test all(k -> _get_watched_text(files[k]) == "one $k\n", 1:40)
+                @test all(k -> _get_watched_text(files[k]) == "one $k", 1:40)
                 # A draw of the views of two cards reads those two files, and no other.
                 for k in (3, 17)
                     _draw_file_view(editor, dashboard.cards[k].content_view.view)
                 end
                 @test _run_frames_until(editor, () -> _is_file_read(files[3]) && _is_file_read(files[17]))
-                @test _get_watched_text(files[3]) == "two 3\n" && _get_watched_text(files[17]) == "two 17\n"
+                @test _get_watched_text(files[3]) == "two 3" && _get_watched_text(files[17]) == "two 17"
                 @test count(_is_file_read, files) == 2
-                @test all(k -> _get_watched_text(files[k]) == "one $k\n", setdiff(1:40, (3, 17)))
+                @test all(k -> _get_watched_text(files[k]) == "one $k", setdiff(1:40, (3, 17)))
                 evaluate_operation(editor, ReleaseDocumentOperation(dashboard))
             finally
                 foreach(step -> step(editor), editor.stop_steps)
@@ -776,10 +771,10 @@ function test_file_change_store()
                 run_frame!(editor)
                 evaluate_operation(editor, AcquireDocumentOperation(view))
                 @test _run_frames_until(editor, () -> state.loaded_count >= 0)
-                @test _get_watched_text(file) == "on disk\n" && state.file_hash == hash("on disk\n")
+                @test _get_watched_text(file) == "on disk" && state.file_hash == hash("on disk\n")
                 _edit_watched_text!(file, "mine\n")
                 @test evaluate_operation(nothing, SaveFileOperation(file)) === true
-                @test read(path, String) == "mine\n"
+                @test read(path, String) == "mine\n\n"
                 evaluate_operation(editor, ReleaseDocumentOperation(view))
             finally
                 foreach(step -> step(editor), editor.stop_steps)

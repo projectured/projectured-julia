@@ -5,28 +5,9 @@
 # value is the marker, the same way JSON uses a string. The file writes one
 # where the save cuts, and the load splices the node it names into its place;
 # neither direction mutates the tree before it walks it. What this file
-# contributes is the four lines every format owes: its domain, its parser, how
-# it spells a reference leaf, and how it recognises one.
-"""
-    YamlFile(filename, content)
-
-A file document whose `content` is a `YamlDocument`.
-"""
-@document struct YamlFile <: FileDocument
-    filename::String
-    content::Document = YamlNothing()
-    disk::FileDiskState = FileDiskState()
-end
-
-# What the file writes itself, and how it spells a reference to what it does
-# not: a string whose whole value is the marker.
-get_file_domain(::Type{<:YamlFile}) = YamlDocument
-make_reference_leaf(::YamlFile, marker::AbstractString) = YamlString(make_marker_text(marker))
-find_reference_marker(leaf::YamlString) = parse_marker_text(leaf.value)
-parse_file_content(::Type{<:YamlFile}, text::AbstractString) = parse_yaml(text)
-
-# Emit runs the `YamlToSyntax → SyntaxToText → TextToString` chain.
-emit_text(f::YamlFile) = print_natural_text(get_file_content(f))
+# contributes is the lines every format owes: its extensions, its domain, its
+# parser, how it spells a reference leaf, and how it recognises one; and the
+# empty document of a new file of the domain.
 
 """
     YamlFileFormat()
@@ -40,11 +21,21 @@ struct YamlFileFormat <: FileFormat end
 get_file_format_extensions(::YamlFileFormat) = (".yaml", ".yml")
 get_file_format_domain(::YamlFileFormat) = YamlDocument
 parse_document_string(::YamlFileFormat, string::AbstractString) = parse_yaml(string)
+# What the file writes itself, and how it spells a reference to what it does
+# not: a string whose whole value is the marker.
 make_reference_leaf(::YamlFileFormat, marker::AbstractString) =
     YamlString(make_marker_text(marker))
-get_file_type(::YamlFileFormat) = YamlFile
-get_file_format(::YamlFile) = YamlFileFormat()
+find_reference_marker(leaf::YamlString) = parse_marker_text(leaf.value)
 find_natural_file_format(::YamlDocument) = YamlFileFormat()
+# A new file starts as the insertion of a first value.
+make_document_seed(::Type{YamlDocument}) = YamlInsertion()
+
+"""
+    YamlFile(filename, content)
+
+A file of [`YamlFileFormat`](@ref), whose `content` is a `YamlDocument`.
+"""
+const YamlFile = File{YamlFileFormat}
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its
@@ -105,6 +96,4 @@ _push_yaml_size_fact!(facts, document) = facts
 const _YAML_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_yaml_part_note; description = "Show the path of the part")]
 
-@gestures YamlFile begin
-    splice(_YAML_FILE_BINDINGS)
-end
+get_document_gesture_bindings_own(::Type{<:YamlFile}) = _YAML_FILE_BINDINGS

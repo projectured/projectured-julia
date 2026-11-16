@@ -15,12 +15,10 @@ using ..ReferenceModule   # `@document` injects the implicit `selection::Union{N
 import ..DocumentModule: has_document_duplicate, convert_to_declared_type
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..ArrangementModule: get_arrangement_value
-import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..SerializationModule: emit_text,
-                              get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
+import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
-                              parse_document_string, get_file_type, get_file_format
+                              parse_document_string
 import ..NaturalModule: make_syntax_projection, find_natural_file_format, make_document_expression
 import ..WidgetModule: compute_code_pieces, make_graphics_projection
 import ..DisplayModule: make_workload_file
@@ -32,7 +30,7 @@ export compute_julia_signature, get_julia_expression_without_comments
 export JuliaTheme, ScaledJuliaTheme
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 export JuliaObjectToSyntaxLeaf
-export JuliaFile, PRED_REF_FUNCTION_NAME, JuliaFileFormat, find_julia_definition,
+export PRED_REF_FUNCTION_NAME, JuliaFileFormat, JuliaFile, find_julia_definition,
        get_julia_definition_name
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
@@ -113,10 +111,9 @@ function make_julia_file_code_projection(; measure, appearance)
         GraphicsCanvas => GraphicsToGraphics()))
 end
 
-# What this slice registers when it loads: the file extension it owns, and how
-# its code draws as a whole.
+# What this slice registers when it loads: the `definition` verb of a marker, and
+# how its code draws as a whole.
 function __init__()
-    register_file_document_type!(".jl", JuliaFile)
     register_marker_function!(:definition,
                               (ctx, document, name) -> find_julia_definition(document, name))
 

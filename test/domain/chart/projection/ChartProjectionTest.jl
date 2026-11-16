@@ -1059,7 +1059,7 @@ function test_chart_projection()
             directory = mktempdir()
             try
                 path = joinpath(directory, "chart.pred")
-                write_document_file(chart, path)
+                write_document_file!(chart, path)
                 @test !occursin("node(", read(path, String))
                 loaded = read_document_file(path)
                 colors = [loaded.series[1].state_colors[1], loaded.series[1].state_colors[2],

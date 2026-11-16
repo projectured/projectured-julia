@@ -48,9 +48,9 @@ EditorDomain(name::Symbol; make_empty_document, make_projection,
 Registry of editor domains keyed by symbol, so the builder/launcher are
 data-driven rather than a `if domain == …` ladder. Every domain loads and saves
 through the format-by-extension helpers (`read_document_file` /
-`write_document_file`): a matching-extension file round-trips through the domain
+`write_document_file!`): a matching-extension file round-trips through the domain
 parser/printer, a `.pdoc` file through the binary snapshot, and a non-existent
-file opens as the extension's insertion seed. `make_empty_document` is the
+file opens as the seed of the domain of its format. `make_empty_document` is the
 scratch document used when no file is given.
 """
 const EDITOR_DOMAINS = Dict{Symbol,EditorDomain}(
@@ -58,22 +58,22 @@ const EDITOR_DOMAINS = Dict{Symbol,EditorDomain}(
         make_empty_document = () -> JsonInsertion(),
         make_projection     = make_json_projection_example,
         load_file           = read_document_file,
-        save_file           = write_document_file),
+        save_file           = write_document_file!),
     :xml => EditorDomain(:xml;
         make_empty_document = () -> XmlInsertion(),
         make_projection     = make_xml_projection_example,
         load_file           = read_document_file,
-        save_file           = write_document_file),
+        save_file           = write_document_file!),
     :sql => EditorDomain(:sql;
         make_empty_document = () -> SqlInsertion(),
         make_projection     = make_sql_syntax_projection_example,
         load_file           = read_document_file,
-        save_file           = write_document_file),
+        save_file           = write_document_file!),
     :julia => EditorDomain(:julia;
         make_empty_document = () -> JuliaInsertion(),
         make_projection     = make_julia_projection_example,
         load_file           = read_document_file,
-        save_file           = write_document_file),
+        save_file           = write_document_file!),
 )
 
 """

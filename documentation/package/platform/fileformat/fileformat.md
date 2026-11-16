@@ -8,36 +8,34 @@ The file-format slice of `ProjecturedPlatform` reads and writes a document as a 
 
 ### The choice by extension
 
-`write_document_file(document, path)` and `read_document_file(path)` are the two entry points. They route a path to one of these formats, in this order:
+`write_document_file!(document, path)` and `read_document_file(path)` are the two entry points, the one write and the one read of a document by its path. They route a path to a format by its extension:
 
 | Extension | Write | Read, file exists | Read, file missing |
 | --- | --- | --- | --- |
 | `.pdoc` | binary `save_document` | `load_document` | `DocumentNothing()` |
-| a registered file type with no natural parser: `.pred`, `.txt`, none | `save_file!` | `load_file` | the seed of the extension |
-| a picture: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif` | none: a person does not edit it | an `Image` of the path, which reads no byte | `DocumentNothing()` |
-| any other extension | `export_document` | `import_document` | the seed of the extension |
+| an extension of a format (`find_file_format`) | `save_file!` of a file of the format | `load_file` | the seed of the domain of the format |
 
-The natural formats are the formats whose documents have a syntax notation in the natural slice: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.markdown`, `.rst`, `.math`, `.jl` and `.sql`. The short name of a format is one of its extensions without the dot. The file types are the ones that `register_file_document_type!` names. That function is part of the serialization slice, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
+The formats are the ones that the serialization slice and the domains declare ([serialization.md](../serialization/serialization.md#the-file-of-a-format)): `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.markdown`, `.rst`, `.math`, `.jl`, `.sql`, `.pred`, `.txt` and a path with no extension, the pictures `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif`, and the source files of a language server. No registry holds them; this package asks `find_file_format(path)`. The text of a file is the string of the document in the format and one line break, so a saved file of each text format ends with a line break. A picture is read as an `Image` of the path, which reads no byte, and a person does not edit it, so nothing writes it.
 
-A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read_document_file` gives a `PrimitiveString` for a `.txt` file, and `write_document_file` takes the string back out of one.
+A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read_document_file` gives a `PrimitiveString` for a `.txt` file, and `write_document_file!` takes the string back out of one.
 
 ### Natural text
 
-`import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension of no natural format. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the natural format of the extension is not the format of the document (`find_natural_file_format`), so a later `import_document` of the same path can not select the wrong parser. Two extensions of one format name the same format, so a YAML document exports to `.yaml` and to `.yml`.
+The write raises an error when the path names a natural format that is not the format of the document (`find_natural_file_format`), so a later `read_document_file` of the same path can not select the wrong parser. Two extensions of one format name the same format, so a YAML document goes to `.yaml` and to `.yml`. A document that the file can not write alone, such as a node of another domain that needs a reference to another file, is refused with an error, and the log says why.
 
-`write_document_file`, `export_document` and `print_natural_text` (of the natural slice) each also take a `ReferencedDocument` in place of the document, and write or render the document it holds, so a document that `get_edited_document` answered reaches a file with no unwrapping step of its own.
+`write_document_file!` and `print_natural_text` (of the natural slice) each also take a `ReferencedDocument` in place of the document, and write or render the document it holds, so a document that `get_edited_document` answered reaches a file with no unwrapping step of its own.
 
-Natural text holds no editor state. The selection and the collapse state are lost, and a document that holds an insertion placeholder has no valid text form, so its export does not parse again. A round trip holds for a data document, not for a document that you are still building.
+A text holds no editor state. The selection and the collapse state are lost, and a document that holds an insertion placeholder has no valid text form, so its write does not parse again. A round trip holds for a data document, not for a document that you are still building.
 
 `ExportDocumentOperation(path)` and `ImportDocumentOperation(path)` run the two functions on `editor.document`. The import replaces the whole root and sets `editor.iomap` to `nothing`, so the next print builds on the new root. No gesture makes these two operations.
 
 ### The seed of a new file
 
-A path that does not exist opens as `make_document_seed(Val(extension))`. A domain adds a method for its own extension, for example `make_document_seed(::Val{:json}) = JsonInsertion()`, so a new file starts as a placeholder that you can type into and then save. This package defines the seed of `.txt` and of a path with no extension, an empty `PrimitiveString`, and the default, `DocumentNothing()`. `make_document_for(path)` computes the seed of a path.
+A path that does not exist opens as the seed of the domain of its format, `make_document_seed(domain)`. A domain adds a method for its own type: the insertion where a person types a first element, `make_document_seed(::Type{JsonDocument}) = JsonInsertion()` for JSON, XML, YAML, SQL, Julia and math, and the empty root that takes edits, `MarkdownRoot()` and `RstRoot()`, for Markdown and RST. So a new file starts as a placeholder that you can type into and then save. The serialization slice gives the empty string for the domain `Union{}` of plain text, which the read gives as an empty `PrimitiveString`, and this package gives the default, `DocumentNothing()`, for a domain with no seed. `make_document_for(path)` computes the seed of a path.
 
 ### A file in a tab
 
-`make_file_tab(path, wrap = identity)` makes the file document of a tab: the type that the extension is registered under, with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`) has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file. Each call makes a new document, which no other place shares. The editor's one document of a path comes from `open_file_document!` and `open_file!`.
+`make_file_tab(path, wrap = identity)` makes the file document of a tab: a file of the format that the extension names (`get_file_type`), with the absolute path and the content of `read_document_file`. `wrap` applies to the content first. An application gives every file an overlay with it, for example `make_file_tab(path, UndoBuffer)` for an undo history, and this package does not name the overlay. A file that is its own content (`is_own_content`) has no content apart from itself: the tab holds the file that `make_file` builds under the absolute path, and `wrap` applies to the file. Each call makes a new document, which no other place shares. The editor's one document of a path comes from `open_file_document!` and `open_file!`.
 
 `make_file_tab_content(path, wrap = identity)` makes the content of a tab that shows the file: the view (`FileView`, see the next section) of the file document of `make_file_tab`. The view keeps the scroll pane, so a file longer than its tab scrolls. The scroll is made where the file tab is made, and not by the tab, because a tab page gets no scroll of its own: a page can hold two parts that each scroll. The application and `OpenFileOperation` open each file tab with it, and `open_file!` opens a tab with the view of an open file, so each tab keeps its own place in a file that another place shows too.
 
@@ -52,7 +50,7 @@ The `@gestures` table of `FileDocument` has two keys. Ctrl+O is not one of them:
 | Ctrl+S | `SaveFileOperation` | writes the content to the file name of the document; the file checks the disk first (see the next section) |
 | F5 | `ReloadFileOperation` | reads the file again into `content`; the key answers it together with a selection of the whole file; the file keeps the hash of the text that it read, or for a file that a person does not edit the hash of its time and size |
 
-The save calls `save_file!`, which uses the `emit_text` of the file type, and not `write_document_file`. The content of a `TextFile` is a plain `String`, and `write_document_file` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing. In an editor, the reload first gives each `file("…")` of the new document the file document that the editor holds for that file, with `splice_held_files!` and `open_file_document!`, against the folder of the file; it reads no held file. With no editor, each reference stays a leaf. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. A held file holds its edited document, so the reload moves that hold to the new document (`ChangeHeldDocumentsOperation`), and what the new document holds, such as the pictures of a page, is held. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
+The save calls `save_file!`, which writes the string of the format of the file, and not `write_document_file!`: a file has a format of its own, and `write_document_file!` chooses the format by a path. The content of a `TextFile` is a plain `String`, and `write_document_file!` takes only a `Document`. The save writes the document inside a wrapper, found with `get_wrapped_document`, not the wrapper. A file that holds no document, such as a text file, is edited as a `PrimitiveString`, and the save takes the string back out. `compute_file_text(file)` answers the text that the save writes now, and writes nothing. In an editor, the reload first gives each `file("…")` of the new document the file document that the editor holds for that file, with `splice_held_files!` and `open_file_document!`, against the folder of the file; it reads no held file. With no editor, each reference stays a leaf. The reload gives the new document to the wrapper with `replace_wrapped_document!`, so a history keeps its place. A held file holds its edited document, so the reload moves that hold to the new document (`ChangeHeldDocumentsOperation`), and what the new document holds, such as the pictures of a page, is held. Both operations pass every reader unchanged, because `is_self_contained_operation` returns `true` for them.
 
 ### The file against the disk
 
@@ -112,37 +110,38 @@ The words of `state` are the `words` of the `ConditionLook` of each condition, i
 
 ### The tool set
 
-The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `read_document_file`, `write_document_file`, `save_file_to_disk!`, `reload_file_from_disk!`, `open_file_document!`, `import_document` and `export_document`. `save_file_to_disk!` and `reload_file_from_disk!` do what Ctrl+S and F5 do: they take the tab of a file or the file, and the save checks the disk first. `open_file!` of the file system slice opens a file in a tab. `make_file_tab` and `make_file_tab_content` carry no mark: each makes a new document that no other place shares, so the assistant gets the editor's one document of a path with `open_file!` or `open_file_document!`, as a person does. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
+The file verbs that a language model can call carry the mark `For the assistant.` in their docstrings: `read_document_file`, `write_document_file!`, `save_file_to_disk!`, `reload_file_from_disk!` and `open_file_document!`, and `read_file_content` of the serialization slice. `save_file_to_disk!` and `reload_file_from_disk!` do what Ctrl+S and F5 do: they take the tab of a file or the file, and the save checks the disk first. `open_file!` of the file system slice opens a file in a tab. `make_file_tab` and `make_file_tab_content` carry no mark: each makes a new document that no other place shares, so the assistant gets the editor's one document of a path with `open_file!` or `open_file_document!`, as a person does. It does not say where a file comes from. A workspace, a file list or a dialog belongs to the host application.
 
 ## How it fits
 
-The code is in `source/platform/fileformat/`. The file-format slice depends on the natural slice for the formats and on the serialization slice for the binary format and the file types. It also depends on the domain, layout, widget, syntax and text slices, on the graphics slice for the baseline of a repeat, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) offers its marked names to the assistant.
+The code is in `source/platform/fileformat/`. The file-format slice depends on the serialization slice for the formats, the files and the binary format, and on the natural slice for the natural format of a document. It also depends on the domain, layout, widget, syntax and text slices, on the graphics slice for the baseline of a repeat, on the tree slice for the node of the open files, and on the roster and arrangement slices for their table. It gives the default of `make_document_seed` of the serialization slice, `DocumentNothing()`. The file-system slice calls `make_file_tab` to open a file in a new tab, and the [application slice](../application/application.md) offers its marked names to the assistant.
 
-It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file type draws as its content in a tab; `FileView` with `FileViewToWidget`, so a file shows through its view; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
+It registers three natural rows with `register_natural_graphics!(:fileformat, …)`: `FileDocument => FileToContent()`, so every file draws as its content in a tab; `FileView` with `FileViewToWidget`, so a file shows through its view; and `OpenFileList` with `OpenFileListToWidget`. [natural.md](../natural/natural.md) describes the table.
 
 ## Design decisions
 
-- **This slice selects a format and adds none.** Each domain owns its text form, and the serialization slice owns the binary form and the file types. A new domain gets file input and output from its registrations alone.
-- **The export raises an error on a wrong registered extension.** A `JsonObject` written to `a.xml` would be read back with the XML parser. An extension that no domain registered is allowed.
-- **A save goes through the file type.** `save_file!` dispatches on the file object, so a `TextFile` and a `JsonFile` save the same way.
+- **This slice selects a format and adds none.** Each domain declares its format, and the serialization slice owns the binary form, `FileFormat` and `File`. A new domain gets file input and output from the methods of its format alone.
+- **The write raises an error on the extension of another natural format.** A `JsonObject` written to `a.xml` would be read back with the XML parser.
+- **One read and one write.** `read_document_file` and `write_document_file!` go through `load_file` and `save_file!`, so the text that a path gets is the text that a tab saves, with one line break at the end (plan/pending/a-file-format-is-declared-once.md, P6).
+- **A save goes through the format of the file.** `save_file!` asks `get_file_format` of the file, so a `TextFile` and a `JsonFile` save the same way.
 - **The file verbs of the tool set end at the path.** The host application owns the source of a path, so this package does not depend on a file list.
 
 ## Usage
 
 ```julia
-doc  = read_document_file("example.json")      # parsed by the registered .json parser
-path = write_document_file(doc, "example.json")
-doc  = import_document("page.md")
-export_document(doc, "copy.md")
+doc  = read_document_file("example.json")      # parsed by the parser of JsonFileFormat
+path = write_document_file!(doc, "example.json")
+doc  = read_document_file("page.md")
+write_document_file!(doc, "copy.md")
 tab  = make_file_tab("example.json")           # a JsonFile for a tab
 tab  = make_file_tab("example.json", UndoBuffer)
 ```
 
 - Examples: no example of its own. The [application slice](../application/application.md) opens its files with `make_file_tab_content`.
-- Tests: no `test/fileformat/` folder exists. `test_file_tab()` in `test/projectured/projection/FileTabTest.jl` covers `FileToContent`, `test/projectured/editor/ApplicationTest.jl` covers the tool set, and `test/projectured/serializer/SerializationTest.jl` covers the binary format, the natural round trip of each domain and the export guard. `test_roster_facets()` covers the facets of a file and of a page, and `test_explorer()` covers the open files and their page.
+- Tests: no `test/fileformat/` folder exists. `test_file_tab()` in `test/projectured/projection/FileTabTest.jl` covers `FileToContent`, `test/projectured/editor/ApplicationTest.jl` covers the tool set, and `test/projectured/serializer/SerializationTest.jl` covers the binary format, the round trip of each domain and the guard of the write. `test_roster_facets()` covers the facets of a file and of a page, and `test_explorer()` covers the open files and their page.
 
 ## Limits
 
-- Only `.json`, `.xml`, `.jl` and `.sql` define a seed. A missing `.md`, `.yaml`, `.rst` or `.math` file opens as `DocumentNothing()`.
-- `write_document_file` writes natural text for an extension that no domain registered, but `read_document_file` raises an error for the same path.
+- A path of an extension that no format declares raises an error in the read and in the write.
+- A new source file of a language server holds an empty `PrimitiveString`, the seed of the domain `Union{}`, which its format does not write.
 - A file document with no file name has no save and no reload: the two gestures return `nothing`. `save_file_dialog!` of the shell slice gives it a name and writes it.

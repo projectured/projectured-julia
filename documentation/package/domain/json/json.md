@@ -77,7 +77,7 @@ No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the nod
 
 `parse_json` is a recursive-descent parser over a vector of characters. It reads objects, arrays, strings, numbers, `true`, `false`, `null` and the backslash escapes with `\uXXXX`. A high surrogate escape followed by a low surrogate escape reads as one character, and a surrogate escape alone raises an error. A `\u` escape needs four hex digits; any other character raises the parser error, which starts with `JSON:`. A number that parses as an `Int` becomes an `Int`, and any other number becomes a `Float64`. The parser raises an error on malformed input and on characters after the value. `parse_json_file(path)` reads a file and parses it.
 
-`JsonFile` is the file type for `.json`. A reference to a node in another file is a `JsonString` whose whole value is the marker, because a string is the only unit of JSON that can hold any text. `emit_text` prints the content with `print_natural_text`. A `.json` path that does not exist opens as a `JsonInsertion`.
+`JsonFile`, the short name of `File{JsonFileFormat}`, is the file of `.json`. A reference to a node in another file is a `JsonString` whose whole value is the marker, because a string is the only unit of JSON that can hold any text. The string of the content is its print through the syntax notation. A `.json` path that does not exist opens as a `JsonInsertion`, the seed of the domain.
 
 ### The theme
 

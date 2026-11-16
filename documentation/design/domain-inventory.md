@@ -126,7 +126,7 @@ The second loop exports the names of the domain module from the package. The umb
 
 1. Create the three packages `package/Projectured<Name>/`, `…Example/` and `…Test/`, each with a `Project.toml` and a root module as above. Put the code in `source/<name>/`.
 2. Write the documents, the parser and the projections; [domain-anatomy.md](domain-anatomy.md) lists the parts.
-3. Declare the natural notation with a method of `make_syntax_projection`, and the format of a document with a method of `find_natural_file_format` (see [natural.md](../package/platform/natural/natural.md)). In the `__init__` of the module, register the file type with `register_file_document_type!`.
+3. Declare the natural notation with a method of `make_syntax_projection`, and the format of a document with a method of `find_natural_file_format` (see [natural.md](../package/platform/natural/natural.md)). Declare the format beside them, `struct XFileFormat <: FileFormat end`, with its extensions, its domain and its parser, the short name of its file, `const XFile = File{XFileFormat}`, and the seed of a new file, `make_document_seed(::Type{XDocument})`.
 4. Add the package to the two lists of the full set, which `test_repository()` and `test_builder()` keep equal:
    - `ProjecturedAll`: the `[deps]` and `[sources]` of its `Project.toml`, the `import` list of its root module, and the `_SOURCES` tuple in `source/all/ProjecturedAll.jl`;
    - the binary: `PROJECTURED_APPLICATION_IMPORTS` in `source/tool/builder/ProjecturedProgram.jl`.
