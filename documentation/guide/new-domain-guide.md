@@ -505,9 +505,90 @@ file names a module that its layer may not reach.
 
 ---
 
+## Step 7: Give the domain a file format
+
+A domain that a person saves in a file needs a file format. The format is a type with no field, and its methods say the extensions, the domain, the parser and the string of a file. [fileformat.md](../package/platform/fileformat/fileformat.md) describes each seam and its default. A format is declared in the package of the domain, in a fragment of its own, and nothing registers it: `find_file_format(".bookmarks")` finds it as soon as the package is loaded.
+
+Create `source/bookmark/BookmarkFile.jl` with one line for each thing that the format owes:
+
+```julia
+"""
+    BookmarkFileFormat()
+
+The format of a `.bookmarks` file: one line for each entry, the title, a tab and the URL.
+"""
+struct BookmarkFileFormat <: FileFormat end
+
+get_file_format_extensions(::BookmarkFileFormat) = (".bookmarks",)
+get_file_format_domain(::BookmarkFileFormat) = BookmarkDocument
+
+function parse_document_string(::BookmarkFileFormat, string::AbstractString)
+    entries = BookmarkEntry[]
+    for line in split(string, '\n'; keepempty = false)
+        title, url = split(line, '\t'; limit = 2)
+        push!(entries, BookmarkEntry(title, url))
+    end
+    BookmarkList("", entries)
+end
+
+make_document_string(::BookmarkFileFormat, list::BookmarkList) =
+    join((string(entry.title, '\t', entry.url) for entry in list.entries), '\n')
+
+# A new file starts as an empty list.
+make_document_seed(::Type{BookmarkDocument}) = BookmarkList("", BookmarkEntry[])
+
+"""
+    BookmarkFile(filename, content)
+
+A file of `BookmarkFileFormat`, whose `content` is a `BookmarkList`.
+"""
+const BookmarkFile = File{BookmarkFileFormat}
+```
+
+Then edit the header of `BookmarkModule`. Import the functions that the fragment extends, export the names, and include the fragment after the document types:
+
+```julia
+using ..SerializationModule
+import ..SerializationModule: get_file_format_extensions, get_file_format_domain,
+                              parse_document_string, make_document_string, make_document_seed
+
+export BookmarkFileFormat, BookmarkFile
+
+include("BookmarkFile.jl")
+```
+
+The format has these parts:
+
+- **The extensions.** A tuple with the dot of each. The first is the extension of a new file. Two loaded formats must not declare the same extension: `find_file_format` raises an error that names both.
+- **The domain.** The abstract type above the documents of the file. A node of any other type is not written in the file itself.
+- **The parser and the string.** `parse_document_string` and `make_document_string` are the two directions of one conversion. The text of the file is the string and one line break: the write adds the line break, and the read removes it before the parse, so the parser and the string do not handle it.
+- **The seed.** `make_document_seed(domain)` answers the document of a new, empty file. It is also the content of a `BookmarkFile` made with no content.
+- **The short name.** `const BookmarkFile = File{BookmarkFileFormat}` names the file of the format. A method or a table of gestures on the short name applies to the files of this format only.
+
+A domain with a syntax notation declares no `make_document_string`. It declares the notation with `make_syntax_projection(::Type{<:BookmarkDocument}; appearance)` and the format of its documents with `find_natural_file_format(::BookmarkDocument) = BookmarkFileFormat()`, and the general method prints the document through the notation ([natural.md](../package/platform/natural/natural.md)). The JSON domain does so ([JsonFile.jl](../../source/domain/json/JsonFile.jl)). A format whose files can hold a reference to a file of the same set also declares `make_reference_leaf(format, marker)` and `find_reference_marker(leaf)`. A save that cuts a node into another file calls the first, and a load calls the second. The bookmark format has no reference, so it needs neither.
+
+Test the format with a round trip of the string and of a file:
+
+```julia
+@testset "BookmarkFileFormat" begin
+    format = find_file_format(".bookmarks")
+    @test format isa BookmarkFileFormat
+    list = parse_document_string(format, "Julia\thttps://julialang.org")
+    @test make_document_string(format, list) == "Julia\thttps://julialang.org"
+    path = joinpath(mktempdir(), "links.bookmarks")
+    write_document_file!(list, path)
+    @test read(path, String) == "Julia\thttps://julialang.org\n"
+    @test length(read_document_file(path).entries) == 1
+end
+```
+
+The two functions of the last lines, `write_document_file!` and `read_document_file`, find the format by the extension of the path, so the domain needs no code to read and to write a file.
+
+---
+
 ## What you now have
 
-After all six steps, `run_example("bookmark")` opens a navigable bookmark
+After steps 1 to 6, `run_example("bookmark")` opens a navigable bookmark
 list in the SDL window. The cursor starts at the first entry title. You can
 navigate with `←` / `→` through the title characters. The projection chain is:
 

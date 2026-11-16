@@ -2,9 +2,97 @@
 
 > **Kind:** design · **For:** developer · **Status:** current · **Stands on:** [natural.md](../natural/natural.md), [serialization.md](../serialization/serialization.md), [roster.md](../roster/roster.md)
 
-The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document says how the choice is made, what a file that does not exist opens as, how a tab saves and reloads its file, and how the open files of an editor show as a table.
+The file-format slice of `ProjecturedPlatform` reads and writes a document as a file, and opens a file as a tab. It adds no format of its own: it selects one of the formats that the serialization slice and the domains give, by the extension of the path. This document is the home of the subject. It says what a file format is and what a format declares, how a file is read and written, how the choice by extension is made, what a file that does not exist opens as, how a tab saves and reloads its file, and how the open files of an editor show as a table.
 
 ## How it works
+
+### What a file format is
+
+A file format is a type of its own, apart from the domain and from the file. It is a concrete subtype of `FileFormat` with no field, such as `struct YamlFileFormat <: FileFormat end`, and the package that declares it owns every method of it. A format says how the string of a file becomes a document, and how a document becomes the string again. Three things stay apart:
+
+| Thing | What it is | Example |
+| --- | --- | --- |
+| The domain | the abstract type above the documents that the format holds | `YamlDocument` |
+| The format | the type that declares the extensions, the parser and the string | `YamlFileFormat` |
+| The file | the document of one file: its name, its content and its state on disk | `File{YamlFileFormat}`, short name `YamlFile` |
+
+One domain can have more than one format, and a format can have no domain: plain text holds a `String`, so its domain is `Union{}`. No registry holds a format and no `__init__` registers one. `collect_file_formats()` reads the formats from the method table of `get_file_format_extensions`, so a format is known when its package is loaded. `find_file_format(name)` finds the format of an extension (`".yml"`), a path (`"notes/a.yml"`) or a short name (`:yml`), or answers `nothing`. Case does not count. An extension that two loaded formats declare is an error that names both, because a file can not say which format it means and no load order chooses.
+
+### What a format declares
+
+A format declares four seams. The other seams have a default, and a format overrides a default only when it differs. Each function takes the format as its first argument.
+
+| Function | What it answers | Default |
+| --- | --- | --- |
+| `get_file_format_extensions(format)` | the extensions with their dot, such as `(".yaml", ".yml")`; the first is for a new file; `""` stands for a name with no extension; `()` stands for no extension at all | none |
+| `get_file_format_domain(format)` | the type of the documents that the file holds | none |
+| `parse_document_string(format, string)` | the document that the string holds, with a reference to another file left as its leaf | none |
+| `make_reference_leaf(format, marker)` | the leaf that spells a reference to another file; the body of the marker has no `<<` and no `>>` | none; a format whose files hold no reference needs none |
+| `make_document_string(format, document)` | the string of a document | one general method of the natural slice prints the document in the syntax notation of the domain |
+| `is_editable_file_format(format)` | whether a person edits such a file | `true` |
+| `read_file_content(format, path)` | the content of the file at `path` | reads the text, removes one line break at its end, and parses it |
+| `is_written_in_file(format, node, name)` | whether the string holds the field `name` of `node` | `true` |
+| `is_written_inline(format, node)` | whether a file of the format writes a node of another domain in its own string, as a `.pred` file does | `false` |
+| `is_file_domain_node(format, node)` | whether a file of the format writes `node` itself | `node isa get_file_format_domain(format)` |
+| `get_file_type(format)` | the type of the document of a file of the format | `File{F}` |
+| `make_file(format, filename, text)` | a file of `get_file_type(format)` from its text, less one line break | the default |
+
+The domain declares two methods of its own, apart from the format. `make_document_seed(domain)` answers the empty document of a new file. `find_natural_file_format(document)` answers the format that writes a document when nobody names one. [natural.md](../natural/natural.md) describes the second.
+
+The YAML format shows the lines that a text format owes ([YamlFile.jl](../../../../source/domain/yaml/YamlFile.jl)):
+
+```julia
+struct YamlFileFormat <: FileFormat end
+
+get_file_format_extensions(::YamlFileFormat) = (".yaml", ".yml")
+get_file_format_domain(::YamlFileFormat) = YamlDocument
+parse_document_string(::YamlFileFormat, string::AbstractString) = parse_yaml(string)
+make_reference_leaf(::YamlFileFormat, marker::AbstractString) = YamlString(make_marker_text(marker))
+find_reference_marker(leaf::YamlString) = parse_marker_text(leaf.value)
+find_natural_file_format(::YamlDocument) = YamlFileFormat()
+make_document_seed(::Type{YamlDocument}) = YamlInsertion()
+
+const YamlFile = File{YamlFileFormat}
+```
+
+`find_reference_marker(leaf)` is a method on the leaf, not on the format: it answers the body of the marker that the leaf holds, or `nothing`. [FileFormatTest.jl](../../../../test/platform/serialization/FileFormatTest.jl) declares a complete small format, `TallyFileFormat`, with each seam and a test of each default.
+
+### The file of a format
+
+`File{F<:FileFormat}` is the one document type of a file ([FileFormat.jl](../../../../source/platform/serialization/FileFormat.jl)). It has the fields `filename`, `content` and `disk`, and the format is its type parameter. `get_file_format(file)` answers `F()`. A file made with no content holds `make_document_seed` of the domain of its format.
+
+A package gives the file of its format a short name with a `const`: `JsonFile = File{JsonFileFormat}`, and likewise `XmlFile`, `YamlFile`, `MarkdownFile`, `RstFile`, `MathFile`, `SqlFile`, `JuliaFile`, `TextFile`, `PredFile` and `ImageFile`. The short name constructs a file (`JsonFile("a.json", document)`), takes a method (`make_graphics_projection(::Type{JuliaFile})`) and answers an `isa` test for each cell layout of the file. A new format needs no short name.
+
+The name of a file type in a message, an inspector and a `.pred` file is the name of the format without `Format`, `JsonFile` for `File{JsonFileFormat}` (`get_document_schema_name`).
+
+A table of gestures on a short name, `@gestures JsonFile`, applies to the files of that format only. The gesture walk asks the schema type of the document, `File{JsonFileFormat}`, and a table on `File` would apply to each format ([gesture.md](../../kernel/gesture.md#the-schema-type-in-the-walk)).
+
+### A file type of its own
+
+A file that holds more than a name, a content and a disk state keeps a struct of its own. Its format declares `get_file_type(format)` with that struct, and a method of `get_file_format(file)` gives the format back. The source file of a language server does it ([LanguageServerDocument.jl](../../../../source/adapter/languageserver/LanguageServerDocument.jl)):
+
+```julia
+get_file_type(::SourceFileFormat) = SourceFile
+get_file_format(::SourceFile) = SourceFileFormat()
+```
+
+A file is made again with another content as `get_file_type(get_file_format(file))(filename, content)`. A code that builds a file by the type name of its argument loses the format of a `File{F}`.
+
+### A format with no extension
+
+A format that a person never names by a path declares `get_file_format_extensions(format) = ()`. `collect_file_formats()` still lists it, and `find_file_format` never finds it. Its opener chooses the format and builds the file with `get_file_type(format)`. [FileFormatTest.jl](../../../../test/platform/serialization/FileFormatTest.jl) holds `TallyLogFileFormat`, a format with `()` whose file a program writes and a person only reads (`is_editable_file_format` is `false`). A path with no extension is not the same case: `TextFileFormat` declares `""`, so `find_file_format("README")` finds it.
+
+### How a file is read and written
+
+One read and one write go through the format of a file, so the text of a path and the text of a tab are the same.
+
+- `load_file(base_dir, filename)` finds the format of the file name (`find_file_format`), builds the file with `make_file` from the text of the file (a format that a person does not edit builds it from `read_file_content`), and splices each reference to the file itself.
+- `save_file!(file, base_dir)` asks `get_file_format(file)` for the format, cuts the document at the file, prints it with `make_document_string`, and writes the string and one line break. `cut_file_text(file, base_dir)` answers that text and writes nothing.
+- `read_document_file(path)` and `write_document_file!(document, path)` take a path and no file. They find the format by the extension and call `load_file` and `save_file!` of a file of `get_file_type(format)`. A path that no format declares is an error.
+
+### The line break
+
+The text of a file is the string of its content and one line break. The write adds one line break at the end, and the read removes one before it parses, for each format that goes through the text of the file. So a saved JSON, XML, YAML, SQL, Markdown, RST, Julia, math or plain text file ends with a line break. A `.pred` file writes a node of another format inline as the string with no line break. A format whose file is its own content builds itself in its `make_file` from the whole text, so it removes the line break itself.
 
 ### The choice by extension
 
@@ -31,7 +119,7 @@ A text holds no editor state. The selection and the collapse state are lost, and
 
 ### The seed of a new file
 
-A path that does not exist opens as the seed of the domain of its format, `make_document_seed(domain)`. A domain adds a method for its own type: the insertion where a person types a first element, `make_document_seed(::Type{JsonDocument}) = JsonInsertion()` for JSON, XML, YAML, SQL, Julia and math, and the empty root that takes edits, `MarkdownRoot()` and `RstRoot()`, for Markdown and RST. So a new file starts as a placeholder that you can type into and then save. The serialization slice gives the empty string for the domain `Union{}` of plain text, which the read gives as an empty `PrimitiveString`, and this package gives the default, `DocumentNothing()`, for a domain with no seed. `make_document_for(path)` computes the seed of a path.
+The empty document of a new file comes from one function, `make_document_seed(domain)`, and it is also the default content of a `File{F}`. A path that does not exist opens as the seed of the domain of its format. A domain adds a method for its own type: the insertion where a person types a first element, `make_document_seed(::Type{JsonDocument}) = JsonInsertion()` for JSON, XML, YAML, SQL, Julia and math, and the empty root that takes edits, `MarkdownRoot()` and `RstRoot()`, for Markdown and RST. So a new file starts as a placeholder that you can type into and then save. The serialization slice gives the empty string for the domain `Union{}` of plain text, which the read gives as an empty `PrimitiveString`, and this package gives the default, `DocumentNothing()`, for a domain with no seed. `make_document_for(path)` computes the seed of a path.
 
 ### A file in a tab
 

@@ -320,7 +320,7 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   landing: the NED, INI, test, result, event log and fingerprint files. Test:
   `Pkg.precompile()` of `environment/all` of omnet-julia with no warning, and its suites
   that open a file.
-- [ ] **7. The documentation of §7,** and the record of the compile-ahead lists again,
+- [ ] **7. The documentation of §7** (the documentation part is done 2026-11-16, see §10; the compile-ahead lists remain), and the record of the compile-ahead lists again,
   because they name the old types. Test: `test_documentation()`, `test_naming()`,
   `test_arguments()`, `test_exports()`, `test_package_graph()`, the layering guards, then
   `test_platform()` as the wide sweep.
@@ -1028,3 +1028,8 @@ table.
   test, and `TaskVerbsTest.jl:102`, which reads a process number and an elapsed time,
   passed this time. `bounded-run log` gives only a part of a long log, so the compare
   reads the log file.
+
+**2026-11-16, step 7: the documentation of §7.**
+
+- **Files changed.** `documentation/package/platform/fileformat/fileformat.md` (the home: what a format is and declares, `File{F}`, a file type of its own, a format with no extension, the one read and write, the line break), `serialization.md` (the table of seams moved to `fileformat.md`), `design/domain-anatomy.md`, `design/domain-inventory.md`, `guide/new-domain-guide.md` (step 7), `rule/package-rules.md` (the reason of the new import of the natural slice), `package/kernel/document.md`, `package/kernel/gesture.md`, `package/kernel/devices-and-backends.md` (`get_document_schema_type` and the gesture walk), `package/platform/explorer/explorer.md`, `package/README.md`, and the documents of the domains JSON, XML, YAML, SQL, Markdown, RST, math and Julia.
+

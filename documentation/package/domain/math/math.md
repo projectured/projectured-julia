@@ -125,11 +125,11 @@ the appearance tab shows a section for `MathTheme`.
 
 `ProjecturedMath` depends on the kernel and the platform. It depends on no other domain. `ProjecturedFormula` depends on it: a formula can have math code, which it converts to Julia to compute, and it draws that code with the boxes of this domain; see [formula.md](../formula/formula.md).
 
-It declares `make_syntax_projection(::Type{<:MathDocument}; appearance)` with `MathToSyntax`, and the format `MathFileFormat` with the extension `.math` and the parser `parse_math`, so a file and the tools use the linear form. Its `__init__` makes three calls:
+It declares `make_syntax_projection(::Type{<:MathDocument}; appearance)` with `MathToSyntax`, and the format `MathFileFormat` with the extension `.math` and the parser `parse_math`, so a file and the tools use the linear form. Its `__init__` makes two calls, and the format has its own methods:
 
 - `register_natural_syntax!(:math, …)` with `MathToSyntax`;
 - `register_natural_graphics!(:math, …)` with `make_math_to_graphics_dispatch`, so a tab draws a formula in two dimensions;
-- `MathFileFormat`, with the extension `.math`, and `make_document_seed(::Type{MathDocument})`, a `MathInsertion`.
+- `MathFileFormat` declares the extension `.math`, `find_natural_file_format`, and `make_document_seed(::Type{MathDocument})`, a `MathInsertion`; `MathFile` is `File{MathFileFormat}`.
 
 `make_math_to_graphics_dispatch` drops the `PrimitiveNumber` and `PrimitiveString` rows of `MathToGraphics`. A number in a formula then draws through the general renderer, and its text baseline puts it on the line of the formula.
 

@@ -88,11 +88,22 @@ domain — fills in:
 - **`walk_document`** and **`DocumentWalk`** — the reflection walk and the rules
   of its route (below). The searches that use it are in the reference layer.
 - **The layout registry** — `get_document_family`, `get_document_cell_type`,
-  `get_document_native_type` and `get_document_schema_name`. They answer the
-  family of a schema, its cell layout, its native layout (or `nothing`) and the
-  name that the programmer wrote. `@document` writes the methods for each schema,
+  `get_document_native_type`, `get_document_schema_name` and
+  `get_document_schema_type`. They answer the family of a schema, its cell
+  layout, its native layout (or `nothing`), the name that the programmer wrote,
+  and the schema type: the cell layout with the type parameters that the
+  programmer wrote and no parameter of a layout. `@document` writes the methods for each schema,
   so a caller asks for a layout and does not name its type. The defaults answer a
   hand-written document.
+
+  **The schema type.** `get_document_schema_type(T)` answers `Length{Meter}` for
+  `@document struct Length{U} <: Document`, where the concrete type is
+  `Length{Meter, Cell, …}` with a parameter for each field. Every layout of one
+  schema answers the same type, so it is the type that a table of gestures and a
+  kind of a filter name. A schema with no parameter of its own answers its cell
+  layout, and a type that is not concrete, such as a family or a `UnionAll`,
+  answers itself. The copy of a cell layout (`DocumentCopy.jl`) calls it to keep
+  the parameters of the source.
 - **`get_document_title`** — the name that a document carries for itself, or
   `nothing`, the default. Each slice writes the method for its own documents.
 - **`get_document`** — the document that a value stands for: any value as it is,

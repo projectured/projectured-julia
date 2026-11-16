@@ -92,13 +92,14 @@ tab shows a section for `MarkdownTheme`.
 
 `ProjecturedMarkdown` depends on the kernel and the platform. Beyond what every text domain needs, it uses the layout, graphics and widget slices for the vertical layout, the images and the embed cards. No domain depends on it.
 
-It gives three natural rows: one method, and two calls of its `__init__`:
+It gives the natural notation with one method, the format of its files, and two natural rows that its `__init__` registers:
 
 | Method or call | What it gives |
 | --- | --- |
 | `make_syntax_projection(::Type{<:MarkdownDocument}; appearance)`, with `MarkdownToSyntax` | the source form for files, text export and the tools |
 | `register_natural_syntax!(:markdown, …)` | the `:rendered` syntax for the general renderer |
 | `register_natural_graphics!(:markdown_page, …)` | a `MarkdownRoot` drawn as a stack of blocks; a heading, a paragraph, a quote and a list break their lines at the page width |
+| `MarkdownFileFormat`, with the extensions `.md` and `.markdown`, and `const MarkdownFile = File{MarkdownFileFormat}` | the format and its file; a new file starts as `MarkdownRoot()` |
 
 So a file written by ProjecturEd is Markdown source, and a page in a tab is the rendered page.
 

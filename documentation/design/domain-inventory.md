@@ -41,7 +41,7 @@ One package holds one domain. A domain is a kind of content a person edits, such
 - the **documents**, the types the content is made of;
 - the **parser**, if the domain has a text form;
 - the **projections** that render and edit it: `*ToSyntax` for a notation, `*ToWidget` or `*ToGraphics` for something drawn directly;
-- the **file type**, if the domain reads and writes a file extension.
+- the **file format**, if the domain reads and writes a file extension: a type `XFileFormat` with its methods, and the short name `XFile` of its file.
 
 Each domain is a triad of sibling packages: `package/Projectured<Name>/`, `package/Projectured<Name>Example/` and `package/Projectured<Name>Test/`, each with its own `Project.toml`. The code is in `source/<name>/`, the examples in `example/<name>/`, and the tests in `test/<name>/`. A domain package depends on `ProjecturedKernel`, on `ProjecturedPlatform`, and on the domains that it embeds. [package-rules.md](../rule/package-rules.md) has the table of the platform.
 

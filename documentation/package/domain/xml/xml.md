@@ -50,7 +50,7 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 
 `parse_xml` returns the root element. It reads nested elements, attributes in double or single quotes, text, self-closing tags, the five named entities and the numeric character references, such as `&#65;` and `&#x41;`. One pass reads all of them, so `&amp;#65;` gives the text `&#65;`. A reference to a code point that is not a character stays as text. It skips the XML declaration, comments and `<!…>` declarations, so a save does not write them back. A text node that holds only white space is dropped. The parser has no namespaces and no DTD: a `:` is a character of a name.
 
-`XmlFile` is the file type for `.xml`. A reference to a node in another file is a `pred:ref` element whose one text child is the marker, for example `<pred:ref>&lt;&lt;file("a.xml")&gt;&gt;</pred:ref>`. An element is the opaque unit of XML, and a text node can exist only inside an element. `find_reference_marker` accepts only an element with the tag `PRED_REF_ELEMENT_TAG` and exactly one `XmlText` child. An `.xml` path that does not exist opens as an `XmlInsertion`.
+`XmlFile`, the short name of `File{XmlFileFormat}`, is the file of `.xml`. A reference to a node in another file is a `pred:ref` element whose one text child is the marker, for example `<pred:ref>&lt;&lt;file("a.xml")&gt;&gt;</pred:ref>`. An element is the opaque unit of XML, and a text node can exist only inside an element. `find_reference_marker` accepts only an element with the tag `PRED_REF_ELEMENT_TAG` and exactly one `XmlText` child. An `.xml` path that does not exist opens as an `XmlInsertion`.
 
 ### The theme
 
@@ -70,7 +70,7 @@ An XML file says what the pointer is on: the path of the element, as `/root/a[1]
 
 ## How it fits
 
-`ProjecturedXML` depends on the kernel and the platform. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.
+`ProjecturedXML` depends on the kernel and the platform. No other domain package depends on it. It declares the natural notation with `make_syntax_projection(::Type{<:XmlDocument}; appearance)`, and the format `XmlFileFormat` with the extension `.xml`, the parser `parse_xml`, `find_natural_file_format` and the seed `make_document_seed(::Type{XmlDocument})`. It has no `__init__` that registers a format.
 
 The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/domain/xml/` is one dispatch table with the rules of both domains, and the document is a `JsonObject` whose value is an `XmlElement`.
 

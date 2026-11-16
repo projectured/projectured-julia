@@ -98,9 +98,9 @@ A JSON file says what the pointer is on: the path of the part, as `users[1].name
 
 `ProjecturedJSON` depends on the kernel and the platform. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.
 
-Its `__init__` in `source/domain/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
+It declares the natural notation with `make_syntax_projection` in `JsonToSyntax.jl`, and the format `JsonFileFormat` in `JsonFile.jl`, with the extension `.json`, the parser `parse_json`, `find_natural_file_format` and the seed. Its `__init__` registers only the sentence for the assistant. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
 
-A model reads and writes a JSON document as its text: `print_natural_text` prints a document or a part of it, and `parse_natural_text(:json, text)` reads one JSON value, which the natural notation that the same `__init__` registers makes possible. So the domain registers no constructors with `register_assistant_api!`, only the sentence that tells a model to write a JSON value as its text.
+A model reads and writes a JSON document as its text: `print_natural_text` prints a document or a part of it, and `parse_natural_text(:json, text)` reads one JSON value, which the natural notation and the format of the domain make possible. So the domain registers no constructors with `register_assistant_api!`, only the sentence that tells a model to write a JSON value as its text.
 
 ## Design decisions
 

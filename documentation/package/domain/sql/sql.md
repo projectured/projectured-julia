@@ -51,7 +51,7 @@ A `+` or a `-` in front of a number is the sign of that number where the grammar
 
 ### The file
 
-`SqlFile` is the file type for `.sql`. A reference to a node in another file is a `SqlScalarValue` whose value is a string that holds only the marker, as in JSON and YAML. A number or a boolean value is never a marker. A `.sql` path that does not exist opens as a `SqlInsertion`.
+`SqlFile`, the short name of `File{SqlFileFormat}`, is the file of `.sql`. A reference to a node in another file is a `SqlScalarValue` whose value is a string that holds only the marker, as in JSON and YAML. A number or a boolean value is never a marker. A `.sql` path that does not exist opens as a `SqlInsertion`.
 
 ### The theme
 
@@ -69,7 +69,7 @@ tab shows a section for `SqlTheme`.
 
 `ProjecturedSQL` depends on the kernel and the platform. It does not depend on `ProjecturedDatabase` or `ProjecturedODBC`. Two packages depend on it: `ProjecturedDBCatalog` makes `CREATE` statements from a catalog, and `ProjecturedODBC` prints a `SqlSelectStatement` to text and runs it on a connection.
 
-Its `__init__` registers the natural row with the rung `:syntax`, the format `:sql`, the extension `.sql` and the parser `parse_sql_text`, and it registers `SqlFile` for `.sql`.
+It declares the natural notation with `make_syntax_projection(::Type{<:SqlDocument}; appearance)`, and the format `SqlFileFormat` with the extension `.sql`, the parser `parse_sql_text`, `find_natural_file_format` and the seed `make_document_seed(::Type{SqlDocument})`. It has no `__init__` that registers a format.
 
 ## Design decisions
 

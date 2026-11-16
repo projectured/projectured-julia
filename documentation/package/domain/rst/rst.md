@@ -82,7 +82,7 @@ Two rules are easy to break:
 
 ### The file and the reference marker
 
-`RstFile` is the file type for `.rst`. A reference to a node in another file is a directive whose argument is the marker:
+`RstFile`, the short name of `File{RstFileFormat}`, is the file of `.rst`. A reference to a node in another file is a directive whose argument is the marker:
 
 ```
 .. pred-ref:: <<file("child.json")>>
@@ -105,7 +105,7 @@ follows its scales, and the appearance tab shows a section for `RstTheme`.
 
 `ProjecturedRST` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.
 
-It declares one method, and its `__init__` makes three calls:
+It declares one method and the format of its files, and its `__init__` makes two calls:
 
 | Method or call | What it gives |
 | --- | --- |

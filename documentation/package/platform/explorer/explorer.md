@@ -99,7 +99,7 @@ A right press on a row opens one layer named by the row: Open in a new tab; Remo
 
 ### The filter
 
-The filter keeps a row when its label holds every word of the text, in any case, and its type is one of the kinds, or when a row below it stays. The tree of the matches walks the open places of the tree with `collect_read_tree_children`, so it reads the labels of the rows that the tree read, and no disk. Every row of the matches is open. `▾` lists the kinds of the read rows, with the icon `check` on the kinds that the filter keeps. An edit of the filter is view state, so an undo records none.
+The filter keeps a row when its label holds every word of the text, in any case, and its type is one of the kinds (the kinds are schema types, `get_document_schema_type`, so the files of one format are one kind), or when a row below it stays. The tree of the matches walks the open places of the tree with `collect_read_tree_children`, so it reads the labels of the rows that the tree read, and no disk. Every row of the matches is open. `▾` lists the kinds of the read rows, with the icon `check` on the kinds that the filter keeps. An edit of the filter is view state, so an undo records none.
 
 ### The search below a node
 

@@ -194,6 +194,19 @@ names the functions that route the gesture to the part before this read starts;
 [context-menu.md](../platform/widget/context-menu.md) describe what the two
 gestures mean once a table answers.
 
+### The schema type in the walk
+
+`collect_document_gesture_bindings(type)` walks the type and each supertype. At
+each concrete level it asks the own table of the schema type first
+(`get_document_schema_type`), then the table of the bare stem when the two
+differ. A table that `@gestures` declares on a type with a parameter belongs to
+the schema type. So `@gestures JsonFile`, the short name of
+`File{JsonFileFormat}`, applies to the files of that format only, and a table on
+`File` applies to the file of each format. A type that is not concrete answers
+itself, so the walk does not read the table of a family twice. The explorer keys
+the kinds of its filter by the same type, so the files of one format are one
+kind.
+
 ## How it fits
 
 `Gesture`, the three recognitions and `GesturePattern` are the gesture layer of

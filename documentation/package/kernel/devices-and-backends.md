@@ -736,7 +736,7 @@ an `applicable(document, selection) -> Bool` precondition + a human
 `description` + a `domain` tag + an optional `name` — the same declaration both
 fires the edit and can be listed to a user. [`@gestures`](../../../source/kernel/binding/Gestures.jl)
 emits the `get_document_gesture_bindings_own` method holding a type's own
-table; `collect_document_gesture_bindings` walks it plus every supertype's.
+table; `collect_document_gesture_bindings` walks it plus every supertype's, and at each concrete level it asks the schema type of the document first, so a table on `File{JsonFileFormat}` applies to the files of that format only ([gesture.md](gesture.md#the-schema-type-in-the-walk)).
 `fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)` is
 the one firing loop — the first binding whose pattern matches, whose precondition holds, and
 whose operation returns non-`nothing`, wins — shared by

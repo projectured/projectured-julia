@@ -61,29 +61,7 @@ The first registration of a name wins. A second, different function logs a warni
 
 A format is a type of its own, `FileFormat`, apart from the domain and from the file ([fileformat.md](../fileformat/fileformat.md) is the home of the subject). The file of a format `F` is a `File{F}`: the fields `filename`, `content` and `disk`, with the format as its type parameter. `get_file_format(file)` answers `F()`, and `get_file_type(format)` answers `File{F}`. A package gives the file of its format a short name, `const JsonFile = File{JsonFileFormat}`, which constructs a file, takes a method and answers an `isa` test for each cell layout. A file that holds more than a name, a content and a disk state keeps a struct of its own and declares `get_file_format` and `get_file_type`, as `SourceFile` of the language server does. A reader names the file of a format by the name of the format without `Format` (`get_document_schema_name`), `JsonFile` for `File{JsonFileFormat}`, and a `.pred` file builds a file by that name.
 
-A format declares, one line each:
-
-| Function | What it returns | Default |
-| --- | --- | --- |
-| `get_file_format_extensions(format)` | the extensions, such as `(".yaml", ".yml")`; the first is for a new file | none |
-| `get_file_format_domain(format)` | the document type of the content; a node of any other type is a cut | none |
-| `parse_document_string(format, string)` | the content that the string parses to, with no marker replaced | none |
-| `make_document_string(format, document)` | the string of the document | the print of the syntax tree, for a domain with a syntax notation |
-| `make_reference_leaf(format, marker)` | the spelling of a reference in the format, for a marker body without `<<` and `>>` | none |
-| `find_reference_marker(node)` | the marker body that a leaf holds, or `nothing` | `nothing` |
-
-More have a default that fits most formats:
-
-| Function | Default | Override when |
-| --- | --- | --- |
-| `is_file_domain_node(format, node)` | `node isa get_file_format_domain(format)` | the domain of the format is not one type |
-| `is_written_in_file(format, node, name)` | `true` | the notation writes only part of a node, so the save must not walk the other fields |
-| `is_written_inline(format, node)` | `false` | the notation can hold a node of another format as its text, as `.pred` does, with `make_inline_leaf(file, node, path)` |
-| `find_held_file(node)` | `node` for a file document, else `nothing` | a document shows a file and keeps the state of that showing, as the view of a file does, so a holder must save it as `file("…")` and write none of that state |
-| `is_editable_file_format(format)` | `true` | a program writes the file and a person only reads it, such as a result file of a simulation |
-| `read_file_content(format, path)` | the text of the file, less one line break, through `parse_document_string` | the format does not edit, and its file is too large to read whole, so it reads only what it needs |
-| `get_file_type(format)` | `File{F}` | the file holds more, in a struct of its own |
-| `make_file(format, filename, text)` | a file of `get_file_type` with the content of the text, less one line break | the file is its own content |
+The functions that a format declares, and the default of each, are in the table of [fileformat.md](../fileformat/fileformat.md#what-a-format-declares). Two more seams of this slice are not format seams. `find_held_file(node)` answers `node` for a file document and `nothing` otherwise; a document that shows a file and keeps the state of that showing, as the view of a file does, answers the file, so a holder saves it as `file("…")` and writes none of that state. `make_inline_leaf(file, node, path)` is the seam of a notation that can hold a node of another format as its text, as `.pred` does with `is_written_inline`.
 
 The domain of the format declares `make_document_seed(domain)`, the empty document of a new file of the domain and the default content of a `File{F}`; a domain with none gives an empty document, and the domain `Union{}` of plain text gives the empty string.
 

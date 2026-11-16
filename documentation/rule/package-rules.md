@@ -271,6 +271,8 @@ guard of the platform checks every edge below against the code.
 | `display` | Natural, Screen, Style, Widget | — |
 | `essentials` | Display, Natural, Style | — |
 
+The `natural` slice imports `serialization` because the notation of a domain and the format of its file meet there: `FileFormat`, `File{F}` and the seams of a format are in `serialization`, and the general method of `make_document_string` in `natural` prints a document through the syntax notation of its format. `serialization` imports no slice of the platform above the kernel, so the edge has one direction.
+
 This is not every slice of the platform: `gesturetracking`, `dragtracking`,
 `filesystem`, `undo`, `log`, `statistics`, `shell`, `help`, `conversation`,
 `assistant`, `appearance`, `settings`, `settingsmanaging` and `application` are

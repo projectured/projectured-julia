@@ -36,7 +36,7 @@ The block sequence is the one hand-written projection, `YamlSequenceToBlockSynta
 - block scalars (`|` and `>`);
 - a block sequence nested in the same line (`- - x`).
 
-`YamlFile` is the file type. A reference to a node in another file is a `YamlString` whose whole value is the marker, as in JSON.
+`YamlFile`, the short name of `File{YamlFileFormat}`, is the file. A reference to a node in another file is a `YamlString` whose whole value is the marker, as in JSON.
 
 ### The theme
 
@@ -59,14 +59,15 @@ A YAML file says what the pointer is on: the path of the part, as `users[1].name
 `ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. It declares:
 
 - the natural notation, a method of `make_syntax_projection`, at the end of `source/domain/yaml/YamlToSyntax.jl`;
-- the format `YamlFileFormat` in `YamlFile.jl`, with the extensions `.yaml` and `.yml` and the parser `parse_yaml`, so a Markdown fence tagged `yml` also parses;
-- in its `__init__`, at the end of `YamlToSyntax.jl` and not in the module file, `YamlFile` for both `.yaml` and `.yml`.
+- the format `YamlFileFormat` in `YamlFile.jl`, with the extensions `.yaml` and `.yml` and the parser `parse_yaml`, so a Markdown fence tagged `yml` also parses, `find_natural_file_format`, the seed `make_document_seed(::Type{YamlDocument})`, and the short name `YamlFile`.
+
+The package has no `__init__` that registers a format.
 
 ## Design decisions
 
 - **The quote style is not part of the value.** `YamlString` holds only the text. How a string prints is a choice of the projection, so a document does not change when its presentation changes.
 - **Block or flow is a parameter of the projection, not a field of the document.** Two views of the same document can show both styles at the same time.
-- **`.yml` is the same format under a second name.** It gets a second parser name and a second file extension, but no second domain and no second projection.
+- **`.yml` is the same format under a second name.** One format declares both extensions, with no second domain and no second projection.
 
 ## Usage
 

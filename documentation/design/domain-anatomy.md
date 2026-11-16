@@ -15,8 +15,8 @@ A domain package holds the documents of one kind of content and everything that 
 | The gestures | the structural edits, as `@gestures` tables on the document types | `JsonDocument.jl` |
 | The printer | `XToSyntax`, one projection rule for each document type | `source/domain/json/JsonToSyntax.jl` |
 | The parser | a hand-written reader of the text form | `source/domain/json/JsonParser.jl` |
-| The file type | an `XFile <: FileDocument` for the file extension | `source/domain/json/JsonFile.jl` |
-| The registration | the `__init__` of the module | `source/domain/json/JsonModule.jl` |
+| The file format | an `XFileFormat <: FileFormat`, its methods, its seed and the short name `XFile` of its file | `source/domain/json/JsonFile.jl` |
+| The registration | the two methods that name the notation and the format of the domain, and the imports of the module | `source/domain/json/JsonToSyntax.jl`, `JsonFile.jl` |
 | The examples | a document factory and a projection factory | `example/domain/json/` |
 | The tests | `test_json()`, with the layering guard first | `test/domain/json/JsonSuite.jl` |
 
@@ -76,13 +76,22 @@ The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candi
 
 A domain with a text form has a parser, `parse_json`. The parsers are hand-written, because a domain has no third-party dependency. Each one reads a subset of its format, and the document of the domain says which subset.
 
-The format is a type of its own, `struct JsonFileFormat <: FileFormat end`, and its file is `File{JsonFileFormat}`, with the short name `const JsonFile = File{JsonFileFormat}`, which holds a `filename`, a `content` and a `disk` state. The format implements the seams of the serialization slice: `get_file_format_extensions`, `get_file_format_domain`, `parse_document_string`, `make_reference_leaf` and `find_reference_marker`. The last two spell a reference to a node in another file. The spelling depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses them.
+The format is a type of its own, `struct JsonFileFormat <: FileFormat end`, and its file is `File{JsonFileFormat}`, with the short name `const JsonFile = File{JsonFileFormat}`, which holds a `filename`, a `content` and a `disk` state. A domain declares no struct for its file. The format declares these methods of the serialization slice:
 
-`make_document_seed(::Type{JsonDocument})` gives the document that a new, empty file of the domain starts from.
+| Method | What it says |
+| --- | --- |
+| `get_file_format_extensions(::JsonFileFormat)` | the extensions; the first is for a new file |
+| `get_file_format_domain(::JsonFileFormat)` | `JsonDocument`, the type of the content |
+| `parse_document_string(::JsonFileFormat, string)` | the parser, `parse_json` |
+| `make_reference_leaf(::JsonFileFormat, marker)` and `find_reference_marker(leaf)` | how a reference to a node in another file is spelled, and read back |
+
+The spelling of a reference depends on the format: a JSON string, an XML `pred:ref` element, a Markdown fence or an RST directive. The string of a file is the print of the content in the syntax notation of the domain, so a format with a syntax notation declares no `make_document_string`. [fileformat.md](../package/platform/fileformat/fileformat.md) lists each seam with its default and describes the read and the write of a file. [serialization.md](../package/platform/serialization/serialization.md) describes the multi-file project that uses the references.
+
+`make_document_seed(::Type{JsonDocument})` gives the document that a new, empty file of the domain starts from, and the content of a `JsonFile` made with no content.
 
 ## The registration
 
-The domain declares its natural notation and the format of its documents with two methods, beside the methods of its format; no `__init__` registers the format:
+The domain declares its natural notation and the format of its documents with two methods, beside the methods of its format. The module imports the generic functions that it extends from the natural and the serialization slices. No `__init__` and no table registers the format:
 
 ```julia
 make_syntax_projection(::Type{<:JsonDocument}; appearance) = JsonToSyntax(; …)
