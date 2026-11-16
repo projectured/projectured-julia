@@ -972,13 +972,15 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         the selection after a load, and that a typed letter goes in at the caret. Then
         `test_filechange()`, `test_explorer()` and step 7 again.
       - What the implementation found:
-        - A `ReplaceSelectionOperation` of the same path writes nothing: `_sync_selection!`
-          returns at the root when the stored path equals the new one, because it takes the
-          chain below as whole. (In the live probe of step 7 it worked, because the stored path
-          there differed above the file.) So `_repair_selection!(editor, file)` calls
-          `set_selection!` at the root, which writes the rest of the path into each document on
-          the path, as `_select_under!` of the conversation editor does. It runs inside the
-          evaluation of the load, at the root of the editor, so it keeps
+        - On the base of the branch (`6a24a6db6`), a `ReplaceSelectionOperation` of the same path
+          wrote nothing: `_sync_selection!` returned at the root when the stored path equaled
+          the new one. So the first fix called `set_selection!` at the root, which writes every
+          cell on the path. While the branch ran, main took `83f619887` of the views work
+          (`_repair_selection_chain!`): a write of an equal path walks down and writes the
+          parts from the first document that does not hold its part, and no cell above it.
+          After the rebase on main `107fe8fc0`, `_repair_selection!(editor, file)` evaluates a
+          `ReplaceSelectionOperation` of the same path, and the kernel gives the new document its
+          part. It runs inside the evaluation of the load, at the root of the editor, so it keeps
           PAR-SELECTION-WRITTEN-AT-ROOT.
         - `FileFormatModule` names `SelectionModule` bare now, so the list of the platform
           import check loses the entry `using ..SelectionModule: get_selection` (9 entries).

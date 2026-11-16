@@ -622,10 +622,10 @@ end
 # that names a part. A selection that names no part can make a printer fail at each
 # frame. Each document on the path of a selection keeps the rest of the path in its own
 # field, and the new document keeps none, so a live selection that passes through
-# `file` is written again from the root, into each document on its path
-# (`set_selection!`; a replace of an equal path writes nothing): the caret of the new
-# document then draws and takes keys. A dormant selection stays as it is; its tab
-# writes it again when it takes the focus.
+# `file` is written again from the root. A write of an equal path gives the new
+# document its part and writes no cell above it, so the caret of the new document
+# draws and takes keys. A dormant selection stays as it is; its tab writes it again
+# when it takes the focus.
 function _repair_selection!(editor, file::FileDocument)
     editor isa Editor || return nothing
     root = editor.document
@@ -634,7 +634,7 @@ function _repair_selection!(editor, file::FileDocument)
     if !is_valid_reference(root, selection)
         evaluate_operation(editor, ReplaceSelectionOperation(get_valid_reference_prefix(root, selection)))
     elseif get_stored_selection(file) !== nothing && is_live_selection(file)
-        set_selection!(root, selection)
+        evaluate_operation(editor, ReplaceSelectionOperation(selection))
     end
     nothing
 end
