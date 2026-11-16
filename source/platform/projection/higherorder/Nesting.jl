@@ -94,3 +94,8 @@ function map_reference_backward(np::NestingProjection, iomap::NestingIoMap, refe
         map_reference_backward(iomap.child_iomap.projection, iomap.child_iomap, reference)
     end
 end
+
+# The nesting adds nothing to the output of its child, so a printer that looks at
+# the IoMap of a child sees the IoMap of the projection that printed it, as it sees
+# through a fault barrier.
+get_content_iomap(iomap::NestingIoMap) = get_content_iomap(iomap.child_iomap)

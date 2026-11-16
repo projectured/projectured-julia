@@ -13387,9 +13387,9 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     end
     # The cells, which decide the widths and the heights.
     get_column_header(c) = column_header_pane === nothing ? nothing :
-                           column_header_pane.content_iomap.child_iomaps[c][3]
+                           _get_part_grid(column_header_pane).child_iomaps[c][3]
     get_row_header(r) = row_header_pane === nothing ? nothing :
-                        row_header_pane.content_iomap.child_iomaps[r][3]
+                        _get_part_grid(row_header_pane).child_iomaps[r][3]
     column_policies = Cell(@computation Any[
         _get_cells_column_policy(w, c, get_column_header(c), p.column_minimum_width, widest[c]) for c in 1:n])
     row_policies = Cell(@computation Any[_wt_get_cells_row_policy(w, r, get_row_header(r)) for r in 1:m])
@@ -13400,7 +13400,7 @@ function _print_eager_table_parts(p::WidgetTableToGraphicsCanvas, recursion, w::
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_inner_size(ctx; width = header_width, height = header_height))
-    cells = cells_pane.content_iomap
+    cells = _get_part_grid(cells_pane)
     if m > 0
         for c in 1:n
             set_cell_computation!(widths[c], () -> Int(cells.col_w[c][]))
@@ -13456,16 +13456,16 @@ function _compute_eager_table_geometry(parts, pad_x::Int, pad_y::Int, bw::Int)
     grid_rows = m + row_offset
     grid_cols = n + col_offset
     grid_cols == 0 && return _wt_geometry_empty(pad_x, pad_y, bw)
-    cells = parts.cells_pane.content_iomap
+    cells = _get_part_grid(parts.cells_pane)
     # The cells decide the widths; with no rows, the header row does.
-    master = m == 0 ? (has_ch ? parts.column_header_pane.content_iomap : nothing) : cells
+    master = m == 0 ? (has_ch ? _get_part_grid(parts.column_header_pane) : nothing) : cells
     col_w = Int[]
-    has_rh && push!(col_w, Int(parts.row_header_pane.content_iomap.output.w))
+    has_rh && push!(col_w, Int(_get_part_grid(parts.row_header_pane).output.w))
     for c in 1:n
         push!(col_w, master === nothing ? 0 : Int(master.col_w[c][]))
     end
     row_h = Int[]
-    has_ch && push!(row_h, Int(parts.column_header_pane.content_iomap.output.h))
+    has_ch && push!(row_h, Int(_get_part_grid(parts.column_header_pane).output.h))
     for r in 1:m
         push!(row_h, Int(cells.row_h[r][]))
     end
@@ -13801,7 +13801,7 @@ end
 # The IO map of the document in entry `i` of the grid of `pane`, and the place of
 # its canvas in the coordinates of the geometry; `nothing` when it drew none.
 function _wt_find_part_cell(iomap::WidgetTableToGraphicsCanvasIoMap, pane, i::Int)
-    entries = pane.content_iomap.child_iomaps
+    entries = _get_part_grid(pane).child_iomaps
     1 <= i <= length(entries) || return nothing
     (x_cell, y_cell, cim) = entries[i]
     cim === nothing && return nothing
@@ -14397,7 +14397,7 @@ function _wt_route_to_selected_cell(iomap::WidgetTableToGraphicsCanvasIoMap, eve
     found = _wt_find_part_entry(iomap, selection)
     found === nothing && return nothing
     pane, i, steps, _ = found
-    entries = pane.content_iomap.child_iomaps
+    entries = _get_part_grid(pane).child_iomaps
     1 <= i <= length(entries) || return nothing
     cim = entries[i][3]
     cim === nothing && return nothing

@@ -1057,5 +1057,27 @@ end
     @test rects_in(io.output, get_theme_defaults(WidgetTheme).destructive) == marks
 end
 
+# A container can print each pane through a nesting with a recursion of its own, as
+# the render stage of a simulation workbench does. The table reads the grid of each
+# part through the nesting, so it draws each text where a plain dispatch draws it.
+@testset "a table whose panes print through a nesting draws as a plain table" begin
+    rows = vcat(LayoutToGraphics().dispatch, WidgetToGraphics(; measure = det).dispatch)
+    plain_pane = only(last(row) for row in rows if first(row) === WidgetScrollPane)
+    pane_recursion = RecursiveProjection(TypeDispatchingProjection(rows))
+    nested = RecursiveProjection(TypeDispatchingProjection(vcat(
+        Pair{Type,Any}[WidgetScrollPane => NestingProjection(plain_pane; recursion = pane_recursion)],
+        rows)))
+    eager() = WidgetTable(; column_headers = Any["a", "b"],
+                          row_headers = Any[WidgetLabel("1"), WidgetLabel("2")],
+                          cells = [["p", "q"], ["r", "s"]])
+    listed() = make_table(make_list(3, texts_of))
+    for make in (eager, listed)
+        expected = texts(print_document(rec, nothing, make(), context()).output)
+        drawn = texts(print_document(nested, nothing, make(), context()).output)
+        @test length(expected) >= 6
+        @test drawn == expected
+    end
+end
+
 end
 end

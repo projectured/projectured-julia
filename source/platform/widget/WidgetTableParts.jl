@@ -253,6 +253,10 @@ end
 # offset that the pane draws with, negated.
 _get_part_content(pane) = only(e for e in pane.output.elements if e isa GraphicsViewport).content
 
+# The IO map of the grid that the pane of a part shows. A wrapper that adds nothing
+# to the output, such as a fault barrier or a nesting, can hold the pane or the grid.
+_get_part_grid(pane) = get_content_iomap(get_content_iomap(pane).content_iomap)
+
 # The region of a part at `(x, y)` in the table: the graphics of the table in a
 # viewport over the box of the pane, and the pane over them. `(origin_x,
 # origin_y)` is the place of the region in the coordinates of the graphics, and
@@ -498,7 +502,7 @@ function _print_header_column(recursion, w::WidgetTable, inner, corner, height_r
                            Inset(bw + pad_y, bw + pad_y, bw + pad_x, pad_x))
     iomap = print_child(recursion, pane,
                         with_size_range(with_free_axis(inner, :x); height = height_range))
-    grid_iomap[] = iomap.content_iomap
+    grid_iomap[] = _get_part_grid(iomap)
     iomap
 end
 
@@ -582,7 +586,7 @@ function _make_header_column_region(p::WidgetTableToGraphicsCanvas, w::WidgetTab
                                     st::WidgetTablePartsState, content_x::Int, content_y::Int)
     pane = st.row_header_pane
     pane === nothing && return nothing
-    grid = pane.content_iomap
+    grid = _get_part_grid(pane)
     mirror = Cell(@computation begin
         head = get_grid_list_head(grid)
         head isa ListNode ? _make_header_column_graphics_node(p, w, st, 1, head) : CellVector()
@@ -656,7 +660,7 @@ end
 # The head of the list of the columns that the cells placed, when the columns
 # are a list.
 _get_table_column_head(st::WidgetTablePartsState) =
-    get_grid_list_column_head(st.cells_pane.content_iomap)
+    get_grid_list_column_head(_get_part_grid(st.cells_pane))
 
 # The left edge and the width of the box of column `c` in the coordinates of
 # the rules: the rule to its left, its padding, its cells and the padding after
@@ -987,7 +991,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     end
     header_height = column_header_pane === nothing ? Cell(0) : Cell(@computation Int(column_header_pane.output.h))
 
-    header_grid = column_header_pane === nothing ? nothing : column_header_pane.content_iomap
+    header_grid = column_header_pane === nothing ? nothing : _get_part_grid(column_header_pane)
     measured = levels.column_levels > 0 ? _measure_level_header_runs(recursion, w, levels, beside) : nothing
     get_header(c) = header_grid === nothing ? nothing :
                     levels.column_levels > 0 ? _LevelHeaderWidth(levels, header_grid, measured, c, hgap) :
@@ -1004,7 +1008,7 @@ function _print_vector_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_size_range(beside; height = rows))
-    cells_grid = cells_pane.content_iomap
+    cells_grid = _get_part_grid(cells_pane)
     for c in 1:n
         set_cell_computation!(widths[c], () -> Int(cells_grid.col_w[c][]))
     end
@@ -1274,7 +1278,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     # the row and of its own padding.
     header_offer = Cell(@computation Int32(Int(header_row_policy[].preferred) + bw + 2 * pad_y))
     column_header_pane = print_child(recursion, pane, with_exact_size(beside; height = header_offer))
-    header_grid[] = column_header_pane.content_iomap
+    header_grid[] = _get_part_grid(column_header_pane)
     header_height = Cell(@computation Int(column_header_pane.output.h))
 
     grid = GridLayout(_get_row_list(w), Cell(1), Cell(:left), Cell(:top), Cell(hgap), Cell(vgap),
@@ -1286,7 +1290,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     cells_pane = print_child(recursion,
                              _make_cells_pane(w, grid, offset, Inset(bw + pad_y, bw + pad_y, bw + pad_x, bw + pad_x)),
                              with_size_range(beside; height = rows))
-    cells_grid = cells_pane.content_iomap
+    cells_grid = _get_part_grid(cells_pane)
     (_get_row_header_level_count(w.row_headers) == 0 && !(w.column_headers.value isa CellVector)) ||
         error("WidgetTable: headers with levels need columns that are a vector")
     st = WidgetTablePartsState(0, bw, pad_x, pad_y, column_header_pane, cells_pane, header_height,
@@ -1302,7 +1306,7 @@ function _print_table_column_parts(p::WidgetTableToGraphicsCanvas, recursion, w:
     bands = Any[_make_row_band(p, w, st, nothing, band_height, :light),
                 _make_row_band(p, w, st, nothing, band_height, :selection)]
     span = Cell(@computation _get_table_row_span(st))
-    header_rules = _make_column_rules(st, column_header_pane.content_iomap, Cell(0), header_height, divider;
+    header_rules = _make_column_rules(st, _get_part_grid(column_header_pane), Cell(0), header_height, divider;
                                       edge_regions = true)
     edge_light = _make_column_edge_light(p, w, st, Cell(@computation Int(header_height[])))
     header_graphics = CellVector(@computation begin
@@ -1369,7 +1373,7 @@ end
 # the rule above the row, its padding, its cells and the padding under them.
 # It is walked to from the head, and `nothing` past an end.
 function _find_table_row_at(st::WidgetTablePartsState, y::Int)
-    node = get_grid_list_head(st.cells_pane.content_iomap)
+    node = get_grid_list_head(_get_part_grid(st.cells_pane))
     node isa ListNode || return nothing
     vgap = 2 * st.pad_y + st.bw
     k = 1
@@ -1393,7 +1397,7 @@ end
 function _compute_table_shown_rows(st::WidgetTablePartsState, top::Int, bottom::Int)
     first_row = _find_table_row_at(st, top)
     first_row === nothing && return nothing
-    node = get_grid_list_head(st.cells_pane.content_iomap)
+    node = get_grid_list_head(_get_part_grid(st.cells_pane))
     for _ in 1:abs(first_row - 1)
         node = first_row > 1 ? node.next : node.prev
     end
@@ -1424,7 +1428,7 @@ _find_table_row_header(st::WidgetTablePartsState, k::Int) =
         _find_part_cell(st, st.row_header_pane, k, max(1, st.levels.row_levels))
 
 function _find_part_cell(st::WidgetTablePartsState, pane, k::Int, c::Int)
-    grid = pane.content_iomap
+    grid = _get_part_grid(pane)
     found = find_grid_list_row(grid, k)
     found === nothing && return nothing
     row = found[1]
@@ -1460,7 +1464,7 @@ end
 # The entry `(x, y, iomap)` of the header of column `c` in the grid of the
 # header row: a grid of one row, whose cells are a vector or a list.
 function _find_header_entry(st::WidgetTablePartsState, c::Int)
-    grid = st.column_header_pane.content_iomap
+    grid = _get_part_grid(st.column_header_pane)
     st.column_list && return find_grid_list_cell(grid, 1, c)
     entries = grid.child_iomaps
     st.levels.column_levels > 0 && (c = _get_column_header_leaf_child(st.levels, c))
@@ -1723,7 +1727,7 @@ function _add_top_row(iomap::WidgetTableListIoMap, op)
         return CompoundOperation(Any[op, writes...])
     end
     writes = _write_body_head(w, k)
-    found = find_grid_list_row(st.cells_pane.content_iomap, k)
+    found = find_grid_list_row(_get_part_grid(st.cells_pane), k)
     (writes === nothing || found === nothing) && return op
     moved = Any[others..., writes...,
                 _write_view_state(w, "scroll_position", Point2D(x, y - Int(found[1].y))),
@@ -1864,7 +1868,7 @@ function _read_table_parts_key(iomap::WidgetTableListIoMap, evt::KeyDown)
     named = _find_named_part(iomap.input, iomap.input.selection)
     named === nothing && return nothing
     shape, k, c = named
-    exists(row) = find_grid_list_row(st.cells_pane.content_iomap, row) !== nothing
+    exists(row) = find_grid_list_row(_get_part_grid(st.cells_pane), row) !== nothing
     # Shift+Space selects in the row direction and Ctrl+Space in the column
     # direction: from a column header the header row or its column, from a row
     # header its row or the header column, and from a cell its row or its column.

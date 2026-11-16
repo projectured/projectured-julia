@@ -1,7 +1,10 @@
 # Content and view for the whole project: the picture for the decision
 
-Status 2026-11-15: for a decision of the owner. This document has no steps. If the
-owner decides to go on, the steps come in a plan of their own.
+Status 2026-11-16: the owner decided to go on. The owner approved the order of
+section 10 on 2026-11-15, and point 1 of it is done and on `main`. Section 11 holds
+the decisions of 2026-11-16 on what gets a view. Section 12 holds the order after
+those decisions, which the owner approved on 2026-11-16. This document has no
+steps: the steps of each point come in a plan of their own.
 
 The pilot is `plan/done/views-compose-as-content-composes.md`. It was on the
 branch `views-compose`, and it is on `main` since 2026-11-15 (`adea9d83f`). Its
@@ -420,6 +423,288 @@ the 13 domains.
      prints to widgets.
   5. Move the other domains of the syntax, one for each plan.
 
+  The decisions of 2026-11-16 (section 11.1) change points 2 to 5. Section 12
+  holds the order after them, which the owner approved on 2026-11-16.
+
 I do not know the time of the whole move. The pilot gives the size of one small
 domain of the syntax: about 150 lines of views and tables for five types, and about
 300 lines of tests. The parts of point 2 and the widget chains are not measured.
+
+## 11. What gets a view
+
+The analysis of 2026-11-15 and 2026-11-16, on `main` at `107fe8fc0`, with the
+decisions of the owner.
+
+### 11.1 The decisions
+
+1. **The test** (the owner, 2026-11-16: "Yes, I agree with that"). A type gets a
+   view only when both are true: one instance can show at two places, and one
+   showing keeps state in it, such as a caret in its text, a fold, a scroll or a
+   filter.
+2. **A widget and a layout are views** (the owner, 2026-11-16: "They are more like
+   views already, no?", then "Yes"). They get no view of their own. One widget at
+   two places shares its state, as one view at two places shares its caret.
+3. **One generic view** (the owner, 2026-11-16: "Yes", to "Do you want the views of
+   the pilot and the arrangement to become one generic view?"; before it: "I tend
+   to lean towards option 2 to avoid having so many views" and "Perhaps we should
+   switch to reusing the same view if they are structurally and behaviourally
+   equivalent"). A type with no state of its own has no view type of its own. The
+   generic view keeps its part of the caret and the views of its parts. This is
+   option 2 of section 11.5.
+4. **An arrangement is a view in the document tree** (the owner, 2026-11-16: "the
+   arrangement should really be a view in the document tree and I think we can
+   avoid passing it down in the context"). The filter, the sort, the find and the
+   group of a collection are state of the view of that collection. No view gives
+   its state to the printer of a part through the printer context: the printer of
+   a part reads the view of that part.
+5. **The view documents of the older rule follow the naming convention and the
+   rules for views** (the owner, 2026-11-16: "other old views should follow the
+   naming convention and the rules we have for views"). Section 11.6 holds the
+   rules and the work for each of them.
+6. **A key table belongs to the content type, and the view gives it the caret**
+   (the owner, 2026-11-16: "I agree with option 1"). A view type has a key table
+   of its own only for state of its own. This replaces decision 7 of the pilot
+   plan, "Keys belong to the views"; a key still goes down along the caret of the
+   views, the deepest first.
+
+The plan of point 2 of the order is
+`plan/pending/one-generic-view-for-a-content-with-no-state-of-its-own.md`. It
+holds the proposed answers to the other three open points of the generic view in
+section 11.7.
+
+### 11.2 The inventory
+
+A scan of `source/` finds 607 `@document` types. A few are examples in docstrings.
+
+| Group | Types | Result |
+| --- | --- | --- |
+| Views of the pilot | 12 | Are views |
+| View documents of the older rule, with their parts | about 40 | Are views, but not by the rules of the pilot |
+| Widgets, layouts, graphics, tooltips | about 110 | No view (decision 2) |
+| Content of the 13 domains that print as code | 240 | Get a view; 9 have one |
+| Text and syntax types | 19 more | No more views; one `TextView` covers a text |
+| Primitives | 4 | Get a view |
+| Content of the domains that print as widgets | about 70 | Not decided |
+| Documents of the session and the rest of the platform | about 110 | Not decided |
+
+- **Printers make the widgets.** 691 of the 1289 calls that make a widget or a
+  layout are in the 54 `…ToWidget` files, and most of the rest are in helpers of
+  printers and in the widget slice. No content type declares a field of a widget
+  or layout type.
+- **A widget is the face of a view document.** The printer gives the widget the
+  state of the view document: the `WidgetTable` of a data frame uses the cells
+  `scroll_position` and `top_row` of the `DataFrameView`; the `WidgetTree` follows
+  and writes `expanded` and `shown` of the `DocumentTree`; the `WidgetSplitPane`
+  shows the weights of the `PaneSplit`; a `FileView` keeps a `WidgetScrollPane` as
+  its scroll.
+- **A widget tree that a person or a program makes by hand** has no view document
+  behind it, so the widget is the only home of its state.
+- **One widget at two places** exists in two cases: a widget in content, such as
+  the `WidgetTable` in a vertex of the graph example, and a widget tree made by
+  hand that shows in a tab and in a card.
+- **About 45 content types keep state of one showing now.** About 32 have a field
+  `collapsed`; the others have fields such as `Roster.anchor`,
+  `TaskGroupDocument.shown` and `GraphGraph.highlight_vertex`.
+
+### 11.3 The views that exist, against the rules of the pilot
+
+No view document of the older rule has the field `viewed` or the supertype
+`ContentView`. No view of the pilot holds its content with `hold_documents!`, which
+the older rule asks for.
+
+| View document | Names its content | Holds its content | Notes |
+| --- | --- | --- | --- |
+| `DataFrameView` | `frame`, no `get_edited_field` | The frame is no document | The caret, the filter, the sort and the scroll are in the view. It keeps what the last read of the frame saw, so two views read the frame two times. Its rows are made from their index when a path reaches them. |
+| `ChartPlot`, `SequenceChartPlot` | `chart`, no `get_edited_field` | No | |
+| `GraphLayout` | `graph`, no `get_edited_field` | No | One node for each vertex and edge, so it is a mirror tree. `GraphGraph` keeps the highlight too. |
+| `WorkspaceExplorer`, `DocumentTree` | `workspace`, `root`, no `get_edited_field` | Yes | |
+| `Navigator`, `FileView`, `UrlView` | `get_edited_field` | Not checked | |
+
+Two functions make a view: `make_document_view`, which the navigator and the
+dashboard card call and whose default answers the document itself, and
+`make_content_view` of the pilot.
+
+### 11.4 `PrimitiveString`
+
+It is a string in a box, plus a caret. It has two uses.
+
+- **A slot that takes any document**, such as `ResearchQuestion.statement`. The box
+  is the content, and it keeps the caret too, as `TextBlock` did before the pilot.
+- **A cell of a data frame that a person opens** (`make_data_frame_cell`). The
+  string lives in the frame; the box holds a copy, the caret and the text before
+  the commit. This use is a view in disguise, but it holds a copy and not the
+  place of the string.
+
+`ObjectField` names the place of a value, holds no copy and keeps the caret. 313
+document fields are a plain `String`, and the caret in them is a step in the view
+of the owner, such as `.value{3}`, so they need no view of a string.
+
+### 11.5 How the path of the caret is kept
+
+A caret is a path, and each view on the path keeps its part. So a type with no
+state of its own, such as a Markdown paragraph, has a view only because a path
+goes through it. Three options were named on 2026-11-16:
+
+1. A view type for each type on a path, by hand or by a macro: 300 to 400 types.
+2. One generic view type for a type with no state of its own, and a view type of
+   its own only for a type with state of its own.
+3. No view for a type with no state of its own; the nearest view above keeps the
+   rest of the path, and a printer of a part below gets the caret from it.
+
+The owner decided option 2 (decision 3 of section 11.1), and decided against the
+mechanism of option 3 (decision 4). The facts below gave the reasons.
+
+**The 12 views of the pilot are 4 shapes.**
+
+| Shape | View types |
+| --- | --- |
+| `viewed` only | `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView`, `MarkdownTextView`, `SyntaxLeafView` |
+| `viewed` and the views of the children | `MarkdownParagraphView`, `MarkdownHeadingView`, `MarkdownRootView` |
+| `viewed`, the views of the children and a fold | `JsonArrayView`, `SyntaxNodeView` |
+| `viewed`, the look and the closed folds | `TextView` |
+
+- Nine have no state of their own. The four Markdown views have no behaviour of
+  their own. The four JSON leaf views have none of their own either: they share
+  the key table of `JsonView`.
+- The key tables of the views repeat the tables of their content with another
+  helper: `@gestures JsonView` repeats 7 of the 8 rows of `@gestures JsonDocument`,
+  `@gestures JsonArrayView` the row of `JsonArray`, and the tables of the two
+  syntax views the rows of `SyntaxLeaf` and `SyntaxNode`.
+- Only `SyntaxNodeView`, which maps its folds to the text, and `TextView` have
+  behaviour of their own.
+- No source file outside the three view files names a view type of the pilot. The
+  machinery of `Viewing.jl` works on `ContentView`.
+
+**The same kinds of state repeat in the view documents of the older rule.**
+
+| State | Where it is kept |
+| --- | --- |
+| Open nodes | `DocumentTree.expanded`, `WorkspaceExplorer.open`, `FileSystemChooser.open`, `WidgetTree.expanded`, `ThemeGroup.open_names` |
+| Rows in view of a long list | `DataFrameView`, `Roster.anchor`, `TaskGroupDocument`, `FrameStatistics`, `TaskStreamLines.top_row`, `McpLog.shown` |
+| Filter, sort and find | The arrangement, `DataFrameQuery`, `ExplorerFilter`, `TaskGroupDocument.row_filter`, `TaskStreamLines` |
+| A window on a drawing, a cursor and a drag | `ChartPlot` and `SequenceChartPlot` share six fields; `GraphLayout` has a zoom and a drag |
+
+**An arrangement is a generic view document.** `ArrangementDocument(document,
+entries)` goes around the document that a place shows. Each entry names a part by
+its path and keeps the filter, the sort, the find and the group that a person set
+there. A save of the document saves no entry, and `get_edited_field` names the
+document. It differs from the rules of the pilot: the field is `document`, it has
+no `ContentView`, it keeps its state by path and not in a node for each part, the
+caret is not in it, and it does not hold its document. A stored path does not move
+when an insert moves the items (`plan/pending/an-insert-moves-the-paths-after-it.md`);
+this is not tested for an entry.
+
+`ArrangingProjection` prints the document with the arrangement in the printer
+context, and a dispatch finds the entry of each place. So `main` has the mechanism
+of option 3 for a filter and a sort: a view above gives its state to the printer of
+a part below through the context.
+
+### 11.6 The rules for a view, and the work for each view that exists
+
+The rules, from `architecture-rules.md` ("Content documents and view documents",
+"A type that has views"), from `naming-rules.md` and from the decisions above:
+
+1. **A view names its content in the field `viewed`**, and its type is a
+   `ContentView`.
+2. **The state of one showing is in the view**, and the content holds none: the
+   caret, the part under the pointer, a fold, a look, a filter, a sort, a find, the
+   rows in view, a window on a drawing.
+3. **`make_content_view(content)` makes the view.**
+4. **A view holds the content that it shows**, with `hold_documents!` in its
+   `acquire_document!`, and something holds the view only while it shows.
+5. **A view with parts keeps the views of the parts** under the name of the child
+   field of its content, and follows each part by identity.
+6. **A save of content writes no state of a view.**
+7. **A view owns no place that takes a pasted value.**
+8. **A view of one kind of content takes the suffix `View`.** A view that is a tool
+   of its own keeps its own name.
+9. **A type has a view type of its own only for state of its own or for its own
+   way to print.** Any other type on the path of a caret has the generic view
+   (decision 3).
+
+The work for each view that exists. A name in the column "Name" is proposed by the
+session and not decided.
+
+| View | Name | Content field now | Other work |
+| --- | --- | --- | --- |
+| `TextView` | Stays | `viewed` | Holds its content (rule 4) |
+| The 11 other views of the pilot | The generic view | `viewed` | Their key tables go when the table of the content reads the caret of the view. The fold code of `SyntaxNodeView` stays as behaviour of the view of a syntax node. |
+| `DataFrameView` | Stays | `frame` | The frame is no document, so rule 4 holds nothing. What the last read of the frame saw is content by rule 2, and it is in the view. |
+| `ChartPlot` | `ChartView` | `chart` | Holds its content. It has a field `view`, the window on the drawing. |
+| `SequenceChartPlot` | `SequenceChartView` | `chart` | Holds its content. The same field `view`. |
+| `GraphLayout` | Open | `graph` | It is also the output of the layout stage. The highlight of `GraphGraph` is state of a view. |
+| `WorkspaceExplorer`, `DocumentTree`, `Navigator` | Stay, each is a tool of its own | `workspace`, `root`, `content` | `Navigator.page_view` comes from `make_content_view`. |
+| `FileView`, `UrlView`, `FindBarView` | Stay | `file`, `url`, `content` | Their methods of `make_document_view` become methods of `make_content_view`. |
+| `ArrangementDocument` | Goes | `document` | Its entries become state of the view of their part (decision 4), and `ArrangingProjection` puts nothing in the printer context. |
+
+The filter, the sort and the find exist five times: the arrangement,
+`DataFrameQuery`, `ExplorerFilter`, `TaskGroupDocument.row_filter` and
+`TaskStreamLines`. Whether they become one is open.
+
+### 11.7 Open
+
+For the generic view:
+
+- How a generic view finds the key table of its content type. Now a key table
+  belongs to a view type.
+- How a generic view names the views of its parts. Rule 5 asks for a field with
+  the name of the child field of the content, and one generic type has no such
+  fields.
+- Whether a node of a generic view is made only when a caret or a state reaches
+  it. The view of a lazy list needs that.
+- Whether a fold is state of the generic view. Then 11 of the 12 view types of the
+  pilot go; else 9.
+
+For the views of the older rule:
+
+- `ContentView` as their supertype. `ChartPlot`, `GraphLayout` and
+  `WorkspaceExplorer` have a supertype of their domain, and a type has one
+  supertype.
+- The released names. A rename of a field or of a type of a released package gives
+  the package a minor step (decision R36 of the release plan), and `omnet-julia`
+  follows each rename.
+- Whether `make_document_view` goes when its methods are methods of
+  `make_content_view`. Its default answers the document itself.
+- Which documents that name their content with `get_edited_field` are views:
+  `PaneTab`, `ClipboardSlice`, `ClipboardCollection`, `UndoBuffer`, `FileDocument`,
+  `WidgetScrollPane` and `WidgetTransformPane` are not on the list above.
+
+Other:
+
+- What `PrimitiveString` becomes.
+- Which of the about 180 types that are not decided have state of their own. With
+  decision 3, each of them has the generic view where a path of a caret goes
+  through it.
+- State of a widget that has no view document behind it can go when the printer
+  makes the widget again. This is not tested.
+
+## 12. The order after the decisions of 2026-11-16
+
+Proposed by the session, and approved by the owner on 2026-11-16 ("yes", to "Do
+you approve this order?"). It replaces points 2 to 5 of the order of section 10;
+point 1 is done.
+
+1. **Done.** One `TextView`, and the pilot on `main`.
+2. **The generic view** (decision 3). Its design starts with the four open points
+   of section 11.7. Then the view types of the pilot that have no behaviour of
+   their own go, and the key tables of the views with them.
+3. **The rules for each view that exists** (decision 5): the field `viewed`, the
+   type `ContentView`, the names, one function that makes a view, and the hold of
+   the content. This point takes "who makes and holds a view in the editor" of the
+   old point 2, because the navigator, the dashboard card and the tab are the
+   holders, and they call `make_document_view` now.
+4. **The view of a collection** (decision 4): the filter, the sort, the find and
+   the group of an arrangement become state of the view of the collection, and the
+   rows in view with them. This point takes "the view of a lazy list" of the old
+   point 2.
+5. **The tools that read a caret**: the undo, the search, the assistant and the
+   drag. This is the rest of the old point 2.
+6. **JSON whole, with a file in a tab.** The old point 3.
+7. **The widget chains**, with a pilot of their own. The old point 4.
+8. **The other domains that print as code**, one for each plan. The old point 5.
+   With the generic view, a domain needs a view type only for state of its own.
+
+The reason for the place of point 2: each later point makes or changes views, so
+the form of a view comes first. The reason for the place of point 3 before point
+4: the arrangement becomes state of a view by the rules, so the rules are one set
+first.

@@ -953,7 +953,51 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
         241 and 1 broken, `test_explorer()` 507, `test_open_page_operation()` 103, the Markdown
         link targets 17 and gestures 18, the RST link targets 16, and the three omnet functions as
         above.
-- [ ] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
+- [x] **6a. After a load, the caret takes keys (D6).** Found by the check of step 7 on
+      2026-11-15. The owner on 2026-11-15: "Yes" to a step that fixes it, and then step 7 runs
+      again in both windows. The selection is stored along its path: each document on the path
+      keeps the rest of the path in its own `selection` field (`selection.md`, "Selection
+      storage"). A load puts a new document in the file, and the nodes of the new document keep
+      none. So the views draw no caret and the readers take no key, while the root still names a
+      valid path. `_repair_selection!` writes the selection only when its path names no part.
+      Proposed by the assistant on 2026-11-15:
+      - After a load, a live selection that passes through the file (`get_stored_selection(file)`
+        and `is_live_selection(file)`) is written again from the root with
+        `ReplaceSelectionOperation`, with the types of the new document, so the new document
+        holds its part of the path. A selection that names no part becomes the longest start of
+        its path that names a part, as before. A dormant selection is left alone, because the tab
+        writes it again when it takes the focus.
+      - Update `filechange.md` (the limit of the selection after a load) and `fileformat.md`.
+      - Test: the set of step 3 in `FileChangeStoreTest.jl` asserts where the new document holds
+        the selection after a load, and that a typed letter goes in at the caret. Then
+        `test_filechange()`, `test_explorer()` and step 7 again.
+      - What the implementation found:
+        - On the base of the branch (`6a24a6db6`), a `ReplaceSelectionOperation` of the same path
+          wrote nothing: `_sync_selection!` returned at the root when the stored path equaled
+          the new one. So the first fix called `set_selection!` at the root, which writes every
+          cell on the path. While the branch ran, main took `83f619887` of the views work
+          (`_repair_selection_chain!`): a write of an equal path walks down and writes the
+          parts from the first document that does not hold its part, and no cell above it.
+          After the rebase on main `107fe8fc0`, `_repair_selection!(editor, file)` evaluates a
+          `ReplaceSelectionOperation` of the same path, and the kernel gives the new document its
+          part. It runs inside the evaluation of the load, at the root of the editor, so it keeps
+          PAR-SELECTION-WRITTEN-AT-ROOT.
+        - `FileFormatModule` names `SelectionModule` bare now, so the list of the platform
+          import check loses the entry `using ..SelectionModule: get_selection` (9 entries).
+        - The card title of a dashboard takes no typed letter in the natural view, also with no
+          load, so the key test types into a text file (`notes.txt`, `PrimitiveString`). The test
+          editor needs `Keyboard`, `Mouse` and `Display`; with `devices = Device[]` it reads no
+          key.
+        - The set of step 3 asserts that the new card holds `.title{1}`, and the new set "after a
+          load, the caret takes keys" asserts that the new text holds `.value{24}` and that a
+          typed "w" goes in at offset 24. Without the fix the three assertions fail, with it they
+          pass.
+        - Results in a warm session of the worktree: `test_filechange()` 245 Pass, 0 Broken;
+          `test_explorer()` 507; `test_pred_file()` 87; `test_open_page_operation()` 103; the
+          navigator document 32 and gestures 26; `test_markdown_image_picture()` 19;
+          `test_markdown_link_gestures()` 18; `test_platform_layering()` 5 Pass and 2 Fail with
+          the 9 known entries and no new one.
+- [x] **7. The check in the window.** No code. Needs steps 5 and 6. In a window of `projectured`
       and of `omnet_ide`, a script rewrites a Markdown file with three pictures 20 times, 2 s
       apart. The assistant opens the file with `open_file!`, and it puts the same file document in
       a card with `open_file_document!`. `take_picture` after the first and the last rewrite must
@@ -961,6 +1005,82 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
       step. The caret must stay, and a scroll in the tab must leave the card where it is. Then the
       person types one letter, and the next rewrite must show the band in both views. Record the
       results here.
+      - **The check in the window of `projectured` on 2026-11-15**, main `6a24a6db6`. The window
+        ran in a Julia of the main checkout, with the editor of `run_application`
+        (`_make_application_editor`, no settings file, no assistant), on the SDL backend under
+        the offscreen driver, so no window opened on the desktop of the owner. The loop ran with
+        `run_editor!(make; wait = false)`. A script in a second process wrote `guide.md` and its
+        three PNG files `a.png`, `b.png` and `c.png` (ImageMagick) for each rewrite. The
+        assistant functions ran from the script of the check: `open_file!`,
+        `open_file_document!`, a dashboard "Check" with one card of the file in the Explorer
+        (`insert_elements!`, `open_explorer_page!`), and `move_pane!`, so the card and the tab
+        show side by side. The click, the wheel and the keys went to SDL as pushed events.
+        `write_window_picture`, the writer of `take_picture`, took the pictures.
+        - Rewrites 1 to 20, 2 s apart: after each rewrite, each picture read its file once and
+          decoded it once (20 and 20), and both views showed the new pictures, with no band.
+          The page and the tab kept the same three picture files, each watched once. The caret
+          kept its path (offset 38 of the first paragraph). `describe_undo_history()` had no new
+          step, and the history of the file had none.
+        - The page loaded 37 times for 20 rewrites, because the shell writes `guide.md` in many
+          small writes, and a read can see a part of them. Each picture file is written at once,
+          and reads once.
+        - A wheel of 3 notches in the tab scrolled it to 171 px. The card stayed at 0, also after
+          the next rewrite.
+        - After one typed letter, the next rewrite showed the band "guide.md changed on disk."
+          with "Load it" and "Keep mine" in both views. The page kept the letter, and the
+          pictures still showed each rewrite, because a picture file has no edits.
+        - **Found: after a load, the caret takes no key.** A letter typed after rewrites 1 to 20
+          made no edit, and the caret did not draw, although the selection kept its path. The
+          letter went in after a new click. A test of each cause alone: with the caret scrolled
+          out of view and no load, a letter goes in; after one load of the page, with the caret
+          in view, a letter does nothing. A plain text file (`notes.txt`) does the same, so the
+          fault belongs to each load of a file (step 3), not to the pictures of step 5. After the
+          load, the selection is valid and equal (`==`) to the same path with fresh types. A
+          `ReplaceSelectionOperation` with that same path makes the caret take keys again. So a
+          load leaves the selection as it was, and the views do not map it to the new document
+          until the selection is written again. The test of step 3 asserts only a valid selection
+          and no fault, so it does not see this.
+        - Step 6a fixes the caret, so the check runs again below.
+      - **The check in the window of `projectured` again on 2026-11-16**, on `window-check` with
+        step 6a (`833e73496`), in a new process of the worktree (so the bare import of
+        `SelectionModule` loads), the same way as above. The caret came from one click at
+        offset 38 before the rewrites.
+        - Rewrites 1 to 20: 36 loads; each picture read and decoded 20 times; the same three
+          picture files, each watched once; no band; the caret at offset 38 after each load;
+          `describe_undo_history()` the same as before the rewrites; the history of the file
+          empty.
+        - The wheel in the tab after rewrite 19 scrolled it to 171 px, and the card stayed at 0.
+          After rewrite 20 and after the letter, the tab was still at 171: the write of the
+          selection after a load scrolls nothing.
+        - A letter typed after the 20 rewrites, with no new click, went in at the caret ("The
+          xcaret goes here."), and the history of the file had one step. Rewrite 21 showed the
+          band "guide.md changed on disk." with "Load it" and "Keep mine" in both views, the page
+          kept the letter, and both views drew the caret.
+      - **The check in the window of `omnet_ide` on 2026-11-16**, omnet-julia main `6b6375c93`
+        with projectured-julia `window-check` (`833e73496`). The IDE ran as
+        `run_omnet_ide(<copy of the fifo sample>; backend = SdlBackend(), wait = false, llm = :none)`
+        under the offscreen driver, in a copy of `environment/all` of omnet-julia whose paths name
+        the worktree. `ollama ps` showed no model before and after.
+        - The same steps as in `projectured`: the tab and a card of a dashboard "Check" in the
+          Explorer side by side, a click at offset 38, then rewrites 1 to 20, 2 s apart.
+        - The results are the same: 34 loads; each picture read and decoded 20 times, one picture
+          file of each path, each watched once; no band; the caret at offset 38;
+          `describe_undo_history()` the same; the wheel scrolled the tab to 171 px and the card
+          stayed at 0, also after rewrite 20 and after the letter. The letter after the rewrites
+          went in at the caret with no new click, and rewrite 21 showed the band in both views.
+        - Found, outside this plan: the `Manifest.toml` of `environment/all` of the omnet main
+          checkout is not in git and dates from 2026-11-11. It has no entry for `ProjecturedGit`
+          and `ProjecturedGitExample`, which `Project.toml` names since 2026-11-14, so a load of
+          `OmnetIde` in that environment fails until a `Pkg.resolve()`. The copy for this check
+          got the two entries by hand.
+      - **Both checks again after the rebase on main `107fe8fc0`** (2026-11-16), with the repair
+        that writes a `ReplaceSelectionOperation` of the same path (`3cae87733`), each in a new
+        process: the same results in `projectured` (36 loads) and in `omnet_ide` (37 loads). The
+        caret stays at offset 38, the letter after the 20 rewrites goes in with no new click,
+        the tab keeps its scroll of 171 px and the card stays at 0, the undo list does not
+        change, and rewrite 21 shows the band in both views. `ollama ps` showed no model before
+        and after. The load of the omnet IDE warned that 427 of the 3675 recorded calls of
+        `OmnetLegacyFormat` no longer resolve against this main; that list is outside this plan.
 
 ## 8. Risks
 
