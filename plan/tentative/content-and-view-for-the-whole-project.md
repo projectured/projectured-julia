@@ -461,6 +461,16 @@ decisions of the owner.
    rules for views** (the owner, 2026-11-16: "other old views should follow the
    naming convention and the rules we have for views"). Section 11.6 holds the
    rules and the work for each of them.
+6. **A key table belongs to the content type, and the view gives it the caret**
+   (the owner, 2026-11-16: "I agree with option 1"). A view type has a key table
+   of its own only for state of its own. This replaces decision 7 of the pilot
+   plan, "Keys belong to the views"; a key still goes down along the caret of the
+   views, the deepest first.
+
+The plan of point 2 of the order is
+`plan/pending/one-generic-view-for-a-content-with-no-state-of-its-own.md`. It
+holds the proposed answers to the other three open points of the generic view in
+section 11.7.
 
 ### 11.2 The inventory
 
