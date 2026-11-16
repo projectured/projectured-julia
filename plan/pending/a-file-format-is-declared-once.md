@@ -954,3 +954,29 @@ table.
   are byte-equal to step 4; the docstring of `print_natural_text` names
   `write_document_file!` in place of `export_document`
   (`/var/tmp/projectured-julia-file-format-depot/step5/after`, by `step4/capture.jl`).
+
+**2026-11-16, the check of step 5 by the lead.**
+
+- **The kernel takes each type parameter of a document for a cell layout.** For
+  `JsonFile("a.json", JsonInsertion())` the kernel answers `get_document_family` `AFile`
+  and `get_document_cell_type` `File`, the same for each format; `get_document_schema_name`
+  answers `JsonFile` by the method of step 5. Each place that asks for "the type of a
+  document with no layout" through `Base.typename(T).wrapper` or `nameof` loses the format:
+  the walk of the gesture tables (`GestureBinding.jl:70`, so `@gestures JsonFile` is not
+  found), the kinds of the explorer filter (`ExplorerFilter.jl:77`, one kind `File` for
+  each format), `describe_document` (`PaneProgram.jl:164`), the three descriptions of
+  `DocumentRelease.jl` and the line of `PartCommands.jl:95`. The rebuilds
+  `Copying.jl:118` and `DocumentView.jl:117` would build a bare `File`, which no
+  constructor takes; no file reaches them now, and the cut never rebuilds a file node (a
+  held file is a reference leaf). None of the kernel files is sealed. The question goes
+  to the owner: a kernel that keeps such a parameter bound, or the platform that asks the
+  format at each place.
+- **The time guard of `test_formula()` is noise.** `FormulaFrameGuardTest.jl:67` failed
+  on the branch three times. Five measurements of `time_ratio` on each, alone, on the same
+  day: main `107fe8fc0` 3.26, 3.60, 3.59, 4.50, 4.05; the branch 4.02, 3.47, 3.70, 3.00,
+  3.12. So it is no regression. The script is
+  `/var/tmp/projectured-julia-file-format-depot/check/ratio.jl`.
+- **Checked:** the system text differs from step 4 only where step 5 removes
+  `import_document`, `export_document` and `write_document_file`, and in the type lists;
+  `describe_natural_formats()` is byte-equal. The failure of `FileDialogTest.jl:138` is in
+  the baseline. The worktree is clean at `a697a2d93`.
