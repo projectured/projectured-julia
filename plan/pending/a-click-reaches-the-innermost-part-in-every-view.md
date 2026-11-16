@@ -293,8 +293,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   then the selection of a row or a column needs a click on a small place.
 - **D8 (owner, 2026-11-11). The Alt+click on the half of a quote waits.** The
   owner answered the question of the quote cause of step 6: "Not important for
-  now, should be done eventually, but defer this". The change that names the
-  character under the pointer goes to §7.
+  now, should be done eventually, but defer this". The owner took it up on
+  2026-11-14, in step 8.
 - **D9 (owner, 2026-11-13). The most useful click stays, and a fallback gives
   the caret.** The owner answered the question of a text that a view computes
   to label a part, such as the tick of an axis: "if there's already some
@@ -1649,6 +1649,84 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   The eight math examples with the most lines in run 6 fall from 135 lines to
   about 50; what is left is the glyphs that the view adds (a brace piece, an
   operator, a parenthesis), which are no text of a field: step 5.4.
+
+  The causes of the 2642 lines of run 6 (2026-11-14, scratchpad
+  `step6a/classify.py`, by the example, the kind, the text and the message):
+  math 216 (mostly done above); the menu bar 114 (the owner leaves it); D8, the
+  inner half of a one-character delimiter, 350; a table, whose Alt+double click
+  selects the whole cell or header and not the text in it, 323; a text with no
+  caret 496 (a chart or a sequence chart that draws its texts as graphics 133,
+  a control that is not done or a text that a view computes 363); a point on a
+  shape 319 and on an icon glyph 145; the window shell 99 (the status bar 23, the
+  navigator 8, a part of a layout that no ring shows 68); one view that names a
+  part around the one under the point 189; a hover that names another part than
+  the Alt+double click 145; a plain click on a text that does nothing 133; a
+  caret placed or drawn wrong 35; the walk itself 78 (40 throws, 37 examples
+  with no image).
+
+  **D8 taken up (owner, 2026-11-14).** To "Shall I start with D8?", after the
+  causes above, the owner answered "Yes".
+
+  The design of the work (2026-11-14):
+  - The text view names the character under the point, as a range of one
+    character, to an Alt+double click and to a move (`_find_character_at_point`
+    in `TextToGraphics`); off the characters an Alt+double click is the caret
+    and a move names nothing there, so `read_child_move` takes the caret as
+    before. An Alt+click stays the caret at the nearest edge (D10).
+  - The syntax text maps a range in one field both ways: the value of a leaf, a
+    delimiter of a leaf, or one entry of a delimiter of a node
+    (`_map_leaf_range_backward`, `_map_compound_range_backward`,
+    `_make_field_range_path`, and the forward maps). A range in the other chrome
+    of a node, such as a separator, still has no image, so a Shift key that would
+    make it declines, as `TextRangeSelectionTest` expects. Rejected: a range in a
+    separator mapped to the caret at its start (a Shift key then takes the key
+    and makes no range) or to the node as a whole (a Shift key then selects the
+    node).
+  - For an Alt+double click and a move only, the reader of the root node takes
+    the place at the start of a character that no field holds
+    (`_read_character_place`): that place lies in the entry of the character,
+    so it names the node that drew the separator, at any depth.
+  - The syntax readers cut the move to its whole part, as they cut the
+    Alt+double click (`_find_whole_target`, and `_lift_blank_delimiter` for both),
+    so the move names the part of the Alt+double click by construction. A first
+    try let the range of the character go up as the mouse target: the graph
+    reroots the move of a vertex into its content, and a range in a JSON number
+    has no types there, so 28 points of `graph/graph/natural` threw.
+  - `find_whole_part` cuts a range of the characters of a value: such a range
+    does not evaluate (a caret does, to a `Position`), so it kept the path, and
+    the Alt+double click selected `.open{0:1}`, which the click test took for
+    one element (`_is_value_range`). In the output path of a projection step, a
+    range of one step that ends at a `Position` is a place too
+    (`_ends_at_position` in `_cut_output_place`).
+  - The click test accepts a move that names the character under the point in
+    the part of the Alt+double click (`_pc_cut_character`), and a caret of the
+    Alt+click at an edge of the mark of that part (`_pc_is_caret_at_mark`).
+
+  The first run of the click test (scratchpad `step7/d8a`, 18 examples of the
+  delimiter cause): 188 lines in run 6, 112 after; fsm, dbcatalog, versioning and
+  `pane/tree/natural` fall to 0, and `graph/graph/natural` rose from 23 to 36 by
+  the 28 throws above. Unit tests after the two fixes: `test_syntax_to_text` 371,
+  `test_text_to_graphics` 200, `test_widget_selection` 120,
+  `test_part_pointer_shape` 32, `test_focusing` 9, all pass.
+
+  The second run (`step7/d8b`, 128 examples: the delimiter examples and the
+  JSON, Julia, text, Markdown, graph and formula examples) found two more faults:
+  - A move over a formula started its edit mode: the reader of the sheet takes
+    each operation under the code that is not a move of the selection as a write
+    of the code, and a move answer is now a `ReplaceMouseTargetOperation`. The
+    four formula examples rose from 34 lines to 227. `_find_formula_code_write`
+    skips a move of the part under the pointer too.
+  - The graph gives a move to the content of a vertex but not to the label of an
+    edge, which takes a click: the move over a quote of a label fell back to the
+    caret of the backward map. `_read_graph_move` gives the move to the label
+    under the point, in its frame, as `_route_click` gives a click.
+  After them (`step7/d8c`, `step7/d8d`): the formula examples 34 → 18, the graph
+  examples 27 → 8, `examples/natural` 45 → 10, `examples/json` 12 → 2; no line
+  that run 6 did not have. `test_formula_to_syntax` 82 pass. `test_graph` 630
+  pass, 6 fail, 2 errors, the same lines as the branch head without the D8 work
+  (`GraphVertexDragTest.jl:166` and `:328`, a press on the content of a vertex
+  starts the drag of the text, new on main since 2026-11-08; and
+  `GraphScrollPaneTest.jl:183-210`).
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
@@ -1667,11 +1745,3 @@ are done too.
   selection; the fix needs a sealed kernel file (`pane.md:290`).
 - An edge of a graph is a decoration by design (`graph.md:88`); the test
   reports it, and the owner decides.
-- The Alt+click and the move on the half of a character beside the edge of a
-  part, such as the inner half of a quote, name the part of the caret and not
-  the character under the pointer (D8: deferred, to be done eventually). The
-  work, which step 6 found: the text view answers the range of the character
-  under the point; the syntax text maps a range in a delimiter of a leaf or a
-  node of its own back to that field; `find_whole_part` reads a range of one
-  character of a text in the output path of a view as a place; the click test
-  reads such a range as a place.

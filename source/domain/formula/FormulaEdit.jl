@@ -138,7 +138,8 @@ _get_operation_path(operation) =
     operation isa ReplacePathOperation ? get_operation_path(operation) : operation_reference(operation)
 
 # The index of the formula whose code `operation`, rooted at a sheet, writes: a
-# step of it that is not a move of the selection has a path below the code.
+# step of it that is not a move of the selection or of the part under the pointer
+# has a path below the code.
 function _find_formula_code_write(operation)
     if operation isa CompoundOperation
         for inner in operation.operations
@@ -148,7 +149,7 @@ function _find_formula_code_write(operation)
         return nothing
     end
     operation isa WrappingOperation && return _find_formula_code_write(get_wrapped_operation(operation))
-    operation isa ReplaceSelectionOperation && return nothing
+    operation isa Union{ReplaceSelectionOperation, ReplaceMouseTargetOperation} && return nothing
     _find_written_formula(_get_operation_path(operation))
 end
 

@@ -190,6 +190,11 @@ function test_widget_selection()
         @test strip_reference_types(find_whole_part(t.card, drawn(open))) == drawn(open)
         @test evaluate_reference(t.card, find_whole_part(t.card,
                   drawn(ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))) === t.layout
+        # The range of the one character of the bracket names the bracket too: its
+        # path ends at a `Position`, so it is a place, not one element.
+        character = ConcreteReference(FieldReferenceStep("open"),
+                        ConcreteReference(RangeReferenceStep(0, 1), EmptyReference(Position)))
+        @test last(get_reference_steps(find_whole_part(t.card, drawn(character)))).output_path == open
 
         # The container's own view of a whole selection.
         second = ConcreteReference(FieldReferenceStep("children"),

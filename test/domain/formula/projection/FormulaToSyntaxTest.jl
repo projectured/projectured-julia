@@ -332,9 +332,12 @@ end
     @test print_natural_text(C.code) == "A + 1" && get_formula_result(C) == 13
     render_shown = render(print_document(RecursiveProjection(FormulaToSyntax()), C).output)
     @test occursin("AB + 1", render_shown) && !occursin("13", render_shown)
-    # A move of the selection alone starts nothing.
+    # A move of the selection alone starts nothing, and nor does a move of the
+    # pointer over the code.
     select = ReplaceSelectionOperation(@reference(sheet, formulas[1].code))
     @test ProjecturedFormula.FormulaModule._read_formula_edit(sheet, Intent(nothing, select)).operation === select
+    hover = ReplaceMouseTargetOperation(@reference(sheet, formulas[1].code))
+    @test ProjecturedFormula.FormulaModule._read_formula_edit(sheet, Intent(nothing, hover)).operation === hover
 end
 
 @testset "in edit mode, Enter commits, an undo takes back the commit, and Escape drops the draft" begin

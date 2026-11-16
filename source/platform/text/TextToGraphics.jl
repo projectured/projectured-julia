@@ -428,13 +428,61 @@ _is_live_selection(value::SelectionDocument) = value.live
 # step above us). A single click is the caret at its point, as the press before it
 # put it; with Shift, the moving end of the selection goes to the point, as the
 # press moved it. A double click selects the word at the point, and a triple click
-# the line. An Alt+click is the caret at the point too. Whole-element promotion
-# (Alt+double click) is decided in SyntaxToText, where the tree is in hand.
+# the line. An Alt+click is the caret at the point too. An Alt+double click is the
+# range of the character under the point, so the part that holds that character
+# is the part under the point, also beside the edge of two parts; off the
+# characters it is the caret. The view above selects that part as a whole, where
+# the parts are in hand, as `SyntaxToText` does.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
     evt.button === :left || return nothing
     evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)
+    if evt.count >= 2 && evt.modifiers == ModifierKeys(alt = true)
+        character = _find_character_at_point(p, iomap, Int(evt.x), Int(evt.y))
+        character === nothing || return ReplaceSelectionOperation(character)
+    end
     path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift && !evt.modifiers.alt)
     path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# A move names the character under the pointer, as an Alt+double click selects the
+# part that holds it. Off the characters it names nothing here, and the caret
+# nearest to the point names the part (`read_child_move`).
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseMove)
+    character = _find_character_at_point(p, iomap, Int(evt.x), Int(evt.y))
+    character === nothing ? nothing : ReplaceMouseTargetOperation(character)
+end
+
+# The flat range of the one character whose box holds the point `(x, y)` of the
+# canvas, or `nothing` when the point is on no character: between two lines, or
+# before or after the text of a line. An image counts as one character.
+function _find_character_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
+    places = iomap.places
+    places === nothing && return nothing
+    left, top, _, _ = iomap.space
+    x -= left
+    y -= top
+    count = length(places.lines[])
+    count == 0 && return nothing
+    L = first(find_place_at(places.distances, Float64(y), count))
+    for line in max(1, L - 1):min(count, L + 1), sc in _get_line_segments(places, line)
+        (sc.x <= x < sc.x + sc.width && sc.y <= y < sc.y + sc.height) || continue
+        offset = _find_character_index_at_x(sc, x, p.measure)
+        offset === nothing && return nothing
+        base = get_flat_base(iomap.input, sc.span_path, places)
+        return base === nothing ? nothing : make_flat_range_reference(base + offset, base + offset + 1)
+    end
+    nothing
+end
+
+# The offset in the span of the character of the segment `sc` whose box holds
+# `target_x`, or `nothing` when the segment draws no character there.
+function _find_character_index_at_x(sc::SegmentCoordinate, target_x::Int, measure::TextMeasure)
+    isempty(sc.text) && return sc.char_end == sc.char_start + 1 ? sc.char_start : nothing
+    offsets = compute_caret_offsets(measure, sc.text, sc.font)
+    for k in 1:length(sc.text)
+        target_x < sc.x + round(Int, offsets[k + 1]) && return sc.char_start + k - 1
+    end
+    nothing
 end
 
 # A left press with no Alt and no Ctrl: the caret at the point, or with Shift the

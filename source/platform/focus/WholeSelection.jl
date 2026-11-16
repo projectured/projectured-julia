@@ -7,7 +7,8 @@
 # pointer does, and puts the caret where the part does nothing. An Alt+click puts
 # the caret at the character under the pointer, whatever the part does. An
 # Alt+double click selects the innermost part as a whole: the part that holds the
-# caret of its first click.
+# character under the pointer, or the caret of its first click where no character
+# is under the pointer.
 #
 # A whole-element selection is a path that names a part of the document as a
 # whole: a document, or a value that a field or one element of a collection
@@ -19,8 +20,10 @@
 
 Whether `event` selects the object under the pointer as a whole: the second left
 click of a double click with Alt held and no other modifier. Its first click put
-the caret, and this one selects the part that holds the caret. A plain press keeps
-its own meaning, so a button still fires and a caret still lands.
+the caret, and this one selects the part that holds the character under the
+pointer, which a text answers as a range of one character, or else the part that
+holds the caret. A plain press keeps its own meaning, so a button still fires and a
+caret still lands.
 """
 is_whole_selection_press(event) =
     event isa MouseClick && event.button === :left && event.count >= 2 &&
@@ -92,18 +95,21 @@ The innermost part that `path` reaches inside `document`, named as a whole.
 A path that names a part as a whole (`is_whole_selection`) is the answer. A path
 that ends in a place inside a value, such as a caret or a range of text, loses
 the place, step by step, until a whole part is left: a caret in the title of a
-card, `.title.value{3}`, gives the `String` in its field, `.title.value`. A
-caret directly in `document` gives `document`, the empty path.
+card, `.title.value{3}`, gives the `String` in its field, `.title.value`, and so
+does a range of its characters, `.title.value{2:3}`. A caret directly in
+`document` gives `document`, the empty path.
 
 A part that a projection drew and that `document` does not hold, such as the
 bracket of a call or the label of a row, is a part too. Its path ends in a
 `ProjectionReferenceStep` at the innermost node that printed it, and the place is
 cut inside the output path of that step: a field and one element reach a drawn
-part, and any other last step is a place in it. So a caret beside the bracket,
-`‹.open{0}›`, gives the bracket, `‹.open›`. An output path that loses every step
-gives the node that printed it.
+part, and any other last step is a place in it, also a range of one character,
+whose path ends at a `Position`. So a caret beside the bracket, `‹.open{0}›`, and
+the range of its character, `‹.open{0:1}›`, give the bracket, `‹.open›`. An output
+path that loses every step gives the node that printed it.
 
-A path that does not resolve in `document` is the answer as it is. A container
+A path that does not resolve in `document`, other than a range of the characters
+of a value, is the answer as it is. A container
 can answer a path in its own terms that is not a path of its document, as a
 tabbed pane names a widget page without the `element` step of the page, and the
 level above maps it back.
@@ -113,9 +119,28 @@ function find_whole_part(document, path)
     step = _get_last_step(path)
     step isa ProjectionReferenceStep && return _cut_introduced_part(path, step)
     target = try_evaluate_reference(document, path, missing)
-    (target === missing || _is_whole_part(document, path, target)) && return path
+    if target === missing
+        _is_value_range(document, path, step) || return path
+    else
+        _is_whole_part(document, path, target) && return path
+    end
     find_whole_part(document, _drop_last_step(path))
 end
+
+# Whether `step`, the last step of `path`, is a range of the characters of a value
+# that `document` holds: a range, which does not evaluate, in a holder that does
+# and that is no collection.
+function _is_value_range(document, path::ConcreteReference, step)
+    step isa RangeReferenceStep || return false
+    holder = try_evaluate_reference(document, _drop_last_step(path), missing)
+    holder !== missing && !(holder isa AbstractVector || holder isa Tuple || holder isa CollectionDocument)
+end
+
+# Whether `path` ends at a `Position`, the type of the end of a caret or of a range
+# of characters.
+_ends_at_position(path::ConcreteReference) = _ends_at_position(path.tail)
+_ends_at_position(path::EmptyReference) = path.type === Position
+_ends_at_position(_) = false
 
 # `path`, whose last step is the introduced `step`, with the place cut off the
 # output path of that step.
@@ -128,12 +153,14 @@ end
 
 # `output_path`, a path in the output of a projection, without the place at its
 # end. No document of the output is at hand, so the steps decide: a field and one
-# element reach a drawn part, and any other last step is a place in it.
+# element reach a drawn part, and any other last step is a place in it. A range of
+# one step that ends at a `Position` is one character, a place too.
 function _cut_output_place(output_path)
     output_path isa ConcreteReference || return output_path
     step = _get_last_step(output_path)
     step isa ProjectionReferenceStep && return _cut_introduced_part(output_path, step)
-    (step isa FieldReferenceStep || (step isa RangeReferenceStep && step.stop == step.start + 1)) &&
+    (step isa FieldReferenceStep ||
+     (step isa RangeReferenceStep && step.stop == step.start + 1 && !_ends_at_position(output_path))) &&
         return output_path
     _cut_output_place(_drop_last_step(output_path))
 end

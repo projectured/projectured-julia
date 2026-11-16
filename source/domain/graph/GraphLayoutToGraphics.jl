@@ -869,7 +869,8 @@ end
 # target is in gets it first, when the point is not on that content: for that
 # content the move is the leave of the pointer. Then the part at the point answers:
 # the content of a vertex reads the move itself, and a point in the box of a vertex
-# but off its content is the vertex.
+# but off its content is the vertex. The label of an edge reads the move itself
+# too, in its own frame, as it reads a click.
 function _read_graph_move(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseMove)
     hit = _find_vertex_at(iomap, event.x, event.y)
     new_answer = nothing
@@ -884,6 +885,14 @@ function _read_graph_move(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseM
             new_vertex = i
         else
             new_answer = ReplaceMouseTargetOperation(@reference iomap.input vertex_layouts[i].vertex)
+        end
+    else
+        label = _find_label_at(iomap, event.x, event.y)
+        if label !== nothing
+            (j, lim, lx, ly) = label
+            move = MouseMove(lx, ly, event.buttons, event.modifiers; time = event.time)
+            answer = shift_operation_position(read_child_move(lim, move), event.x - lx, event.y - ly)
+            new_answer = _reroot_label_answer(answer, j, lim.input)
         end
     end
     old = _get_target_vertex(iomap)

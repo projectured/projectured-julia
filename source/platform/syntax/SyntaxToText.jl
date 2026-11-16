@@ -83,7 +83,7 @@ end
 
 function map_reference_forward(::SyntaxLeafToText, iomap, reference)
     leaf = iomap.input
-    range = _find_leaf_value_range(reference)
+    range = _find_leaf_field_range(reference)
     range === nothing || return _make_leaf_range_path(leaf, range...)
     @reference_case reference begin
         ∅                          => @reference()
@@ -169,6 +169,7 @@ end
 #   .open[k]       →  the open span   (only if the leaf has an opening delimiter)
 #   .value[k]      →  the value span
 #   .close[k]      →  the close span  (only if the leaf has a closing delimiter)
+#   a range of one of these fields  →  that range of its span
 #   .open, .value, .close as a whole  →  the band of that span
 #   anything else  →  no cursor
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
@@ -177,7 +178,7 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     paths = make_output_path_cells(leaf, path -> begin
         leaf_path = strip_reference_types(path)            # canonical → plain skeleton
         leaf_path isa EmptyReference && return @reference()
-        range = _find_leaf_value_range(leaf_path)
+        range = _find_leaf_field_range(leaf_path)
         range === nothing || return _make_leaf_range_path(leaf, range...)
         c = _leaf_cursor(leaf, leaf_path)
         c >= 0 && return _flat_text_path(c)
@@ -196,9 +197,9 @@ end
 
 # Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
 # node. An Alt+double click selects the innermost whole part under the pointer
-# (`convert_to_whole_selection`): the field of the leaf that the caret of the
-# click is in, its value or one of its delimiters, and the leaf when the click
-# names no caret.
+# (`convert_to_whole_selection`): the field of the leaf that holds the character
+# under the pointer, or else the caret of the click, its value or one of its
+# delimiters, and the leaf when the click names neither.
 #
 # A leaf applies the rule itself, because a leaf is not always printed under a
 # compound or a container: a tab that holds one placeholder, a scalar example,
@@ -216,15 +217,25 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     answer = read_intent(p, iomap, payload)
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
         (answer = _lift_blank_delimiter(iomap.input, convert_to_whole_selection(answer, iomap.input)))
+    answer isa ReplaceMouseTargetOperation &&
+        (answer = _lift_blank_delimiter(iomap.input, _find_whole_target(answer, iomap.input)))
     Intent(gesture, answer)
 end
 
-# The answer of an Alt+double click in `document`, a leaf or a compound of the syntax, with
-# a delimiter of only whitespace, such as the space around an operator, replaced by
-# the leaf or the compound that holds it: such a delimiter draws nothing, so its
-# band would show nothing. A value of only whitespace is data, and it stays.
+# The answer `answer` to a move, which names the part under the pointer in
+# `document`, with its path cut to the innermost whole part, the part that an
+# Alt+double click there selects: the character under the pointer, which the
+# text names, becomes the field that holds it.
+_find_whole_target(answer::ReplaceMouseTargetOperation, document) =
+    make_path_operation(answer, find_whole_part(document, answer.path))
+
+# The answer of an Alt+double click or of a move in `document`, a leaf or a compound of
+# the syntax, with a delimiter of only whitespace, such as the space around an
+# operator, replaced by the leaf or the compound that holds it: such a delimiter
+# draws nothing, so its band would show nothing. A value of only whitespace is data,
+# and it stays.
 function _lift_blank_delimiter(document, answer)
-    answer isa ReplaceSelectionOperation && answer.path isa ConcreteReference || return answer
+    answer isa ReplacePathOperation && answer.path isa ConcreteReference || return answer
     path = answer.path
     last_step = last(collect(get_reference_steps(path)))
     last_step isa FieldReferenceStep || return answer
@@ -233,7 +244,7 @@ function _lift_blank_delimiter(document, answer)
     _is_delimiter_field(holder, last_step.name) || return answer
     text = _get_delimiter_text(try_evaluate_reference(document, path))
     (text === nothing || isempty(text) || !all(isspace, text)) && return answer
-    ReplaceSelectionOperation(holder_path)
+    make_path_operation(answer, holder_path)
 end
 
 # `path` without its last step; the node where that step started keeps its type.
@@ -659,7 +670,11 @@ function map_reference_forward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToT
     # A delimiter selected as a whole draws as a band over its entries.
     rest isa ConcreteReference || return _make_entries_span(elements, places)
     k = _rr_start(rest.head); k === nothing && return nothing
-    return _anchor_text_offset(elements, places, k)
+    caret = _anchor_text_offset(elements, places, k)
+    rest.head.stop > k || return caret
+    # A range of the delimiter, from the caret at its start to the caret at its stop.
+    s, e = _text_side_flat(caret), _text_side_flat(_anchor_text_offset(elements, places, rest.head.stop))
+    (s === nothing || e === nothing || e <= s) ? caret : make_flat_range_reference(s, e; direction = rest.head.direction)
 end
 
 # The step from `doc` into its `i`-th child — `.children[i]` for a sequence, `.content`
@@ -1299,8 +1314,9 @@ end
 #      to that child's own click resolution, never re-walking the input subtree.
 #   2. An Alt+double click selects the innermost whole part under the pointer
 #      (`convert_to_whole_selection`) — the mouse half of tree navigation: the
-#      field that the caret of the click is in, such as the value of a leaf or a
-#      delimiter of a node, and this node when the click names no caret.
+#      field that holds the character under the pointer, or else the caret of the
+#      click, such as the value of a leaf or a delimiter of a node, and this node
+#      when the click names neither.
 function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::SyntaxCompoundToTextIoMap)
     op = change.operation
     gesture = change.gesture
@@ -1315,8 +1331,12 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # the operation-typed readers below.
     payload = op === nothing ? gesture : op
     result = read_intent(p, iomap, payload)
+    result === nothing && op isa ReplacePathOperation && (is_whole_selection_press(gesture) || gesture isa MouseMove) &&
+        (result = _read_character_place(p, iomap, op))
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
         return Intent(gesture, _lift_blank_delimiter(iomap.input, convert_to_whole_selection(result, iomap.input)))
+    result isa ReplaceMouseTargetOperation &&
+        return Intent(gesture, _lift_blank_delimiter(iomap.input, _find_whole_target(result, iomap.input)))
 
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
     # already filled the operation slot via its own `read_gesture` delegation, so
@@ -1336,6 +1356,17 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     end
 
     return Intent(gesture, result)
+end
+
+# The answer to `op`, whose path is the character under the pointer that an
+# Alt+double click or a move names, when no field holds that character, such as a
+# separator or an indentation: the place at the start of the character, which
+# lies in the entry of the character and so names the node that drew it. `nothing`
+# when the path is no range.
+function _read_character_place(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplacePathOperation)
+    range = _find_output_flat_range(iomap.output, op.path)
+    range === nothing && return nothing
+    read_intent(p, iomap, make_path_operation(op, _flat_text_path(first(range))))
 end
 
 # Resolve a click (given as an output reference `path`) to a tree Operation, or
@@ -2001,19 +2032,21 @@ function _find_output_flat_range(block::TextBlock, path)
     base === nothing ? nothing : (base + start, base + stop, get_range_direction(p))
 end
 
-# The non-empty range `(start, stop, direction)` that `.value{s:e}` names in a leaf,
-# or `nothing`.
-function _find_leaf_value_range(path)
+# The field and the non-empty range `(field, start, stop, direction)` that
+# `.open{s:e}`, `.value{s:e}` or `.close{s:e}` names in a leaf, or `nothing`.
+function _find_leaf_field_range(path)
     p = strip_reference_types(path)
-    (p isa ConcreteReference && p.head isa FieldReferenceStep && p.head.name == "value") || return nothing
+    (p isa ConcreteReference && p.head isa FieldReferenceStep) || return nothing
+    field = _find_whole_leaf_field(ConcreteReference(p.head, EmptyReference()))
+    field === nothing && return nothing
     rest = p.tail
     (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing
-    rest.head.start < rest.head.stop ? (rest.head.start, rest.head.stop, rest.head.direction) : nothing
+    rest.head.start < rest.head.stop ? (field, rest.head.start, rest.head.stop, rest.head.direction) : nothing
 end
 
-# The flat range of the characters `start:stop` of the value of `leaf`.
-function _make_leaf_range_path(leaf::SyntaxLeaf, start::Int, stop::Int, direction::Symbol)
-    i = _leaf_span_index(leaf, :value)
+# The flat range of the characters `start:stop` of the field `field` of `leaf`.
+function _make_leaf_range_path(leaf::SyntaxLeaf, field::Symbol, start::Int, stop::Int, direction::Symbol)
+    i = _leaf_span_index(leaf, field)
     i == 0 && return nothing
     spans = _leaf_spans(leaf)
     s = _text_elem_path_to_flat(spans, i, start)
@@ -2029,28 +2062,39 @@ function _find_range_characters(spans, start::Int, stop::Int)
     (head === nothing || tail === nothing) ? nothing : (head, tail)
 end
 
-# A flat range of the leaf's output, as a range of its value; `nothing` when a
-# character of it is in a delimiter.
+# A flat range of the leaf's output, as a range of the field that holds all of its
+# characters: the value or a delimiter. `nothing` when its characters are in two
+# fields.
 function _map_leaf_range_backward(leaf::SyntaxLeaf, start::Int, stop::Int, direction::Symbol)
     characters = _find_range_characters(_leaf_spans(leaf), start, stop)
     characters === nothing && return nothing
     head, tail = characters
-    (head[1] == tail[1] && _leaf_field_at(leaf, head[1]) === :value) || return nothing
-    ConcreteReference(get_reference_node_type(leaf), FieldReferenceStep("value"),
-        ConcreteReference(_get_text_type(leaf.value), RangeReferenceStep(head[2], tail[2] + 1, direction),
-                          EmptyReference(Position)))
+    field = _leaf_field_at(leaf, head[1])
+    (head[1] == tail[1] && field !== nothing) || return nothing
+    _make_field_range_path(leaf, field, head[2], tail[2] + 1, direction)
 end
 
+# The range `start:stop` of the text of the field `field` of `document`, a leaf or
+# a compound of the syntax.
+_make_field_range_path(document, field::Symbol, start::Int, stop::Int, direction::Symbol) =
+    ConcreteReference(get_reference_node_type(document), FieldReferenceStep(String(field)),
+        ConcreteReference(_get_text_type(getproperty(document, field)), RangeReferenceStep(start, stop, direction),
+                          EmptyReference(Position)))
+
 # A flat range of the compound's output, as a range in the one child that holds
-# all of its characters, mapped back by that child; `nothing` when its characters
-# are in two children, in the chrome of the compound, or in an indentation that
-# this level widened.
+# all of its characters, mapped back by that child, or as a range of the text of a
+# delimiter of this node when one entry of that delimiter holds them all. `nothing`
+# when its characters are in two children, in the other chrome of the compound,
+# such as a separator, or in an indentation that this level widened.
 function _map_compound_range_backward(iomap::SyntaxCompoundToTextIoMap, start::Int, stop::Int,
                                       direction::Symbol)
     elements = iomap.flat_elements
     characters = _find_range_characters(elements, start, stop)
     characters === nothing && return nothing
     head, tail = characters
+    own = head[1] == tail[1] ? _own_field(iomap, head[1]) : nothing
+    own === nothing ||
+        return _make_field_range_path(iomap.input, own[1], own[2] + head[2], own[2] + tail[2] + 1, direction)
     (elements[head[1]] isa _LineIndentation || elements[tail[1]] isa _LineIndentation) && return nothing
     for (i, r) in enumerate(iomap.child_elem_ranges)
         (head[1] in r && tail[1] in r) || continue

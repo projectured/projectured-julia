@@ -104,11 +104,26 @@ end
 # Whether a mark of the selection that the output draws now holds the point, or,
 # with `anywhere`, whether the output draws a mark of the selection at all.
 function _pc_is_selection_drawn(session, x, y; anywhere::Bool = false)
+    marks = _pc_collect_selection_marks(session)
+    anywhere ? !isempty(marks) : any(mark -> _pc_is_in_box(mark.box, x, y), marks)
+end
+
+# Whether a mark of the selection that the output draws now holds the point and
+# reaches the x `caret_x` of a caret, at one of its edges or between them: the
+# Alt+double click selects the part that holds the character under the point, and
+# the caret of the Alt+click stands at an edge of that character.
+function _pc_is_caret_at_mark(session, x, y, caret_x)
+    any(_pc_collect_selection_marks(session)) do mark
+        _pc_is_in_box(mark.box, x, y) && mark.box.x - 1 <= caret_x <= mark.box.x + mark.box.width + 1
+    end
+end
+
+# The marks of the selection that the output draws now.
+function _pc_collect_selection_marks(session)
     output = _pc_read_value(get_iomap_output(session.editor.iomap))
     window = _pc_read_value(_pc_read_value(output.windows)[1])
-    marks = _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
-                                  session.window_reference, Any[]; keep = _pc_is_selection_mark)
-    anywhere ? !isempty(marks) : any(mark -> _pc_is_in_box(mark.box, x, y), marks)
+    _pc_collect_elements!(_PcElement[], output, session.window_box, _pc_read_value(window.content),
+                          session.window_reference, Any[]; keep = _pc_is_selection_mark)
 end
 
 # Whether the element is the glyph of an icon font: a text of only characters of
@@ -173,6 +188,25 @@ function _pc_cut_place(path)
         return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, inner))
     end
     _pc_is_place(path) ? head : path
+end
+
+# `path` without a range of one step at its end, also inside a step that a
+# projection introduced: the part that holds a character, when the range names
+# the character under the pointer and not one element of a collection. A path
+# without such a range is the answer as it is.
+function _pc_cut_character(path)
+    path isa ConcreteReference || return path
+    steps = collect(get_reference_steps(path))
+    step = last(steps)
+    head = extend_reference(EmptyReference(), steps[1:(end - 1)]...)
+    if step isa ProjectionReferenceStep
+        inner = _pc_cut_character(step.output_path)
+        inner === step.output_path && return path
+        inner isa EmptyReference && return head
+        return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, inner))
+    end
+    is_one = step isa RangeReferenceStep || nameof(typeof(step)) === :TextRangeReferenceStep
+    is_one && step.stop == step.start + 1 ? head : path
 end
 
 # `path` with no node types, also inside the output path of an introduced step.
@@ -383,6 +417,7 @@ function _pc_check_point!(session, element)
     # part does, and the caret is drawn there; a text of a menu takes no caret (the
     # owner), which the Alt+double click below tells.
     caret = nothing
+    caret_x = nothing
     no_caret = nothing
     if text
         _pc_select!(session, base)
@@ -408,6 +443,7 @@ function _pc_check_point!(session, element)
                 push!(session.failures, "$at: the caret $(format(caret)) is not drawn")
             else
                 cx = box.x - session.window_box.x
+                caret_x = cx
                 one = max(2, top.box.width ÷ max(1, length(String(_pc_read_value(top.node.text)))))
                 abs(cx - x) <= one + 1 ||
                     push!(session.failures, "$at: the caret is drawn at x = $cx, not at the character")
@@ -415,8 +451,9 @@ function _pc_check_point!(session, element)
         end
     end
     # An Alt+double click selects the innermost part: no part that draws the
-    # element lies below it, and it is the part that holds the caret of the
-    # Alt+click.
+    # element lies below it, and it is the part that holds the character under the
+    # point. The caret of the Alt+click is in that part, or at an edge of its mark,
+    # beside the part next to it.
     _pc_select!(session, base)
     whole = _pc_double_press!(session, x, y, ModifierKeys(alt = true)).selection
     _pc_count!(session, :wholes)
@@ -428,6 +465,7 @@ function _pc_check_point!(session, element)
             push!(session.failures, "$at: an Alt+double click selects $(format(whole)), outside $(format(deepest))")
         caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
             blank && _pc_is_part_within(whole, _pc_cut_place(caret)) ||
+            caret_x !== nothing && _pc_is_caret_at_mark(session, x, y, caret_x) ||
             push!(session.failures, "$at: an Alt+double click selects $(format(whole)), not " *
                                     "$(format(_pc_cut_place(caret))), the part of the caret")
         _pc_is_selection_drawn(session, x, y; anywhere = blank) ||
@@ -435,13 +473,15 @@ function _pc_check_point!(session, element)
                   "$at: an Alt+double click selects $(format(whole)), and no ring or band is drawn" :
                   "$at: an Alt+double click selects $(format(whole)), and no ring or band holds the point")
     end
-    # A move names the part that the Alt+double click selects, and on a control,
-    # whose plain click acts, the control around it, which then lights.
+    # A move names the part that the Alt+double click selects, or the character
+    # under the point in it, and on a control, whose plain click acts, the control
+    # around it, which then lights.
     target = _pc_move!(session, x, y)
     _pc_count!(session, :moves)
     if target === nothing
         push!(session.failures, "$at: a move names no part under the pointer")
     elseif whole !== nothing && !_pc_is_place(whole) && !_pc_is_same_part(_pc_cut_place(target), whole) &&
+           !_pc_is_same_part(_pc_cut_character(target), whole) &&
            !(blank && _pc_is_part_within(whole, _pc_cut_place(target))) &&
            !(acted && _pc_is_part_within(_pc_cut_place(target), whole))
         push!(session.failures, "$at: a move names $(format(target)), not $(format(whole)), " *

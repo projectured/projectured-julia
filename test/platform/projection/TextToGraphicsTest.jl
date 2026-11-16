@@ -333,6 +333,30 @@ click = read_intent(p, iomap, MouseClick(:left, segment.x + 12, segment.y + 5; t
 
 end # @testset "TextToGraphics maps a point back to the caret at it"
 
+@testset "TextToGraphics names the character under the point to an Alt+double click and a move" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+st = TextBlock(TextLine(TextString("abc", StyleFont("Ubuntu Mono", 20), color_white)))
+iomap = print_document(p, st)
+segment = first(iomap.char_to_coord)
+alt_double(dx) = MouseClick(:left, segment.x + dx, segment.y + 5, 2, ModifierKeys(alt = true); time = 0.0)
+move(dx) = MouseMove(segment.x + dx, segment.y + 5; time = 0.0)
+# Eight pixels in is the right half of "a": the caret nearest to the point is
+# after "a", and the character under the point is "a".
+@test is_reference_equal(map_reference_backward(p, iomap, PointReferenceStep(segment.x + 8, segment.y + 5)),
+                         TextModule.make_flat_caret_reference(1))
+@test is_reference_equal(read_intent(p, iomap, alt_double(8)).path, TextModule.make_flat_range_reference(0, 1))
+target = read_intent(p, iomap, move(8))
+@test target isa ReplaceMouseTargetOperation
+@test is_reference_equal(target.path, TextModule.make_flat_range_reference(0, 1))
+# Past the end of the text no character is under the point: an Alt+double click
+# is the caret there, and a move names nothing here.
+@test is_reference_equal(read_intent(p, iomap, alt_double(45)).path, TextModule.make_flat_caret_reference(3))
+@test read_intent(p, iomap, move(45)) === nothing
+
+end # @testset "TextToGraphics names the character under the point to an Alt+double click and a move"
+
 @testset "TextToGraphics renders fill_color as a background rect" begin
 
 m = _test_measure(10, 18)

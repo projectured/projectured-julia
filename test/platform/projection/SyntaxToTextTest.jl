@@ -116,6 +116,47 @@ end
     @test whole(5) == strip_reference_types(@reference(node, children[2].value))
 end
 
+@testset "an Alt+double click and a move name the part that holds the character under the pointer" begin
+    quoted = SyntaxLeaf("ab"; open = "\"", close = "\"")
+    node = SyntaxNode(SyntaxDocument[SyntaxLeaf("x"), quoted]; open = "(", close = ")", sep = ", ")
+    iomap = print_document(pipe, node)
+    @test get_flat_string(iomap.output) == "(x, \"ab\")"
+    character(k) = make_flat_range_reference(k, k + 1)
+    alt = MouseClick(:left, 0, 0, 2, ModifierKeys(alt = true); time = 0.0)
+    whole(k) = strip_reference_types(read_intent(iomap.projection, pipe,
+        Intent(alt, ReplaceSelectionOperation(character(k))), iomap).operation.path)
+    # Each quote is a part of its own, also on the inner half, where the caret of
+    # the edge belongs to the value.
+    @test whole(4) == strip_reference_types(@reference(node, children[2].open))
+    @test whole(5) == strip_reference_types(@reference(node, children[2].value))
+    @test whole(6) == strip_reference_types(@reference(node, children[2].value))
+    @test whole(7) == strip_reference_types(@reference(node, children[2].close))
+    @test whole(0) == strip_reference_types(@reference(node, open))
+    @test whole(8) == strip_reference_types(@reference(node, close))
+    # No field holds a character of the separator, so the node is the part.
+    @test whole(2) isa EmptyReference
+    @test whole(3) isa EmptyReference
+    # A move names the same parts.
+    move = MouseMove(0, 0; time = 0.0)
+    target(k) = read_intent(iomap.projection, pipe, Intent(move, ReplaceMouseTargetOperation(character(k))),
+                            iomap).operation
+    @test target(7) isa ReplaceMouseTargetOperation
+    for k in (0, 2, 4, 5, 7)
+        @test strip_reference_types(target(k).path) == whole(k)
+    end
+    # A range in one delimiter maps to that range of the field, and back.
+    for (k, field) in ((7, "close"), (4, "open"), (0, "open"))
+        path = map_reference_backward(iomap.projection, iomap, character(k))
+        steps = collect(get_reference_steps(strip_reference_types(path)))
+        @test steps[end - 1] == FieldReferenceStep(field)
+        @test (steps[end].start, steps[end].stop) == (0, 1)
+        image = strip_reference_types(map_reference_forward(iomap.projection, iomap, path))
+        @test (image.head.start, image.head.stop) == (k, k + 1)
+    end
+    # A range in the separator has no field, so it maps to nothing.
+    @test map_reference_backward(iomap.projection, iomap, character(2)) === nothing
+end
+
 @testset "a value with a break is lines, which follow the code around them" begin
     leaf = SyntaxLeaf("one\ntwo"; open="<", close=">")
     @test leaf.value isa TextBlock
