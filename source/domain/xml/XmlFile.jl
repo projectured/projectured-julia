@@ -112,4 +112,6 @@ end
 const _XML_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_xml_part_note; description = "Show the path of the part")]
 
-get_document_gesture_bindings_own(::Type{<:XmlFile}) = _XML_FILE_BINDINGS
+@gestures XmlFile begin
+    splice(_XML_FILE_BINDINGS)
+end

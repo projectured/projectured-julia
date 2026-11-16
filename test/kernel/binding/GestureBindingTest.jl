@@ -97,6 +97,20 @@ end
     KeyPress('i')                  => "immutable"     => MarkOperation(:immutable)
 end
 
+# A document with a parameter of its own: a table on one value of the parameter
+# applies to the documents of that value, and a table on the bare name to each.
+@document struct GestureProbeTagged{T}
+    value::Int = 0
+end
+
+@gestures GestureProbeTagged{Int} begin
+    KeyPress('t')                  => "tagged by Int" => MarkOperation(:int)
+end
+
+@gestures GestureProbeTagged begin
+    KeyPress('a')                  => "any tag"       => MarkOperation(:any)
+end
+
 # A plain rule and a rule that claims its key from the output layers.
 @document struct ClaimProbe
     value::Int = 0
@@ -371,6 +385,16 @@ function test_gesture_binding()
         value = GestureProbeImmutable()
         @test !ismutable(value)
         @test read_gesture(value, KeyPress('i'; time = 0.0)) == MarkOperation(:immutable)
+    end
+
+    @testset "a table on a schema type applies to the documents of that type" begin
+        tagged = GestureProbeTagged{Int}(0, nothing)
+        @test [b.description for b in collect_document_gesture_bindings(tagged)] ==
+              ["tagged by Int", "any tag"]
+        @test read_gesture(tagged, KeyPress('t'; time = 0.0)) == MarkOperation(:int)
+        other = GestureProbeTagged{String}(0, nothing)
+        @test [b.description for b in collect_document_gesture_bindings(other)] == ["any tag"]
+        @test read_gesture(other, KeyPress('t'; time = 0.0)) === nothing
     end
 
     @testset "a claimed event fires only a rule that overrides" begin

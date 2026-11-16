@@ -64,11 +64,14 @@ function collect_document_gesture_bindings(T::Type)
     S = T
     while true
         append!(result, get_document_gesture_bindings_own(S))
-        # A kind-parameterized document type carries its bindings on the bare stem,
-        # the UnionAll that `@gestures` names. The supertype walk never visits that
-        # stem, so each concrete level also asks its UnionAll.
-        base = S isa DataType ? S.name.wrapper : S
-        base === S || append!(result, get_document_gesture_bindings_own(base))
+        # A document type with a layout carries its bindings on a UnionAll that
+        # `@gestures` names: its schema type, such as `Length{Meter}`, and the bare
+        # stem, such as `Length`. The supertype walk visits neither, so each
+        # concrete level also asks both, the schema type first.
+        schema = get_document_schema_type(S)
+        schema === S || append!(result, get_document_gesture_bindings_own(schema))
+        stem = S isa DataType ? S.name.wrapper : S
+        stem === S || stem === schema || append!(result, get_document_gesture_bindings_own(stem))
         S === Any && break
         S = supertype(S)
     end

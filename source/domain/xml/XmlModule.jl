@@ -16,7 +16,6 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string

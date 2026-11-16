@@ -92,7 +92,7 @@ function describe_commands(part::ReferencedDocument; editor = get_evaluation_edi
     run_on_editor_task!(editor; description = "describe_commands") do
         rows = first.(_collect_runnable_commands(editor, part))
         isempty(rows) &&
-            return "This " * String(nameof(typeof(get_document(part)))) * " has no command now."
+            return "This " * String(get_document_schema_name(get_document(part))) * " has no command now."
         join([isempty(row.gesture) ? row.description : row.description * ": " * row.gesture
                  for row in rows], "\n")
     end

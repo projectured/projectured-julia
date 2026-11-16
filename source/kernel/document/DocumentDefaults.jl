@@ -89,6 +89,10 @@ get_document_native_type(::Type{T}) where {T} = nothing
 get_document_schema_name(x) = get_document_schema_name(typeof(x))
 get_document_schema_name(::Type{T}) where {T} = nameof(T)
 
+get_document_schema_type(x) = get_document_schema_type(typeof(x))
+get_document_schema_type(::Type{T}) where {T} =
+    T isa DataType && isconcretetype(T) ? _apply_schema_parameters(get_document_cell_type(T), T) : T
+
 # A document that carries no name of its own. The argument is untyped on purpose:
 # a slice writes a method for its own type, and a default of the same signature
 # would be overwritten rather than added to.

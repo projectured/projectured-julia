@@ -495,6 +495,15 @@ function test_explorer()
         @test occursin("2 entries", page.children[1].content)
     end
 
+    @testset "the files of two formats are two kinds of the filter" begin
+        text, pred = TextFile("a.txt", "x"), PredFile("b.pred")
+        section = ExplorerSection("Explorer", Any[text, pred])
+        tree = (root = section, expanded = IdDict{Any,Any}(section => IdDict{Any,Any}()))
+        kinds = ExplorerModule._collect_read_kinds(tree)
+        @test first.(kinds) == ["Pred file", "Section", "Text file"]
+        @test text isa last(kinds[3]) && !(pred isa last(kinds[3]))
+    end
+
     @testset "the filter, the kinds and the add items say what they do" begin
         content = _explorer_make()
         explorer = Explorer(content)

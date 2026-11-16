@@ -93,4 +93,6 @@ _push_json_size_fact!(facts, document) = facts
 const _JSON_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_json_part_note; description = "Show the path of the part")]
 
-get_document_gesture_bindings_own(::Type{<:JsonFile}) = _JSON_FILE_BINDINGS
+@gestures JsonFile begin
+    splice(_JSON_FILE_BINDINGS)
+end

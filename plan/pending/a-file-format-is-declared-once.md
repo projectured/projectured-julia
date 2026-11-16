@@ -124,6 +124,11 @@ functions of `source/` do the same.
 - **O6. Five points of this plan** that differ from what the assistant told the owner
   before, or that a person sees. The owner accepted them with "Yes": P3, P6, P9, P10, and
   the first line of §8.
+- **O7. `@document` stays as it is (2026-11-16).** The owner found it "weird" to put support
+  for the file type in `@document`. The kernel gets one new function in its place,
+  `get_document_schema_type`: the type of the schema with the parameters that its programmer
+  wrote, and no layout. The gesture walk and the explorer kinds call it. The owner answered
+  "yes" to "Do I add `get_document_schema_type` to the kernel?". §10 has the details.
 
 ### 4.2 Proposed by the assistant
 
@@ -957,10 +962,14 @@ table.
 
 **2026-11-16, the check of step 5 by the lead.**
 
-- **The kernel takes each type parameter of a document for a cell layout.** For
-  `JsonFile("a.json", JsonInsertion())` the kernel answers `get_document_family` `AFile`
-  and `get_document_cell_type` `File`, the same for each format; `get_document_schema_name`
-  answers `JsonFile` by the method of step 5. Each place that asks for "the type of a
+- **The places that read the bare type name lose the format.** The type of
+  `JsonFile("a.json", JsonInsertion())` is `File{JsonFileFormat, Cell, Cell, Cell, Cell,
+  Cell}`: the format is the parameter of the schema and the five cells are the layout, and a
+  copy keeps the format (`_apply_schema_parameters`). But `get_document_family` answers
+  `AFile` and `get_document_cell_type` `File`, the same for each format, because they name
+  no parameter; `get_document_schema_name` answers `JsonFile` by the method of step 5. A
+  first reading of this check said that the kernel takes each parameter for a layout; the
+  copy shows that it does not. Each place that asks for "the type of a
   document with no layout" through `Base.typename(T).wrapper` or `nameof` loses the format:
   the walk of the gesture tables (`GestureBinding.jl:70`, so `@gestures JsonFile` is not
   found), the kinds of the explorer filter (`ExplorerFilter.jl:77`, one kind `File` for
@@ -980,3 +989,33 @@ table.
   `import_document`, `export_document` and `write_document_file`, and in the type lists;
   `describe_natural_formats()` is byte-equal. The failure of `FileDialogTest.jl:138` is in
   the baseline. The worktree is clean at `a697a2d93`.
+
+**2026-11-16, the schema type (O7).**
+
+- **The kernel function.** `get_document_schema_type(T)` (`DocumentInterface.jl`,
+  `DocumentDefaults.jl`, exported by `DocumentModule`) answers
+  `_apply_schema_parameters(get_document_cell_type(T), T)` for a concrete type, and `T`
+  itself for a type that is not concrete (a family, a `UnionAll`, an abstract type). So the
+  walk does not ask the cell layout again at the level of the family, which would give each
+  binding twice. The copy of a cell layout (`DocumentCopy.jl`) calls it in place of the
+  same expression. `@document` does not change.
+- **The gesture walk** (`GestureBinding.jl`) asks at each concrete level the schema type
+  first, then the bare stem when it differs. So `@gestures JsonFile` names
+  `File{JsonFileFormat}`, and a table on `File` would apply to each format. The tables of
+  JSON, XML and YAML are `@gestures` again, as on main, and the three imports of
+  `get_document_gesture_bindings_own` of step 5 are gone.
+- **The explorer kinds** (`ExplorerFilter.jl`) key by the schema type, so the files of one
+  format are one kind. The name of a kind comes from `get_insertion_names`, which now
+  derives the names from `get_document_schema_name(T)` in place of `nameof(T)`: "Text file"
+  and "Pred file", not "File". This also changes the names of a schema whose bare name binds
+  its native layout (`TaskGroup`, `TaskExecution`), from the coded name to the bare name.
+- **The texts** call `get_document_schema_name`: the three descriptions of
+  `DocumentRelease.jl`, `PartCommands.jl:95`, `describe_document` and the duplicate error of
+  `PaneProgram.jl`.
+- **Not changed:** `Copying.jl:118` rebuilds the layout of its source, and the schema type
+  would turn a native source into a cell layout; `DocumentView.jl:117` is the code of the
+  views pilot. No file reaches either now. Both stay for the plan of theme T6 or a defect.
+- **Tests:** `DocumentMacroTest` (the schema type of each layout), `GestureBindingTest` (a
+  table on `GestureProbeTagged{Int}` applies to that type only), `FileFormatTest` (the
+  schema type and name of `File{TallyLogFileFormat}`), `ExplorerTest` (two formats are two
+  kinds).

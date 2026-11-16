@@ -106,6 +106,27 @@ schema that left its bare name where it was.
 function get_document_schema_name end
 
 """
+    get_document_schema_type(x) -> Type
+    get_document_schema_type(::Type) -> Type
+
+The **schema's** own type: the cell layout with the type parameters that the
+programmer wrote after the name, and with no parameter of a layout. Every layout of
+one schema answers it, so it is the type that a table of gestures and a kind of a
+filter name.
+
+    @document struct Length{U} <: Document
+        value::Float64 = 0.0
+    end
+    typeof(length)                            # Length{Meter, Cell, …}: a parameter for each field
+    get_document_schema_type(typeof(length))  # Length{Meter}
+
+A schema with no parameter of its own answers its cell layout, and a hand-written
+type answers its name wrapper, as [`get_document_cell_type`](@ref) does. A type that
+is not concrete, such as a family or a `UnionAll`, answers itself.
+"""
+function get_document_schema_type end
+
+"""
     get_document_title(document) -> String or nothing
 
 The name a document carries for itself, or `nothing` when it carries none.

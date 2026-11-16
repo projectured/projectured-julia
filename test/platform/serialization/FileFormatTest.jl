@@ -147,6 +147,9 @@ function test_file_format()
         @test file isa File{TallyLogFileFormat} && file isa FileDocument
         @test get_file_format(file) === log
         @test get_filename(file) == "run.log" && get_file_content(file).count == 3
+        # A reader and a table of gestures name the file by its format.
+        @test get_document_schema_type(typeof(file)) == File{TallyLogFileFormat}
+        @test get_document_schema_name(file) === :TallyLogFile
         # A file made with no content holds the seed of the domain of its format.
         @test get_file_content(File{TallyLogFileFormat}("new.log")) isa typeof(make_document_seed(TallyDocument))
         @test get_file_content(TextFile("new.txt")) == make_document_seed(Union{}) == ""

@@ -161,7 +161,7 @@ For the assistant.
 """
 function describe_document end
 
-describe_document(content) = String(nameof(typeof(content)))
+describe_document(content) = String(get_document_schema_name(content))
 describe_document(x::ReferencedDocument) = describe_document(get_document(x))
 describe_document(::Nothing) = "empty"
 
@@ -1484,7 +1484,7 @@ function _make_duplicate_pane(editor, reference::Reference)
         _make_pane_tab_duplicate(tree, source)
     catch e
         e isa DocumentCopyException || rethrow()
-        throw(ArgumentError("A $(nameof(typeof(source.content))) pane has no duplicate: " *
+        throw(ArgumentError("A $(get_document_schema_name(source.content)) pane has no duplicate: " *
                             _format_duplicate_refusal(source.content, e) * "."))
     end
     target = group === pane_group_to_avoid(tree) ? _find_placement_group(tree) : group

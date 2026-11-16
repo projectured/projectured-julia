@@ -40,7 +40,7 @@ make_inverse_operation(document, operation::AcquireDocumentOperation) =
     ReleaseDocumentOperation(operation.document)
 
 describe_operation(operation::AcquireDocumentOperation) =
-    "acquire the $(nameof(typeof(operation.document))) that enters the window"
+    "acquire the $(get_document_schema_name(operation.document)) that enters the window"
 
 """
     release_document!(editor, document)
@@ -75,7 +75,7 @@ make_inverse_operation(document, operation::ReleaseDocumentOperation) =
     AcquireDocumentOperation(operation.document)
 
 describe_operation(operation::ReleaseDocumentOperation) =
-    "release the $(nameof(typeof(operation.document))) that leaves the window"
+    "release the $(get_document_schema_name(operation.document)) that leaves the window"
 
 # ── The holders ──────────────────────────────────────────────────────────────
 
@@ -225,7 +225,7 @@ make_inverse_operation(document, operation::ChangeHeldDocumentsOperation) =
     ChangeHeldDocumentsOperation(operation.holder, operation.acquired, operation.released)
 
 describe_operation(operation::ChangeHeldDocumentsOperation) =
-    "change what the $(nameof(typeof(operation.holder))) shows"
+    "change what the $(get_document_schema_name(operation.holder)) shows"
 
 # The acquire, the release and the change of what a holder holds name their
 # subject and no place, so each goes up the readers as it is: a tree whose node

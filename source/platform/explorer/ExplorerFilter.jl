@@ -69,12 +69,12 @@ function _collect_matches(filter::ExplorerFilter, words, document, steps::Vector
 end
 
 # The kinds of the rows that the tree read, through its open places, each with its
-# name, in the order of the names. A kind is the type of a document with no
-# parameters, so a type of cells is one kind.
+# name, in the order of the names. A kind is the schema type of a document, so all
+# layouts of one type are one kind, and the files of one format are one kind.
 function _collect_read_kinds(tree)
     kinds = IdDict{Any,Nothing}()
     function visit(document, places, above)
-        kinds[Base.typename(typeof(document)).wrapper] = nothing
+        kinds[get_document_schema_type(typeof(document))] = nothing
         below = get(places, document, nothing)
         (below === nothing || any(other -> other === document, above)) && return nothing
         push!(above, document)

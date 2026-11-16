@@ -29,7 +29,6 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..PrimitiveModule: make_incomplete_number_document
 import ..ProjectionAlgebraModule: make_content_view
 import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,

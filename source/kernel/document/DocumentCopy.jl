@@ -279,7 +279,7 @@ function copy_document(K::Type{<:AbstractCell}, doc::Document, policy, depth::In
     # is a property of a cell, so a kinded copy only means something in a tree that
     # has cells; a native source therefore converts here rather than rebuilding
     # itself. A native child in a reactive shadow could never invalidate a reader.
-    base = _apply_schema_parameters(get_document_cell_type(T), T)
+    base = get_document_schema_type(T)
     Ts = _declared_value_types(base)
     # Every field of a macro-emitted cell layout is a cell slot, whatever the source
     # held; `_declared_value_types` is emitted for exactly those types, so its

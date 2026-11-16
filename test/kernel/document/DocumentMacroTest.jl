@@ -313,6 +313,24 @@ end
     @test copy_document(ReactiveCell, DmNested{Int}((3,))).box === (3,)
 end
 
+@testset "the schema type keeps the parameters of a schema and no layout" begin
+    # A concrete cell layout carries a parameter for each field after the
+    # parameters of the schema, and the schema type keeps only the first ones.
+    @test get_document_schema_type(DmParametric(3)) == DmParametric{Int}
+    @test get_document_schema_type(copy_document(ReactiveCell, DmBounded(2.0))) == DmBounded{Float64}
+    @test get_document_schema_type(DmNested{Int}((3,))) == DmNested{Int}
+    # A native layout answers the cell layout of its schema, with the parameters.
+    @test get_document_schema_type(MDmBounded(2.0)) == DmBounded{Float64}
+    # A schema with no parameter of its own answers its cell layout.
+    @test get_document_schema_type(DmRuleY(1, 2)) === DmRuleY
+    @test get_document_schema_type(MDmRuleY(1, 2)) === DmRuleY
+    # A hand-written type answers its name wrapper, and a type that is not
+    # concrete answers itself.
+    @test get_document_schema_type(DmCollection([])) === DmCollection
+    @test get_document_schema_type(DmParametric{Int}) == DmParametric{Int}
+    @test get_document_schema_type(DmParametric) === DmParametric
+end
+
 @testset "a read calls unwrap_selection for the selection field only" begin
     # The read of a field of the reactive kind gets `Any`, so a call to
     # `unwrap_selection` there dispatches at run time on every read.

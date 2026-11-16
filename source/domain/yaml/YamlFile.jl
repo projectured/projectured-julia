@@ -96,4 +96,6 @@ _push_yaml_size_fact!(facts, document) = facts
 const _YAML_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_yaml_part_note; description = "Show the path of the part")]
 
-get_document_gesture_bindings_own(::Type{<:YamlFile}) = _YAML_FILE_BINDINGS
+@gestures YamlFile begin
+    splice(_YAML_FILE_BINDINGS)
+end

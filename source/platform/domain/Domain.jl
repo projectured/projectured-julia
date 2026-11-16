@@ -412,14 +412,14 @@ _camel_words(s::AbstractString) =
 """
     get_insertion_names(T; root = Document) -> Vector{String}
 
-The names candidate `T` answers to, derived from its type name: the
-capitalized type name (`"JsonString"`), the lowercase human-readable form
+The names candidate `T` answers to, derived from the name of its schema
+([`get_document_schema_name`](@ref)): the capitalized name (`"JsonString"`), the lowercase human-readable form
 (`"json string"`), the same pair with the scope's `get_domain_prefix` stripped
 (`"String"` / `"string"` when `root = JsonDocument`), plus any
 `get_insertion_aliases`.
 """
 function get_insertion_names(T::Type; root::Type = Document)
-    base = String(nameof(T))
+    base = String(get_document_schema_name(T))
     names = String[base, _camel_words(base)]
     p = get_domain_prefix(root)
     if !isempty(p) && startswith(base, p) && length(base) > length(p)
