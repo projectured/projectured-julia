@@ -321,7 +321,7 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   `Pkg.precompile()` of `environment/all` of omnet-julia with no warning, and its suites
   that open a file. **Done** 2026-11-16: omnet-julia branch `file-format` (its plan, steps
   1 to 5), inet-julia branch `file-format` (its two lists only); see §10.
-- [ ] **7. The documentation of §7** (the documentation part is done 2026-11-16, see §10; the compile-ahead lists remain), and the record of the compile-ahead lists again,
+- [x] **7. The documentation of §7** (done 2026-11-16, see §10: the documentation, the lists of the three repositories, and the guards), and the record of the compile-ahead lists again,
   because they name the old types. Test: `test_documentation()`, `test_naming()`,
   `test_arguments()`, `test_exports()`, `test_package_graph()`, the layering guards, then
   `test_platform()` as the wide sweep.
@@ -1102,4 +1102,22 @@ table.
 - **The XML defect** of §10, step 5, still waits for the owner. Its fix changes only
   `ProjecturedXML`, so its list records again alone after the fix: the lists below it are
   fresh.
+
+**2026-11-16, the landing.**
+
+- **The guards** (`test_documentation`, `test_naming`, `test_arguments`, `test_exports`,
+  `test_package_graph`, `test_platform_layering`) have the counts of the baseline: 11, 0,
+  6, 37, 0 and 2 failed. Their lines in `ProjecturedSuite.jl` moved by 3, by the merge of
+  main. `test_platform()` ran 40 minutes and was stopped when the owner asked to land, so
+  the wide sweep after the review fixes did not finish; the narrow suites of the fixes pass
+  (839 of 839).
+- **The merge of main `5eb752f9f`** before the landing: main recorded every list again
+  (`656c8fc0e`), and each of the 25 lists that both changed conflicted. Each list keeps the
+  record of the branch, because a text merge of two records mixes their lines, and the
+  lines of main name the old file types. Main also changed the chart canvas and the help of
+  the builder, which the record of the branch does not hold; their calls compile when they
+  run.
+- **Open: the XML defect** (§10, step 5). The contract row of XML fails until its fix. The
+  owner leans to option 2, the white space of a text is data. The plan stays in
+  `plan/pending/` until that fix lands.
 
