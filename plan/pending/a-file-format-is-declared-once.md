@@ -1019,3 +1019,12 @@ table.
   table on `GestureProbeTagged{Int}` applies to that type only), `FileFormatTest` (the
   schema type and name of `File{TallyLogFileFormat}`), `ExplorerTest` (two formats are two
   kinds).
+- **The runs** (`/var/tmp/projectured-julia-file-format-depot/schema`): `test_kernel()` 5192
+  passed, 2 broken, none failed; the narrow tests above, the note tests of the JSON, XML and
+  YAML files, `test_serialization()` and `test_explorer()` pass; the naming, export,
+  documentation and argument guards fail on the same lines as the baseline.
+  `test_platform()` (14G, as the baseline) has the failing lines of the baseline: 107
+  failed and 66 errors, against 108 and 66. The line of `ExplorerTest.jl` moved by the new
+  test, and `TaskVerbsTest.jl:102`, which reads a process number and an elapsed time,
+  passed this time. `bounded-run log` gives only a part of a long log, so the compare
+  reads the log file.
