@@ -86,15 +86,15 @@ function _fault_line(p::FaultLogToSyntax, entry::FaultLogEntry)
     ])
 end
 
-# ── Natural-projection registration ─────────────────────────────────────────
+# ── The natural notation ────────────────────────────────────────────────────
 # The notation of a fault log, which lets a tab draw it and `print_natural_text`
-# print it. The factory form, so every renderer builds its own projection instance.
+# print it. Each call builds a projection, so every renderer has its own.
+make_syntax_projection(::Type{<:FaultLog}; appearance) =
+    make_fault_log_projection(; theme = get_scaled_theme!(appearance, FaultTheme))
 
 # A fault log is not saved to a file, so it registers no `.pred` schema. It is
 # runtime state that a person reads and then fixes what it points at.
 function __init__()
-    register_natural_notation!(FaultLog, :syntax, (; appearance) ->
-        make_fault_log_projection(; theme = get_scaled_theme!(appearance, FaultTheme)))
     # The lines of the fault log of the session, as a source of a roster.
     register_roster_source!(:faults, link -> CollectionItems(get_session_fault_log().entries);
                             description = "the lines of the fault log of the session: site, origin, message, count")

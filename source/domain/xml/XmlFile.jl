@@ -53,6 +53,7 @@ make_reference_leaf(::XmlFileFormat, marker::AbstractString) =
     XmlElement(PRED_REF_ELEMENT_TAG, XmlAttribute[], [XmlText(make_marker_text(marker))])
 get_file_type(::XmlFileFormat) = XmlFile
 get_file_format(::XmlFile) = XmlFileFormat()
+find_natural_file_format(::XmlDocument) = XmlFileFormat()
 
 # A `pred:ref` element with a single text child is a marker.
 function _is_marker_element(node::XmlElement)

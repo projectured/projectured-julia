@@ -37,9 +37,9 @@ end
 
 Write `document`'s natural text (see [`print_natural_text`](@ref)) to `path`. The
 projection is chosen by the document's type, so the content is always correct for
-the document. The guard rejects an extension whose registered parser is not the
-parser of the document's own format, because a later `import_document` would read
-the text with the wrong grammar. An extension with no parser passes, and so does a
+the document. The guard rejects an extension of a natural format that is not the
+format of the document, because a later `import_document` would read the text
+with the wrong grammar. An extension of no natural format passes, and so does a
 second name of the same format: a YAML document can go to `.yaml` or `.yml`.
 
 Use it to write a document as the natural text of its format.
@@ -56,11 +56,12 @@ For the assistant.
 function export_document end
 
 function export_document(document::Document, path::AbstractString)
-    ext    = lowercase(splitext(path)[2])
-    parser = find_natural_parser(_ext_symbol(ext))
-    format = get_natural_format(typeof(document))
-    (parser === nothing || (format !== nothing && parser === find_natural_parser(format))) ||
-        error("export_document: $(typeof(document)) exports as $(get_natural_extension(document)), not $ext")
+    ext       = lowercase(splitext(path)[2])
+    named     = has_natural_parser(_ext_symbol(ext)) ? find_file_format(_ext_symbol(ext)) : nothing
+    natural   = find_natural_file_format(document)
+    extension = natural === nothing ? nothing : first(get_file_format_extensions(natural))
+    (named === nothing || named === natural) ||
+        error("export_document: $(typeof(document)) exports as $extension, not $ext")
     write(path, print_natural_text(document))
     path
 end

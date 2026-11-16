@@ -91,13 +91,13 @@ function _line(p::MessageLogToSyntax, entry::MessageLogEntry)
     ])
 end
 
-# ── Natural-projection registration ─────────────────────────────────────────
+# ── The natural notation ────────────────────────────────────────────────────
 # The notation of a message log, which lets a tab draw it and `print_natural_text`
-# print it. The factory form, so every renderer builds its own projection instance.
+# print it. Each call builds a projection, so every renderer has its own.
+make_syntax_projection(::Type{<:MessageLog}; appearance) =
+    make_message_log_projection(; theme = get_scaled_theme!(appearance, MessageLogTheme))
 
 function __init__()
-    register_natural_notation!(MessageLog, :syntax, (; appearance) ->
-        make_message_log_projection(; theme = get_scaled_theme!(appearance, MessageLogTheme)))
     # The lines of the message log of the session, as a source of a roster.
     register_roster_source!(:log, link -> CollectionItems(get_session_message_log().entries);
                             description = "the lines of the message log of the session: level, message")

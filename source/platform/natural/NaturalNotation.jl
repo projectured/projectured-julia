@@ -1,227 +1,137 @@
-# Fragment of `NaturalModule` — the natural notation of a domain: the three
-# rungs a document can be rendered at, and the registry that says which
-# projection each domain builds for each rung.
+# Fragment of `NaturalModule` — the natural notation of a document: the
+# projection of a type of document to syntax, the format that writes a document,
+# the `Expr` that runs it, and the fixed steps from syntax up to text, graphics
+# and a string.
 
-const RUNGS = (:syntax, :text, :graphics)
+# ── What a domain declares ──────────────────────────────────────────────────
 
-# What a domain can produce by itself: `Type => [(rung, make), …]`. A `make` for
-# `:graphics` takes `(; measure, appearance)`; the others take `(; appearance)`.
-const _NOTATIONS = Pair{Type,Vector{Tuple{Symbol,Any}}}[]
-# `Type => (format, extension)`.
-const _FORMATS = Pair{Type,Tuple{Symbol,String}}[]
-# `format => parse(text) -> Document`.
-const _PARSERS = Pair{Symbol,Any}[]
-# `format => make(document) -> Expr`.
-const _EXPRESSIONS = Pair{Symbol,Any}[]
-# `(from, to) => make(; measure, appearance) -> Projection`.
-const _LADDER = Pair{Tuple{Symbol,Symbol},Any}[]
+"""
+    make_syntax_projection(type::Type; appearance::Appearance) -> Projection
+    make_syntax_projection(format::FileFormat; appearance::Appearance) -> Projection
 
-_lookup(table, key) = for entry in table
-    first(entry) === key && return last(entry)
+The projection of the documents of `type` to syntax: the natural notation of
+the type, which [`make_natural_projection`](@ref) takes up to text, graphics or
+a string. `appearance` is the `Appearance` of the editor, from which the
+projection takes the scaled theme of its domain. A package that owns a type of
+document adds a method for it, usually for the root of its domain:
+
+    make_syntax_projection(::Type{<:YamlDocument}; appearance) =
+        YamlToSyntax(; theme = get_scaled_theme!(appearance, YamlTheme),
+                     syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
+
+The method for a format gives the notation of the domain of the format
+([`get_file_format_domain`](@ref)). A second format of a domain, whose string is
+another syntax, declares a method of its own. This module has no method for a
+type, so a caller that is not sure asks `hasmethod` first.
+"""
+function make_syntax_projection end
+
+make_syntax_projection(format::FileFormat; appearance::Appearance) =
+    make_syntax_projection(get_file_format_domain(format); appearance)
+
+"""
+    make_syntax_to_text_projection(; appearance::Appearance) -> Projection
+
+The projection that prints a syntax tree as text: the step of the ladder from
+`:syntax` to `:text`. This module declares the function with no method; the
+package that defines the syntax tree adds the one method, because this module
+must not name it.
+"""
+function make_syntax_to_text_projection end
+
+"""
+    find_natural_file_format(document) -> FileFormat or nothing
+
+The format that writes `document` when nobody names one: the format of its
+domain, such as `YamlFileFormat()` for a `YamlDocument`, or `nothing` for a
+document that no format writes, such as a fault log. A domain adds a method for
+its documents:
+
+    find_natural_file_format(::YamlDocument) = YamlFileFormat()
+
+# Example
+
+    find_natural_file_format(parse_natural_text(:yml, "a: 1"))   # YamlFileFormat()
+"""
+find_natural_file_format(document) = nothing
+
+"""
+    make_document_expression(document) -> Expr
+
+The `Expr` that runs `document`, in the shape that `Meta.parseall` gives. A
+domain whose documents are code adds a method for them, as the Julia domain does.
+Any other document runs as its own value, `Expr(:toplevel, QuoteNode(document))`,
+so the evaluation uses that very object and never a copy of it.
+"""
+make_document_expression(document) = Expr(:toplevel, QuoteNode(document))
+
+# ── Reading the seams ───────────────────────────────────────────────────────
+
+# Whether the documents of `type`, or of the domain of `format`, have a syntax
+# notation. `Union{}` is the domain of a format whose string is no document.
+_has_syntax_projection(type::Type) =
+    type !== Union{} && hasmethod(make_syntax_projection, Tuple{Type{type}})
+_has_syntax_projection(format::FileFormat) = _has_syntax_projection(get_file_format_domain(format))
+
+# Whether the natural text reads and writes the documents of `format`: the format
+# parses a string, and its documents have a syntax notation.
+_is_natural_format(format::FileFormat) =
+    hasmethod(parse_document_string, Tuple{typeof(format), String}) && _has_syntax_projection(format)
+
+# The format that `parse_natural_text` reads for `name`, or `nothing`.
+function _find_natural_format(name::Symbol)
+    format = find_file_format(name)
+    format !== nothing && _is_natural_format(format) ? format : nothing
 end
 
-# ── Registration ────────────────────────────────────────────────────────────
-
-"""
-    register_natural_notation!(T::Type, rung::Symbol, make) -> nothing
-
-Teach the natural machinery what `T` produces by itself. `rung` is `:syntax`,
-`:text` or `:graphics`; `make` builds the projection — `make(; appearance)` for
-the first two, `make(; measure, appearance)` for `:graphics`, which draws and so
-needs the backend's text measurement. `appearance` is the `Appearance` of the
-editor, from which a projection takes the scaled theme of its domain.
-
-Call it from the registering module's `__init__`: the tables are runtime state,
-not something to bake into a precompiled image. A `(type, rung)` registered twice
-keeps the first, so a reload does not stack duplicates.
-
-A type may register more than one rung. Markdown is written as syntax and drawn
-as a page, and both are true.
-"""
-function register_natural_notation!(T::Type, rung::Symbol, make)
-    rung in RUNGS || error("register_natural_notation!: $(repr(rung)) is not one of $RUNGS")
-    rows = _lookup(_NOTATIONS, T)
-    if rows === nothing
-        push!(_NOTATIONS, T => Tuple{Symbol,Any}[(rung, make)])
-    elseif !any(r -> first(r) === rung, rows)
-        push!(rows, (rung, make))
+# The types that have a method of `make_syntax_projection`, read from its method
+# table, each before its supertypes. For a method of a set of types, `Type{<:T}`,
+# the type is `T`.
+function _collect_syntax_projection_types()
+    types = Type[]
+    for method in methods(make_syntax_projection)
+        signature = Base.unwrap_unionall(method.sig)
+        length(signature.parameters) == 2 || continue
+        argument = Base.unwrap_unionall(signature.parameters[2])
+        (argument isa DataType && argument.name === Type.body.name) || continue
+        type = argument.parameters[1]
+        type isa TypeVar && (type = type.ub)
+        type isa Type && type !== Any && !(type in types) && push!(types, type)
     end
-    nothing
+    sort!(types; by = type -> (-_count_supertypes(type), string(type)))
 end
 
-"""
-    register_natural_format!(T::Type, format::Symbol, extension::AbstractString) -> nothing
-
-Name the format `T` is written in, and the file extension that names it back:
-`:json` and `".json"`. The format key is what [`parse_natural_text`](@ref) takes,
-so this is the seam that turns a type into a parser.
-"""
-function register_natural_format!(T::Type, format::Symbol, extension::AbstractString)
-    _lookup(_FORMATS, T) === nothing || return nothing
-    push!(_FORMATS, T => (format, String(extension)))
-    nothing
-end
-
-"""
-    register_natural_parser!(format::Symbol, parse) -> nothing
-
-Teach the machinery how to read text of `format` back into a document.
-`parse(text) -> Document`.
-
-It is keyed by the format and not by a type, so the package that owns a grammar
-can fill this seam without owning the projection that prints it.
-"""
-function register_natural_parser!(format::Symbol, parse)
-    _lookup(_PARSERS, format) === nothing || return nothing
-    push!(_PARSERS, format => parse)
-    nothing
-end
-
-"""
-    register_natural_expression!(format::Symbol, make) -> nothing
-
-Teach the machinery how to turn a document of `format` into the `Expr` that runs
-it. `make(document) -> Expr`. Only a format that is code has one.
-
-It is keyed by the format, as the parser is, so a package that runs code, such
-as an evaluator, reaches the domain that owns the grammar without depending on
-it.
-"""
-function register_natural_expression!(format::Symbol, make)
-    _lookup(_EXPRESSIONS, format) === nothing || return nothing
-    push!(_EXPRESSIONS, format => make)
-    nothing
-end
-
-"""
-    register_natural_rung!(from::Symbol, to::Symbol, make) -> nothing
-
-Teach the machinery one step of the ladder: `make(; measure, appearance) ->
-Projection` turns a `from` document into a `to` one. This package registers `text → graphics` and
-`text → string` itself; `syntax → text` belongs to whoever can supply it, and no
-domain ever registers a rung.
-"""
-function register_natural_rung!(from::Symbol, to::Symbol, make)
-    _lookup(_LADDER, (from, to)) === nothing || return nothing
-    push!(_LADDER, (from, to) => make)
-    nothing
-end
-
-"""
-    register_natural_domain!(T::Type; rung, make, format, extension, parse, expression) -> nothing
-
-Everything a domain declares about its natural notation, in one call. Every
-keyword is optional, so a domain that only parses, or only draws, still says so
-once. It is the registrations above; use those directly for a second rung.
-"""
-function register_natural_domain!(T::Type; rung = nothing, make = nothing,
-                                  format = nothing, extension = nothing,
-                                  parse = nothing, expression = nothing)
-    (rung === nothing) == (make === nothing) ||
-        error("register_natural_domain!: name `rung` and `make` together")
-    (format === nothing) == (extension === nothing) ||
-        error("register_natural_domain!: name `format` and `extension` together")
-    rung === nothing || register_natural_notation!(T, rung, make)
-    format === nothing || register_natural_format!(T, format, extension)
-    if parse !== nothing
-        format === nothing &&
-            error("register_natural_domain!: a parser needs the `format` it reads")
-        register_natural_parser!(format, parse)
+# How far `type` is below `Any`; a `Union` counts as `Any`.
+function _count_supertypes(type::Type)
+    count = 0
+    while type isa DataType && type !== Any
+        type = supertype(type)
+        count += 1
     end
-    if expression !== nothing
-        format === nothing &&
-            error("register_natural_domain!: an expression needs the `format` it runs")
-        register_natural_expression!(format, expression)
-    end
-    nothing
-end
-
-# ── Reading the tables ──────────────────────────────────────────────────────
-
-# The entry of a type-keyed table whose type is the most derived one that `T` is
-# a subtype of, whatever the order of the registrations, or `nothing`. A
-# registration on an abstract root answers for every document under it, and a
-# registration on a subtype answers for that subtype.
-function _find_most_derived_entry(table, T::Type)
-    found = nothing
-    for entry in table
-        T <: first(entry) || continue
-        (found === nothing || first(entry) <: first(found)) && (found = entry)
-    end
-    found
-end
-
-# The rows that the most derived registered type declared.
-function _notations(T::Type)
-    entry = _find_most_derived_entry(_NOTATIONS, T)
-    entry === nothing ? Tuple{Symbol,Any}[] : last(entry)
-end
-
-_notation(T::Type, rung::Symbol) =
-    for row in _notations(T)
-        first(row) === rung && return last(row)
-    end
-
-_build(make, rung::Symbol, measure, appearance::Appearance) =
-    rung === :graphics ? make(; measure = measure, appearance = appearance) :
-                         make(; appearance = appearance)
-
-"""
-    get_natural_entries(rung::Symbol; measure = nothing, appearance) -> Vector{Pair{Type,Any}}
-
-Every registered row for one rung, built now with the `Appearance` of the
-editor, as the type-keyed pairs a dispatching projection is spliced from.
-"""
-function get_natural_entries(rung::Symbol; measure = nothing, appearance::Appearance)
-    out = Pair{Type,Any}[]
-    for entry in _NOTATIONS
-        for row in last(entry)
-            first(row) === rung || continue
-            push!(out, Pair{Type,Any}(first(entry), _build(last(row), rung, measure, appearance)))
-        end
-    end
-    out
+    count
 end
 
 """
-    get_natural_format(::Type) -> Symbol | Nothing
+    get_natural_entries(; appearance) -> Vector{Pair{Type,Any}}
 
-The format key a type's documents are written in — `JsonDocument` → `:json`.
-`nothing` for a type no domain claimed. It is what turns a **type** into the key
-[`parse_natural_text`](@ref) takes, which a caller holding only a type — the
-insertion a person is typing into — has no instance to ask for.
+A row for each type that has a method of [`make_syntax_projection`](@ref), built
+now with the `Appearance` of the editor, as the type-keyed pairs a dispatching
+projection is spliced from. A type comes before each of its supertypes.
 """
-function get_natural_format(T::Type)
-    entry = _find_most_derived_entry(_FORMATS, T)
-    entry === nothing ? nothing : first(last(entry))
-end
-
-"""
-    get_natural_extension(document) -> String | Nothing
-
-The file extension `document` is written as, `".json"`. `nothing` for a document
-no domain claimed.
-"""
-function get_natural_extension(document)
-    entry = _find_most_derived_entry(_FORMATS, typeof(document))
-    entry === nothing ? nothing : last(last(entry))
-end
+get_natural_entries(; appearance::Appearance) =
+    Pair{Type,Any}[type => Base.invokelatest(make_syntax_projection, type; appearance)
+                   for type in _collect_syntax_projection_types()]
 
 """
     has_natural_parser(format::Symbol) -> Bool
 
-Whether a domain registered how to read `format` back.
+Whether [`parse_natural_text`](@ref) reads `format`: a file format of the session
+has the extension that `format` names without its dot, it parses a string, and
+its documents have a syntax notation. `:yaml` and `:yml` name one format.
 """
-has_natural_parser(format::Symbol) = _lookup(_PARSERS, format) !== nothing
+has_natural_parser(format::Symbol) = _find_natural_format(format) !== nothing
 
-"""
-    find_natural_parser(format::Symbol) -> Function | Nothing
-
-The `parse(text) -> Document` registered for `format`, or `nothing` when no
-domain registered one. Two formats that return the same function are one grammar
-under two names, as `:yaml` and `:yml` are.
-"""
-find_natural_parser(format::Symbol) = _lookup(_PARSERS, format)
+# ── The three functions of the assistant ────────────────────────────────────
 
 """
     parse_natural_text(format::Symbol, text) -> Document
@@ -249,10 +159,10 @@ For the assistant.
 function parse_natural_text end
 
 function parse_natural_text(format::Symbol, text::AbstractString)
-    parse = _lookup(_PARSERS, format)
-    parse === nothing &&
-        error("parse_natural_text: no parser registered for $(repr(format))")
-    parse(text)
+    file_format = _find_natural_format(format)
+    file_format === nothing &&
+        error("parse_natural_text: no file format of the session reads $(repr(format)) as natural text")
+    parse_document_string(file_format, text)
 end
 
 """
@@ -278,9 +188,13 @@ function describe_natural_formats end
 
 function describe_natural_formats()
     lines = String[]
-    for (T, (format, extension)) in _FORMATS
-        has_natural_parser(format) || continue
-        push!(lines, rpad(repr(format), 8) * rpad(extension, 10) * String(nameof(T)))
+    for format in collect_file_formats()
+        extensions = get_file_format_extensions(format)
+        (isempty(extensions) || isempty(first(extensions)) || !_is_natural_format(format)) && continue
+        extension = first(extensions)
+        name = Symbol(SubString(extension, 2))
+        push!(lines, rpad(repr(name), 8) * rpad(extension, 10) *
+                     String(nameof(get_file_format_domain(format))))
     end
     join(sort(lines), "\n")
 end
@@ -289,7 +203,7 @@ end
     make_prose_document(text) -> Document
 
 The document of a run of prose, `text` in Markdown: the document that the
-Markdown parser reads from it when a domain registered one for `:md`, and else,
+Markdown parser reads from it when a format of the session reads `:md`, and else,
 or when the parse fails, a text block of `text` as it is written.
 """
 function make_prose_document(text::AbstractString)
@@ -301,47 +215,35 @@ function make_prose_document(text::AbstractString)
     end
 end
 
-"""
-    has_natural_expression(format::Symbol) -> Bool
-
-Whether a domain registered how to turn a document of `format` into an `Expr`.
-"""
-has_natural_expression(format::Symbol) = _lookup(_EXPRESSIONS, format) !== nothing
-
-"""
-    make_natural_expression(format::Symbol, document) -> Expr
-
-The `Expr` that runs `document`, a document of `format`. Errors when no domain
-registered one; ask [`has_natural_expression`](@ref) first when that is a normal
-answer.
-"""
-function make_natural_expression(format::Symbol, document)
-    make = _lookup(_EXPRESSIONS, format)
-    make === nothing &&
-        error("make_natural_expression: no expression registered for $(repr(format))")
-    make(document)
-end
-
 # ── The ladder ──────────────────────────────────────────────────────────────
 
-# The stages from `rung` up to `target`, or `nothing` when a step is missing.
-function _climb(rung::Symbol, target::Symbol, measure, appearance::Appearance)
-    stages = Any[]
-    while rung !== target
-        make = _lookup(_LADDER, (rung, _next(rung, target)))
-        make === nothing && return nothing
-        push!(stages, make(; measure = measure, appearance = appearance))
-        rung = _next(rung, target)
+# The fixed steps of the ladder from `rung` up to `target`: a syntax tree to text,
+# then text to graphics or to a string. `nothing` when the ladder has no such path.
+function _make_natural_steps(rung::Symbol, target::Symbol, measure, appearance::Appearance)
+    rung === target && return Any[]
+    steps = Any[]
+    if rung === :syntax
+        hasmethod(make_syntax_to_text_projection, Tuple{}) || return nothing
+        push!(steps, make_syntax_to_text_projection(; appearance))
+        target === :text && return steps
+    elseif rung !== :text
+        return nothing
     end
-    stages
+    target === :string && return push!(steps, TextToString())
+    target === :graphics &&
+        return push!(steps, TextToGraphics(; measure, theme = get_scaled_theme!(appearance, TextTheme)))
+    nothing
 end
 
-# The rung after `rung` on the way to `target`. `:string` hangs off `:text`.
-function _next(rung::Symbol, target::Symbol)
-    target === :string && rung === :text && return :string
-    rung === :syntax && return :text
-    rung === :text && return :graphics
-    rung
+# The chain from `stage`, which prints a document at `rung`, up to `target`, or
+# `nothing` when the ladder has no such path. The first stage prints the
+# document, so it puts what a person arranged at its places; the stages after it
+# print what the first one made.
+function _make_natural_chain(stage, rung::Symbol, target::Symbol, measure, appearance::Appearance)
+    steps = _make_natural_steps(rung, target, measure, appearance)
+    steps === nothing && return nothing
+    ChainingProjection(RecursiveProjection(make_arranged_dispatch(stage)),
+                       (RecursiveProjection(step) for step in steps)...)
 end
 
 """
@@ -351,37 +253,45 @@ end
 The projection that takes `document` up to `target` — `:syntax`, `:text`,
 `:graphics` or `:string` — or `nothing` when the ladder has no path.
 
-It picks the highest rung the document itself declares, so a domain that draws
-itself is drawn by its own stage rather than through the syntax tail, and then
-chains the registered steps above it. A `:graphics` target needs `measure`.
-Each stage takes its scaled theme from `appearance`; the default is a new
-`Appearance`, which no tab edits.
+A `TextDocument` starts at the text rung. Any other document starts at the
+syntax rung, with the projection of its type
+([`make_syntax_projection`](@ref)), and a type with none has no path. The fixed
+steps above the rung follow it. A `:graphics` target needs `measure`. Each stage
+takes its scaled theme from `appearance`; the default is a new `Appearance`,
+which no tab edits.
 """
 function make_natural_projection(document, target::Symbol; measure = nothing,
                                  appearance::Appearance = Appearance())
-    rows = _notations(typeof(document))
-    isempty(rows) && return nothing
-    best = nothing
-    for rung in (:graphics, :text, :syntax)
-        rung === :graphics && target !== :graphics && continue
-        make = _notation(typeof(document), rung)
-        make === nothing && continue
-        stages = target === rung ? Any[] : _climb(rung, target, measure, appearance)
-        stages === nothing && continue
-        # The first stage prints the document, so it puts what a person arranged
-        # at its places; the stages after it print what the first one made.
-        best = ChainingProjection(RecursiveProjection(make_arranged_dispatch(_build(make, rung, measure, appearance))),
-                                  (RecursiveProjection(s) for s in stages)...)
-        break
-    end
-    best
+    document isa TextDocument &&
+        return _make_natural_chain(IdentityProjection(), :text, target, measure, appearance)
+    type = typeof(document)
+    _has_syntax_projection(type) || return nothing
+    _make_natural_chain(make_syntax_projection(type; appearance), :syntax, target, measure, appearance)
+end
+
+"""
+    make_document_string(format::FileFormat, document) -> String
+
+The string of `document` in a format whose string is the print of a syntax tree:
+the document in the syntax notation of `format` ([`make_syntax_projection`](@ref)),
+then as text, then as a string. A format whose string is something else declares
+a method of its own.
+"""
+function make_document_string(format::FileFormat, document)
+    _has_syntax_projection(format) ||
+        error("make_document_string: the documents of $(nameof(typeof(format))) have no syntax notation")
+    appearance = Appearance()
+    chain = _make_natural_chain(make_syntax_projection(format; appearance), :syntax, :string,
+                                nothing, appearance)
+    chain === nothing && error("make_document_string: no step of the ladder prints a syntax tree as text")
+    String(print_document(chain, document).output)
 end
 
 """
     print_natural_text(document) -> String
 
-`document` as its own text: the domain's notation, then the registered steps up
-to a string, run through `print_document` and flattened.
+`document` as its own text: the domain's notation, then the steps of the ladder
+up to a string, run through `print_document` and flattened.
 
 **A shorthand, not a seam.** It is `make_natural_projection(document, :string)`,
 `print_document`, and a `String`. A caller that wants the io map, or a different

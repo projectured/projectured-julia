@@ -69,8 +69,8 @@ const _FIRST_WINDOW_PACKAGES = ("ProjecturedPlatform", "ProjecturedDataFrames", 
     _has_natural_rows(name) -> Bool
 
 Whether the slice of the package `name` calls a `register_natural_…!` function
-or defines a method of `make_graphics_projection` for a type, so that every
-first window builds rows of it. Such a package compiles them in the workload of
+or defines a method of `make_graphics_projection` or of `make_syntax_projection`
+for a type, so that every first window builds rows of it. Such a package compiles them in the workload of
 the `@compile_ahead` of its entry file, by the rules of `package-rules.md`.
 """
 function _has_natural_rows(name)
@@ -80,7 +80,7 @@ function _has_natural_rows(name)
         endswith(file, ".jl") || continue
         text = read(joinpath(root, file), String)
         (occursin(r"(?m)^[^#\n]*\bregister_natural_\w+!\(", text) ||
-         occursin(r"(?m)^make_graphics_projection\(::Type\{", text)) && return true
+         occursin(r"(?m)^make_(graphics|syntax)_projection\(::Type\{", text)) && return true
     end
     false
 end

@@ -677,12 +677,18 @@ function MathToSyntax(; theme = nothing, syntax_theme = nothing)
     )
 end
 
+# ── What this domain's natural notation is ──────────────────────────────────
+# The linear form, which a file and the tools write.
+make_syntax_projection(::Type{<:MathDocument}; appearance) =
+    MathToSyntax(; theme = get_scaled_theme!(appearance, MathTheme),
+                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
+
 # ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
+# The rows that teach the render-anything projection what this domain is. The
 # factory form, so every renderer builds its own projection instance.
 
-# One module, one `__init__`. The slice registers its natural-notation seams
-# here, the format its reader reads, and the file extension it owns.
+# One module, one `__init__`. The slice registers its rows here, and the file
+# extension it owns.
 function __init__()
     register_natural_syntax!(:math, (; appearance) -> Pair{Type,Any}[MathDocument => MathToSyntax(;
         theme = get_scaled_theme!(appearance, MathTheme),
@@ -690,10 +696,5 @@ function __init__()
     register_natural_graphics!(:math, (; measure, appearance) ->
         make_math_to_graphics_dispatch(measure = measure,
                                        theme = get_scaled_theme!(appearance, MathTheme)))
-    register_natural_domain!(MathDocument; rung = :syntax,
-                             make = (; appearance) -> MathToSyntax(;
-                                 theme = get_scaled_theme!(appearance, MathTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format = :math, extension = ".math", parse = parse_math)
     register_file_document_type!(".math", MathFile)
 end

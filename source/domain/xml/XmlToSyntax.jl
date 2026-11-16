@@ -158,6 +158,6 @@ end
 make_document_seed(::Val{:xml}) = XmlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
-# One statement: the rung it starts at and how to build it, the format it is
-# written in, the extension that names the format back, and how to read that text
-# in again. Runtime state, so `__init__` rather than a top-level call.
+make_syntax_projection(::Type{<:XmlDocument}; appearance) =
+    XmlToSyntax(; theme = get_scaled_theme!(appearance, XmlTheme),
+                syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))

@@ -53,6 +53,7 @@ make_reference_leaf(::RstFileFormat, marker::AbstractString) =
     RstDirective(PRED_REF_DIRECTIVE, make_marker_text(marker))
 get_file_type(::RstFileFormat) = RstFile
 get_file_format(::RstFile) = RstFileFormat()
+find_natural_file_format(::RstDocument) = RstFileFormat()
 
 # ── Addressing a section by its title ─────────────────────────────────────────
 

@@ -81,8 +81,8 @@ end
 # are not failures.
 function _round_trip_eligible(atom)
     try
-        format = get_natural_format(typeof(atom.make_document()))
-        format !== nothing && has_natural_parser(format)
+        format = find_natural_file_format(atom.make_document())
+        format !== nothing && hasmethod(parse_document_string, Tuple{typeof(format), String})
     catch
         false
     end
@@ -119,9 +119,10 @@ _round_trip_name(atom) = string(atom.domain) * "/" * atom.name
 function _round_trips(atom)
     try
         document = atom.make_document()
-        format = get_natural_format(typeof(document))
-        (format !== nothing && has_natural_parser(format)) || return false
-        parse_natural_text(format, print_natural_text(document))
+        format = find_natural_file_format(document)
+        (format !== nothing && hasmethod(parse_document_string, Tuple{typeof(format), String})) ||
+            return false
+        parse_document_string(format, print_natural_text(document))
         true
     catch
         false

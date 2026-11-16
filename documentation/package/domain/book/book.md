@@ -49,7 +49,7 @@ follows its scales, and the appearance tab shows a section for `BookTheme`.
 
 `ProjecturedBook` depends on the kernel and the platform. It uses the syntax, text, graphics and natural slices, but not the serialization or file-format slices. No other package depends on it.
 
-Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the row `BookDocument => BookToSyntax()`. So the general renderer draws a book in a tab. The domain makes no `register_natural_domain!` call, so no format name, no file extension and no parser exist for it.
+Its `__init__` makes one call: `register_natural_syntax!(:book, …)`, with the row `BookDocument => BookToSyntax()`. So the general renderer draws a book in a tab. The domain declares no method of `make_syntax_projection` and no file format, so no format name, no file extension and no parser exist for it.
 
 ## Design decisions
 

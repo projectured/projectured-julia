@@ -105,11 +105,11 @@ follows its scales, and the appearance tab shows a section for `RstTheme`.
 
 `ProjecturedRST` depends on the kernel and the platform, using the layout and widget slices for the page and the embed cards. Unlike other domains, it does not use the domain slice's `@domain` machinery, and no other domain depends on it.
 
-Its `__init__` makes four calls:
+It declares one method, and its `__init__` makes three calls:
 
-| Call | What it gives |
+| Method or call | What it gives |
 | --- | --- |
-| `register_natural_domain!(RstDocument; rung = :syntax, make = () -> RstToSyntax(), format = :rst, …)` | the source form for files, text export and the tools |
+| `make_syntax_projection(::Type{<:RstDocument}; appearance)`, with `RstToSyntax` | the source form for files, text export and the tools |
 | `register_natural_syntax!(:rst, …)` | the `:rendered` syntax for the general renderer |
 | `register_natural_graphics!(:rst_page, …)` | an `RstRoot` and an `RstSection` drawn as a stack of blocks |
 | `register_file_document_type!(".rst", RstFile)` | the file type |

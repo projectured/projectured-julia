@@ -123,7 +123,8 @@ window, and gives it the gestures of a first look.
 Every first window builds the natural table of the display, with the rows of
 each domain that the session has loaded, also when it shows no document of that
 domain. A slice has natural rows when it calls a `register_natural_…!`
-function or defines a method of `make_graphics_projection` for a type. So the
+function or defines a method of `make_graphics_projection` or of
+`make_syntax_projection` for a type. So the
 workload of a package whose slice has natural rows calls
 `run_natural_rows_workload(<Domain>Module)`.
 
@@ -257,7 +258,7 @@ guard of the platform checks every edge below against the code.
 | `clipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
 | `pane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Screen, Serialization, Style, Widget | — |
 | `tooltip` | Screen | — |
-| `natural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
+| `natural` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Text, Widget | — |
 | `syntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |
 | `inspector` | Domain, Natural, Projection, Screen, Serialization, Style, Text | — |
 | `gesturehelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |

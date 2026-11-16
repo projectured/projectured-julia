@@ -56,13 +56,11 @@ A YAML file says what the pointer is on: the path of the part, as `users[1].name
 
 ## How it fits
 
-`ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. Its `__init__` registers:
+`ProjecturedYAML` depends on the engine and on the platform. No other domain depends on it. It declares:
 
-- the natural notation, with the format `:yaml`, the extension `.yaml` and the parser `parse_yaml`;
-- a second parser name, `register_natural_parser!(:yml, parse_yaml)`, so a Markdown fence tagged `yml` also parses;
-- `YamlFile` for both `.yaml` and `.yml`.
-
-The registration is at the end of `source/domain/yaml/YamlToSyntax.jl`, not in the module file.
+- the natural notation, a method of `make_syntax_projection`, at the end of `source/domain/yaml/YamlToSyntax.jl`;
+- the format `YamlFileFormat` in `YamlFile.jl`, with the extensions `.yaml` and `.yml` and the parser `parse_yaml`, so a Markdown fence tagged `yml` also parses;
+- in its `__init__`, at the end of `YamlToSyntax.jl` and not in the module file, `YamlFile` for both `.yaml` and `.yml`.
 
 ## Design decisions
 

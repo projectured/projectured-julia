@@ -33,6 +33,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_json, parse_json_file
@@ -48,19 +49,9 @@ include("JsonToSyntax.jl")
 include("JsonFile.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, the
-# natural notation it reads and writes, which is also how a model reads and writes
-# a JSON document, and the sentence that tells a model so.
+# What this slice registers when it loads: the file extension it owns, and the
+# sentence that tells a model what a JSON document is.
 function __init__()
-    register_natural_domain!(JsonDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> JsonToSyntax(;
-                                 theme = get_scaled_theme!(appearance, JsonTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format    = :json,
-                             extension = ".json",
-                             parse     = parse_json)
-
     register_file_document_type!(".json", JsonFile)
 
     # A JSON document is written as its text, so the domain offers no name to a

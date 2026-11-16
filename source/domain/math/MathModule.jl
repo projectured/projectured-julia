@@ -21,6 +21,7 @@ import ..SerializationModule: get_file_domain, is_file_domain_node, parse_file_c
                               emit_text, get_file_format_extensions,
                               get_file_format_domain, parse_document_string,
                               get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 using ..KernelModule
 using ..PlatformModule
 

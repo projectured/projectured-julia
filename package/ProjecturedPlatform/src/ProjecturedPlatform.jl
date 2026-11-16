@@ -91,17 +91,8 @@ for _n in names(PlatformModule)
     _n === :PlatformModule || Core.eval(@__MODULE__, Expr(:export, _n))
 end
 
-# The rungs of the natural notation that the text gives, and the fallback of the
-# syntax.
+# The fallback of the syntax.
 function __init__()
-    NaturalModule.register_natural_rung!(:text, :graphics,
-        (; measure, appearance) -> TextModule.TextToGraphics(;
-            measure, theme = StyleModule.get_scaled_theme!(appearance, TextModule.TextTheme)))
-    NaturalModule.register_natural_rung!(:text, :string,
-        (; measure, appearance) -> TextModule.TextToString())
-    NaturalModule.register_natural_notation!(
-        TextModule.TextDocument, :text,
-        (; appearance) -> ProjectionAlgebraModule.IdentityProjection())
     SyntaxModule.register_syntax_fallback!()
     nothing
 end

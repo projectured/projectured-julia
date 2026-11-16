@@ -92,11 +92,8 @@ end
 _cut_text(text::AbstractString, width::Integer) =
     length(text) <= width ? String(text) : string(first(text, max(0, width - 1)), "…")
 
-# ── Natural-projection registration ─────────────────────────────────────────
+# ── The natural notation ────────────────────────────────────────────────────
 # The notation of a gesture log, which lets a tab draw it and `print_natural_text`
-# print it. The factory form, so every renderer builds its own projection instance.
-
-function __init__()
-    register_natural_notation!(GestureLog, :syntax, (; appearance) ->
-        make_gesture_log_projection(; theme = get_scaled_theme!(appearance, GestureLogTheme)))
-end
+# print it. Each call builds a projection, so every renderer has its own.
+make_syntax_projection(::Type{<:GestureLog}; appearance) =
+    make_gesture_log_projection(; theme = get_scaled_theme!(appearance, GestureLogTheme))

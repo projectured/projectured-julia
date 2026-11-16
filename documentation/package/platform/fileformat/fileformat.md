@@ -17,13 +17,13 @@ The file-format slice of `ProjecturedPlatform` reads and writes a document as a 
 | a picture: `.png`, `.jpg`, `.jpeg`, `.bmp`, `.gif` | none: a person does not edit it | an `Image` of the path, which reads no byte | `DocumentNothing()` |
 | any other extension | `export_document` | `import_document` | the seed of the extension |
 
-The natural formats are the ones for which a domain registered a parser in the natural slice: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.rst`, `.math`, `.jl` and `.sql`. The format is the extension without its dot. The file types are the ones that `register_file_document_type!` names. That function is part of the serialization slice, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
+The natural formats are the formats whose documents have a syntax notation in the natural slice: `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.markdown`, `.rst`, `.math`, `.jl` and `.sql`. The short name of a format is one of its extensions without the dot. The file types are the ones that `register_file_document_type!` names. That function is part of the serialization slice, and each domain calls it in its own `__init__`. This package only reads the table with `has_file_document_type` and `get_file_document_type`.
 
 A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read_document_file` gives a `PrimitiveString` for a `.txt` file, and `write_document_file` takes the string back out of one.
 
 ### Natural text
 
-`import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension that no domain registered. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the parser registered for the extension is not the parser of the format of the document, so a later `import_document` of the same path can not select the wrong parser. `find_natural_parser` gives the two parsers. A second name of one format has the same parser, so a YAML document exports to `.yaml` and to `.yml`.
+`import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension of no natural format. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the natural format of the extension is not the format of the document (`find_natural_file_format`), so a later `import_document` of the same path can not select the wrong parser. Two extensions of one format name the same format, so a YAML document exports to `.yaml` and to `.yml`.
 
 `write_document_file`, `export_document` and `print_natural_text` (of the natural slice) each also take a `ReferencedDocument` in place of the document, and write or render the document it holds, so a document that `get_edited_document` answered reaches a file with no unwrapping step of its own.
 

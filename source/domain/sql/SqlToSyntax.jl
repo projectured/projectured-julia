@@ -1995,19 +1995,10 @@ SqlInsertionToSyntaxLeaf(; theme = nothing) =
 make_document_seed(::Val{:sql}) = SqlInsertion()
 
 # ── What this domain's natural notation is ──────────────────────────────────
-# One statement: the rung it starts at and how to build it, the format it is
-# written in, the extension that names the format back, and how to read that text
-# in again. Runtime state, so `__init__` rather than a top-level call.
+make_syntax_projection(::Type{<:SqlDocument}; appearance) =
+    SqlToSyntax(; theme = get_scaled_theme!(appearance, SqlTheme),
+                syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
 
 function __init__()
-    register_natural_domain!(SqlDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> SqlToSyntax(;
-                                 theme = get_scaled_theme!(appearance, SqlTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format    = :sql,
-                             extension = ".sql",
-                             parse     = parse_sql_text)
-
     register_file_document_type!(".sql", SqlFile)
 end

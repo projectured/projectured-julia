@@ -41,6 +41,7 @@ import ..SerializationModule: emit_text, get_document_section,
                               splice_named_file!,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 import ..DocumentModule: get_view_state_fields
 import ..DomainModule: acquire_document!, release_document!
@@ -83,24 +84,14 @@ include("RstLinkTarget.jl")
 include("RstToLayout.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
+# What this slice registers when it loads: the file extension it owns, and the
+# rows that draw a page in a tab.
 function __init__()
     register_natural_syntax!(:rst, (; appearance) -> Pair{Type,Any}[
         RstDocument => RstToSyntax(style = :rendered,
                                    theme = get_scaled_theme!(appearance, RstTheme))])
 
     register_file_document_type!(".rst", RstFile)
-    # What this domain's natural notation is: the syntax rung, the format, and
-    # how to read it back. The `:graphics` rung — a page of blocks — is
-    # the call below it.
-    register_natural_domain!(RstDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> RstToSyntax(
-                                 theme = get_scaled_theme!(appearance, RstTheme)),
-                             format    = :rst,
-                             extension = ".rst",
-                             parse     = parse_rst)
 
     register_natural_graphics!(:rst_page, (; measure, appearance) -> begin
         theme = get_scaled_theme!(appearance, RstTheme)

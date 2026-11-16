@@ -44,6 +44,7 @@ make_reference_leaf(::YamlFileFormat, marker::AbstractString) =
     YamlString(make_marker_text(marker))
 get_file_type(::YamlFileFormat) = YamlFile
 get_file_format(::YamlFile) = YamlFileFormat()
+find_natural_file_format(::YamlDocument) = YamlFileFormat()
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its

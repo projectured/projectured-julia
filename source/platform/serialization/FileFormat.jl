@@ -22,9 +22,10 @@ functions of the format take its one value as their first argument:
     parse_document_string(::YamlFileFormat, string::AbstractString) = parse_yaml(string)
 
 A format declares [`get_file_format_extensions`](@ref),
-[`get_file_format_domain`](@ref), [`parse_document_string`](@ref),
-[`make_document_string`](@ref) and, when a file of the format can refer to
-another file, [`make_reference_leaf`](@ref). The other seams have a default:
+[`get_file_format_domain`](@ref), [`parse_document_string`](@ref) and, when a
+file of the format can refer to another file, [`make_reference_leaf`](@ref). A
+format whose string is not the print of a syntax tree declares
+[`make_document_string`](@ref). The other seams have a default:
 [`is_editable_file_format`](@ref), [`read_file_content`](@ref),
 [`is_written_in_file`](@ref), [`is_written_inline`](@ref),
 [`is_file_domain_node`](@ref) and [`make_file`](@ref). A format that has a file
@@ -74,7 +75,9 @@ function parse_document_string end
 
 The string that a file of `format` holds for `document`, a document of the domain
 of the format. [`parse_document_string`](@ref) reads it back to an equal
-document. A format declares a method for the documents that it writes.
+document. A format whose string is the print of a syntax tree needs no method of
+its own: the general method prints the document in the syntax notation of the
+format. Any other format declares a method for the documents that it writes.
 
 # Example
 

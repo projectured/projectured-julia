@@ -62,6 +62,7 @@ make_reference_leaf(::MarkdownFileFormat, marker::AbstractString) =
     MarkdownCodeBlock(PRED_REF_LANGUAGE, make_marker_text(marker))
 get_file_type(::MarkdownFileFormat) = MarkdownFile
 get_file_format(::MarkdownFile) = MarkdownFileFormat()
+find_natural_file_format(::MarkdownDocument) = MarkdownFileFormat()
 
 # ── The `section` vocabulary function ──────────────────────────────────────
 

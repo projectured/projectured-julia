@@ -125,9 +125,8 @@ the appearance tab shows a section for `MathTheme`.
 
 `ProjecturedMath` depends on the kernel and the platform. It depends on no other domain. `ProjecturedFormula` depends on it: a formula can have math code, which it converts to Julia to compute, and it draws that code with the boxes of this domain; see [formula.md](../formula/formula.md).
 
-Its `__init__` makes four calls:
+It declares `make_syntax_projection(::Type{<:MathDocument}; appearance)` with `MathToSyntax`, and the format `MathFileFormat` with the extension `.math` and the parser `parse_math`, so a file and the tools use the linear form. Its `__init__` makes three calls:
 
-- `register_natural_domain!(MathDocument; rung = :syntax, …, format = :math, extension = ".math", parse = parse_math)`, so a file and the tools use the linear form;
 - `register_natural_syntax!(:math, …)` with `MathToSyntax`;
 - `register_natural_graphics!(:math, …)` with `make_math_to_graphics_dispatch`, so a tab draws a formula in two dimensions;
 - `register_file_document_type!(".math", MathFile)`.

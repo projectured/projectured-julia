@@ -43,6 +43,7 @@ make_reference_leaf(::JsonFileFormat, marker::AbstractString) =
     JsonString(make_marker_text(marker))
 get_file_type(::JsonFileFormat) = JsonFile
 get_file_format(::JsonFile) = JsonFileFormat()
+find_natural_file_format(::JsonDocument) = JsonFileFormat()
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its

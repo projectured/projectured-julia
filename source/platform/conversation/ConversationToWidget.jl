@@ -112,9 +112,10 @@ _role_glyph(role::Symbol) =
 """
     FORMAT_LABELS, CODE_FORMATS
 
-The decoration a part can carry, keyed by the format its document is written in.
-A domain's insertion is a subtype of that domain's root, so one entry covers a
-kind while it is typed and after it is committed.
+The decoration a part can carry, keyed by the short name of the format that
+writes its document, such as `:jl` for `.jl`. A domain's insertion is a subtype
+of that domain's root, so one entry covers a kind while it is typed and after it
+is committed.
 
 `FORMAT_LABELS` holds the two formats whose key is an abbreviation of the
 language's name; every other label is the key itself.
@@ -128,13 +129,24 @@ neither table is prose as far as this file is concerned.
 const FORMAT_LABELS = Dict(:jl => "julia", :md => "markdown")
 const CODE_FORMATS  = Set([:jl, :json, :xml])
 
-_is_code(content) = get_natural_format(typeof(content)) in CODE_FORMATS
+# The short name of the format that writes `content`: the first extension of the
+# format without its dot, such as `:json`, the name that `parse_natural_text`
+# takes. `nothing` for a content that no format writes.
+function _find_format_name(content)
+    format = find_natural_file_format(content)
+    format === nothing && return nothing
+    extensions = get_file_format_extensions(format)
+    (isempty(extensions) || isempty(first(extensions))) && return nothing
+    Symbol(SubString(first(extensions), 2))
+end
+
+_is_code(content) = _find_format_name(content) in CODE_FORMATS
 
 # A part that shows a text with no panel: a plain text, a text block, or a
 # document in a format that is no code, which this file reads as prose. A place
 # inside it is a place of its text, so a click there names that place.
 _is_text_content(content) = content isa Union{PrimitiveString, TextBlock} ||
-    (get_natural_format(typeof(content)) !== nothing && !_is_code(content))
+    (_find_format_name(content) !== nothing && !_is_code(content))
 
 # Where the text of a part is, as the steps that lead to it in the output of the
 # part and in the part, or `nothing` for a part that shows no text of its own. A
@@ -158,7 +170,7 @@ _kind_label(::DocumentInsertion)    = "insert"
 _kind_label(::ConversationThinking) = "thinking"
 _kind_label(::TextBlock)            = "text"
 _kind_label(f::EvaluatorForm)       = get_evaluation_title(f)
-_kind_label(c)                      = _format_label(get_natural_format(typeof(c)))
+_kind_label(c)                      = _format_label(_find_format_name(c))
 _format_label(::Nothing)            = "doc"
 _format_label(key::Symbol)          = get(FORMAT_LABELS, key, String(key))
 

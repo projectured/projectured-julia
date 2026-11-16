@@ -538,9 +538,9 @@ BookmarkList
   docstring of the type is the summary at the top of the card.
 
 - **The natural rows:** when the module registers natural rows in its
-  `__init__`, with `register_natural_domain!` or another
-  `register_natural_…!` function, or defines a method of
-  `make_graphics_projection` for one of its types, every first window of a
+  `__init__`, with a `register_natural_…!` function, or defines a method of
+  `make_graphics_projection` or of `make_syntax_projection` for one of its
+  types, every first window of a
   session that loads the package builds them. End the root module with a workload that compiles
   them, and add `ProjecturedPrecompile` to its `[deps]` and `[sources]`:
 

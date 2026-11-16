@@ -199,15 +199,15 @@ end
 # is prose the assistant wrote (or a ```markdown block), so it round-trips as its
 # raw markdown *source* — unfenced — which is exactly the text Claude produced.
 #
-# The fence names the document's own natural extension, so a domain says what it
-# is called rather than this file listing them.
+# The fence names the first extension of the document's own natural format, so a
+# domain says what it is called rather than this file listing them.
 _block_text(c::TextBlock) = _content_to_string(c)
 # A note is the editor's line, and the model reads it as it reads the person.
 _block_text(c::ConversationNote) = c.text
 function _block_text(c)
-    extension = get_natural_extension(c)
-    extension === nothing && return _content_to_string(c)
-    name = _fence_language(extension)
+    format = find_natural_file_format(c)
+    format === nothing && return _content_to_string(c)
+    name = _fence_language(first(get_file_format_extensions(format)))
     name == "markdown" ? _doc_source(c) :
         "```" * name * "\n" * _doc_source(c) * "\n```"
 end

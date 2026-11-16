@@ -2,14 +2,16 @@
 #
 # What the natural renderer draws with when nothing else claimed a document: the
 # shared to-syntax fabric, and the `Syntax → Text → Graphics` tail that turns it
-# into pixels.
+# into pixels; and the step of the natural ladder from a syntax tree to its text.
 #
 # # Why it is registered rather than named
 #
 # The natural slice cannot name this module directly: this module already
-# names the natural slice (`register_natural_syntax!`, `register_natural_rung!`),
-# and the arrow cannot turn. So the renderer declares a fallback seam and this
-# module fills it, from `ProjecturedPlatform.__init__`.
+# names the natural slice (`register_natural_fallback!`,
+# `get_natural_syntax_entries`), and the arrow cannot turn. So the renderer
+# declares a fallback seam and this module fills it, from
+# `ProjecturedPlatform.__init__`, and the natural slice declares
+# `make_syntax_to_text_projection` and this module adds its one method.
 #
 # A session that loads `ProjecturedPlatform` can draw anything, through this
 # fallback, once no domain-specific row claims a document; a session that loads
@@ -137,21 +139,17 @@ end
     register_syntax_fallback!() -> nothing
 
 Tell the natural machinery what this session can do that it could not before:
-draw a document of any shape, and take a syntax tree up to text.
-
-`syntax → text` is the one rung of the ladder that the natural slice cannot
-supply itself — it must not name the syntax slice, because the syntax slice
-names it, and the arrow cannot turn. So it is registered here instead, and a
-session that loads no platform at all has no rung: a document that only
-speaks syntax then has no text and no graphics form, which is what "not
-loaded is not supported" means.
+draw a document of any shape.
 
 Called from `ProjecturedPlatform.__init__`, so loading the platform is what
 registers it.
 """
 function register_syntax_fallback!()
     register_natural_fallback!(:syntax, _fallback_rows)
-    register_natural_rung!(:syntax, :text, (; measure, appearance) ->
-        SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme)))
     nothing
 end
+
+# The step of the natural ladder from a syntax tree to its text, the one step
+# that the natural slice can not make itself, because it must not name this one.
+make_syntax_to_text_projection(; appearance::Appearance) =
+    SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme))

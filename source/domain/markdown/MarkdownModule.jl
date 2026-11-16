@@ -22,6 +22,7 @@ import ..SerializationModule: emit_text, get_document_section,
                               splice_named_file!,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 import ..DocumentModule: get_view_state_fields
 import ..DomainModule: acquire_document!, release_document!
@@ -54,7 +55,7 @@ include("MarkdownToLayout.jl")
 
 
 # What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
+# the rows that draw a page in a tab.
 function __init__()
     register_natural_syntax!(:markdown, (; appearance) -> Pair{Type,Any}[
         MarkdownDocument => MarkdownToSyntax(style = :rendered,
@@ -62,17 +63,6 @@ function __init__()
 
     register_file_document_type!(".md",       MarkdownFile)
     register_file_document_type!(".markdown", MarkdownFile)
-    # What this domain's natural notation is: the syntax rung, the format, and
-    # how to read it back. The `:graphics` rung — a page of blocks — is
-    # the call below it, because a domain may reach more than one rung and
-    # markdown reaches two.
-    register_natural_domain!(MarkdownDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> MarkdownToSyntax(
-                                 theme = get_scaled_theme!(appearance, MarkdownTheme)),
-                             format    = :md,
-                             extension = ".md",
-                             parse     = parse_markdown)
 
     # A page is a stack of blocks, and a block of prose breaks its lines at the
     # width the page offers. The four prose blocks say so; a code block and a

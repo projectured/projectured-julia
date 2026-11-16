@@ -39,6 +39,7 @@ import ..DomainModule: get_insertion_aliases, make_insertion_document, get_docum
 import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments, make_pred_document
+import ..NaturalModule: make_syntax_projection
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 
 export MessageLogStore, get_session_message_log_store, take_message_lines!, read_message_lines,

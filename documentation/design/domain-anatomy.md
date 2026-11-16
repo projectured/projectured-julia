@@ -82,22 +82,22 @@ The file type is an `@document struct JsonFile <: FileDocument` with a `filename
 
 ## The registration
 
-The `__init__` of the module registers the domain with two tables:
+The domain declares its natural notation and the format of its documents with two methods, and the `__init__` of the module registers the file type:
 
 ```julia
-register_natural_domain!(JsonDocument; rung = :syntax, make = () -> JsonToSyntax(),
-                         format = :json, extension = ".json", parse = parse_json)
+make_syntax_projection(::Type{<:JsonDocument}; appearance) = JsonToSyntax(; …)
+find_natural_file_format(::JsonDocument) = JsonFileFormat()
 register_file_document_type!(".json", JsonFile)
 ```
 
-The first call gives the domain these, without more code:
+The two methods, with the format `JsonFileFormat`, give the domain these, without more code:
 
 - `print_natural_text(document)` and `parse_natural_text(:json, text)`;
 - `import_document` and `export_document` by the file extension;
 - a row in `NaturalToGraphics`, so that a tab draws the document when it has no designed view;
 - the text form that a tool gives to a language model.
 
-A domain calls `register_natural_syntax!` or `register_natural_graphics!` as well when the general renderer must use a different projection. Markdown draws the rendered page in a tab and prints the source form to a file. [natural.md](../package/platform/natural/natural.md) describes the two tables.
+A domain calls `register_natural_syntax!` or `register_natural_graphics!` as well when the general renderer must use a different projection. Markdown draws the rendered page in a tab and prints the source form to a file. [natural.md](../package/platform/natural/natural.md) describes the seams and the renderer table.
 
 ## One domain inside another
 
@@ -119,7 +119,7 @@ print_natural_text(parse_json("""{"a": [1, 2]}"""))
 
 ## Where the shape does not hold
 
-- `book` has no text form, no file type and no `register_natural_domain!` call.
+- `book` has no text form, no file type and no method of `make_syntax_projection`.
 - `chart`, `sequencechart`, `fsm` and `process` register no natural row. A caller builds their projection chain.
 - `markdown`, `rst`, `book` and `math` declare their abstract root by hand and have no `@gestures` tables. `sql` uses `@domain` but has no `@gestures` table either.
 - `MathFile` has no reference marker, so a multi-file project can not cut a math document into another file.

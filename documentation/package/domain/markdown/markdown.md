@@ -67,11 +67,11 @@ tab shows a section for `MarkdownTheme`.
 
 `ProjecturedMarkdown` depends on the kernel and the platform. Beyond what every text domain needs, it uses the layout, graphics and widget slices for the vertical layout, the images and the embed cards. No domain depends on it.
 
-Its `__init__` registers three natural rows, because Markdown reaches two rungs of the natural ladder:
+It gives three natural rows: one method, and two calls of its `__init__`:
 
-| Call | What it gives |
+| Method or call | What it gives |
 | --- | --- |
-| `register_natural_domain!(MarkdownDocument; rung = :syntax, make = () -> MarkdownToSyntax(), format = :md, …)` | the source form for files, text export and the tools |
+| `make_syntax_projection(::Type{<:MarkdownDocument}; appearance)`, with `MarkdownToSyntax` | the source form for files, text export and the tools |
 | `register_natural_syntax!(:markdown, …)` | the `:rendered` syntax for the general renderer |
 | `register_natural_graphics!(:markdown_page, …)` | a `MarkdownRoot` drawn as a stack of blocks; a heading, a paragraph, a quote and a list break their lines at the page width |
 

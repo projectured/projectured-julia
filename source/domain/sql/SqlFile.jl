@@ -46,3 +46,4 @@ make_reference_leaf(::SqlFileFormat, marker::AbstractString) =
     SqlScalarValue(make_marker_text(marker))
 get_file_type(::SqlFileFormat) = SqlFile
 get_file_format(::SqlFile) = SqlFileFormat()
+find_natural_file_format(::SqlDocument) = SqlFileFormat()

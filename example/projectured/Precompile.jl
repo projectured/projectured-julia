@@ -49,13 +49,12 @@ Round-trip every atom that has a natural text format — render it to text, read
 that text back — and return how many completed. Compiles the reading half of the
 stack, which is otherwise JIT'd the first time anyone opens a file.
 
-No domain→parser table is needed: the natural format is already a registry.
-`get_natural_extension(doc)` names the format, `print_natural_text(doc)` renders it
-(its own documentation says the text is the editor's rendered form, "which the
-domain parser re-reads"), and `parse_natural_text(:ext, text)` is the parser a
-domain registered. A domain with no natural format has no extension
-method and drops out — the registry answering, rather than a list here going
-stale.
+No domain→parser table is needed: `find_natural_file_format(doc)` names the
+format, `print_natural_text(doc)` renders it (its own documentation says the text
+is the editor's rendered form, "which the domain parser re-reads"), and
+`parse_document_string(format, text)` is the parser of the format. A document
+whose domain declares no natural format drops out — the method table answering,
+rather than a list here going stale.
 
 Editor scaffolding is expected to fail the round trip rather than pass it: a
 document carrying an insertion placeholder has no valid natural text, as
@@ -68,10 +67,9 @@ function precompile_atom_parsers(atoms)
     for atom in atoms
         try
             document = atom.make_document()
-            extension = get_natural_extension(document)
-            format = Symbol(SubString(extension, 2))
-            has_natural_parser(format) || continue
-            parse_natural_text(format, print_natural_text(document))
+            format = find_natural_file_format(document)
+            format === nothing && continue
+            parse_document_string(format, print_natural_text(document))
             parsed += 1
         catch
             # As above: the count is the answer.

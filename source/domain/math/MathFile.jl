@@ -41,3 +41,4 @@ parse_document_string(::MathFileFormat, string::AbstractString) =
     parse_math(strip(string))
 get_file_type(::MathFileFormat) = MathFile
 get_file_format(::MathFile) = MathFileFormat()
+find_natural_file_format(::MathDocument) = MathFileFormat()

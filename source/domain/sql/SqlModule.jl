@@ -17,6 +17,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..DisplayModule: make_workload_file
 

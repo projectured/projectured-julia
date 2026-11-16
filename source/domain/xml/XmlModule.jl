@@ -21,6 +21,7 @@ import ..SerializationModule: emit_text, get_file_domain, make_reference_leaf,
                               find_reference_marker, parse_file_content,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
 
 export parse_xml, parse_xml_file
@@ -39,18 +40,8 @@ include("XmlToSyntax.jl")
 include("XmlFile.jl")
 
 
-# What this slice registers when it loads: the file extensions it owns, and
-# the natural notation it reads and writes.
+# What this slice registers when it loads: the file extension it owns.
 function __init__()
-    register_natural_domain!(XmlDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> XmlToSyntax(;
-                                 theme = get_scaled_theme!(appearance, XmlTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format    = :xml,
-                             extension = ".xml",
-                             parse     = parse_xml)
-
     register_file_document_type!(".xml", XmlFile)
 end
 

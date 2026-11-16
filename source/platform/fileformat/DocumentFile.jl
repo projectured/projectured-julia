@@ -39,7 +39,7 @@ make_document_seed(::Val) = DocumentNothing()
 make_document_seed(::Val{:txt}) = PrimitiveString("")
 make_document_seed(::Val{Symbol("")}) = PrimitiveString("")
 
-# Whether a domain registered a parser for the extension of `path`.
+# Whether the natural text reads the extension of `path`.
 _is_natural_path(path::AbstractString) = has_natural_parser(_ext_symbol(_ext(path)))
 
 # Whether `path` goes through a file type rather than a natural format.

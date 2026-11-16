@@ -442,20 +442,20 @@ _is_text_form(form) = form isa PrimitiveString || _is_julia_hole(form)
 # skips it.
 _holds_object(form) = !_is_text_form(form) && !isempty(search_documents(form, _is_object))
 _is_object(node) = node isa Document && !is_element_collection(node) &&
-                   get_natural_format(typeof(node)) !== :jl
+                   _find_format_name(node) !== :jl
 
 # The insertion of the Julia domain, known by what it is and not by its name,
 # because this package does not depend on that domain.
-_is_julia_hole(form) = _is_julia_hole_type(typeof(form))
-_is_julia_hole_type(T) = get_insertion_root(T) !== Document && get_natural_format(T) === :jl
+_is_julia_hole(form) = get_insertion_root(typeof(form)) !== Document && _find_format_name(form) === :jl
 
 # The code of a fresh form: a hole of the Julia domain when the toplevel types
 # structured forms and that domain is loaded, and an empty string otherwise.
 function _make_fresh_code(t::EvaluatorToplevel)
     t.type_structured_forms || return PrimitiveString("")
     T = resolve_insertion(Document, "julia")
-    (T === nothing || !_is_julia_hole_type(T)) && return PrimitiveString("")
-    make_insertion_document(T)
+    T === nothing && return PrimitiveString("")
+    hole = make_insertion_document(T)
+    _is_julia_hole(hole) ? hole : PrimitiveString("")
 end
 
 _make_fresh_form(t::EvaluatorToplevel) = EvaluatorForm(_make_fresh_code(t))
@@ -571,7 +571,7 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     # A form that holds an object has no text that runs: it runs as an `Expr`
     # that holds the object itself, and so does any other form that is already
     # a document, whose print is its text.
-    by_expression = !_is_text_form(code) && has_natural_expression(:jl)
+    by_expression = !_is_text_form(code)
     text = _holds_object(code) ? "" : _get_form_source_text(code)
     !by_expression && isempty(strip(text)) && return nothing
     # A form that ends with `;` runs, and what its code prints shows, but its
@@ -584,7 +584,7 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     expression = nothing
     result = nothing
     try
-        by_expression && (expression = make_natural_expression(:jl, code))
+        by_expression && (expression = make_document_expression(code))
     catch e
         result = EvaluationResult(sprint(showerror, e, catch_backtrace()), nothing, e)
     end

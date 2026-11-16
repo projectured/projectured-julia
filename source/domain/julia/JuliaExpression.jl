@@ -28,6 +28,9 @@ function make_julia_expression(document)
     _put_objects(expression, policy.objects)
 end
 
+# The code of a Julia document is what runs it.
+make_document_expression(document::JuliaDocument) = make_julia_expression(document)
+
 # The walk that makes the shadow: it copies the Julia nodes, and where it meets
 # a `JuliaObject` it keeps the value in `objects` and puts a placeholder
 # identifier in its place.

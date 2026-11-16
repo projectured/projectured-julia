@@ -68,6 +68,7 @@ make_reference_leaf(::JuliaFileFormat, marker::AbstractString) =
               JuliaDocument[JuliaString(make_marker_text(marker))])
 get_file_type(::JuliaFileFormat) = JuliaFile
 get_file_format(::JuliaFile) = JuliaFileFormat()
+find_natural_file_format(::JuliaDocument) = JuliaFileFormat()
 
 # ── The `definition` vocabulary function ───────────────────────────────────
 #

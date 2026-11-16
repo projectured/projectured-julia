@@ -252,13 +252,33 @@ Each step is one commit. Each step changes the documents that it makes wrong.
   `test_file_tab()`, the three natural tests, and the guards `test_naming()`,
   `test_exports()`, `test_arguments()`, `test_documentation()`, `test_package_graph()` and
   `test_platform_layering()`. `test_julia()` 793 pass, with the 1 failure of the baseline.
-- [ ] **4. The natural slice reads the seams.** Add `make_syntax_projection`,
+- [x] **4. The natural slice reads the seams.** Add `make_syntax_projection`,
   `find_natural_file_format`, `make_document_expression` and the general method of
   `make_document_string`. `parse_natural_text`, `print_natural_text`,
   `describe_natural_formats`, `make_prose_document`, `make_natural_projection` and
   `get_natural_entries` read them. Remove the five tables of `NaturalNotation.jl`, the six
   register functions and their calls. Test: `test_natural_notation()`,
   `test_natural_registry()`, `test_natural_round_trips_every_atom()`.
+  **Done** 2026-11-16. The three natural tests 33 pass (21 in the baseline;
+  `test_natural_notation()` changes with the step, §10). `test_file_format_contract()` 305
+  pass and 1 fail, the XML assertion of step 3 at the same line; 8 assertions more,
+  because the general method of `make_document_string` answers for each format of a
+  domain. `describe_natural_formats()` and the system text are byte-equal (§10). Equal to
+  the baseline, with the same failures: `test_json()`, `test_xml()`, `test_yaml()` and
+  `test_sql()` (1072 pass, 2 broken), `test_markdown()` 311, `test_rst()` 140,
+  `test_julia()` 793 and 1 fail, `test_math()` 221 and 1 fail, `test_languageserver()` 114,
+  `test_file_format()`, `test_file_tab()`, `test_pred_file()`, `test_text_file()`,
+  `test_serialization()`, `test_file_project()`, `test_workflow_file()`,
+  `test_marker_vocabulary()`, the eleven editor tests of the umbrella with
+  `test_assistant_verbs()` and `test_application()`, which test the system text (1241
+  pass, 2 fail, 2 broken), and the guards `test_naming()`, `test_exports()`,
+  `test_arguments()`, `test_documentation()`, `test_package_graph()`,
+  `test_platform_layering()` and `test_platform_slice_edges()`. Equal, testset by testset,
+  to a run on `9895e0b46` before the first edit: `test_conversation()` (666 pass, 87 fail,
+  65 error), `test_parse_markdown_blocks()`, `test_assistant_mvp()`,
+  `test_assistant_composer_panel()`, and the tests of the three logs `test_tool_views()`,
+  `test_gesture_log_in_tab()`, `test_message_log()`, `test_gesture_log()`,
+  `test_tool_themes()`, `test_message_log_feed()` and `test_fault_catching()`.
 - [ ] **5. One file type, one read, one write.** First prove with a small program that
   `@document struct File{F}` works with a parameter that no field uses, and that a `.pred`
   file writes and reads `File{JsonFileFormat}`. Then add `File{F}`, the short names and
@@ -560,3 +580,135 @@ table.
   `(".jl",)` 4. No Julia test asked for every place before. This plan does not fix it,
   and the editor is not checked. The tuple test checks the navigation with no
   `check_reaches_all`.
+
+
+**2026-11-16, step 4: the natural slice reads the seams.**
+
+- **Where each lives.** `make_syntax_projection`, `make_syntax_to_text_projection`,
+  `find_natural_file_format`, `make_document_expression` and the general method of
+  `make_document_string` are in `NaturalNotation.jl`, which also holds the steps of the
+  ladder as one plain function, `_make_natural_steps`. The natural slice uses the
+  serialization slice: a new edge in `PLATFORM_SLICE_EDGES` and in the slice table of
+  `package-rules.md`. Each of the eight domains declares
+  `make_syntax_projection(::Type{<:XDocument}; appearance)` in `XToSyntax.jl` and
+  `find_natural_file_format(::XDocument) = XFileFormat()` in `XFile.jl`, and the Julia
+  domain declares `make_document_expression(::JuliaDocument)` in `JuliaExpression.jl`.
+  The fault log, the gesture log and the message log declare `make_syntax_projection`
+  only, in their `*ToSyntax.jl`; the gesture log has no `__init__` now.
+- **What goes.** The five tables, `RUNGS`, the six register functions and their 16
+  calls: eight `register_natural_domain!` calls of the domains, `register_natural_parser!(:yml)`,
+  three `register_natural_notation!` calls of the logs, the notation of `TextDocument`
+  and the two steps from text in `ProjecturedPlatform.__init__`, and the step from syntax
+  in `register_syntax_fallback!`. Also the readers of the tables that §5 replaces:
+  `get_natural_format`, `get_natural_extension`, `find_natural_parser`,
+  `make_natural_expression` and `has_natural_expression`. `find_file_extension` reads
+  `_FILE_DOCUMENT_TYPES`, so it stays until step 5.
+- **The text of `describe_natural_formats()` is byte-equal.** It lists each format of
+  `collect_file_formats()` that natural text reads, with the first extension without
+  its dot as the short name, the first extension, and the name of the domain. Before the
+  first edit and after it, `describe_natural_formats()`, `make_application_system()` for
+  `:anthropic` and for `:ollama`, the docstrings of `parse_natural_text` and
+  `describe_natural_formats` and the prints of one document of each domain are equal
+  byte for byte (`/var/tmp/projectured-julia-file-format-depot/step4/before` and
+  `after`, made by `capture.jl` there). The system text names the module by the first
+  sentence of its docstring, which stays. The docstring of `print_natural_text` says
+  "the steps of the ladder" in place of "the registered steps"; the system text does not
+  hold it.
+- **Proposed by the assistant: the step from syntax to text is a seam with no key,**
+  `make_syntax_to_text_projection(; appearance)`. §5 says that the steps become one plain
+  function of the natural slice. The steps from text are the text slice's, which the
+  natural slice uses, so the plain function makes them. `SyntaxToText` is the syntax
+  slice's, and the syntax slice uses the natural slice (the renderer tables of §8), so
+  the natural slice can not name it. So the natural slice declares the function with no
+  method, and the syntax slice adds the one method, as C14 does with
+  `make_document_projection`. Rejected: the natural slice imports the syntax slice (a
+  cycle); the row of `_LADDER` stays for this step (a table, C1); a method of
+  `make_syntax_projection` for a syntax tree (it answers another question). **A new
+  generic function, so the owner sees it.**
+- **Proposed by the assistant: `has_natural_parser(format::Symbol)` stays, and reads the
+  seams.** §5 says that `find_file_format` replaces it. But `find_file_format` also finds
+  plain text, `.pred`, the pictures and the source files, which natural text does not
+  read: with it alone, a fence `c` in a message of the model would become a source file
+  in place of a code block, and a resource `x.png` of an agent would raise an error in
+  place of staying text. So a natural format is a format that parses a string and whose domain
+  has a syntax notation, and `has_natural_parser`, `parse_natural_text` and
+  `describe_natural_formats` read that set. `find_natural_parser` goes, as §5 says. The
+  docstring of `parse_natural_text`, which names `has_natural_parser`, stays equal.
+- **Proposed by the assistant: `get_natural_entries(; appearance)` has no rung argument.**
+  Each row is a syntax row now: no domain declared a `:graphics` notation, and the renderer
+  never read the `:text` row of `TextDocument`. It reads the methods of
+  `make_syntax_projection`, each type before its supertypes, as
+  `collect_graphics_projection_types` does, and calls each with `invokelatest`, as the
+  renderer calls `make_graphics_projection`. The rows of the logs now come after the rows
+  of the domains; the types do not overlap, so the renderer takes the same row.
+- **Proposed by the assistant: `make_document_expression` has a general method,**
+  `Expr(:toplevel, QuoteNode(document))`: a document that is no code runs as its own value,
+  as `make_julia_expression` makes it for a document that is no Julia. So the evaluator
+  makes an `Expr` for each form that is no text, and no longer asks whether a domain has
+  an expression (`has_natural_expression(:jl)` went with its table). With the Julia domain
+  loaded, each form gives the same `Expr` as before. With no Julia domain, a form whose
+  whole code is a pasted object runs as that object, where it did nothing before. C8 says
+  that a `make_` seam has no method where it is declared; this one always makes an
+  `Expr`, as `make_file` of step 2 does.
+- **For step 4 (from step 3): the general method of `make_document_string` takes an
+  untyped document,** `make_document_string(format::FileFormat, document)`. The methods of
+  `.pred` and of a source file are more specific in the format, so no call is ambiguous,
+  and they keep a document of any type: a `.pred` file holds a document of any domain, and
+  a source file holds a marked text or a history around one, so a narrower type would name
+  types of other slices. The general method prints the document through
+  `make_syntax_projection(format)`, then the steps to a string, and raises an error for a
+  format whose domain has no syntax notation.
+- **Proposed by the assistant: a caller that held a type now holds a document.**
+  `find_natural_file_format` takes a document (§5). The composer and the fresh code of the
+  evaluator asked `get_natural_format` of an insertion type; they now make the insertion
+  document first and ask about it. The conversation slice reads the short name of a
+  format (`_find_format_name`, the first extension without its dot), so `FORMAT_LABELS`
+  and `CODE_FORMATS` keep their keys `:jl`, `:md`, `:json` and `:xml`. The fence of the
+  assistant takes the first extension of the format, and the guard of `export_document`
+  compares two formats.
+- **What a person sees.** `parse_natural_text` reads each short name of a natural format,
+  so `:markdown` and an `x.markdown` read Markdown now; before, only the format names and
+  `:yml` had a parser (§3: "`.markdown` has a file type and no natural parser"). So
+  `import_document`, `read_document_file` and `write_document_file` take a `.markdown`
+  path as natural text, not through `MarkdownFile`; for a file with no reference to
+  another file, the document and the string are equal. `parse_natural_text(:math, …)`
+  removes the white space around the formula, as the parser of the format does.
+- **Tests that change with the step.** `test_natural_notation()` registered rows in two
+  tables and put them back; it now adds methods with `@eval` and removes them after,
+  also the method of the keyword call, and asserts the order of the rows of the renderer,
+  the `Expr` of a document that is no code, and that `make_document_string` of a format
+  is `print_natural_text` for five short names: 33 assertions in the three natural tests,
+  21 in the baseline. `CatalogCoverageTest.jl` and `precompile_atom_parsers`
+  (`example/projectured/Precompile.jl`) read `find_natural_file_format` and
+  `parse_document_string`. `PackageGraphTest.jl` counts a method of
+  `make_syntax_projection` for a type as a natural row, as `package-rules.md` now says.
+  `test_file_format_contract()`: the general method makes `is_declared` true for each
+  format of a domain, so the test also asserts for each that `emit_text` writes the
+  string of the format, 8 assertions more.
+- **§8 holds.** `register_natural_syntax!`, `register_natural_graphics!` and
+  `register_natural_fallback!` do not change. One sentence of the docstring of
+  `register_natural_syntax!` named `register_natural_notation!` and now names
+  `make_syntax_projection`.
+- **The documents that the step makes wrong** change with it: `natural.md` (the seams in
+  place of the rung table), `conversation.md`, `fileformat.md`, the documents of Markdown,
+  RST, YAML, math and book, `domain-anatomy.md` ("The registration"),
+  `domain-inventory.md`, `new-domain-guide.md` and `package-rules.md`. The documentation
+  of §7 is step 7.
+- **For step 6: the calls in omnet-julia and inet-julia.** omnet-julia (`main`,
+  `6b6375c93`) has three calls of a removed function, each in an `__init__`, each with
+  the keywords `rung = :syntax`, `make`, `format`, `extension` and `parse`:
+  - `source/legacy/ned/NedModule.jl:63`, `register_natural_domain!(NedDocument; …)`, format `:ned`, `.ned`;
+  - `source/legacy/testfile/LegacyTestModule.jl:64`, `register_natural_domain!(LegacyTestDocument; …)`, format `:test`, `.test`;
+  - `source/legacy/ini/IniModule.jl:57`, `register_natural_domain!(IniDocument; …)`, format `:ini`, `.ini`.
+
+  No file of omnet-julia names another removed function or a table
+  (`register_natural_notation!`, `_format!`, `_parser!`, `_expression!`, `_rung!`,
+  `get_natural_format`, `get_natural_extension`, `find_natural_parser`,
+  `make_natural_expression`, `has_natural_expression`, `get_natural_entries`, `_NOTATIONS`,
+  `_FORMATS`, `_PARSERS`, `_EXPRESSIONS`, `_LADDER`, `RUNGS`), and no file of inet-julia
+  names any of them. Each of the three becomes a method of `make_syntax_projection`, a
+  method of `find_natural_file_format` and the format of step 6, so that
+  `describe_natural_formats()` of a session of omnet-julia lists `:ini`, `:ned` and `:test`
+  again. Until step 6, each of the three `__init__` calls a function that projectured-julia
+  no longer defines, so omnet-julia does not load with this branch (§9, "Downstream
+  methods"). Not checked here: step 6 runs its precompile.

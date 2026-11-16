@@ -21,6 +21,7 @@ import ..SerializationModule: emit_text,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string, get_file_type, get_file_format
+import ..NaturalModule: make_syntax_projection, find_natural_file_format, make_document_expression
 import ..WidgetModule: compute_code_pieces, make_graphics_projection
 import ..DisplayModule: make_workload_file
 
@@ -112,22 +113,12 @@ function make_julia_file_code_projection(; measure, appearance)
         GraphicsCanvas => GraphicsToGraphics()))
 end
 
-# What this slice registers when it loads: the file extensions it owns, the
-# natural notation it reads and writes, and how its code draws as a whole.
+# What this slice registers when it loads: the file extension it owns, and how
+# its code draws as a whole.
 function __init__()
     register_file_document_type!(".jl", JuliaFile)
     register_marker_function!(:definition,
                               (ctx, document, name) -> find_julia_definition(document, name))
-
-    register_natural_domain!(JuliaDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> JuliaToSyntax(;
-                                 theme = get_scaled_theme!(appearance, JuliaTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format    = :jl,
-                             extension = ".jl",
-                             parse     = parse_julia,
-                             expression = make_julia_expression)
 
     # Julia code draws as a whole: a document that stands in the code, such as
     # an object that a person pasted into a form, stays one leaf of the code,

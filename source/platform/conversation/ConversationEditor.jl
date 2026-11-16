@@ -31,8 +31,9 @@
 #
 # The composer names no source domain. Which kinds it offers, what each is
 # called, and how a typed source becomes a document are all asked of two seams:
-# `get_insertion_root` says a type is a domain's insertion, and `get_natural_format`
-# / `parse_natural_text` say that domain's key and how to read its text.
+# `get_insertion_root` says a type is a domain's insertion, and
+# `find_natural_file_format` / `parse_document_string` say that domain's format
+# and how to read its text.
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -338,15 +339,16 @@ end
 # domain's insertion, and can that domain read its own text? So the composer
 # offers whatever domains a session loaded, and offering one it cannot commit is
 # not expressible.
-function _composer_kind(T)
-    get_insertion_root(T) === Document && return false
-    key = get_natural_format(T)
-    key !== nothing && has_natural_parser(key)
+function _composer_kind(document)
+    get_insertion_root(typeof(document)) === Document && return false
+    format = find_natural_file_format(document)
+    format !== nothing && hasmethod(parse_document_string, Tuple{typeof(format), String})
 end
 function _composer_factory(name::AbstractString)
     T = resolve_insertion(Document, name)
-    (T === nothing || !_composer_kind(T)) && return nothing
-    make_insertion_document(T)
+    T === nothing && return nothing
+    document = make_insertion_document(T)
+    _composer_kind(document) ? document : nothing
 end
 
 function evaluate_operation(editor, op::ComposerCommitChooserOperation)
@@ -361,9 +363,9 @@ end
 # Parse a source insertion into its domain document, through the seam.
 function _parse_source(c)
     get_insertion_root(typeof(c)) === Document && return nothing
-    key = get_natural_format(typeof(c))
-    key === nothing && return nothing
-    _try_parse(text -> parse_natural_text(key, text), _value(c))
+    format = find_natural_file_format(c)
+    format === nothing && return nothing
+    _try_parse(text -> parse_document_string(format, text), _value(c))
 end
 _parse_source(::Nothing) = nothing
 
@@ -379,7 +381,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     c = _active_content(op.draft)
     # Running code is Julia's, so this one names a format rather than a domain:
     # it is the Julia kind that ALT+ENTER evaluates.
-    get_natural_format(typeof(c)) === :jl || return nothing
+    _find_format_name(c) === :jl || return nothing
     src = _value(c)
     isempty(strip(src)) && return nothing
     set = editor.tools
@@ -842,7 +844,7 @@ function _composer_bindings(draft::ConversationDraft)
                            description = "Choose insertion kind", domain = "composer"),
             revert,
         ]
-    elseif get_natural_format(typeof(c)) === :jl
+    elseif _find_format_name(c) === :jl
         # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
         # Julia's alone, which is why this arm names the format.
         GestureBinding[

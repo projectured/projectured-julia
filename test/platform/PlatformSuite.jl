@@ -58,7 +58,7 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "widget" => ["collection", "domain", "focus", "graphics", "layout", "primitive",
                  "projection", "screen", "serialization", "style", "text", "tooltip"],
     "natural" => ["arrangement", "collection", "domain", "graphics", "layout", "primitive", "projection",
-                  "style", "text", "tooltip", "widget"],
+                  "serialization", "style", "text", "tooltip", "widget"],
     "roster" => ["arrangement", "collection", "domain", "focus", "layout", "natural", "primitive",
                  "projection", "screen", "serialization", "style", "widget"],
     "tree" => ["collection", "domain", "graphics", "natural", "projection", "roster", "screen",

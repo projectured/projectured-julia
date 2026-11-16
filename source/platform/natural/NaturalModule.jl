@@ -9,44 +9,38 @@ A notation is a rung on one ladder:
     domain ──▶ syntax ──▶ text ──▶ graphics
                               └──▶ string
 
-A domain declares the one rung it can reach on its own, and everything above it
-is composition. The composition is a `ChainingProjection`, which is what every
-caller that wants a document as text would otherwise build by hand.
+A domain declares the projection of its documents to syntax, and everything
+above it is composition. The composition is a `ChainingProjection`, which is
+what every caller that wants a document as text would otherwise build by hand.
 
-# The three starting rungs
+# The two starting rungs
 
-- `:syntax` — the domain has a `*ToSyntax`, and reaches text and graphics through
-  the shared tail. Most domains.
-- `:graphics` — the domain draws itself, because a page of blocks or a diagram is
-  not a syntax tree.
-- `:text` — the domain is prose. It reaches graphics through the text renderer
-  and **needs no syntax package at all**.
+- `:syntax` — the domain has a `*ToSyntax`, which it declares with
+  `make_syntax_projection`, and reaches text and graphics through the fixed
+  steps. Most domains.
+- `:text` — the document is prose, a `TextDocument`. It reaches graphics through
+  the text renderer and **needs no syntax package at all**.
 
-A domain may declare more than one rung; a caller asking for graphics takes the
-highest one the document offers.
+A domain that draws itself, because a page of blocks or a diagram is not a
+syntax tree, gives the renderer a row of its own.
 
-# Which rungs live where
+# Which steps live where
 
 This module owns `text → graphics` and `text → string`, because the natural
 slice already names the text slice. It must not name the syntax slice — the
-syntax slice names this one, and the arrow cannot turn — so `syntax → text` is
-registered from outside, by the syntax slice, when `ProjecturedPlatform` loads.
-A session that loads no platform at all has no rung at all: a document then
-has no text and no graphics form. That is the rule this repository works by:
-what is not loaded is not supported.
+syntax slice names this one, and the arrow cannot turn — so this module declares
+`make_syntax_to_text_projection` and the syntax slice adds its one method.
 
 # What a domain writes
 
-    register_natural_domain!(JsonDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> JsonToSyntax(),
-                             format    = :json,
-                             extension = ".json",
-                             parse     = parse_json)
+    make_syntax_projection(::Type{<:JsonDocument}; appearance) =
+        JsonToSyntax(; theme = get_scaled_theme!(appearance, JsonTheme),
+                     syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
+    find_natural_file_format(::JsonDocument) = JsonFileFormat()
 
-The four separate registrations below are what that calls, and a domain uses them
-directly for the cases the one call cannot cover: a second rung, a parser owned
-by a package that does not own the printer, or a rung that belongs to no domain.
+The format, `JsonFileFormat`, declares its extensions and its parser in the
+serialization slice, so `parse_natural_text(:json, text)` reads the text and
+`print_natural_text(document)` writes it.
 """
 module NaturalModule
 
@@ -70,19 +64,17 @@ using ..TooltipModule
 using ..GestureModule
 using ..WidgetModule
 using ..ReferenceModule
+using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..EditorModule: make_document_projection
+import ..SerializationModule: make_document_string
 
-export register_natural_domain!, register_natural_notation!, register_natural_format!,
-       register_natural_parser!, register_natural_expression!, register_natural_rung!,
-       make_natural_projection, get_natural_extension, get_natural_format,
-       get_natural_entries, parse_natural_text, describe_natural_formats,
-       make_prose_document, has_natural_parser,
-       find_natural_parser, make_natural_expression, has_natural_expression,
-       print_natural_text
+export make_syntax_projection, make_syntax_to_text_projection, find_natural_file_format,
+       make_document_expression, get_natural_entries, has_natural_parser, parse_natural_text,
+       describe_natural_formats, make_prose_document, make_natural_projection, print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
 export ArrangementChipsToGraphics, ArrangementChipsToGraphicsIoMap, ArrangementGroupRowsToWidget,

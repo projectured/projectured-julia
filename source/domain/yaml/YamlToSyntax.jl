@@ -285,23 +285,11 @@ function YamlToSyntax(; style::Symbol = :block, theme = nothing, syntax_theme = 
 end
 
 # ── What this domain's natural notation is ──────────────────────────────────
-# YAML was the one source domain that declared none of this, so a caller that
-# asked the seam rather than the domain — the assistant's fenced code blocks, for
-# one — got nothing for it while JSON, XML, Julia and Markdown worked.
+make_syntax_projection(::Type{<:YamlDocument}; appearance) =
+    YamlToSyntax(; theme = get_scaled_theme!(appearance, YamlTheme),
+                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme))
 
 function __init__()
-    register_natural_domain!(YamlDocument;
-                             rung      = :syntax,
-                             make      = (; appearance) -> YamlToSyntax(;
-                                 theme = get_scaled_theme!(appearance, YamlTheme),
-                                 syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)),
-                             format    = :yaml,
-                             extension = ".yaml",
-                             parse     = parse_yaml)
-    # `.yml` is the same format under the other spelling, and a fenced block is
-    # written either way.
-    register_natural_parser!(:yml, parse_yaml)
-
     # Both spellings open as the same file document type.
     register_file_document_type!(".yaml", YamlFile)
     register_file_document_type!(".yml",  YamlFile)

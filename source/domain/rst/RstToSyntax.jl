@@ -1446,6 +1446,8 @@ function RstToSyntax(; style::Symbol = :source, theme = nothing)
     TypeDispatchingProjection((k => get(overrides, k, v) for (k, v) in rules)...)
 end
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that teaches the render-anything projection what this domain is. The
-# factory form, so every renderer builds its own projection instance.
+# ── What this domain's natural notation is ──────────────────────────────────
+# The source form, which a file, the text export and the tools write. A tab draws
+# the rendered page through the rows of the module.
+make_syntax_projection(::Type{<:RstDocument}; appearance) =
+    RstToSyntax(theme = get_scaled_theme!(appearance, RstTheme))

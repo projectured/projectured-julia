@@ -2,11 +2,10 @@
 #
 # The tables the **natural projection** is built from.
 #
-# `NaturalModule` beside this one is where a domain declares its notation
-# now. What is left here is the keyed-factory form, which a domain uses when one
-# registration carries several rows, and the fallback — plus the two `*_entries`
-# functions, which read both tables so a domain can move from one to the other on
-# its own.
+# A domain declares its notation with a method of `make_syntax_projection`. What
+# is here is the keyed-factory form, which a domain uses when one registration
+# carries several rows, and the fallback — plus the three `*_entries` functions,
+# of which the syntax one also gives a row for each method of that seam.
 #
 # The natural projection renders almost any document to graphics. To do that it
 # needs one dispatch entry per domain — a `JsonDocument` goes to `JsonToSyntax`, a
@@ -50,7 +49,7 @@ of the editor, so each renderer gets its own projection instances. `key` names
 the registering domain and makes the registration idempotent. Call it from the
 registering module's `__init__`: the table is runtime state. The rows serve the
 renderer only: the notation that [`make_natural_projection`](@ref) reads is
-[`register_natural_notation!`](@ref).
+[`make_syntax_projection`](@ref).
 """
 function register_natural_syntax!(key::Symbol, factory)
     any(e -> first(e) === key, _SYNTAX_FACTORIES) && return nothing
@@ -96,7 +95,8 @@ end
     get_natural_syntax_entries(; appearance) -> Vector{Pair{Type,Any}}
 
 Every registered to-syntax row, built now with `appearance`: what the factories
-build, then the `:syntax` rows of the rung table.
+build, then a row for each type that has a method of `make_syntax_projection`
+([`get_natural_entries`](@ref)).
 """
 function get_natural_syntax_entries(; appearance::Appearance)
     out = Pair{Type,Any}[]
@@ -105,7 +105,7 @@ function get_natural_syntax_entries(; appearance::Appearance)
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
-    append!(out, get_natural_entries(:syntax; appearance = appearance))
+    append!(out, get_natural_entries(; appearance = appearance))
     out
 end
 
@@ -121,7 +121,6 @@ function get_natural_graphics_entries(; measure::TextMeasure, appearance::Appear
             push!(out, Pair{Type,Any}(first(pr), last(pr)))
         end
     end
-    append!(out, get_natural_entries(:graphics; measure = measure, appearance = appearance))
     out
 end
 
