@@ -19,7 +19,9 @@
 # through the compiler server that stays between builds (`server`), writes an
 # overlay beside the image (`image = :overlay`), and compiles the edit at the
 # `-O` level of the build or a lower one (`delta_optimization`). The store
-# founds again on request (`found`) or when the image grew (`compact`).
+# founds again on request (`found`); a store that writes pages or a whole image
+# founds again after `compact` rebuilds or growth, and an overlay store moves its
+# base forward instead.
 # `print_reactive_status!` and `stop_reactive_server` act on a store without a
 # build, and `watch_reactive_store!` rebuilds at every change of a tracked file.
 

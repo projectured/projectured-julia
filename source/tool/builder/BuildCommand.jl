@@ -78,17 +78,18 @@ const REACTIVE_BUILD_OPTIONS = [
      "the -O level of the code of a rebuild, 0 to 3\n" *
      "(default: the --optimization of the build)"),
     ("--compact=", "--compact=N,F",
-     "found again after a growth of F of the image since\n" *
-     "the founding, or after N rebuilds when a rebuild\n" *
-     "writes pages or a whole image (default: 50,0.25)"),
+     "with --image=pages or --image=whole: found again\n" *
+     "after N rebuilds or a growth of F of the image since\n" *
+     "the founding (default: 50,0.25); an overlay store\n" *
+     "moves its base forward instead"),
     ("--trim", "--trim",
      "write the trimmed product beside the bundle, under\n" *
      "<output>/trimmed; an edit that makes a call site\n" *
      "dynamic is then refused"),
     ("--status", "--status",
      "print what the store of the output holds: the\n" *
-     "snapshots, the chain, the server and the growth;\n" *
-     "and exit"),
+     "snapshots, the chain, the server, the growth and\n" *
+     "the record of its builds; and exit"),
     ("--stop-server", "--stop-server",
      "stop the compiler server of the store of the\n" *
      "output, and exit"),
