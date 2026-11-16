@@ -10,7 +10,7 @@ Tuple{ProjecturedKernel.ToolModule.var"#_register_code_tool!##0#_register_code_t
 Tuple{Type{Array{Expr, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{Float64, 1}}, UndefInitializer, Tuple{Int64}}
 Tuple{Type{Array{String, 1}}, UndefInitializer, Tuple{Int64}}
-Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Bool}}, Base.ScopedValues.ScopedValue{Any}}
+Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Any}}, Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}
 Tuple{Type{Base.IOContext{IO_t} where IO_t<:IO}, Base.GenericIOBuffer{Memory{UInt8}}, Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}}
 Tuple{Type{Base.Iterators.IterableStatePairs{T} where T}, Base.Iterators.Reverse{String}}
 Tuple{Type{Base.Iterators.Zip{Is} where Is<:Tuple}, Tuple{Array{Any, 1}, Array{Any, 1}}}
@@ -36,7 +36,6 @@ Tuple{Type{Pair{A, B} where B where A}, Symbol, Tuple{Int64, Int64}}
 Tuple{Type{ProjecturedKernel.ReferenceModule.FieldReferenceStep{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, String}
 Tuple{Type{ProjecturedKernel.ReferenceModule.RangeReferenceStep{C1, C2, C3, C4, C5} where C5<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, Int64, Int64, Symbol}
 Tuple{Type{ProjecturedKernel.ReferenceModule.RangeReferenceStep{C1, C2, C3, C4, C5} where C5<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, Int64, Int64}
-Tuple{typeof(Base.:(*)), Int64, UInt64}
 Tuple{typeof(Base.:(*)), String, Base.SubString{String}}
 Tuple{typeof(Base.:(*)), Vararg{String, 4}}
 Tuple{typeof(Base.:(+)), Int64, Float64}
@@ -63,6 +62,7 @@ Tuple{typeof(Base.CoreLogging.handle_message), Base.CoreLogging.ConsoleLogger, B
 Tuple{typeof(Base.Filesystem.basename), String}
 Tuple{typeof(Base.Filesystem.contractuser), String}
 Tuple{typeof(Base.Filesystem.temp_cleanup_atexit)}
+Tuple{typeof(Base.HashArrayMappedTries.next), Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}}
 Tuple{typeof(Base.Iterators._zip_iterate_all), Tuple{Array{Any, 1}, Array{Any, 1}}, Tuple{Tuple{Int64}, Tuple{Int64}}}
 Tuple{typeof(Base.Iterators._zip_iterate_all), Tuple{Array{Any, 1}, Array{Any, 1}}, Tuple{Tuple{}, Tuple{}}}
 Tuple{typeof(Base.Iterators.enumerate), Array{Base.UnitRange{Int64}, 1}}
@@ -169,6 +169,7 @@ Tuple{typeof(Base.isempty), Array{Tuple{Int64, Int64, Int64}, 1}}
 Tuple{typeof(Base.isempty), Base.Dict{String, Any}}
 Tuple{typeof(Base.isequal), Int64, Int64}
 Tuple{typeof(Base.isequal), Task, Task}
+Tuple{typeof(Base.isequal), Tuple{UInt64, Int64, Int64}, Tuple{UInt64, Int64, Int64}}
 Tuple{typeof(Base.isequal), UInt8}
 Tuple{typeof(Base.isfinite), Float64}
 Tuple{typeof(Base.isodd), Int64}
@@ -234,7 +235,6 @@ Tuple{typeof(Base.push!), Base.Set{UnionAll}, Type}
 Tuple{typeof(Base.read), Base.PipeEndpoint}
 Tuple{typeof(Base.reduce_first), typeof(Base.add_sum), Int64}
 Tuple{typeof(Base.reinterpret), Type{Char}, UInt32}
-Tuple{typeof(Base.repeat), String, Int64}
 Tuple{typeof(Base.replace), String, Pair{Base.Regex, String}}
 Tuple{typeof(Base.revargs), ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{typeof(Base.round), Float64}
@@ -287,7 +287,6 @@ Tuple{typeof(ProjecturedKernel.OperationModule.evaluate_invertible_operation!), 
 Tuple{typeof(ProjecturedKernel.OperationModule.evaluate_invertible_operation!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
 Tuple{typeof(ProjecturedKernel.OperationModule.evaluate_operation), ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation}
 Tuple{typeof(ProjecturedKernel.OperationModule.make_insert_elements_operation), ProjecturedKernel.ReferenceModule.ConcreteReference, Int64, Array{Any, 1}}
-Tuple{typeof(ProjecturedKernel.OperationModule.reroot_operation), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._collect_rule_child_iomaps!), Array{Any, 1}, Array{Any, 1}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._collect_rule_child_iomaps!), Array{Any, 1}, Nothing}
 Tuple{typeof(ProjecturedKernel.ProjectionModule._find_output_child), ProjecturedKernel.ProjectionModule.FixedNodeWiring, ProjecturedKernel.ProjectionModule.TemplateIoMap, ProjecturedKernel.ReferenceModule.ConcreteReference}
