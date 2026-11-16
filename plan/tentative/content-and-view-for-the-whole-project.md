@@ -3,8 +3,8 @@
 Status 2026-11-16: the owner decided to go on. The owner approved the order of
 section 10 on 2026-11-15, and point 1 of it is done and on `main`. Section 11 holds
 the decisions of 2026-11-16 on what gets a view. Section 12 holds the order after
-those decisions, which is proposed and not approved. This document has no steps:
-the steps of each point come in a plan of their own.
+those decisions, which the owner approved on 2026-11-16. This document has no
+steps: the steps of each point come in a plan of their own.
 
 The pilot is `plan/done/views-compose-as-content-composes.md`. It was on the
 branch `views-compose`, and it is on `main` since 2026-11-15 (`adea9d83f`). Its
@@ -424,7 +424,7 @@ the 13 domains.
   5. Move the other domains of the syntax, one for each plan.
 
   The decisions of 2026-11-16 (section 11.1) change points 2 to 5. Section 12
-  holds the order after them, which is proposed and not approved.
+  holds the order after them, which the owner approved on 2026-11-16.
 
 I do not know the time of the whole move. The pilot gives the size of one small
 domain of the syntax: about 150 lines of views and tables for five types, and about
@@ -670,8 +670,9 @@ Other:
 
 ## 12. The order after the decisions of 2026-11-16
 
-Proposed by the session. The owner did not approve it. It replaces points 2 to 5
-of the order of section 10; point 1 is done.
+Proposed by the session, and approved by the owner on 2026-11-16 ("yes", to "Do
+you approve this order?"). It replaces points 2 to 5 of the order of section 10;
+point 1 is done.
 
 1. **Done.** One `TextView`, and the pilot on `main`.
 2. **The generic view** (decision 3). Its design starts with the four open points
