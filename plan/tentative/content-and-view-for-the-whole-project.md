@@ -423,3 +423,96 @@ the 13 domains.
 I do not know the time of the whole move. The pilot gives the size of one small
 domain of the syntax: about 150 lines of views and tables for five types, and about
 300 lines of tests. The parts of point 2 and the widget chains are not measured.
+
+## 11. What gets a view
+
+The analysis of 2026-11-15 and 2026-11-16, on `main` at `107fe8fc0`, with the
+decisions of the owner.
+
+### 11.1 The decisions
+
+1. **The test** (the owner, 2026-11-16: "Yes, I agree with that"). A type gets a
+   view only when both are true: one instance can show at two places, and one
+   showing keeps state in it, such as a caret in its text, a fold, a scroll or a
+   filter.
+2. **A widget and a layout are views** (the owner, 2026-11-16: "They are more like
+   views already, no?", then "Yes"). They get no view of their own. One widget at
+   two places shares its state, as one view at two places shares its caret.
+
+### 11.2 The inventory
+
+A scan of `source/` finds 607 `@document` types. A few are examples in docstrings.
+
+| Group | Types | Result |
+| --- | --- | --- |
+| Views of the pilot | 12 | Are views |
+| View documents of the older rule, with their parts | about 40 | Are views, but not by the rules of the pilot |
+| Widgets, layouts, graphics, tooltips | about 110 | No view (decision 2) |
+| Content of the 13 domains that print as code | 240 | Get a view; 9 have one |
+| Text and syntax types | 19 more | No more views; one `TextView` covers a text |
+| Primitives | 4 | Get a view |
+| Content of the domains that print as widgets | about 70 | Not decided |
+| Documents of the session and the rest of the platform | about 110 | Not decided |
+
+- **Printers make the widgets.** 691 of the 1289 calls that make a widget or a
+  layout are in the 54 `…ToWidget` files, and most of the rest are in helpers of
+  printers and in the widget slice. No content type declares a field of a widget
+  or layout type.
+- **A widget is the face of a view document.** The printer gives the widget the
+  state of the view document: the `WidgetTable` of a data frame uses the cells
+  `scroll_position` and `top_row` of the `DataFrameView`; the `WidgetTree` follows
+  and writes `expanded` and `shown` of the `DocumentTree`; the `WidgetSplitPane`
+  shows the weights of the `PaneSplit`; a `FileView` keeps a `WidgetScrollPane` as
+  its scroll.
+- **A widget tree that a person or a program makes by hand** has no view document
+  behind it, so the widget is the only home of its state.
+- **One widget at two places** exists in two cases: a widget in content, such as
+  the `WidgetTable` in a vertex of the graph example, and a widget tree made by
+  hand that shows in a tab and in a card.
+- **About 45 content types keep state of one showing now.** About 32 have a field
+  `collapsed`; the others have fields such as `Roster.anchor`,
+  `TaskGroupDocument.shown` and `GraphGraph.highlight_vertex`.
+
+### 11.3 The views that exist, against the rules of the pilot
+
+No view document of the older rule has the field `viewed` or the supertype
+`ContentView`. No view of the pilot holds its content with `hold_documents!`, which
+the older rule asks for.
+
+| View document | Names its content | Holds its content | Notes |
+| --- | --- | --- | --- |
+| `DataFrameView` | `frame`, no `get_edited_field` | The frame is no document | The caret, the filter, the sort and the scroll are in the view. It keeps what the last read of the frame saw, so two views read the frame two times. Its rows are made from their index when a path reaches them. |
+| `ChartPlot`, `SequenceChartPlot` | `chart`, no `get_edited_field` | No | |
+| `GraphLayout` | `graph`, no `get_edited_field` | No | One node for each vertex and edge, so it is a mirror tree. `GraphGraph` keeps the highlight too. |
+| `WorkspaceExplorer`, `DocumentTree` | `workspace`, `root`, no `get_edited_field` | Yes | |
+| `Navigator`, `FileView`, `UrlView` | `get_edited_field` | Not checked | |
+
+Two functions make a view: `make_document_view`, which the navigator and the
+dashboard card call and whose default answers the document itself, and
+`make_content_view` of the pilot.
+
+### 11.4 `PrimitiveString`
+
+It is a string in a box, plus a caret. It has two uses.
+
+- **A slot that takes any document**, such as `ResearchQuestion.statement`. The box
+  is the content, and it keeps the caret too, as `TextBlock` did before the pilot.
+- **A cell of a data frame that a person opens** (`make_data_frame_cell`). The
+  string lives in the frame; the box holds a copy, the caret and the text before
+  the commit. This use is a view in disguise, but it holds a copy and not the
+  place of the string.
+
+`ObjectField` names the place of a value, holds no copy and keeps the caret. 313
+document fields are a plain `String`, and the caret in them is a step in the view
+of the owner, such as `.value{3}`, so they need no view of a string.
+
+### 11.5 Open
+
+- Whether the view documents of the older rule take the rules of the pilot, and
+  whether the two functions that make a view become one.
+- What `PrimitiveString` becomes.
+- Where the home of the caret is for content that widgets show. The two groups
+  that are not decided depend on it. It belongs to the pilot of the widget chains,
+  point 4 of the order.
+- State of a widget that has no view document behind it can go when the printer
+  makes the widget again. This is not tested.
