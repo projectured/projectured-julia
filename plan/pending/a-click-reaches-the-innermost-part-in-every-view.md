@@ -1727,6 +1727,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (`GraphVertexDragTest.jl:166` and `:328`, a press on the content of a vertex
   starts the drag of the text, new on main since 2026-11-08; and
   `GraphScrollPaneTest.jl:183-210`).
+  The D8 work is in commit 1d35d5fbc, but its suites are not done.
+  `test_platform` stopped after 18 minutes: the limit of 12G killed it. Before
+  the stop it showed only the layering lines of main (`CheckLayering.jl:880`,
+  `:889`, `:922`). `test_text_range_selection` of ProjecturedTest and
+  `test_json` did not start. Next: run `test_platform` with a limit of 16G, then
+  the other two, and compare them with the known failures of main. If no line is
+  new, D8 is done. The tools of the runs are in `/var/tmp/ic-scratch`
+  (`step6/agent/run.jl`, `step7/suites.sh`), because `/tmp` does not stay after
+  a restart.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
