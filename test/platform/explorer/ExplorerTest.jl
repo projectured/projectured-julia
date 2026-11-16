@@ -504,6 +504,17 @@ function test_explorer()
         @test text isa last(kinds[3]) && !(pred isa last(kinds[3]))
     end
 
+    @testset "a native layout is a row of the kind of its schema" begin
+        cell, native = ExplorerSection("Cell"), ExplorerModule.MExplorerSection("Native")
+        section = ExplorerSection("Explorer", Any[cell, native])
+        tree = (root = section, expanded = IdDict{Any,Any}(section => IdDict{Any,Any}()))
+        kinds = ExplorerModule._collect_read_kinds(tree)
+        @test first.(kinds) == ["Section"]
+        filter = ExplorerFilter(; kinds = Any[last(only(kinds))])
+        @test ExplorerModule._is_filter_match(filter, String[], cell)
+        @test ExplorerModule._is_filter_match(filter, String[], native)
+    end
+
     @testset "the filter, the kinds and the add items say what they do" begin
         content = _explorer_make()
         explorer = Explorer(content)

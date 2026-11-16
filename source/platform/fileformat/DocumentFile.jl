@@ -52,9 +52,10 @@ one line break, as the save of a file writes it ([`save_file!`](@ref)). `.pdoc`
 is the binary snapshot format. A document of a natural format can not go to a path
 of another natural format, because a later read would parse the text with the
 wrong grammar; a second extension of the same format passes, so a YAML document
-can go to `.yaml` or `.yml`. A document that the file can not write alone, such as
-a node of another domain that needs a reference, is refused with an error, and the
-log says why.
+can go to `.yaml` or `.yml`. A path whose extension no format declares is an error,
+because no read could read the file back. A document that the file can not write
+alone, such as a node of another domain that needs a reference, is refused with an
+error, and the log says why.
 
 Use it to save a document to a file, in the format of the extension of the file.
 
@@ -98,7 +99,8 @@ Read the file at `path` into a document, in the format that the extension of
 with a reference to another file left as its leaf, and the text of a text file as
 a `PrimitiveString`. When the file does not exist, the answer is the empty seed of
 the domain of the format (see [`make_document_for`](@ref)), so a new file opens as
-an editable placeholder.
+an editable placeholder. A path whose extension no format declares is an error,
+whether the file exists or not.
 
 Use it to read a file of any supported format into a document.
 

@@ -194,4 +194,6 @@ end
 const _JULIA_FILE_BINDINGS = GestureBinding[
     make_tooltip_binding(_make_julia_call_note; description = "Show the function that is called")]
 
-get_document_gesture_bindings_own(::Type{<:JuliaFile}) = _JULIA_FILE_BINDINGS
+@gestures JuliaFile begin
+    splice(_JULIA_FILE_BINDINGS)
+end

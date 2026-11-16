@@ -113,6 +113,13 @@ function test_serialization()
             @test write_document_file!(yaml, p) == p
             @test read_document_file(p) isa YamlMapping
             @test_throws Exception write_document_file!(yaml, tempname() * ".json")
+
+            # An extension that no format declares names no read, so the write
+            # and the read of such a path are errors, and no file is made.
+            p = tempname() * ".no-such-extension"
+            @test_throws Exception write_document_file!(parse_json("1"), p)
+            @test !isfile(p)
+            @test_throws Exception read_document_file(p)
         end
 
         @testset "operations" begin

@@ -27,9 +27,14 @@ end
 # Whether `filter` keeps some rows out.
 _is_filter_active(filter::ExplorerFilter) = !isempty(strip(filter.text)) || !isempty(filter.kinds)
 
-# Whether `document` matches the words and the kinds of `filter`.
+# Whether `document` matches the words and the kinds of `filter`. A kind is a schema
+# type, so a document is of a kind by its schema type: a native layout is of the kind
+# of its schema too, though it is no subtype of the cell layout.
 function _is_filter_match(filter::ExplorerFilter, words, document)
-    isempty(filter.kinds) || any(kind -> document isa kind, filter.kinds) || return false
+    if !isempty(filter.kinds)
+        schema = get_document_schema_type(typeof(document))
+        any(kind -> schema <: kind, filter.kinds) || return false
+    end
     label = lowercase(format_tree_node_label(document))
     all(word -> occursin(word, label), words)
 end

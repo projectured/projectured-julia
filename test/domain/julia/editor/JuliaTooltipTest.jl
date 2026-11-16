@@ -55,6 +55,11 @@ end
     names = [binding.name for binding in collect_document_gesture_bindings(JuliaDocstring)
              if binding.domain == "tooltip"]
     @test names == ["Show the documentation"]
+    # The table of a file counts once, though it names the files of one format.
+    file = JuliaFile("a.jl", parse_julia("f(1)"))
+    names = [binding.name for binding in collect_document_gesture_bindings(typeof(file))
+             if binding.domain == "tooltip"]
+    @test names == ["Show the function that is called"]
 end
 
 end # @testset

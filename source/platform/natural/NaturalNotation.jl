@@ -189,14 +189,21 @@ function describe_natural_formats end
 function describe_natural_formats()
     lines = String[]
     for format in collect_file_formats()
-        extensions = get_file_format_extensions(format)
-        (isempty(extensions) || isempty(first(extensions)) || !_is_natural_format(format)) && continue
-        extension = first(extensions)
-        name = Symbol(SubString(extension, 2))
-        push!(lines, rpad(repr(name), 8) * rpad(extension, 10) *
-                     String(nameof(get_file_format_domain(format))))
+        line = Base.invokelatest(_describe_natural_format, format)
+        line === nothing || push!(lines, line)
     end
     join(sort(lines), "\n")
+end
+
+# The line of `format` in `describe_natural_formats`, or `nothing` when the natural
+# text does not read it. It runs through `invokelatest`, so a format of a package
+# loaded after a window opened stops no answer of the window.
+function _describe_natural_format(format::FileFormat)
+    extensions = get_file_format_extensions(format)
+    (isempty(extensions) || isempty(first(extensions)) || !_is_natural_format(format)) && return nothing
+    extension = first(extensions)
+    name = Symbol(SubString(extension, 2))
+    rpad(repr(name), 8) * rpad(extension, 10) * String(nameof(get_file_format_domain(format)))
 end
 
 """

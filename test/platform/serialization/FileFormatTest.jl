@@ -205,5 +205,21 @@ function test_file_format()
         end
         @test Base.invokelatest(find_file_format, "a.tly") === TallyFileFormat()
     end
+
+    @testset "a format of a later world stops no search of an older world" begin
+        # A window keeps the world of its start, and a package can declare a format
+        # after it.
+        world = Base.get_world_counter()
+        @eval SerializationModule.get_file_format_extensions(::TallyCopyFileFormat) = (".tally-later",)
+        @eval SerializationModule.get_file_format_domain(::TallyCopyFileFormat) = Union{}
+        try
+            @test Base.invoke_in_world(world, find_file_format, "a.tally") === TallyFileFormat()
+            @test Base.invoke_in_world(world, find_file_format, "a.tally-later") === TallyCopyFileFormat()
+            @test Base.invoke_in_world(world, is_pred_document, DocumentNothing())
+        finally
+            Base.delete_method(only(methods(get_file_format_extensions, Tuple{TallyCopyFileFormat})))
+            Base.delete_method(only(methods(get_file_format_domain, Tuple{TallyCopyFileFormat})))
+        end
+    end
 end
 end

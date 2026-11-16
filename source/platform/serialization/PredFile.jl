@@ -96,13 +96,15 @@ is_written_inline(::PredFileFormat, node) = _find_inline_format(node) !== nothin
 # The format that writes `node` in a file of its own: a format of the session whose
 # domain holds it, other than a format of any document, such as `.pred`, or of no
 # document, such as plain text. Of two such formats, the first of
-# `collect_file_formats`. The domain passes an inference barrier: inference merges
-# the domain `Union{}` of a text file with another domain `D` into a subtype of `D`,
-# and folds the `isa` to the answer for `D` (Julia 1.11 to 1.13), so with no other
-# format a `.pred` file would take every document for a node of a text file.
+# `collect_file_formats`. The domain comes through `invokelatest`, so a format of a
+# package loaded after a window opened stops no save of the window. It also passes
+# an inference barrier: inference merges the domain `Union{}` of a text file with
+# another domain `D` into a subtype of `D`, and folds the `isa` to the answer for
+# `D` (Julia 1.11 to 1.13), so with no other format a `.pred` file would take every
+# document for a node of a text file.
 function _find_domain_format(node)
     for format in collect_file_formats()
-        domain = Base.inferencebarrier(get_file_format_domain(format))
+        domain = Base.inferencebarrier(Base.invokelatest(get_file_format_domain, format))
         domain !== Document && domain !== Union{} && node isa domain && return format
     end
     nothing

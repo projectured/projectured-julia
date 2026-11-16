@@ -1033,3 +1033,50 @@ table.
 
 - **Files changed.** `documentation/package/platform/fileformat/fileformat.md` (the home: what a format is and declares, `File{F}`, a file type of its own, a format with no extension, the one read and write, the line break), `serialization.md` (the table of seams moved to `fileformat.md`), `design/domain-anatomy.md`, `design/domain-inventory.md`, `guide/new-domain-guide.md` (step 7), `rule/package-rules.md` (the reason of the new import of the natural slice), `package/kernel/document.md`, `package/kernel/gesture.md`, `package/kernel/devices-and-backends.md` (`get_document_schema_type` and the gesture walk), `package/platform/explorer/explorer.md`, `package/README.md`, and the documents of the domains JSON, XML, YAML, SQL, Markdown, RST, math and Julia.
 
+
+**2026-11-16, step 7: the merge of main, and the code review before the landing.**
+
+- **The merge.** Main `fa0ddc8e5` merged into the branch with no conflict (`ea9022371`). Its
+  two commits on the load of a file (`f14e1fbbd`, `567efa677`) call `_repair_selection!(editor,
+  file)` on a `FileDocument`, which the branch keeps. Main also recorded its lists again
+  (`a603c7984`), so a record of the whole repository on the branch shows mostly this change.
+- **The review** (one reviewer, both branches, read only) found five points. Each one is
+  checked against the code and fixed, or measured:
+  1. **A format of a later world stops each lookup of a window** (fixed). The loop of a
+     window keeps the world of its start (`EditorLoop.jl:444`), and `collect_file_formats()`
+     reads the methods of the newest world. A package that declares a format after the window
+     opens made each open, each `.pred` save and `describe_natural_formats` raise a
+     `MethodError`, for every extension. On main, a lookup read a `Dict` and called only the
+     methods of that one file type. Each loop over the list now calls the methods of a format
+     through `Base.invokelatest`, as `get_natural_entries` does: `_find_extension_format`,
+     `_find_domain_format` and `describe_natural_formats` (its line of one format is
+     `_describe_natural_format`). The docstring of `collect_file_formats` says so. Test:
+     `FileFormatTest`, "a format of a later world stops no search of an older world", by
+     `Base.invoke_in_world`.
+  2. **An extension that no format declares is an error for the write and the read**
+     (kept, and said). On main, `export_document` wrote the natural text to such a path,
+     such as `.jsonl`, and `read_document_file` of it raised an error, so the editor wrote a
+     file that it could not read back; a missing file of such a path opened as a
+     `DocumentNothing` that no save could write. The branch refuses both, because the
+     extension of a path names its format. The docstrings of `write_document_file!` and
+     `read_document_file` say so. Test: `SerializationTest`, "export extension guard".
+  3. **The cost of the list** (measured, not changed). One `collect_file_formats()` with 30
+     formats takes 57 µs (`methods()` 6 µs, the sort 9 µs, the rest the filter of the
+     signatures); `invokelatest` adds nothing that shows. A `.pred` save asks it about three
+     times for each node, so a file of 10 000 nodes spends about 2 s in it. It runs at a load
+     and at a save only: no frame computes the text of a file, and the picture check of a
+     link runs at a load (`splice_named_file!`). The largest `.pred` file of the repository
+     is 1.8 KB.
+  4. **The table of a Julia file counted twice** (fixed). `get_document_gesture_bindings_own(
+     ::Type{<:JuliaFile})` matched the concrete type and the schema type `File{JuliaFileFormat}`.
+     It is `@gestures JuliaFile` now, as the JSON, XML and YAML files. Test:
+     `JuliaTooltipTest`, "each binding has the name that a command shows". The tables of
+     `PivotMeasure` and `PaneTab` have the same form and count twice on main too, by the stem
+     step of the walk; they are not part of this plan.
+  5. **The filter hid a native layout** (fixed). A kind is a schema type, and a native layout,
+     such as the bare name of `@document [M, C] struct TaskGroup`, is no subtype of its cell
+     layout, so `document isa kind` failed for it. `_is_filter_match` now tests
+     `get_document_schema_type(typeof(document)) <: kind`. Test: `ExplorerTest`, "a native
+     layout is a row of the kind of its schema".
+- **omnet-julia.** The three assertions of the fingerprint store follow P6 (the omnet plan
+  §10), and the INI module says that its format and its natural notation are methods.

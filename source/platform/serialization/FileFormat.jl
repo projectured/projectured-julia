@@ -275,6 +275,11 @@ Each format of the session: the value of each concrete type with no field that
 has a method of [`get_file_format_extensions`](@ref), in the order of the names
 of the types. A format is in the list when its package is loaded, with no
 registration.
+
+The list is the one of the newest world, so it can hold a format that a package
+loaded after the caller started. A caller that keeps an older world, such as the
+loop of a window, calls a method of each format of the list through
+`Base.invokelatest`.
 """
 function collect_file_formats()
     types = DataType[]
@@ -317,9 +322,12 @@ end
 find_file_format(name::Symbol) =
     (short = lowercase(String(name)); _find_extension_format(isempty(short) ? "" : "." * short))
 
-# The one format of the session that declares `extension`, or `nothing`.
+# The one format of the session that declares `extension`, or `nothing`. The
+# extensions of each format come through `invokelatest`, so a format of a package
+# loaded after a window opened stops no lookup of the window.
 function _find_extension_format(extension::AbstractString)
-    found = filter(format -> any(e -> lowercase(e) == extension, get_file_format_extensions(format)),
+    found = filter(format -> any(e -> lowercase(e) == extension,
+                                 Base.invokelatest(get_file_format_extensions, format)),
                    collect_file_formats())
     length(found) <= 1 && return isempty(found) ? nothing : only(found)
     error("the extension ", repr(extension), " is declared by more than one file format: ",
