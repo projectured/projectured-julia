@@ -224,6 +224,15 @@ extent of its content. A shell never offers 0.
 The two directions cannot form a cycle. A clipped axis gives the content a
 cell to read. An unclipped axis reads a cell that the content produces.
 
+A child keeps the two axes apart. Its width reads only the range of its width.
+Its height reads the range of its height, and its width when it wraps. A grid
+finds the widths of its columns before the heights of its rows: the edge of a
+`Content` column reads the columns before it, and the edge of a `Content` row
+reads the rows above it. So a child whose width reads the range of its height
+closes a cycle through the rows above it. A canvas that computes both extents
+together gives each axis a cell of its own, as the chart and the sequence chart
+do.
+
 ## 3b. Who clips
 
 ```

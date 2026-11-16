@@ -865,15 +865,18 @@ function _get_sequence_chart_extent(minimum, maximum, natural)
     lower === nothing ? extent : max(extent, Int(lower))
 end
 
-# Canvas size: the extent on each axis, and never less than the chart can draw
-# in. Reading the cells here registers the dependency, so a resize reflows
-# without re-projecting.
-function _canvas_size(p::SequenceChartPlotToGraphicsCanvas, ctx)
-    ctx === nothing && return (max(p.width, 160), max(p.height, 100))
-    w = _get_sequence_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)
-    h = _get_sequence_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)
-    (max(Int(w), 160), max(Int(h), 100))
-end
+# The width and the height of the canvas: the extent on each axis, and never less
+# than the chart can draw in. Each reads only the cells of its own axis: a grid
+# finds the widths of its columns before the heights of its rows, so a width that
+# read a height would close a cycle through the rows above. Reading the cells here
+# registers the dependency, so a resize reflows without re-projecting.
+_get_canvas_width(p::SequenceChartPlotToGraphicsCanvas, ctx) =
+    max(ctx === nothing ? p.width :
+        Int(_get_sequence_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)), 160)
+_get_canvas_height(p::SequenceChartPlotToGraphicsCanvas, ctx) =
+    max(ctx === nothing ? p.height :
+        Int(_get_sequence_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)), 100)
+_canvas_size(p::SequenceChartPlotToGraphicsCanvas, ctx) = (_get_canvas_width(p, ctx), _get_canvas_height(p, ctx))
 
 function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                         plot::SequenceChartPlot, ctx)
@@ -967,10 +970,9 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
-    size_cell = Cell(@computation _canvas_size(p, ctx))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            Cell(@computation Int32(size_cell[][1])),
-                            Cell(@computation Int32(size_cell[][2])),
+                            Cell(@computation Int32(_get_canvas_width(p, ctx))),
+                            Cell(@computation Int32(_get_canvas_height(p, ctx))),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
     SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry, toolbar, right, bottom)

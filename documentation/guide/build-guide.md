@@ -166,7 +166,7 @@ runs `--status`, `--stop-server` and `--watch`:
 | `--delta-optimization=N` | the `-O` level of the code of a rebuild, 0 to 3 (default: the level of the build) |
 | `--compact=N,F` | found again by itself after a growth of F of the image, or after N rebuilds for `--image=pages` and `--image=whole` (default: `50,0.25`) |
 | `--trim` | write the trimmed product too, under `<output>/trimmed` |
-| `--status` | print what the store of the output holds, and exit |
+| `--status` | print what the store of the output holds and the record of its builds (see [The record of the builds](#the-record-of-the-builds)), and exit |
 | `--stop-server` | stop the compiler server of the store of the output, and exit |
 
 - **The reactive Julia** is the branch `merged` of
@@ -174,17 +174,58 @@ runs `--status`, `--stop-server` and `--watch`:
   build environment takes PackageCompiler from the branch `reactive` of
   https://github.com/projectured/PackageCompiler.jl, which builds like the
   released one on another Julia.
-- **With another Julia**, a build compiles the whole program, as before, and
-  says how to get the reactive Julia. Over an output that holds a store it
+- **With another Julia**, a build compiles the whole program and says how to
+  get the reactive Julia. Over an output that holds a store it
   stops, because a plain build removes the store: start it with the reactive
   Julia, or pass `--no-reactive`.
 - **The binary keeps what its founding build holds.** A change of the backends,
   of the options of the package, or of `--precompile-calls` is refused with the
   words "founded for another package": found the store again with `--found`.
+- **A build with no change does no work.** When no tracked file, no file that
+  they read and no statement of the trace changed since the last build, the
+  build prints "no tracked file, no file that they read and no statement of the
+  trace changed since snapshot sN; the program stays as it is" and leaves the
+  program as it is.
+- **A file that a tracked source reads at its load is an input.** When a
+  top-level expression of a tracked source reads a data file or a text file
+  while the package loads, a change of that file makes the next build a rebuild
+  that evaluates the expression again. A file that only the running program
+  reads is no input.
+- **An input outside the tracked sources stops the build.** These inputs are
+  the build of Julia, the project file, the Manifest entry of each package, the
+  preferences files (`LocalPreferences.toml`, `JuliaLocalPreferences.toml`),
+  the workload, the statements files, and each source file that the build does
+  not track. When one changes, the build stops with "an input of the store
+  changed" and the name of the input, and leaves the program as it was. A
+  build with `--found` is a whole build with the input of now. At the founding
+  the build lists the source files that it does not track.
+- **A refused edit stops the build.** Some edits only a whole build can apply,
+  such as a changed module header or a `using` of a package that the image
+  does not hold. The build prints "the rebuild of <name> is refused", names
+  each change with its id and its reason, and leaves the program as it was.
+  `--found` applies the change.
 - **An edit that calls new code** compiles that code at each start of the
   binary until `--refresh-trace` adds it to the trace.
-- **The store founds again by itself** when its overlay grew the image by a
-  quarter since the founding.
+- **A statement of the trace can stop compiling.** When an edit makes more
+  statements of the trace fail to compile than at the whole build, the rebuild
+  prints their count and names `refresh_trace`. The program then compiles those
+  calls when it runs them. `--refresh-trace` records the workload again, and
+  the next rebuild compiles what it records. You start that recording; no build
+  does it by itself.
+- **An overlay store moves its base forward by itself.** The overlay holds every
+  change since the base. When the code of the overlay reaches 2 % of the code
+  of the base (`JULIA_REACTIVE_REBASE`), the build prints "the code of the
+  overlay is X % of the code of the base, the bound is Y %: the base moves
+  forward", writes the last snapshot as the new base, and prints "snapshot sN is
+  the base now". The store does not found again for that.
+- **The store founds again by itself** with `--image=pages` or `--image=whole`
+  after N rebuilds or a growth of F of the image (`--compact=N,F`). An overlay
+  store ignores `--compact`.
+- **After an update of Julia, a store needs one whole build.** A new build of
+  Julia changes the input "the build of Julia", and the next build stops with
+  its name until you run `--found`. The store records no version of
+  PackageCompiler, so no stop names an update of it: run `--found` once after
+  such an update.
 - **The program starts prelinked.** The founding links the image into
   `bin/projectured` and prelinks it, and a start applies the overlay of the
   last rebuild on top: about 60 ms after a founding, and about 110 ms with an
@@ -194,6 +235,43 @@ runs `--status`, `--stop-server` and `--watch`:
   PackageCompiler until `--found`.
 - `--no-incremental`, `--distribution` and `PROJECTURED_PERFORMANCE_COUNTERS`
   compile the whole program: a rebuild keeps the image of its founding build.
+
+## The record of the builds
+
+The store keeps `reactive-store/builds.txt`: one line for each build, written at
+the end of the build. A line holds the time, the kind and fields of the form
+`name=value`, with a tab between them. A build with no change and a build that
+fails have no line. A whole build keeps the record of the store that it
+replaces.
+
+| Kind | When | Fields |
+| --- | --- | --- |
+| `whole` | a whole build made the store | `cause`, `seconds`, `statements`, `image_bytes` |
+| `rebuild` | a rebuild made a snapshot | `snapshot`, `form`, `seconds`, `changes`, `overlay_bytes`, `code_percent`, `growth_percent`, `lost` |
+| `base` | the base of an overlay store moved forward | the fields of a rebuild |
+| `refused` | the rebuild refused the edit | `reasons` |
+| `stopped` | an input of the store changed | `inputs` |
+| `recorded` | `--refresh-trace` recorded the workload again | `statements`, `kept`, `dropped`, `added` |
+
+The cause of a whole build is `no store`, `founding = true` (the build ran with
+`--found`), or the bound that made the store found again, such as `the image grew
+26.0 % since the founding, the bound is 25.0 %`. The field `changes` counts the
+changes of a rebuild for each id, as `A2:14,C1:3`.
+
+`--status` prints how often each kind occurs, with the causes of the whole
+builds, the ids of the refusals and the inputs of the stops:
+
+```
+  builds:     3 whole, 41 rebuild, 2 base, 1 refused, 1 stopped, 1 recorded, since 2026-11-16 09:12:40
+    whole build, 2 times: no store
+    whole build, 1 times: founding = true
+    refused, 1 times: F1
+    stopped, 1 times: the build of Julia
+```
+
+The line `builds:` comes after the lines about the founding, the snapshots, the
+image, the growth and the server. A store with no record prints no `builds:`
+line.
 
 ## What a build makes
 
