@@ -1073,6 +1073,14 @@ its place after the plan of the layouts. Steps 1a and 1b belong to the steps tha
           and `ProjecturedGitExample`, which `Project.toml` names since 2026-11-14, so a load of
           `OmnetIde` in that environment fails until a `Pkg.resolve()`. The copy for this check
           got the two entries by hand.
+      - **Both checks again after the rebase on main `107fe8fc0`** (2026-11-16), with the repair
+        that writes a `ReplaceSelectionOperation` of the same path (`3cae87733`), each in a new
+        process: the same results in `projectured` (36 loads) and in `omnet_ide` (37 loads). The
+        caret stays at offset 38, the letter after the 20 rewrites goes in with no new click,
+        the tab keeps its scroll of 171 px and the card stays at 0, the undo list does not
+        change, and rewrite 21 shows the band in both views. `ollama ps` showed no model before
+        and after. The load of the omnet IDE warned that 427 of the 3675 recorded calls of
+        `OmnetLegacyFormat` no longer resolve against this main; that list is outside this plan.
 
 ## 8. Risks
 
