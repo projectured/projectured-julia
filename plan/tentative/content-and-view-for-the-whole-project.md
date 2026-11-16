@@ -506,7 +506,68 @@ It is a string in a box, plus a caret. It has two uses.
 document fields are a plain `String`, and the caret in them is a step in the view
 of the owner, such as `.value{3}`, so they need no view of a string.
 
-### 11.5 Open
+### 11.5 How the path of the caret is kept
+
+A caret is a path, and each view on the path keeps its part. So a type with no
+state of its own, such as a Markdown paragraph, has a view only because a path
+goes through it. Three options were named on 2026-11-16:
+
+1. A view type for each type on a path, by hand or by a macro: 300 to 400 types.
+2. One generic view type for a type with no state of its own, and a view type of
+   its own only for a type with state of its own.
+3. No view for a type with no state of its own; the nearest view above keeps the
+   rest of the path, and a printer of a part below gets the caret from it.
+
+The owner leans to option 2 ("I tend to lean towards option 2 to avoid having so
+many views"), and asks whether views that are equal in structure and behaviour can
+be one view. This is a lean, and no decision.
+
+**The 12 views of the pilot are 4 shapes.**
+
+| Shape | View types |
+| --- | --- |
+| `viewed` only | `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView`, `MarkdownTextView`, `SyntaxLeafView` |
+| `viewed` and the views of the children | `MarkdownParagraphView`, `MarkdownHeadingView`, `MarkdownRootView` |
+| `viewed`, the views of the children and a fold | `JsonArrayView`, `SyntaxNodeView` |
+| `viewed`, the look and the closed folds | `TextView` |
+
+- Nine have no state of their own. The four Markdown views have no behaviour of
+  their own. The four JSON leaf views have none of their own either: they share
+  the key table of `JsonView`.
+- The key tables of the views repeat the tables of their content with another
+  helper: `@gestures JsonView` repeats 7 of the 8 rows of `@gestures JsonDocument`,
+  `@gestures JsonArrayView` the row of `JsonArray`, and the tables of the two
+  syntax views the rows of `SyntaxLeaf` and `SyntaxNode`.
+- Only `SyntaxNodeView`, which maps its folds to the text, and `TextView` have
+  behaviour of their own.
+- No source file outside the three view files names a view type of the pilot. The
+  machinery of `Viewing.jl` works on `ContentView`.
+
+**The same kinds of state repeat in the view documents of the older rule.**
+
+| State | Where it is kept |
+| --- | --- |
+| Open nodes | `DocumentTree.expanded`, `WorkspaceExplorer.open`, `FileSystemChooser.open`, `WidgetTree.expanded`, `ThemeGroup.open_names` |
+| Rows in view of a long list | `DataFrameView`, `Roster.anchor`, `TaskGroupDocument`, `FrameStatistics`, `TaskStreamLines.top_row`, `McpLog.shown` |
+| Filter, sort and find | The arrangement, `DataFrameQuery`, `ExplorerFilter`, `TaskGroupDocument.row_filter`, `TaskStreamLines` |
+| A window on a drawing, a cursor and a drag | `ChartPlot` and `SequenceChartPlot` share six fields; `GraphLayout` has a zoom and a drag |
+
+**An arrangement is a generic view document.** `ArrangementDocument(document,
+entries)` goes around the document that a place shows. Each entry names a part by
+its path and keeps the filter, the sort, the find and the group that a person set
+there. A save of the document saves no entry, and `get_edited_field` names the
+document. It differs from the rules of the pilot: the field is `document`, it has
+no `ContentView`, it keeps its state by path and not in a node for each part, the
+caret is not in it, and it does not hold its document. A stored path does not move
+when an insert moves the items (`plan/pending/an-insert-moves-the-paths-after-it.md`);
+this is not tested for an entry.
+
+`ArrangingProjection` prints the document with the arrangement in the printer
+context, and a dispatch finds the entry of each place. So `main` has the mechanism
+of option 3 for a filter and a sort: a view above gives its state to the printer of
+a part below through the context.
+
+### 11.6 Open
 
 - Whether the view documents of the older rule take the rules of the pilot, and
   whether the two functions that make a view become one.
