@@ -1048,6 +1048,20 @@ function test_sequencechart_projection()
             @test canvas isa GraphicsCanvas
             @test !isempty(_sc_flatten(canvas))
         end
+
+        @testset "each axis reads only its own limits" begin
+            # A grid finds the widths of its columns before the heights of its
+            # rows, so a width that read a height limit would close a cycle through
+            # the rows above it. A limit of the other axis that throws when it is
+            # read leaves each extent as it is.
+            other_axis = Cell(@computation error("a limit of the other axis was read"))
+            wide = with_size_range(PrinterContext(); width = (nothing, Cell(Int32(300))),
+                                   height = (nothing, other_axis))
+            @test Int(print_document(_sequencechart_projection(), _sc_widgets(), _sc_chart(), wide).output.w) == 300
+            high = with_size_range(PrinterContext(); width = (nothing, other_axis),
+                                   height = (nothing, Cell(Int32(200))))
+            @test Int(print_document(_sequencechart_projection(), _sc_widgets(), _sc_chart(), high).output.h) == 200
+        end
     end
 end
 

@@ -1867,15 +1867,18 @@ function _get_chart_extent(minimum, maximum, natural)
     lower === nothing ? extent : max(extent, Int(lower))
 end
 
-# Canvas size: the extent on each axis, and never less than the chart can draw
-# in. Reading the cells here registers the dependency, so a resize reflows
-# without re-projecting.
-function _canvas_size(p::ChartPlotToGraphicsCanvas, ctx)
-    ctx === nothing && return (max(p.width, p.minimum_width), max(p.height, p.minimum_height))
-    w = _get_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)
-    h = _get_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)
-    (max(Int(w), p.minimum_width), max(Int(h), p.minimum_height))
-end
+# The width and the height of the canvas: the extent on each axis, and never less
+# than the chart can draw in. Each reads only the cells of its own axis: a grid
+# finds the widths of its columns before the heights of its rows, so a width that
+# read a height would close a cycle through the rows above. Reading the cells here
+# registers the dependency, so a resize reflows without re-projecting.
+_get_canvas_width(p::ChartPlotToGraphicsCanvas, ctx) =
+    max(ctx === nothing ? p.width : Int(_get_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)),
+        p.minimum_width)
+_get_canvas_height(p::ChartPlotToGraphicsCanvas, ctx) =
+    max(ctx === nothing ? p.height : Int(_get_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)),
+        p.minimum_height)
+_canvas_size(p::ChartPlotToGraphicsCanvas, ctx) = (_get_canvas_width(p, ctx), _get_canvas_height(p, ctx))
 
 function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot, ctx)
     t = unwrap_cell(p.style)
@@ -1947,10 +1950,9 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
-    size_cell = Cell(@computation _canvas_size(p, ctx))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            Cell(@computation Int32(size_cell[][1])),
-                            Cell(@computation Int32(size_cell[][2])),
+                            Cell(@computation Int32(_get_canvas_width(p, ctx))),
+                            Cell(@computation Int32(_get_canvas_height(p, ctx))),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
     ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar, horizontal, vertical)
