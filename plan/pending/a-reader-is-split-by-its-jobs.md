@@ -91,8 +91,7 @@ rest by hand:
   nothing`. The default maps each reference of the operation with `map_reference_backward`,
   as the default does for a path today, and keeps any other operation as it is, so the
   identity readers go. Julia chooses the method by the type of the operation, as about 130
-  older readers do today. The undo buffer and the gesture log are methods of job 2: each
-  takes the answer of its content and gives it back recorded.
+  older readers do today.
 - **Job 3 stays local, and only the passing is written once.** Each container chooses the
   child of a gesture, as the owner decided (PAR-DECIDE-LOCALLY and PAR-NO-GLOBAL-ROUTING in
   [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)): a
@@ -131,9 +130,20 @@ rest by hand:
   child. The rules that answer first today become `override` rules of the table of the
   container, and no container writes the order by hand. The text below is the proposal that
   the owner accepted.
-- **Open point O3, a wrapper around the walk.** The fault barrier and the unwrapping of a
-  window input act on the walk and not on one answer. Find whether they stay stages of the
-  walk or become part of it.
+- **Open point O3, a wrapper that acts on the passing.** Six higher-order stages with one
+  child do something to the passing itself, not to one answer:
+  - they change the gesture for the inner stage: `WindowInputUnwrapping` gives it the event
+    of a `WindowInput`, and `DragTracking` and `GestureTracking` keep state over time and make
+    gestures of their own from raw events and timers (a drag, a click count, a dwell);
+  - they record the gesture with the answer: `GestureLogRecording` and the undo buffer, which
+    need the gesture as well as the operation, so `map_operation_backward` can not do it;
+  - they guard the call: `FaultCatching` catches an exception of the inner reader and records
+    a fault.
+
+  `WindowInputUnwrapping` and `FaultCatching` drop the description and the domain of the
+  change. Proposal: these six keep a `read_intent` of their own, as stages of the walk, because
+  each does what no part can do alone. Each passes the change to its child with the one helper
+  of the passing, so the route, the description and the domain stay.
 
 ## 5. The names
 
