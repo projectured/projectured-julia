@@ -1,0 +1,544 @@
+location	arity	projection_type	payload_or_tested_types	jobs	note
+projectured-julia/source/platform/projection/higherorder/Switching.jl:70	4	SwitchingProjection (iomap SwitchingIoMap)	none tested	W	goes to the branch of iomap.index with the inner IO map
+projectured-julia/source/platform/projection/higherorder/Switching.jl:73	3	SwitchingProjection (iomap SwitchingIoMap)	Any	B	3-to-4 wrapper: Intent(payload) puts the payload (gesture or operation) in the gesture slot, recursion nothing, returns .operation
+projectured-julia/source/platform/projection/higherorder/Nesting.jl:64	4	NestingProjection (iomap NestingIoMap)	none tested	W	element 1, else the stored recursion, else the projection of the child IO map; passes the outer recursion to element 1 where the printer gives element 1 a NestingProjection of the rest
+projectured-julia/source/platform/projection/higherorder/Nesting.jl:75	3	NestingProjection (iomap NestingIoMap)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/higherorder/Recursive.jl:45	4	RecursiveProjection (iomap untyped)	none tested	W	passes itself (rp) as the recursion to its child
+projectured-julia/source/platform/projection/higherorder/Recursive.jl:48	3	RecursiveProjection (iomap untyped)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/generic/Constant.jl:14	3	ConstantProjection	Any	F	declines everything
+projectured-julia/source/platform/projection/higherorder/WindowInputUnwrapping.jl:48	4	WindowInputUnwrappingProjection (iomap WindowInputUnwrappingIoMap)	WindowInput (gesture)	W	rewrites the gesture (WindowInput to its event) for the inner reader and puts the original gesture on the answer; drops description, domain and route of the change and of the answer
+projectured-julia/source/platform/projection/higherorder/WindowInputUnwrapping.jl:57	3	WindowInputUnwrappingProjection (iomap WindowInputUnwrappingIoMap)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/ReaderDefaults.jl:28	3	Projection (iomap TemplateIoMap)	ReplaceStringRangeOperation	M,W,F	an edit inside an element goes to the 3-arg reader of the element and is rerooted; retypes to the operation of the bound (number range, type-in); declines an opaque atomic leaf, a Bool and introduced output
+projectured-julia/source/platform/projection/ReaderDefaults.jl:80	3	RecursiveProjection (iomap TemplateIoMap)	KeyPress, KeyDown	B	ambiguity breaker against ProjectionTemplate.jl:1528; recursion nothing
+projectured-julia/source/platform/projection/ReaderDefaults.jl:84	3	RecursiveProjection (iomap TemplateIoMap)	ReplacePathOperation	B	ambiguity breaker against ProjectionTemplate.jl:1717
+projectured-julia/source/platform/projection/ReaderDefaults.jl:88	3	RecursiveProjection (iomap TemplateIoMap)	ReplaceStringRangeOperation	B	ambiguity breaker against ReaderDefaults.jl:28
+projectured-julia/source/platform/projection/higherorder/TypeDispatching.jl:60	4	TypeDispatchingProjection (iomap untyped)	none (tests the type of iomap.input)	W,F	the row whose type the input has; nothing-change when no row matches
+projectured-julia/source/platform/projection/higherorder/TypeDispatching.jl:69	3	TypeDispatchingProjection (iomap untyped)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/higherorder/PredicateDispatching.jl:49	4	PredicateDispatchingProjection (iomap untyped)	none (predicate on iomap.input)	W,F	the row whose predicate holds; nothing-change when none holds
+projectured-julia/source/platform/projection/higherorder/PredicateDispatching.jl:58	3	PredicateDispatchingProjection (iomap untyped)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/generic/Focusing.jl:57	3	FocusingProjection (iomap SimpleIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/projection/generic/Focusing.jl:90	3	FocusingProjection (iomap SimpleIoMap)	Any	G,F	its own binding table (Ctrl+comma, Ctrl+period) through read_projection_gesture; declines every other operation (no default re-target)
+projectured-julia/source/platform/projection/higherorder/FaultCatching.jl:407	4	FaultCatchingProjection (iomap FaultCatchingIoMap)	MouseClick, Alt+double press (on a fault mark)	W,G,F	on a fault mark it reads the gesture itself and ignores an operation; a throw of the inner reader is recorded as a fault and answers a nothing-change; drops description and domain on the mark path
+projectured-julia/source/platform/projection/higherorder/FaultCatching.jl:424	3	FaultCatchingProjection (iomap FaultCatchingIoMap)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/layout/GridList.jl:435	3	GridLayoutToGraphicsCanvas (iomap GridLayoutListIoMap)	Any (tests pointer x and y)	W,G	a pointer event to the cell under it (read_child_event: frame shift, caret, whole or focus selection by gesture), a key to the cell that the selection names; rerooted at children[k][c]; a dwell and a right click read outward with the document tables
+projectured-julia/source/platform/syntax/CollectionToSyntax.jl:82	3	CollectionCellVectorToSyntax (iomap ChildrenIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/projection/higherorder/ReferenceDispatching.jl:130	4	ReferenceDispatchingProjection (iomap ReferenceDispatchingIoMap)	none tested	W	to the projection of the inner IO map
+projectured-julia/source/platform/projection/higherorder/ReferenceDispatching.jl:135	3	ReferenceDispatchingProjection (iomap ReferenceDispatchingIoMap)	Any	B	3-to-4 wrapper
+projectured-julia/source/platform/projection/higherorder/ReferenceDispatching.jl:156	4	ReferenceDispatchingProjection (iomap IoMap)	none tested	W	the IO map of the projection it printed when applies was false: goes to that projection
+projectured-julia/source/platform/projection/higherorder/ReferenceDispatching.jl:158	3	ReferenceDispatchingProjection (iomap IoMap)	Any	W	a 3-arg walk to the 3-arg reader of the projection of the IO map, with no 4-arg step
+projectured-julia/source/platform/syntax/SyntaxToText.jl:192	3	SyntaxLeafToText (iomap SimpleIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/syntax/SyntaxToText.jl:210	4	SyntaxLeafToText (iomap SimpleIoMap)	text element write; ReplaceSelectionOperation with an Alt+double press; ReplaceMouseTargetOperation (answer)	M,C,F	unwraps to its own 3-arg readers and rewraps as the bridge does, but drops description and domain and ignores the route; uses the gesture to cut the answer of the text stage to the whole part; declines a text element write
+projectured-julia/source/platform/syntax/SyntaxToText.jl:278	3	SyntaxLeafToText (iomap SimpleIoMap)	ReplaceStringRangeOperation	M,F	a span of a line to the field of the leaf; a caret at the open-value seam goes to the value
+projectured-julia/source/platform/syntax/SyntaxToText.jl:320	3	SyntaxLeafToText (iomap SimpleIoMap)	ReplaceTextRangeOperation	M,F	converts a flat text edit to a ReplaceStringRangeOperation on a field; declines a change of indentation, an image field and a break in a field of one run
+projectured-julia/source/platform/syntax/SyntaxToText.jl:359	3	SyntaxLeafToText (iomap SimpleIoMap)	KeyDown	G	the leaf table; a declined key comes back as the raw KeyDown in the operation slot, so the stage before reads the event as its payload
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1320	4	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	text element write; ReplaceSelectionOperation with MouseClick (fold marker, ellipsis); ReplacePathOperation with Alt+double press or MouseMove; ReplaceMouseTargetOperation; raw gesture with no operation	C,M,G,W,F	a click on a marker or an ellipsis becomes ToggleCollapseOperation through a private walk of child IO maps (_resolve_click, not read_intent); console fallback asks the table of the output TextBlock for the raw gesture and maps the answer back; drops description and domain; ignores the route
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1423	3	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1434	3	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	ToggleCollapseOperation	M	fills a missing target from the selection of its input; a targeted one passes unchanged
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1447	3	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	KeyDown	G	read_gesture of the input SyntaxNode
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1458	3	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	ReplaceStringRangeOperation	M,W,F	a child zone goes to the 3-arg reader of the child with a children[i] prefix; a separator edit to the separator field; a zero-width edit follows the input selection; chrome declines
+projectured-julia/source/platform/syntax/SyntaxToText.jl:1534	3	SyntaxCompoundToText (iomap SyntaxCompoundToTextIoMap)	ReplaceTextRangeOperation	M,W,F	lowers an edit with no break to one run and reads it again; an edit of a break goes to the 3-arg reader of the child, rerooted
+projectured-julia/source/platform/projection/generic/Copying.jl:247	3	CopyingProjection (iomap CopyingIoMap)	Any (operation_reference of the payload; selection)	W,P,F	its own route: by the head of the reference of the operation, else by the first step of the selection; keeps the answer of the child only when it needs no prefix, else calls the default
+projectured-julia/source/platform/layout/LayoutList.jl:329	3	_LinearLayoutToGraphicsCanvas (iomap LayoutListIoMap)	Any (tests pointer x and y)	W,G	as GridList.jl:435 for the child at k of a lazy list; rerooted at children[k]
+projectured-julia/source/platform/syntax/PrimitiveToSyntax.jl:61	3	PrimitiveBoolToSyntaxLeaf (iomap SimpleIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/syntax/PrimitiveToSyntax.jl:68	3	PrimitiveBoolToSyntaxLeaf (iomap SimpleIoMap)	ReplaceRangeOperation	F	a text edit of a Bool does nothing
+projectured-julia/source/platform/syntax/PrimitiveToSyntax.jl:125	3	PrimitiveNumberToSyntaxLeaf (iomap SimpleIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/syntax/PrimitiveToSyntax.jl:133	3	PrimitiveNumberToSyntaxLeaf (iomap SimpleIoMap)	ReplaceRangeOperation	M	maps through the default (invoke), then converts to a type-in when allows_type_in
+projectured-julia/source/platform/syntax/PrimitiveToSyntax.jl:192	3	PrimitiveStringToSyntaxLeaf (iomap SimpleIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:738	3	LayoutConstraintToGraphicsCanvas (iomap ContentIoMap)	Any	W	the 3-arg reader of the child, a child step in front, types annotated
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:1210	3	HorizontalLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (in _route_layout_event: KeyPress Tab, MouseMove, MouseClick, MouseDwell, MouseScroll, MouseDown, MouseUp, other)	W,G	_route_layout_event: a pointer event to the child under it (read_child_event), any other event to the selected child, rerooted at children[i]; Tab traversal to the next focusable sibling; a dwell and a right click read outward
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:1521	3	VerticalLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (as :1210)	W,G	_route_layout_event, as :1210
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:2094	3	GridLayoutToGraphicsCanvas (iomap GridLayoutIoMap)	Any (as :1210)	W,G	_route_layout_event, as :1210
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:2359	3	FlowLayoutToGraphicsCanvas (iomap FlowLayoutIoMap)	Any (as :1210)	W,G	_route_layout_event, as :1210
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:2536	3	StackLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (in _route_stack_event: KeyPress Tab, MouseMove, MouseClick, MouseScroll, other)	W,G	_route_stack_event: hit test from the top child; Tab traversal; no outward read, and a dwell goes to the selected child
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:2719	3	ConstraintLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (as :2536)	W,G	_route_stack_event, as :2536
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:2880	3	AnchoredLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (as :2536)	W,G	_route_stack_event, as :2536
+projectured-julia/source/platform/layout/LayoutToGraphics.jl:3024	3	ScrollLayoutToGraphicsCanvas (iomap ChildrenIoMap)	Any (MouseMove, MouseClick, MouseDwell, MouseScroll, MouseDown, MouseUp, other)	W,G	parts by field name; no Tab traversal; its own gesture job is only the outward read of a dwell and a right click
+projectured-julia/source/platform/syntax/InsertionToSyntax.jl:268	3	InsertionToSyntaxLeaf (iomap SimpleIoMap)	ReplacePathOperation	M	a raw value path of the input passes unchanged; a caret on the label becomes an introduced caret
+projectured-julia/source/platform/syntax/InsertionToSyntax.jl:286	3	InsertionToSyntaxLeaf (iomap SimpleIoMap)	ReplaceStringRangeOperation	M	may become a replace of the document (commit_at_key), and adds a popup operation in a compound
+projectured-julia/source/platform/syntax/InsertionToSyntax.jl:416	3	InsertionToSyntaxLeaf (iomap SimpleIoMap)	Any (KeyPress, KeyDown, MouseClick)	G,F	its own projection table, then the table of the input document; declines every other payload (no default re-target)
+projectured-julia/source/platform/syntax/InsertionToSyntax.jl:547	3	InsertionNothingToSyntaxLeaf (iomap SimpleIoMap)	ReplaceStringRangeOperation	C,G,F	rebuilds a KeyPress from the text insert that the text stage claimed and reads the table of the document, so the meaning of the gesture replaces the claim; an empty text declines
+projectured-julia/source/kernel/projection/ProjectionDefaults.jl:139	3	Projection	KeyPress, KeyDown, Gesture, CollectIntents, ReplaceReferencedValueOperation, SelectDocumentOperation, ReplacePathOperation, CompoundOperation, WrappingOperation, CollectedIntentsOperation, other (operation_reference seam)	M,G,L,F	the kernel default reader; a gesture goes to read_gesture of the input; a compound maps each member through itself; collected rows keep description and domain
+projectured-julia/source/kernel/projection/ProjectionDefaults.jl:250	4	Projection	route (nothing or ConcreteReference), operation present or not	B,R,W,L,F	the generic bridge; a route with children goes to read_routed_child
+projectured-julia/source/platform/projection/generic/Identity.jl:11	3	IdentityProjection	Any (KeyPress, KeyDown, MouseClick, CollectIntents, Operation)	G,M,F	an operation passes unchanged; any other gesture declines
+projectured-julia/source/platform/projection/higherorder/Viewing.jl:369	4	ViewingProjection (iomap ViewingIoMap)	operation nothing and route nothing; operation present	W,G,M,R,L	a gesture with no route reads the tables of the views on the live caret outward and never reaches the content readers; an operation of view state (read_view_operation); else the content reader
+projectured-julia/source/platform/projection/higherorder/Viewing.jl:384	4	ViewingProjection (iomap untyped)	none tested	W	to the content reader
+projectured-julia/source/platform/projection/higherorder/Viewing.jl:410	3	ViewingProjection (iomap untyped)	Any	B	3-to-4 wrapper; an operation payload lands in the gesture slot, so :369 reads it as a gesture
+projectured-julia/source/platform/projection/higherorder/Chaining.jl:135	4	ChainingProjection (iomap ChainingIoMap)	CollectIntents; route	W,R,C,L	last stage to first; a stage that can not carry the answer reads the raw gesture again with the stages before it (a claim no step carries is no claim); CollectIntents collects every stage and merges; a route maps forward stage by stage
+projectured-julia/source/platform/projection/higherorder/Chaining.jl:253	3	ChainingProjection (iomap ChainingIoMap)	Any	B	3-to-4 wrapper
+projectured-julia/source/kernel/projection/ProjectionTemplate.jl:1528	3	Projection (iomap TemplateIoMap)	KeyPress, KeyDown	G,W	the focused child (by the input selection) reads first with its 4-arg reader and recursion nothing, rerooted; then read_gesture of the node
+projectured-julia/source/kernel/projection/ProjectionTemplate.jl:1563	3	Projection (iomap TemplateIoMap)	ClaimedGesture (MouseClick, KeyPress, KeyDown)	C,W,G,F	a private walk over TemplateIoMap children: along the selection for a key, along the claimed selection path mapped backward for a click; only override bindings fire
+projectured-julia/source/kernel/projection/ProjectionTemplate.jl:1717	3	Projection (iomap TemplateIoMap)	ReplacePathOperation	M	same as the path branch of the kernel default
+projectured-julia/source/kernel/projection/ProjectionTemplate.jl:1750	4	each @projection_template type (macro)	route; KeyPress, KeyDown, MouseClick with an operation; key with no operation; operation	C,R,W,G,M,B,L,F	generated by the macro; calls read_template_intent (:1695)
+projectured-julia/source/platform/widget/ContextMenuWindow.jl:136	4	ContextMenuWindowProjection	Intent: route, WindowInput(KeyDown/KeyPress)	W,G,R,P	recursion also builds a new Intent with a route (place) and probes outward place by place to lift EditMenuPartOperation edits; opens/forgets the menu window
+projectured-julia/source/platform/widget/ContextMenuWindow.jl:160	3	ContextMenuWindowProjection	untyped payload	B	calls 4-arg with recursion=nothing and returns .operation
+projectured-julia/source/platform/text/PrimitiveToText.jl:91	3	PrimitiveBoolToText	ReplacePathOperation	M	
+projectured-julia/source/platform/text/PrimitiveToText.jl:99	3	PrimitiveBoolToText	ReplaceRangeOperation	F	declines
+projectured-julia/source/platform/text/PrimitiveToText.jl:130	3	PrimitiveNumberToText	ReplacePathOperation	M	
+projectured-julia/source/platform/text/PrimitiveToText.jl:139	3	PrimitiveNumberToText	ReplaceRangeOperation	M,F	default 3-arg then retypes to number edit (type-in); declines line changes
+projectured-julia/source/platform/text/PrimitiveToText.jl:209	3	PrimitiveInsertionToText	ReplacePathOperation	M	
+projectured-julia/source/platform/text/PrimitiveToText.jl:215	3	PrimitiveInsertionToText	ReplaceRangeOperation	M,F	default 3-arg then retypes to type-in edit; declines line changes
+projectured-julia/source/platform/text/PrimitiveToText.jl:291	3	PrimitiveStringToTextBlock	ReplacePathOperation	M	
+projectured-julia/source/platform/text/PrimitiveToText.jl:297	3	PrimitiveStringToTextBlock	ReplaceRangeOperation	M,F	declines line changes else default 3-arg
+projectured-julia/source/platform/text/TextToString.jl:26	3	TextStringToString	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextToString.jl:40	3	TextSpacingToString	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextToString.jl:52	3	TextGraphicsToString	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextToString.jl:85	3	TextLineToString	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextToString.jl:121	3	TextBlockToString	untyped op	F	always nothing
+projectured-julia/source/platform/widget/FindBarViewToWidget.jl:153	4	FindBarViewToWidget	Intent: KeyPress/KeyDown, CollectIntents, operation	F,G,C	calls default 4-arg, then adds read_gesture(view, gesture; claimed) when the change already has an operation (claimed operation passed to the view)
+projectured-julia/source/platform/text/TextBlockToScrollLayout.jl:286	3	TextBlockToScrollLayout	_TextPointerEvent (mouse)	W,G,M	dispatches by position to lines or gutter child, shifts positions, rereoots; a click the gutter declines selects the mark itself
+projectured-julia/source/platform/text/TextBlockToScrollLayout.jl:318	3	TextBlockToScrollLayout	ReplacePathOperation	M	
+projectured-julia/source/platform/text/TextBlockToScrollLayout.jl:323	3	TextBlockToScrollLayout	untyped payload	W	child chosen by the selection (gutter vs lines)
+projectured-julia/source/platform/widget/ObjectFieldToWidget.jl:181	3	ObjectFieldToWidget	untyped payload	W,M	raw gesture: child reads, then own 3-arg re-reads the answer; operation: default 3-arg
+projectured-julia/source/platform/text/MarkedTextToText.jl:215	3	MarkedTextToText	ReplacePathOperation	M	
+projectured-julia/source/platform/text/MarkedTextToText.jl:223	3	MarkedTextToText	ReplaceRangeOperation	M	converts to ReplaceStringRangeOperation
+projectured-julia/source/platform/text/MarkedTextToText.jl:232	3	MarkedTextToText	KeyPress/KeyDown	G,M	read_gesture on output then own 3-arg for the operation
+projectured-julia/source/platform/widget/WidgetChoiceList.jl:246	4	WidgetChoiceListToWidget	Intent: KeyDown/KeyPress, MouseScroll, operation, route	G,M,R,F	route tested only to decide gesture reading; typed query: maps the operation (ReplaceStringRange/Selection/Compound) back; Do-nothing swallow of keys; default for the rest
+projectured-julia/source/platform/widget/CellTableToWidgetTable.jl:73	3	CellTableToWidgetTable	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextGutterToGraphics.jl:219	3	TextGutterToGraphics	untyped evt (mouse events, Operation)	W,F	routes by position or by selection lane to a mark child; operations declined
+projectured-julia/source/platform/text/TextLineNumbering.jl:123	3	TextLineNumbering	ReplacePathOperation	M,F	selection on a number becomes a line range; other path ops declined
+projectured-julia/source/platform/text/TextLineNumbering.jl:132	3	TextLineNumbering	KeyPress/KeyDown	G	lowered gesture against input
+projectured-julia/source/platform/text/TextLineNumbering.jl:135	3	TextLineNumbering	untyped payload	M,F	identity for an operation, nothing for a gesture
+projectured-julia/source/platform/text/TextFirstLine.jl:64	3	TextFirstLine	ReplacePathOperation	M	
+projectured-julia/source/platform/text/TextFirstLine.jl:72	3	TextFirstLine	ReplaceStringRangeOperation	M,F	accepts first-line spans only
+projectured-julia/source/platform/text/TextFirstLine.jl:81	3	TextFirstLine	Operation	M	identity
+projectured-julia/source/platform/text/TextFirstLine.jl:86	3	TextFirstLine	KeyPress/KeyDown	G	lowered gesture against input
+projectured-julia/source/platform/text/TextFirstLine.jl:92	3	TextFirstLine	ReplaceReferencedValueOperation/CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2161	3	WidgetLabelToGraphicsCanvas	untyped evt (pointer, keys, drag)	G	via _read_drawn_text; per-instance bound gestures read first
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2235	3	WidgetInsertionToGraphicsCanvas	untyped evt	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2720	3	WidgetTextToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2727	3	WidgetTextToGraphicsCanvas	untyped evt (MouseScroll, KeyPress, ...)	W,G,M	content child reads (text domain), answer rerooted under content, validated, stored into a value child; wheel scroll own; declines Return/Tab
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2894	3	WidgetCheckboxToGraphicsCanvas	MouseClick	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:2906	3	WidgetCheckboxToGraphicsCanvas	untyped evt (plain Return/Space)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3056	3	WidgetButtonToGraphicsCanvas	untyped evt (MouseClick/Down/Up/Move, DragMove, keys)	G,W	_read_control_text hands keys/pointer to the label text; view-state writes (pressed)
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3255	3	WidgetLinkToGraphicsCanvas	untyped evt	G,W	_read_control_text hands to the text; bound gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3329	3	WidgetTooltipToGraphicsCanvas	untyped evt (MouseMove, Dwell, Scroll)	W	routes by position to children
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3430	3	WidgetContextMenuToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3437	3	WidgetContextMenuToGraphicsCanvas	untyped evt (MouseMove, MouseClick, MouseScroll, outward gestures)	W	child read with shifted position, answer rerooted/_retarget_op
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3653	3	WidgetDialogToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3659	3	WidgetDialogToGraphicsCanvas	untyped evt (KeyDown Esc, MouseClick, Move, Dwell)	G,W	Esc / backdrop click close the window, button click runs action and closes (CompoundOperation); content click routed and retargeted
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3851	3	WidgetMenuItemToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3853	3	WidgetMenuItemToGraphicsCanvas	untyped evt (MouseClick, Dwell, Scroll)	G,W	click opens submenu / makes choice; dwell, wheel go to children
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:3973	3	WidgetToolbarItemToGraphicsCanvas	untyped evt (MouseClick/Down/Up/Move, DragMove, keys)	G,W	_read_control_text; InvokeActionOperation; pressed view state
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:4167	3	WidgetMenuToGraphicsCanvas	untyped evt (KeyDown, MouseMove, Click, Dwell, Scroll)	W,G	menu key reading plus routing to children
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:4334	3	WidgetCompositeToGraphicsCanvas	untyped evt (mouse events, Tab, keys)	W,G	routes by position or by selection slot, rerooted by slot steps; Tab focus advance; read_container_gesture adds the stretch's own gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:4672	4	WidgetShellToGraphicsCanvas	Intent: route	R,W,F	route set: follows route head to the band child and reroots; no route: default; wrong head: nothing-change
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:4746	3	WidgetShellToGraphicsCanvas	untyped evt (KeyDown shortcuts, mouse events)	W,G	global shortcut KeyDown -> InvokeActionOperation; routes to bands; _retarget_op
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:4933	3	WidgetTitlePaneToGraphicsCanvas	untyped evt (MouseMove, Dwell, Scroll)	W	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:5631	3	WidgetSplitPaneToGraphicsCanvas	untyped evt (Drag*, MouseMove, mouse events, Tab, keys)	W,G	divider drag and Tab own; routing by position or selection slot, rerooted by slot steps; read_container_gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:6627	3	WidgetTabbedPaneToGraphicsCanvas	untyped evt (MouseClick, MouseScroll, MouseMove, outward, keys)	G,W	tab select/close/open/menu/scroll operations; routes to active tab
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:8016	3	WidgetScrollPaneToGraphicsCanvas	untyped evt (Drag*, MouseMove, mouse events, keys, wheel)	W,G	content child read in translated frame; own scrolling, bar events, size choice; read_container_gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:8579	3	WidgetTransformPaneToGraphicsCanvas	untyped evt (MouseScroll, Click, Down, Up, Move, Dwell, KeyDown)	G,W	wheel zoom/pan, keyboard zoom as fallback; content read through inverse transform, answer retargeted; read_container_gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:8728	3	WidgetToolbarToGraphicsCanvas	untyped evt (MouseMove, Click, Dwell, Down, Up, Scroll)	W	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:8831	3	WidgetStatusBarToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:9159	3	WidgetScrollBarToGraphicsCanvas	untyped evt (MouseDown, MouseClick, Drag*)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:9198	3	macro @_printer_only: P	untyped evt	F	macro template line; defines read_intent -> nothing for each printer-only widget (badge/separator/progress/avatar/alert/highlight/skeleton printers named in the macro calls); one row for the template
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:9401	3	WidgetBadgeToGraphicsCanvas	untyped evt	G	via _read_drawn_text
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:9944	3	WidgetCardToGraphicsCanvas	MouseClick	G,W	fold toggle, title selection, bound gesture, caret selection in drawn text; _read_card_click routes to children
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:9995	3	WidgetCardToGraphicsCanvas	untyped evt (Drag*, Move, Dwell, Down/Up, Scroll, keys)	W,G	routes to slots by position, keys to the content child (rerooted) then bound gestures; drawn-text pointer/key reading
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10152	3	WidgetSwitchToGraphicsCanvas	MouseClick	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10161	3	WidgetSwitchToGraphicsCanvas	untyped evt (plain Return/Space)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10453	3	WidgetSliderToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10474	3	WidgetSliderToGraphicsCanvas	untyped evt (MouseDown, MouseClick, DragMove, DragEnd, DragCancel)	G	drag start and value writes as CompoundOperation
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10681	3	WidgetRadioGroupToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10696	3	WidgetRadioGroupToGraphicsCanvas	untyped evt (MouseClick, arrow keys, Return/Space)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10799	3	WidgetAvatarToGraphicsCanvas	untyped evt	G	via _read_drawn_text
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:10918	3	WidgetAlertToGraphicsCanvas	untyped evt	G	via _read_drawn_text
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11358	3	WidgetToggleToGraphicsCanvas	untyped evt (MouseClick, Return/Space)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11538	3	WidgetToggleGroupToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11562	3	WidgetToggleGroupToGraphicsCanvas	untyped evt (MouseClick, Drag*, keys)	G,W	_read_control_text hands keys to option text; segment pick
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11719	3	WidgetSelectToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11725	3	WidgetSelectToGraphicsCanvas	untyped evt (MouseClick)	G	opens popup
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11823	3	WidgetOptionToGraphicsCanvas	untyped evt (MouseClick)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11962	3	WidgetSpinBoxToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:11963	3	WidgetSpinBoxToGraphicsCanvas	untyped evt (MouseClick, KeyDown up/down)	G	
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12311	3	WidgetListToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12312	3	WidgetListToGraphicsCanvas	untyped evt (WidgetRowsPaneIoMap)	W,M	_read_rows_pane: shifts event, reads pane child, _retarget_op; drag declined unless a bar drag is on
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12317	3	WidgetListToGraphicsCanvas	untyped evt (MouseClick, KeyDown up/down)	G	row selection as ReplaceSelectionOperation
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12468	3	WidgetTextareaToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12472	3	WidgetTextareaToGraphicsCanvas	untyped evt (MouseScroll, mouse/keys)	W,G,M	content child reads (text domain) via _read_text_content_intent; wheel own
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12726	3	WidgetAccordionToGraphicsCanvas	untyped evt (WidgetBoxIoMap)	F	always nothing
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:12735	3	WidgetAccordionToGraphicsCanvas	untyped evt (MouseMove, MouseClick, outward, keys)	G,W	header click writes view state; dwell/right click read by item; body child routed and rerooted; read_container_gesture
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:13062	3	WidgetFactGroupToGraphicsCanvas	untyped evt (Drag*, Move, mouse events, keys)	G,W	drawn-text pointer/key reading; routes to child hit, rerooted by steps; whole-row selection
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:13899	4	WidgetTableToGraphicsCanvas	Intent: gesture MouseClick/MouseMove/MouseScroll/KeyDown/KeyPress, operation	G,W,F	declines when change.operation is set; own bar events, wheel, cell keys, header press; _wt_route_event routes to cells
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:14305	3	WidgetTableToGraphicsCanvas	untyped event (MouseClick/Key/Scroll/Move, Operation)	B,G,W	bridge to own 4-arg with recursion=nothing for most gestures; own table bar events and _wt_route_event
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:15191	3	WidgetTreeToGraphicsCanvas	untyped evt (WidgetRowsPaneIoMap)	W,M	_read_rows_pane answer extended with scroll/shown writes (_add_wtree_scroll_writes)
+projectured-julia/source/platform/widget/WidgetToGraphics.jl:15248	3	WidgetTreeToGraphicsCanvas	untyped evt (MouseClick, MouseDwell, KeyDown)	G	bound gestures, node gestures, row press, key navigation
+projectured-julia/source/platform/text/TextToGraphics.jl:385	3	TextToGraphics	ReplacePathOperation	M	
+projectured-julia/source/platform/text/TextToGraphics.jl:400	3	TextToGraphics	KeyPress	G	
+projectured-julia/source/platform/text/TextToGraphics.jl:436	3	TextToGraphics	MouseClick	G	word/line/character selection by position
+projectured-julia/source/platform/text/TextToGraphics.jl:450	3	TextToGraphics	MouseMove	G	ReplaceMouseTargetOperation
+projectured-julia/source/platform/text/TextToGraphics.jl:492	3	TextToGraphics	MouseDown	G	selection + StartDragOperation
+projectured-julia/source/platform/text/TextToGraphics.jl:503	3	TextToGraphics	DragMove/DragEnd	G	
+projectured-julia/source/platform/text/TextToGraphics.jl:551	3	TextToGraphics	untyped evt (KeyDown)	G,F	declines everything but KeyDown; geometry key reading
+projectured-julia/source/platform/widget/WidgetTableParts.jl:2183	4	WidgetTableToGraphicsCanvas	Intent: gesture, operation, route (Drag* with ConcreteReference route)	G,R,W	route read only for drags: _read_routed_table_part follows route to a cell child via recursion (read_routed_child_in_frame) and reroots; own column edge press/dwell, parts press, wheel, keys; declines nothing-change for MouseMove
+projectured-julia/source/platform/widget/WidgetTableParts.jl:2229	3	WidgetTableToGraphicsCanvas	untyped event (WidgetTableListIoMap)	B,G,W	bridge to own 4-arg with recursion=nothing for most gestures; own bar/drag/edge/dwell handling
+projectured-julia/source/platform/text/SelectionInverting.jl:230	3	SelectionInverting	ReplacePathOperation	M	
+projectured-julia/source/platform/text/SelectionInverting.jl:238	3	SelectionInverting	ReplaceStringRangeOperation	M	
+projectured-julia/source/platform/text/SelectionInverting.jl:246	3	SelectionInverting	Operation	M	identity
+projectured-julia/source/platform/text/SelectionInverting.jl:251	3	SelectionInverting	ReplaceReferencedValueOperation/CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/text/SelectionInverting.jl:253	3	SelectionInverting	untyped op	F	always nothing
+projectured-julia/source/platform/text/TextFolding.jl:275	3	TextFolding	ReplacePathOperation	M	a selection on a closed fold becomes ToggleCollapseOperation
+projectured-julia/source/platform/text/TextFolding.jl:304	3	TextFolding	ToggleCollapseOperation	M	fills target with innermost fold of input
+projectured-julia/source/platform/text/TextFolding.jl:312	3	TextFolding	ReplaceStringRangeOperation	M,F	remaps element path
+projectured-julia/source/platform/text/TextFolding.jl:335	3	TextFolding	ReplaceReferencedValueOperation	M,F	declines element writes
+projectured-julia/source/platform/text/TextFolding.jl:342	3	TextFolding	CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/text/TextFolding.jl:347	3	TextFolding	KeyPress/KeyDown	G,M	lowered gesture on output, then own 3-arg for the operation
+projectured-julia/source/platform/text/TextFolding.jl:352	3	TextFolding	untyped payload	M,F	identity for operation, nothing for gesture
+projectured-julia/source/platform/text/TextFolding.jl:391	3	TextFolding	ReplacePathOperation (TextViewFoldingIoMap)	M	selection on closed fold becomes ToggleCollapseOperation
+projectured-julia/source/platform/text/TextFolding.jl:402	3	TextFolding	ToggleCollapseOperation (TextViewFoldingIoMap)	M	fills target with innermost fold of the view
+projectured-julia/source/platform/text/TextFolding.jl:409	3	TextFolding	ReplaceTextRangeOperation (TextViewFoldingIoMap)	M	
+projectured-julia/source/platform/text/TextFolding.jl:414	3	TextFolding	untyped payload (TextViewFoldingIoMap)	M,F	identity for operation, nothing for gesture
+projectured-julia/source/platform/text/HighlightedTextToText.jl:259	3	HighlightedTextToText	ReplacePathOperation	M,W	maps through segments then reads the text child (_read_text_operation) and reroots under text
+projectured-julia/source/platform/text/HighlightedTextToText.jl:269	3	HighlightedTextToText	ReplaceStringRangeOperation	M,W	maps line path then text child
+projectured-julia/source/platform/text/HighlightedTextToText.jl:277	3	HighlightedTextToText	Operation	M	identity
+projectured-julia/source/platform/text/HighlightedTextToText.jl:283	3	HighlightedTextToText	KeyPress/KeyDown	G,W	lowered gesture on text block, then through text child
+projectured-julia/source/platform/text/HighlightedTextToText.jl:289	3	HighlightedTextToText	ReplaceReferencedValueOperation/CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/widget/ObjectFieldToValue.jl:36	3	ObjectFieldToValue	ReplaceReferencedValueOperation	M	retargets root write to the field's root/path and coerces the value
+projectured-julia/source/platform/widget/ObjectFieldToValue.jl:45	3	ObjectFieldToValue	untyped operation	M	identity
+projectured-julia/source/platform/text/TextView.jl:267	3	TextViewToGraphicsCanvas	KeyPress	G	
+projectured-julia/source/platform/text/TextView.jl:272	3	TextViewToGraphicsCanvas	KeyDown	G	table keys then layout key; answer mapped from layout (_read_from_layout)
+projectured-julia/source/platform/text/TextView.jl:286	3	TextViewToGraphicsCanvas	MouseClick	G	
+projectured-julia/source/platform/text/TextView.jl:300	3	TextViewToGraphicsCanvas	MouseDown	G	selection + StartDragOperation
+projectured-julia/source/platform/text/TextView.jl:311	3	TextViewToGraphicsCanvas	DragMove/DragEnd	G	
+projectured-julia/source/platform/text/FilteredTextToText.jl:126	3	FilteredTextToText	ReplacePathOperation	M,W	maps through kept lines then text child
+projectured-julia/source/platform/text/FilteredTextToText.jl:136	3	FilteredTextToText	ReplaceStringRangeOperation	M,W	remaps line path then text child; declines unparsable
+projectured-julia/source/platform/text/FilteredTextToText.jl:151	3	FilteredTextToText	Operation	M	identity
+projectured-julia/source/platform/text/FilteredTextToText.jl:157	3	FilteredTextToText	KeyPress/KeyDown	G,W	lowered gesture on text block, then through text child
+projectured-julia/source/platform/text/FilteredTextToText.jl:163	3	FilteredTextToText	ReplaceReferencedValueOperation/CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/text/WordWrapping.jl:154	3	WordWrapping	KeyPress/KeyDown	G	
+projectured-julia/source/platform/text/WordWrapping.jl:160	3	WordWrapping	Operation	M	identity
+projectured-julia/source/platform/text/WordWrapping.jl:165	3	WordWrapping	ReplaceReferencedValueOperation/CompoundOperation	M,F	declines element writes, identity otherwise
+projectured-julia/source/platform/terminal/TerminalToWidget.jl:129	3	TerminalToWidget	ReplacePathOperation	M	EmptyReference when the path has no input place
+projectured-julia/source/platform/terminal/TerminalToWidget.jl:138	4	TerminalToWidget	plain click gesture; ReplaceSelectionOperation	M,F	a click outside the terminal input becomes the caret of the input
+projectured-julia/source/platform/terminal/TerminalToWidget.jl:160	3	TerminalToWidget	MouseClick	G	left click makes the input caret
+projectured-julia/source/platform/terminal/TerminalToWidget.jl:172	3	TerminalToWidget	KeyPress	G	Enter makes SendTerminalInputOperation
+projectured-julia/source/platform/task/TaskPagesToWidget.jl:439	4	TaskStreamLinesToWidget	MouseScroll; scroll bar operation	G,M,F	calls default first, then turns a scroll gesture or a scroll bar value into a stream scroll operation
+projectured-julia/source/platform/undo/UndoBufferToAny.jl:111	4	UndoBufferToAnyProjection	CollectIntents; any gesture; any operation	W,R,G	wraps the answer in a RecordUndoOperation (_record_operation); gesture help probe via read_projection_gesture
+projectured-julia/source/platform/undo/UndoBufferToAny.jl:149	3	UndoBufferToAnyProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/explorer/DashboardToWidget.jl:357	4	DashboardToWidget	operation with route == cards step	R,M,F	re-roots the operation by the route and adds card holds
+projectured-julia/source/platform/backgroundwork/BackgroundWorkLogToWidget.jl:83	4	BackgroundWorkLogToWidget	none	M,F	calls default, then keep_held_arrangement and retarget_held_row_open on the answer
+projectured-julia/source/platform/focus/FocusCycling.jl:37	4	FocusCyclingProjection	KeyPress Tab	W,P,G	child first; only when the child answers nothing, Tab makes the first/last focusable path
+projectured-julia/source/platform/focus/FocusCycling.jl:51	3	FocusCyclingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/explorer/ExplorerToWidget.jl:293	4	ExplorerToWidget	KeyDown escape; KeyPress Enter; Union{KeyPress,KeyDown}; operation	G,M,C,R,F	own filter keys when route is nothing; read_gesture(...; claimed=operation); default, then converts the answer (tree reveal, card holds, filter edits)
+projectured-julia/source/platform/focus/SelectionWalking.jl:36	4	SelectionWalkingProjection	KeyDown Alt+arrow	W,P,G	child first; only when it answers nothing, the arrow makes a selection walk
+projectured-julia/source/platform/focus/SelectionWalking.jl:50	3	SelectionWalkingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/settingsmanaging/SettingsToWidget.jl:100	3	SettingsToWidget	ReplaceReferencedValueOperation	M	control write becomes a setting write
+projectured-julia/source/platform/settingsmanaging/SettingsToWidget.jl:102	3	SettingsToWidget	ReplaceStringRangeOperation	M	text edit becomes a setting write plus caret (_read_text_edit)
+projectured-julia/source/platform/link/UrlViewToWidget.jl:85	3	UrlViewToWidget	ReplaceStringRangeOperation	M,W	re-targets the reference to the line view, calls the line view 3-arg reader, re-roots
+projectured-julia/source/platform/link/UrlToSyntax.jl:74	3	UrlToSyntax	ReplaceStringRangeOperation	M	text edit becomes a Url edit plus caret
+projectured-julia/source/platform/settingsmanaging/SettingsGroupToWidget.jl:209	3	SettingsGroupToWidget	ReplaceReferencedValueOperation	M	control write becomes a setting write; identity when no control matches
+projectured-julia/source/platform/settingsmanaging/SettingsGroupToWidget.jl:222	3	SettingsGroupToWidget	ReplaceStringRangeOperation	M,F	text edit becomes setting write plus caret via map_reference_backward; default 3-arg invoke when not found
+projectured-julia/source/platform/versioning/VersioningToAny.jl:204	4	VersioningToAnyProjection	CollectIntents; any gesture	G,W	own gesture first (read_projection_gesture); else child with value steps prefixed
+projectured-julia/source/platform/versioning/VersioningToAny.jl:229	3	VersioningToAnyProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/navigator/NavigatorAddressToSyntax.jl:62	3	ReferenceStepToSyntaxLeaf	ReplaceStringRangeOperation	M	text edit becomes a step insertion operation
+projectured-julia/source/platform/navigator/NavigatorAddressToSyntax.jl:67	3	ReferenceStepToSyntaxLeaf	KeyPress	G	printable char appends to the step text
+projectured-julia/source/platform/navigator/NavigatorAddressToSyntax.jl:72	3	ReferenceStepToSyntaxLeaf	KeyDown	G	backspace chops the step text
+projectured-julia/source/platform/fileformat/FileToContent.jl:110	4	FileToContent	none (iomap RepeatedFileIoMap)	W	delegates to the card projection unchanged
+projectured-julia/source/platform/fileformat/FileToContent.jl:115	4	FileToContent	CollectIntents; any gesture; operation	W,R,G	_get_content_recursion replaces the recursion argument (not only passed on); own gesture of the file when the child gives nothing
+projectured-julia/source/platform/fileformat/FileToContent.jl:145	3	FileToContent	Any (untyped payload)	B	
+projectured-julia/source/platform/dragtracking/DragTracking.jl:53	4	DragTrackingProjection	WindowInput with MouseClick, MouseMove, MouseUp, WindowDefocus, bare Escape	G,W,R	synthesizes DragMove/DragEnd/DragCancel gestures and feeds them to the part by path; writes drag state
+projectured-julia/source/platform/dragtracking/DragTracking.jl:84	3	DragTrackingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/settingsmanaging/SettingsManagingProjection.jl:47	4	SettingsManagingProjection	CollectIntents; any gesture	W,R,G,M	wrap_setting_writes wraps the answer; own gesture when child gives no operation
+projectured-julia/source/platform/settingsmanaging/SettingsManagingProjection.jl:78	3	SettingsManagingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/graphics/GraphicsCaching.jl:125	3	GraphicsCanvasToGraphicsImage	MouseClick (untyped evt)	G	left click makes a selection at the point
+projectured-julia/source/platform/gesturelog/GestureLogRecording.jl:63	4	GestureLogRecordingProjection	none	W	forwards to inner, side effect: records gesture and operation in the log
+projectured-julia/source/platform/gesturelog/GestureLogRecording.jl:98	3	GestureLogRecordingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/assistant/AssistantToWidget.jl:237	3	AssistantToWidgetCard	ReplacePathOperation	M	EmptyReference when the path has no input place
+projectured-julia/source/platform/assistant/AssistantToWidget.jl:296	3	AssistantToWidgetSplitPane	ReplaceReferencedValueOperation	M,F	wake count write becomes SetAssistantWakesOperation; else default 3-arg invoke
+projectured-julia/source/platform/assistant/AssistantToWidget.jl:306	3	AssistantToWidgetSplitPane	any payload (Operation or raw event)	M,F	operation re-targeted by _retarget_panel_op; raw event declines
+projectured-julia/source/platform/gesturetracking/GestureTracking.jl:73	4	GestureTrackingProjection	TimerExpire; WindowInput	G,W,R	recognizes gestures over time (timers) and makes operations; content through child
+projectured-julia/source/platform/gesturetracking/GestureTracking.jl:90	3	GestureTrackingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/statistics/FrameStatisticsToWidget.jl:568	3	FrameStatisticsToWidget	Operation	M,F	bar drag start and widget write conversion; else default 3-arg invoke
+projectured-julia/source/platform/statistics/FrameStatisticsToWidget.jl:580	4	FrameStatisticsToWidget	MouseDown	G,M,F	default first; MouseDown wraps the answer as an owned scroll bar drag
+projectured-julia/source/platform/statistics/FrameStatisticsToWidget.jl:590	3	FrameStatisticsToWidget	Union{DragMove,DragEnd,DragCancel}	G,M	scroll bar drag event becomes a scroll operation, converted to widget write
+projectured-julia/source/platform/gesturehelp/GestureHelpDecorator.jl:125	4	GestureHelpDecoratorProjection	ToggleGestureHelpOperation; help gesture	W,G,M,P	recursion passed to _toggle!, which calls the child reader with Intent(CollectIntents()) to collect the help
+projectured-julia/source/platform/gesturehelp/GestureHelpDecorator.jl:154	3	GestureHelpDecoratorProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/filesystem/FileSystemToSyntax.jl:63	3	FileSystemFileToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/platform/filesystem/FileSystemToSyntax.jl:75	3	FileSystemFileToSyntaxLeaf	ReplaceStringRangeOperation	F	declines (returns nothing)
+projectured-julia/source/platform/filesystem/FileSystemToSyntax.jl:166	3	FileSystemDirectoryToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/platform/tooltip/TooltipWindow.jl:113	4	TooltipWindowProjection	WindowInput; Escape	G,W,R,M	own bound gesture and Escape close first; child answer split into tooltip operation (open) and rest
+projectured-julia/source/platform/tooltip/TooltipWindow.jl:134	3	TooltipWindowProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/pane/PaneArrangement.jl:40	3	PaneTreeToWidget	ArrangeCollectionOperation	M	maps the target back and makes an arrangement of the tab content
+projectured-julia/source/platform/arrangement/Arranging.jl:58	4	ArrangingProjection	route; KeyDown/KeyPress	W,R,G,M	child re-rooted under document; own gesture when child gives nothing; _make_arranged_change and _take_away_when_empty rewrite the answer
+projectured-julia/source/platform/arrangement/Arranging.jl:144	3	ArrangingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/clipboard/ClipboardSliceToAny.jl:731	4	ClipboardSliceToAnyProjection	CollectIntents; delete key; route	W,R,G	active slice child, steps re-rooted; own gesture first; delete key makes whole delete
+projectured-julia/source/platform/clipboard/ClipboardSliceToAny.jl:764	3	ClipboardSliceToAnyProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/gesturehelp/CommandPaletteDecorator.jl:82	4	CommandPaletteDecoratorProjection	ToggleCommandPaletteOperation; palette gesture; route	W,G,M,R,P	recursion passed to _open_command_palette, which calls the child reader with Intent(CollectIntents())
+projectured-julia/source/platform/gesturehelp/CommandPaletteDecorator.jl:94	3	CommandPaletteDecoratorProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/clipboard/ClipboardCollectionToAny.jl:156	4	ClipboardCollectionToAnyProjection	CollectIntents; route	W,R,G	active child, steps re-rooted; own gesture first
+projectured-julia/source/platform/clipboard/ClipboardCollectionToAny.jl:181	3	ClipboardCollectionToAnyProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/filesystem/WorkspaceToFileSystem.jl:44	3	WorkspaceFolderToFileSystemDirectory	any payload: raw event, CompoundOperation, ReplacePathOperation	M,F	raw event declines; other operations pass unchanged; compound handled per member
+projectured-julia/source/platform/filesystem/WorkspaceToFileSystem.jl:109	3	WorkspaceToFileSystemDirectory	any payload: raw event, CompoundOperation, ReplacePathOperation	M,F	same as the folder one
+projectured-julia/source/platform/filesystem/WorkspaceToFileSystem.jl:120	4	WorkspaceToFileSystemDirectory	none	B	payload = operation or gesture, calls own 3-arg
+projectured-julia/source/platform/help/HelpGroupToWidget.jl:165	4	HelpGroupToWidget	pressed help node (MouseClick count, ctrl)	G,F	default first; double click or ctrl click adds OpenPageOperation
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:143	3	ReflectionToWidget	ReplaceReferencedValueOperation	M	expanded-set write becomes SetReflectedDisclosureOperation
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:165	3	ReflectionToWidget	ReplaceViewStateOperation	M	unwraps, calls own 3-arg, rewraps
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:175	3	ReflectionToWidget	ReplacePathOperation	F	declines (nothing)
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:178	3	ReflectionToWidget	ReplaceMouseTargetOperation	M	
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:187	3	ReflectionToWidget	CompoundOperation	M	maps each member through own 3-arg
+projectured-julia/source/platform/reflection/ReflectionToWidget.jl:204	3	ReflectionToWidget	any op (catch-all)	F	identity: returns the operation
+projectured-julia/source/platform/tooltip/TooltipDecorator.jl:71	4	TooltipDecoratorProjection	trigger on gesture; time	W,G,P	child first; decorator Open/CloseWindowOperation only when child gave no operation; timing state in p.state
+projectured-julia/source/platform/tooltip/TooltipDecorator.jl:121	3	TooltipDecoratorProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/fileformat/OpenFileListToWidget.jl:73	4	OpenFileListToWidget	none	M,F	calls default, then keep_held_arrangement and retarget_held_row_open
+projectured-julia/source/platform/appearance/AppearancePartToWidget.jl:126	4	AppearancePartToWidget	none	W,M	child, then _translate_tab_operation
+projectured-julia/source/platform/appearance/AppearancePartToWidget.jl:133	3	AppearancePartToWidget	Any (untyped payload)	B	
+projectured-julia/source/platform/filesystem/FileSystemChooserToWidget.jl:113	4	FileSystemChooserToWidget	route; payload gesture or operation	M,R,F	route present: default; else open-folder writes become held operations (_read_open_folder_write), then default 3-arg invoke; payload = operation or gesture
+projectured-julia/source/platform/tree/DocumentTreeToWidgetTree.jl:497	4	DocumentTreeToWidgetTree	route; payload gesture or operation	M,R,F	route present: default; else open-node write conversion, then default 3-arg invoke; payload = operation or gesture
+projectured-julia/source/platform/tree/DocumentTreeToWidgetTree.jl:515	3	DocumentTreeToWidgetTree	Any (untyped payload)	B	
+projectured-julia/source/platform/fault/FaultSafeMode.jl:44	4	FaultSafeModeProjection	none	F	always declines (Intent(gesture, nothing))
+projectured-julia/source/platform/fault/FaultSafeMode.jl:47	3	FaultSafeModeProjection	any payload	F	always declines
+projectured-julia/source/platform/roster/RosterToGraphics.jl:35	4	RosterToGraphics	route	W,R	child re-rooted under rows field
+projectured-julia/source/platform/roster/RosterToGraphics.jl:43	3	RosterToGraphics	Any (untyped payload)	B	
+projectured-julia/source/platform/roster/RosterToGraphics.jl:339	4	RosterRowsToWidget	MouseClick double click on item; route + operation	G,R,M,F	default first; route with own operation re-roots it when default gave nothing; double click adds OpenPageOperation
+projectured-julia/source/platform/roster/RosterToGraphics.jl:621	3	RosterRowsToWidget	Operation (ReplaceMouseTargetOperation, ReplaceStringRangeOperation, compound head move)	M,F	header edits, head moves; else default 3-arg invoke
+projectured-julia/source/platform/conversation/EvaluatorToWidget.jl:161	3	EvaluatorFormToVerticalLayout	MouseClick	G	plain left press makes the form caret
+projectured-julia/source/platform/conversation/EvaluatorToWidget.jl:246	4	EvaluatorToplevelToWidgetComposite	KeyPress/KeyDown with operation; plain left press	G,C,F	read_gesture(...; claimed = change.operation); else default
+projectured-julia/source/platform/natural/NaturalArrangement.jl:48	4	ArrangementChipsToGraphics	route	W,R,M	route mapped to the row, child, then _read_chips_operation
+projectured-julia/source/platform/natural/NaturalArrangement.jl:61	3	ArrangementChipsToGraphics	Any (untyped payload)	B	
+projectured-julia/source/platform/pane/PaneToWidget.jl:696	3	PaneTreeToWidget	CloseTabOperation	M	widget close becomes pane close-tab operation
+projectured-julia/source/platform/pane/PaneToWidget.jl:703	3	PaneTreeToWidget	OpenTabOperation	M	widget open becomes pane open-tab operation
+projectured-julia/source/platform/pane/PaneToWidget.jl:710	3	PaneTreeToWidget	DragTabOperation	M	_press_tab
+projectured-julia/source/platform/pane/PaneToWidget.jl:713	3	PaneTreeToWidget	ResizeSplitPaneOperation	M	_read_resize
+projectured-julia/source/platform/pane/PaneToWidget.jl:728	3	PaneTreeToWidget	StartSplitterDragOperation	M	adds a sizes write
+projectured-julia/source/platform/pane/PaneToWidget.jl:735	3	PaneTreeToWidget	EndSplitterDragOperation	F	identity
+projectured-julia/source/platform/pane/PaneToWidget.jl:737	3	PaneTreeToWidget	SetSplitterUnderPointerOperation	F	identity
+projectured-julia/source/platform/pane/PaneToWidget.jl:745	4	PaneTreeToWidget	DragMove/DragEnd/DragCancel; outward gesture; MouseDown on tab; route with operation and no gesture	G,R,M,B	handles tab drag, outward gesture, tab press, focus from press; payload (operation or gesture) goes to own 3-arg
+projectured-julia/source/platform/appearance/AppearanceManagingProjection.jl:51	4	AppearanceManagingProjection	CollectIntents; SystemColorsChange; route	W,R,G,M	_mark_appearance_change wraps the answer; own gesture when child gives none
+projectured-julia/source/platform/appearance/AppearanceManagingProjection.jl:83	3	AppearanceManagingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/dragging/Dragging.jl:132	4	DraggingProjection	DragMove/DragEnd/DragCancel; MouseDown left; MouseUp; MouseMove	G,W	press state, drop landing, StartDragOperation; child re-rooted under content
+projectured-julia/source/platform/dragging/Dragging.jl:175	3	DraggingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/conversation/ConversationToWidget.jl:1190	4	ConversationConversationToWidgetComposite	Alt+arrow KeyDown; whole selection press; MouseClick	G,M,B	payload (operation or gesture) goes to own 3-arg; selection answer converted or cut to part prefix
+projectured-julia/source/platform/screen/EscapeQuitting.jl:40	4	EscapeQuittingProjection	bare Escape (also in WindowInput)	W,P,G	child first; only when child gives no operation, Escape makes QuitEditorOperation
+projectured-julia/source/platform/screen/EscapeQuitting.jl:51	3	EscapeQuittingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/fault/FaultLogOverlay.jl:188	4	FaultLogOverlayProjection	none	W	forwards to inner
+projectured-julia/source/platform/fault/FaultLogOverlay.jl:192	3	FaultLogOverlayProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/appearance/AppearanceToWidget.jl:865	4	AppearanceToWidget	none	W,M	calls scroll_pane child, then _translate_tab_operation
+projectured-julia/source/platform/appearance/AppearanceToWidget.jl:871	3	AppearanceToWidget	Any (untyped payload)	B	
+projectured-julia/source/platform/screen/ScreenToScreen.jl:297	4	ScreenToScreen	route; WindowInput with MouseMove/WindowLeave; operation payload	W,R,G,B	window_iomaps by index, steps prefixed; read_container_gesture; _read_window_leave(recursion,...); operation payload goes to own 3-arg
+projectured-julia/source/platform/screen/ScreenToScreen.jl:400	4	ScreenToScreen	route; WindowInput; MouseMove; outward gesture; operation payload	W,R,G,M,B	shifts event and operation positions by the content place; makes a new Intent(event, nothing) for the child; opens popup windows; operation payload to own 3-arg; iomap ScreenWindowIoMap
+projectured-julia/source/platform/natural/ImageToWidget.jl:52	3	ImageToWidget	any evt	W	calls the inner 3-arg reader (iomap ContentIoMap)
+projectured-julia/source/platform/screen/WindowManaging.jl:49	4	WindowManagingProjection	WindowInput with WindowResize, WindowClose, WindowDefocus, MouseDown, bare Escape	G,W,M	modal gate; window ops from events; child, then _apply_window_ops (Open/CloseWindowOperation) and pointer shape
+projectured-julia/source/platform/screen/WindowManaging.jl:200	3	WindowManagingProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/graphics/GraphicsToGraphics.jl:15	3	GraphicsToGraphics	any payload	F	operation passes unchanged, raw event declines
+projectured-julia/source/platform/task/TaskGroupToWidget.jl:1353	4	TaskGroupDocumentToWidgetPane	gesture passed to _convert_table_answer	M,F	default, then held arrangement, task open retarget, table answer conversion
+projectured-julia/source/platform/task/TaskGroupToWidget.jl:1521	4	TaskGroupListToWidgetPane	none	M,F	default, then held arrangement and selecting the pressed row
+projectured-julia/source/platform/gesturelog/GestureLogOverlay.jl:180	4	GestureLogOverlayProjection	none	W	forwards to inner
+projectured-julia/source/platform/gesturelog/GestureLogOverlay.jl:184	3	GestureLogOverlayProjection	Any (untyped payload)	B	
+projectured-julia/source/platform/navigator/NavigatorToWidget.jl:322	4	NavigatorToWidget	KeyDown/KeyPress with address selected (Enter, Escape); operation with address part	G,M,W,R,F	own address commit/reset; splits address answer; reads the address child with its own recursion iomap.address_projection (not the passed one); then default, then translate
+projectured-julia/source/platform/assistant/AssistantTurn.jl:1357	3	AssistantToWidgetSplitPane	ComposerSubmitOperation	M	becomes SubmitDraftTurnOperation
+projectured-julia/source/platform/assistant/AssistantTurn.jl:1365	3	AssistantToWidgetSplitPane	ComposerRevertOperation	M	becomes CancelAssistantTurnOperation when running
+projectured-julia/source/platform/assistant/AssistantTurn.jl:1381	3	AssistantToWidgetCard	KeyPress	G	composer gesture when draft selected
+projectured-julia/source/platform/assistant/AssistantTurn.jl:1387	3	AssistantToWidgetCard	KeyDown	G	Escape cancels turn; composer gesture
+projectured-julia/source/platform/assistant/AssistantTurn.jl:1399	3	AssistantToWidgetCard	Operation	M,F	resolves composer host operation; else default 3-arg invoke
+projectured-julia/source/platform/roster/RecordTableToWidget.jl:72	4	RecordTableToWidget	none	M,F	default, then keep_held_arrangement and retarget_held_row_open
+projectured-julia/source/platform/filesystem/FileSystemToWidget.jl:223	4	FileSystemToWidgetTree	route; payload gesture or operation	M,R,F	same pattern as the chooser (explorer open-folder writes)
+projectured-julia/source/platform/conversation/ConversationEditor.jl:957	3	ConversationComposerToWidget	MouseClick	G	left click makes caret at the end of the composer
+projectured-julia/source/platform/conversation/ConversationEditor.jl:971	3	ConversationComposerToWidget	KeyPress	G	read_composer_gesture
+projectured-julia/source/platform/conversation/ConversationEditor.jl:978	3	ConversationComposerToWidget	ReplaceRangeOperation	F	declines when replacement has a newline, else default 3-arg invoke
+projectured-julia/source/platform/conversation/ConversationEditor.jl:981	3	ConversationComposerToWidget	KeyDown	G	composer gesture resolved through the host
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:430	4	DataFrameViewToWidget	_DataFrameShapeOperation (operation, needs route); MouseDown; double click + whole-row ReplaceSelectionOperation	G,M,R,F	post-processes the default's answer: shape op to step, MouseDown wraps scroll-bar drag owner, double click adds OpenPageOperation
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:466	3	DataFrameViewToWidget	KeyDown|KeyPress	G	read_gesture of the input view
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:475	3	DataFrameViewToWidget	ReplaceSelectionOperation	M	re-targets table path to view path; may add open-cell and cell-commit operations in a compound
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:668	3	DataFrameViewToWidget	ReplaceStringRangeOperation	M	converts to cell/find_text/query edit operations
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:697	3	DataFrameViewToWidget	Operation (any)	M	converts table writes (also inside CompoundOperation) to view writes
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:876	3	DataFrameViewToWidget	DragMove|DragEnd|DragCancel	G,M	drag of scroll-bar thumb or table column, then converts the writes
+projectured-julia/source/adapter/dataframes/DataFrameViewToWidget.jl:882	3	DataFrameViewToWidget	any event (untyped)	F	
+projectured-julia/source/adapter/odbc/SqlToCellTable.jl:47	3	SqlToCellTable	untyped op	F	
+projectured-julia/source/domain/markdown/MarkdownToLayout.jl:212	3	MarkdownRootToVerticalLayout	InvokeActionOperation	M	identity: returns the operation unchanged (borderline)
+projectured-julia/source/domain/markdown/MarkdownToLayout.jl:216	3	MarkdownRootToVerticalLayout	ToggleCollapseOperation	M	identity: returns the operation unchanged (borderline)
+projectured-julia/source/domain/markdown/MarkdownToLayout.jl:224	3	MarkdownRootToVerticalLayout	ReplacePathOperation	M	
+projectured-julia/source/domain/git/GitToWidget.jl:110	3	GitTextToText	ReplacePathOperation (only Selection/MouseTarget/StartDrag)	M,F	declines other path kinds
+projectured-julia/source/domain/git/GitToWidget.jl:121	4	GitTextToText	CollectIntents|MouseDwell (no operation yet); MouseClick with claimed ReplaceSelectionOperation	G,C,F	line gestures (open file, show rest); reads change.operation as claimed
+projectured-julia/source/domain/git/GitToWidget.jl:203	3	GitTextToText	ReplaceRangeOperation	F	
+projectured-julia/source/domain/git/GitToWidget.jl:204	3	GitTextToText	ReplaceReferencedValueOperation	F	
+projectured-julia/source/domain/git/GitToWidget.jl:205	3	GitTextToText	KeyPress|KeyDown	F	
+projectured-julia/source/domain/git/GitToWidget.jl:406	4	GitCommitToWidget	none tested (any change)	M,F	calls default, then re-targets the answer's open operation
+projectured-julia/source/domain/git/GitToWidget.jl:496	4	GitCommitRangeToWidget	none tested (any change)	M,F	calls default, then keeps held arrangement / re-targets held row open
+projectured-julia/source/domain/julia/JuliaInsertionToSyntax.jl:180	3	JuliaInsertionToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/sequencechart/SequenceChartPlotToGraphics.jl:1204	3	SequenceChartPlotToGraphicsCanvas	MouseDown|MouseUp|MouseClick|MouseDwell|MouseScroll|KeyDown|KeyPress|DragMove|DragEnd|DragCancel|MouseMove (untyped event)	G,W,F	part under pointer gets event via _read_sequence_chart_part_event; outward gestures via read_child_part_gesture
+projectured-julia/source/domain/formula/FormulaToSyntax.jl:70	4	FormulaIdentifierToSyntaxLeaf	none (delegates)	B	one line to read_template_intent (reads route, claimed, dispatches 3-arg)
+projectured-julia/source/domain/formula/FormulaToSyntax.jl:292	4	FormulaEnvironmentToSyntaxNode	Enter/Escape key in edit mode; MouseClick ctrl+left with answer ReplaceSelectionOperation; answer ReplaceStringRangeOperation	G,M,L,F	calls default, then post-processes answer (formula edit, rename, go to definition); sets description and domain
+projectured-julia/source/domain/book/BookToSyntax.jl:207	3	BookBookToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/book/BookToSyntax.jl:216	3	BookBookToSyntaxNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/book/BookToSyntax.jl:392	3	BookChapterToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/book/BookToSyntax.jl:401	3	BookChapterToSyntaxNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/book/BookToSyntax.jl:531	3	BookListToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/book/BookToSyntax.jl:539	3	BookListToSyntaxNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/book/BookToSyntax.jl:607	3	BookPictureToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/math/MathToGraphics.jl:1864	3	MathProjection	MouseMove; DragMove|DragEnd; MouseDown; MouseClick; KeyDown|KeyPress (untyped event)	G,F	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSyntax.jl:54	3	DbCatalogColumnToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSyntax.jl:237	3	DbCatalogTableToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSyntax.jl:260	3	DbCatalogSchemaToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSyntax.jl:283	3	DbCatalogDatabaseToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSyntax.jl:306	3	DbCatalogRdbmsToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:170	3	SqlSubqueryFromItemToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:175	3	SqlSubqueryFromItemToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:259	3	SqlSelectItemToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:264	3	SqlSelectItemToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:338	3	SqlSelectClauseToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:343	3	SqlSelectClauseToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:442	3	SqlJoinedFromItemToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:447	3	SqlJoinedFromItemToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:504	3	SqlJoinOnConditionToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:509	3	SqlJoinOnConditionToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:621	3	SqlFromItemToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:626	3	SqlFromItemToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:692	3	SqlFromClauseToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:697	3	SqlFromClauseToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:753	3	SqlWhereFilterConditionToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:758	3	SqlWhereFilterConditionToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:823	3	SqlWhereClauseToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:828	3	SqlWhereClauseToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:955	3	SqlComparisonToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:960	3	SqlComparisonToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1043	3	SqlBooleanBinaryToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1048	3	SqlBooleanBinaryToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1106	3	SqlNotToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1111	3	SqlNotToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1205	3	SqlSelectStatementToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1348	3	SqlInsertStatementToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1353	3	SqlInsertStatementToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1431	3	SqlUpdateAssignmentToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1436	3	SqlUpdateAssignmentToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1569	3	SqlUpdateStatementToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1574	3	SqlUpdateStatementToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1634	3	SqlColumnDefinitionToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1639	3	SqlColumnDefinitionToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1749	3	SqlCreateTableStatementToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1754	3	SqlCreateTableStatementToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1804	3	SqlCreateSchemaStatementToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1809	3	SqlCreateSchemaStatementToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1896	3	SqlStatementListToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/sql/SqlToSyntax.jl:1901	3	SqlStatementListToSyntaxNode	untyped op	F	
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:302	3	MarkdownStyledTextToSyntaxLeaf	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:308	3	MarkdownStyledTextToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:467	3	MarkdownStyledInline	ReplacePathOperation	M	
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:472	3	MarkdownStyledInline	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:535	3	MarkdownImageToStyledNode	ReplacePathOperation	M	
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:539	3	MarkdownImageToStyledNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:611	3	MarkdownListToStyledNode	ReplacePathOperation	M	
+projectured-julia/source/domain/markdown/MarkdownToSyntax.jl:615	3	MarkdownListToStyledNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/math/MathToSyntax.jl:78	3	MathVariableToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/math/MathToSyntax.jl:180	3	MathBinaryOperationToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/math/MathToSyntax.jl:253	3	MathParenthesizedToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/math/MathToSyntax.jl:354	3	MathAssignmentToSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/graph/GraphLayoutToGraphics.jl:694	4	GraphLayoutToGraphicsCanvas	none tested (route; operation else gesture)	B,R,W	with a route to a child: read_routed_child; else calls the 3-arg reader with operation or gesture and rewraps
+projectured-julia/source/domain/graph/GraphLayoutToGraphics.jl:724	3	GraphLayoutToGraphicsCanvas	DragMove|DragEnd|DragCancel|MouseMove|MouseUp|MouseDown|MouseClick|MouseScroll ctrl|keys (untyped event)	G,W	forwards to selected node / routes outward; joins move answers
+projectured-julia/source/domain/rst/RstToSyntax.jl:111	4	macro parameter projname	none (delegates)	B	macro-generated; one line to read_template_intent
+projectured-julia/source/domain/rst/RstToSyntax.jl:134	4	macro parameter projname	none (delegates)	B	macro-generated; one line to read_template_intent
+projectured-julia/source/domain/rst/RstToSyntax.jl:896	3	RstStyledTextToSyntaxLeaf	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/rst/RstToSyntax.jl:902	3	RstStyledTextToSyntaxLeaf	ReplacePathOperation	M	
+projectured-julia/source/domain/rst/RstToSyntax.jl:1141	3	RstSectionToStyledNode	ReplacePathOperation	M	
+projectured-julia/source/domain/rst/RstToSyntax.jl:1147	3	RstSectionToStyledNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/rst/RstToSyntax.jl:1225	3	RstEnumeratedListToStyledNode	ReplacePathOperation	M	
+projectured-julia/source/domain/rst/RstToSyntax.jl:1231	3	RstEnumeratedListToStyledNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/julia/JuliaToSyntax.jl:1004	3	JuliaObjectToSyntaxLeaf	KeyPress|KeyDown	F	
+projectured-julia/source/domain/chart/ChartPlotToGraphics.jl:2159	3	ChartPlotToGraphicsCanvas	MouseDown|MouseUp|MouseClick|MouseDwell|MouseScroll|KeyDown|KeyPress|Drag*|MouseMove (untyped event)	G,W,F	part under pointer via _read_chart_part_event; outward via read_child_part_gesture; makes selection, series visibility, open-page ops
+projectured-julia/source/domain/dbcatalog/DbCatalogToSql.jl:56	3	DbCatalogColumnToSql	untyped op	F	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSql.jl:74	3	DbCatalogTableToSql	untyped op	F	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSql.jl:92	3	DbCatalogSchemaToSql	untyped op	F	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSql.jl:105	3	DbCatalogDatabaseToSql	untyped op	F	
+projectured-julia/source/domain/dbcatalog/DbCatalogToSql.jl:118	3	DbCatalogRdbmsToSql	untyped op	F	
+projectured-julia/source/domain/research/ResearchToWidget.jl:987	3	ResearchStudyToWidget	ReplaceStringRangeOperation	M,F	calls default, then turns an edit of first_text into add-and-type operation
+projectured-julia/source/domain/research/ResearchToWidget.jl:998	3	_ResearchProjection	CompoundOperation	M,F	calls default, wraps answer with make_element_cancel_operation
+projectured-julia/source/domain/yaml/YamlToSyntax.jl:208	3	YamlSequenceToBlockSyntaxNode	ReplacePathOperation	M	
+projectured-julia/source/domain/yaml/YamlToSyntax.jl:214	3	YamlSequenceToBlockSyntaxNode	ReplaceStringRangeOperation	M	declines when the mapped reference has an introduced step
+projectured-julia/source/domain/yaml/YamlToSyntax.jl:235	3	YamlSequenceToBlockSyntaxNode	KeyPress|KeyDown	W,G	3-arg read_intent of the focused child, reroot_operation with steps; else read_gesture of own sequence
+projectured-julia/source/domain/rst/RstToLayout.jl:178	3	RstRootToVerticalLayout	InvokeActionOperation	M	identity (borderline)
+projectured-julia/source/domain/rst/RstToLayout.jl:179	3	RstSectionToVerticalLayout	InvokeActionOperation	M	identity (borderline)
+projectured-julia/source/domain/rst/RstToLayout.jl:182	3	RstRootToVerticalLayout	ToggleCollapseOperation	M	identity (borderline)
+projectured-julia/source/domain/rst/RstToLayout.jl:183	3	RstSectionToVerticalLayout	ToggleCollapseOperation	M	identity (borderline)
+projectured-julia/source/domain/workflow/WorkflowToWidget.jl:623	3	WorkflowNodeToWidget	ReplaceStringRangeOperation	M,F	calls default, then turns an edit of first_text into add-and-type operation
+projectured-julia/source/domain/workflow/WorkflowToWidget.jl:634	3	WorkflowNodeToWidget	CompoundOperation	M,F	calls default, wraps answer with make_element_cancel_operation
+projectured-julia/source/domain/pivot/PivotTableToWidget.jl:463	4	PivotTableToWidget	DragMove|DragEnd|DragCancel; MouseDown left; MouseUp; MouseMove; outward gesture with no operation	G,M,C,F	calls default; adds source_version bump to source edits; joins drag-state writes with default's answer
+projectured-julia/source/domain/pivot/PivotTableToWidget.jl:514	3	PivotTableToWidget	KeyDown	G	read_gesture of the pivot
+projectured-julia/example/platform/fault/FaultExamples.jl:66	4	BrokenStageProjection	key F8 (raise error), key F9 (ThrowFromEvaluationOperation)	G,W	fault injection; otherwise delegates to inner projection
+omnet-julia/source/legacy/simulator/presentation/LegacySimulationRunnerToWidget.jl:768	3	LegacySimulationRunnerToWidgetForm	ReplaceReferencedValueOperation	M,F	checkbox write re-targeted to runner parameter; else default
+omnet-julia/source/legacy/simulator/presentation/LegacySimulationRunnerToWidget.jl:781	4	LegacySimulationRunnerToWidgetForm	Intent; tests change.gesture whole-selection press + ReplaceSelectionOperation	M,F	reads gesture to re-target selection to drawn widget; recursion only passed to default
+omnet-julia/source/legacy/result/presentation/LegacyScalarHistoryToWidget.jl:87	4	LegacyScalarHistoryToWidget	Intent (answer of default)	M,F	post-processes default answer (keep_followed_sample)
+omnet-julia/source/legacy/simulator/presentation/SimulationToWidget.jl:431	3	LegacySimulationCardToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/legacy/simulator/presentation/SimulationToWidget.jl:435	3	LegacySimulationCardToWidget	Any	M	identity
+omnet-julia/source/legacy/simulator/presentation/SimulationToWidget.jl:437	3	LegacySimulationCardToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/cosim/presentation/FederationEmbed.jl:264	3	FederationEmbedToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/cosim/presentation/FederationEmbed.jl:268	3	FederationEmbedToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/cosim/presentation/FederationEmbed.jl:270	3	FederationEmbedToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/legacy/ned/NedToSyntax.jl:460	3	NedConnectionToSyntaxLeaf	ReplaceStringRangeOperation	F	declines string-range operation
+omnet-julia/source/presentation/parameter/ResolvedParametersView.jl:115	3	ResolvedParametersViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/module/ModuleAppearanceToGraphics.jl:349	3	ModuleAppearanceToGraphicsCanvas	MouseClick (raw)	G	click -> GoIntoModuleOperation (count>=2) or ReplaceSelectionOperation; declines other events
+omnet-julia/source/legacy/result/presentation/LegacyResultFileToWidget.jl:411	4	LegacyResultFileToWidget	Intent (answer of default)	M,F	post-processes default answer (_convert_row_opens) using change.gesture
+omnet-julia/source/legacy/result/presentation/LegacyResultFileToWidget.jl:792	4	LegacyResultFolderToWidget	Intent (answer of default)	M,F	post-processes default answer (_convert_table_answer)
+omnet-julia/source/cosim/presentation/FederationView.jl:204	3	FederationViewToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/cosim/presentation/FederationView.jl:208	3	FederationViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/cosim/presentation/FederationView.jl:210	3	FederationViewToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/module/FindView.jl:223	3	FindViewToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/module/FindView.jl:227	3	FindViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/module/FindView.jl:229	3	FindViewToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/projection/OmnetWorkbenchToWidget.jl:142	3	OmnetWorkbenchToWidget	Any	M,F	path op mapped; compound move answers joined per member (join_move_answers); else identity
+omnet-julia/source/presentation/parameter/ConfigurationFormToWidget.jl:314	3	ConfigurationFormToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/parameter/ConfigurationFormToWidget.jl:320	3	ConfigurationFormToWidget	ReplaceStringRangeOperation	M	maps op.reference with map_reference_backward, same kind rebuilt
+omnet-julia/source/presentation/parameter/ConfigurationFormToWidget.jl:326	3	ConfigurationFormToWidget	ReplaceNumberRangeOperation	M	maps op.reference with map_reference_backward, same kind rebuilt
+omnet-julia/source/legacy/result/presentation/LegacySimulationResultFrameToWidget.jl:218	3	LegacySimulationResultFrameToWidgetTable	MouseClick (raw)	G,F	double click -> InvokeActionOperation plotting rows; else default
+omnet-julia/source/legacy/result/presentation/LegacySimulationResultFrameToWidget.jl:229	3	LegacySimulationResultFrameToWidgetTable	ReplaceSelectionOperation	M,F	row pick -> ReplaceReferencedValueOperation selected; else default
+omnet-julia/source/presentation/module/SimulationTopologyToWidget.jl:277	3	SimulationTopologyToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/module/SimulationTopologyToWidget.jl:281	3	SimulationTopologyToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/module/SimulationTopologyToWidget.jl:283	3	SimulationTopologyToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/legacy/simulator/presentation/LegacyStoreToWidget.jl:122	4	LegacyStoreToWidget	Intent (answer of default)	M,F	post-processes default answer (keep_held_arrangement, retarget_held_row_open)
+omnet-julia/source/presentation/module/ModuleViews.jl:100	3	ModuleTreeViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/module/ModuleViews.jl:168	3	ModuleGraphViewToWidget	GoIntoModuleOperation / Operation	M,F	consumes GoIntoModuleOperation by mutating view.scope in the reader (side effect), returns nothing; else identity
+omnet-julia/source/presentation/telemetry/SequentialEngineDashboard.jl:182	3	SequentialEngineDashboard	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/telemetry/SequentialEngineDashboard.jl:186	3	SequentialEngineDashboard	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/telemetry/SequentialEngineDashboard.jl:188	3	SequentialEngineDashboard	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/strategy/SimulationOptimizationToWidget.jl:193	3	SimulationOptimizationToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/strategy/SimulationOptimizationToWidget.jl:197	3	SimulationOptimizationToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/strategy/SimulationOptimizationToWidget.jl:199	3	SimulationOptimizationToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/strategy/StrategyView.jl:60	3	StrategyViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/telemetry/TelemetryView.jl:117	3	TelemetryViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/execution/TimelineView.jl:252	3	TimelineViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/accumulator/AccumulatorView.jl:110	3	AccumulatorViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/telemetry/ParallelEngineDashboard.jl:157	3	ParallelEngineDashboard	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/telemetry/ParallelEngineDashboard.jl:161	3	ParallelEngineDashboard	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/telemetry/ParallelEngineDashboard.jl:163	3	ParallelEngineDashboard	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:172	3	CaptureTableToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:176	3	CaptureTableToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:178	3	CaptureTableToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:232	3	CaptureViewToSequenceChart	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:236	3	CaptureViewToSequenceChart	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/capture/CaptureToWidget.jl:238	3	CaptureViewToSequenceChart	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/page/SimulationEmbedToWidget.jl:1468	3	SimulationEmbedToWidget	ReplacePathOperation	M	maps path, with fallback to introduced-part map for non-selection paths
+omnet-julia/source/presentation/page/SimulationEmbedToWidget.jl:1492	3	SimulationEmbedToWidget	InvokeActionOperation	M	identity pass so it is not dropped
+omnet-julia/source/presentation/page/SimulationEmbedToWidget.jl:1502	3	SimulationEmbedToWidget	SetReflectedDisclosureOperation	M	identity pass so it is not dropped
+omnet-julia/source/presentation/page/SimulationEmbedToWidget.jl:1513	3	SimulationEmbedToWidget	ReplaceReferencedValueOperation	M	identity pass so it is not dropped
+omnet-julia/source/presentation/execution/ExecutionStatusView.jl:151	3	ExecutionStatusViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/session/SessionView.jl:330	3	SessionViewToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/session/SessionView.jl:334	3	SessionViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/projection/CatalogShellToWidget.jl:281	3	CatalogShellToWidget	InvokeActionOperation	M	identity pass
+omnet-julia/source/presentation/projection/CatalogShellToWidget.jl:289	3	CatalogShellToWidget	SetReflectedDisclosureOperation	M	identity pass
+omnet-julia/source/presentation/projection/CatalogShellToWidget.jl:297	3	CatalogShellToWidget	ReplaceReferencedValueOperation	M	identity pass
+omnet-julia/source/presentation/projection/CatalogShellToWidget.jl:303	3	CatalogShellToWidget	ReplaceSelectionOperation	M,F	row click -> InvokeActionOperation (open page, reset scroll) or declines section rows; else map path
+omnet-julia/source/presentation/projection/CatalogShellToWidget.jl:335	3	CatalogShellToWidget	ReplacePathOperation	M	maps path, fallback to introduced-part map
+omnet-julia/source/presentation/capture/MessageAnimationView.jl:156	3	MessageAnimationViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/result/ResultComparisonView.jl:220	3	ResultComparisonViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/ide/LegacyIniFileEntryToWidget.jl:367	4	LegacyPartPageToWidget	Intent (answer of default)	M,F	post-processes default answer (_convert_view_table_writes)
+omnet-julia/source/presentation/view/SimulationInspectorToWidget.jl:225	3	SimulationInspectorToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/view/SimulationInspectorToWidget.jl:229	3	SimulationInspectorToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/view/SimulationInspectorToWidget.jl:231	3	SimulationInspectorToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/result/ResultView.jl:99	3	ResultViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/execution/ExecutionView.jl:340	3	ExecutionViewToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/execution/ExecutionView.jl:344	3	ExecutionViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/workbench/SimulationWorkflowToWidget.jl:1471	3	SimulationWorkflowToWidget	Any (tests ReplaceSelectionOperation, ReplacePathOperation, CompoundOperation)	M,F	selection on catalog/run/vector row -> InvokeActionOperation; field retarget via _retarget_field_op; compound joined per member
+omnet-julia/source/presentation/workbench/SimulationWorkflowToWidget.jl:1515	3	SimulationWorkflowToWidget	ReplaceStringRangeOperation	M	retargets field op
+omnet-julia/source/presentation/workbench/SimulationWorkflowToWidget.jl:1517	3	SimulationWorkflowToWidget	ReplaceNumberRangeOperation	M	retargets field op
+omnet-julia/source/presentation/checkpoint/CheckpointView.jl:210	3	CheckpointViewToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/checkpoint/CheckpointView.jl:214	3	CheckpointViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/checkpoint/CheckpointView.jl:216	3	CheckpointViewToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/observation/ObservationView.jl:67	3	ObservationViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/execution/SimulationExecutionToWidget.jl:149	3	SimulationExecutionToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/execution/SimulationExecutionToWidget.jl:153	3	SimulationExecutionToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/execution/SimulationExecutionToWidget.jl:155	3	SimulationExecutionToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/legacy/result/presentation/LegacyResultComparisonToWidget.jl:127	4	LegacyResultComparisonToWidget	Intent (answer of default)	M,F	post-processes default answer (keep_followed_sample)
+omnet-julia/source/presentation/engine/SequentialEngineToWidget.jl:77	3	SequentialEngineToWidget	ReplacePathOperation	M	maps path with map_reference_backward, make_path_operation
+omnet-julia/source/presentation/engine/SequentialEngineToWidget.jl:81	3	SequentialEngineToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/engine/SequentialEngineToWidget.jl:83	3	SequentialEngineToWidget	CompoundOperation	M	mouse-target compound: each member mapped back alone (read_move_answer); other compound identity
+omnet-julia/source/presentation/capture/LogView.jl:214	3	LogViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+omnet-julia/source/presentation/result/ResultStoreView.jl:132	3	ResultStoreViewToWidget	Any	M,F	identity for an operation; declines a raw gesture
+inet-julia/example/catalog/Machines.jl:130	3	FsmMachineToWidget	Any	M,F	identity for an operation; declines a raw gesture
