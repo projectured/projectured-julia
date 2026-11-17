@@ -1,6 +1,6 @@
 # Content and view
 
-> **Kind:** design · **For:** developer · **Status:** in design, not built yet · **Stands on:** [concepts.md](concepts.md), [architecture-rules.md](../rule/architecture-rules.md)
+> **Kind:** design · **For:** developer · **Status:** in design, built in part · **Stands on:** [concepts.md](concepts.md), [architecture-rules.md](../rule/architecture-rules.md)
 
 This document is the design of content and view, in three layers: a value, a
 content document and a view. It gives the rules that each domain and each
@@ -283,13 +283,15 @@ The code differs from this design in these places.
   keep one.
 - `ContentView` in `source/platform/projection/higherorder/Viewing.jl` sends a
   field step that a view does not have to the field `viewed`.
-- `make_child_views` reads its whole collection, makes a view for each element,
-  and keeps each view while its element is in the collection.
-- A person writes each view type in full: the field `viewed`, a field for each
-  child field, the constructor and the method of `make_content_view`.
-- Twelve view types follow the older form of this design: `TextView`, the two
-  syntax views, five JSON views and four Markdown views. They have no view of a
-  list: a view keeps the views of its elements in a plain `CellVector`.
+- Twelve view types have the declaration: `TextView`, the two syntax views, five
+  JSON views and four Markdown views. `@content_view` makes a child field only
+  for a list that is declared as a `CellVector`. A field that takes any document,
+  a field of a document type and the lines of a text get no view of their own.
+- `CellVectorView` is the one view of a list. No plain value has a view type, so
+  no view follows an index.
+- A walk of a document reads each element of the view of a list, and so it makes
+  the view of each element. The next drop removes the views that nothing
+  reaches.
 - The other view documents name their content in a field of their own:
   `DataFrameView.frame`, `ChartPlot.chart`, `SequenceChartPlot.chart`,
   `GraphLayout.graph`, `WorkspaceExplorer.workspace`, `DocumentTree.root`,
@@ -334,9 +336,10 @@ The code differs from this design in these places.
 ## Open points
 
 1. **The name of the kernel hook.** `keeps_selection` is a working name.
-2. **The child fields that `@content_view` reads.** The rule for a node gives
-   them, but its form in the macro is not written: which field types hold a
-   node, and what the field of a slot that takes any value holds.
+2. **The child fields that `@content_view` reads.** The macro reads the lists
+   that are declared as a `CellVector`. Its form is not written for a field that
+   takes any document, for a field of a document type and for the lines of a
+   text.
 3. **The sort of each document type that is left.** About 180 document types of
    the widget domains and of the session are not sorted into content and view
    yet. The rules of this document decide each one.

@@ -303,10 +303,22 @@ For a type that has views, the caret and the fold live in the view, and the
 content holds neither.
 
 - **A `ContentView` is the supertype of the views of a content.** A view keeps the
-  content that it shows in the field `viewed`. Each view type has one field for
-  each child field of its content, and that field holds the views of the children,
-  such as `JsonArrayView.elements`. A view is a tree with one node for each node of
-  its content, so a path of the content is a path of the view.
+  content that it shows in the field `viewed`. Each view type has one child field
+  for each list of its content, and that field holds the view of the list, such as
+  `JsonArrayView.elements`. A view is a tree with one node for each node of its
+  content, so a path of the content is a path of the view.
+- **`@content_view` declares a view type.** It writes the field `viewed`, the child
+  fields, the constructor and the methods of `make_content_view`. A person writes
+  only the state of the view type and its key table.
+- **A `CellVectorView` is the view of a list.** It is a list of the views of the
+  elements of its content, so the step `[3]` names the view of element 3. It makes
+  the view of an element at the first read of that element, and that view follows
+  its element when the list changes.
+- **A view of an element goes when nothing reaches it.** Something reaches it when
+  it holds a caret, when a field of its state does not have the default value,
+  when a print shows it, or when a list view below it keeps a view. The print of a
+  view drops the other views of its lists (`drop_unreached_views!`), and the next
+  read of such an element makes a new view.
 - **The state of one view is in the view.** The caret, the part under the pointer,
   the folds (`collapsed` of a `SyntaxNodeView` and of a `JsonArrayView`, `closed_folds`
   of a `TextView`) and the look of a text (`wrap`, `line_spacing`) belong to one
@@ -335,8 +347,8 @@ caret in their text there.
 Every other type and every other chain has no view: the type keeps its caret in
 its own selection field. The widgets have no views. A
 text of a widget keeps its caret in a `TextView`, and the widget itself keeps its
-own caret. A view reads the whole list of its children: there is no view of a lazy
-list.
+own caret. The view of a list makes a view only for an element that something
+reads.
 
 Only the folds of the syntax, JSON and text views are state of a view. The YAML,
 XML, reStructuredText and Markdown types declare a `collapsed` field that no

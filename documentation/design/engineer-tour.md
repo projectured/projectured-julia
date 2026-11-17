@@ -185,8 +185,9 @@ view_a.collapsed = true                # closes the array in view_a only
 ```
 
 `make_content_view(content)` makes the view of a content, and gives `nothing` for
-a type that has none. A parent view makes the views of its children with
-`make_child_views`, so each child takes the view of its own type. A step of a
+a type that has none. A parent view keeps the view of each list of its content, a
+`CellVectorView`, which makes the view of a child when something reads that
+child, so each child takes the view of its own type. A step of a
 chain, wrapped in `ViewingProjection`, prints the content of a view with the
 projection of the content and gives the view of the next domain. See
 [the selection guide](../package/kernel/selection.md) and

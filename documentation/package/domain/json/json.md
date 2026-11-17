@@ -59,7 +59,7 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 Five JSON types have a view ([JsonView.jl](../../../../source/domain/json/JsonView.jl)): `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView` and `JsonArrayView`, all subtypes of `JsonView <: ContentView`. A `JsonObject` and a `JsonObjectEntry` have none. The view keeps what it shows in `viewed`, and the caret is a path of the content, such as `.value{3}` in a string view. The caret and the fold are in the view, and the JSON document holds neither.
 
-`JsonArrayView(viewed, elements, collapsed)` holds the view of each element in `elements`, in the order of the elements of the array, and follows them by identity (`make_child_views`). A path such as `.elements[2].value{3}` is a path of the array and of its view. `collapsed` is the fold of the view, which another view of the same array does not share. An element with no view, such as an object, has `nothing` in its place and prints as content.
+`JsonArrayView(viewed, elements, collapsed)` holds the view of the list of its elements in `elements`, a `CellVectorView`. That list view gives the view of each element at the index of the element, makes it at the first read of the element, and follows the elements by identity. A path such as `.elements[2].value{3}` is a path of the array and of its view. `collapsed` is the fold of the view, which another view of the same array does not share. An element with no view, such as an object, has `nothing` in its place and prints as content.
 
 The chain of views wraps the stages that the chain has already:
 

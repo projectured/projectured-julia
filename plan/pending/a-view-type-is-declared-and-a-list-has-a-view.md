@@ -208,7 +208,7 @@ They are approved with this plan.
   and of the Markdown types are new test sets in `test_json_string_view` (now 47)
   and in `test_markdown_view` (now 50). The nine other narrow tests keep their
   counts, and the layering guard has the two failures of `main` and no other.
-- [ ] **4. A view goes.** The drop of the views that nothing reaches, at the
+- [x] **4. A view goes.** The drop of the views that nothing reaches, at the
   start of each print of the view that holds the list.
   Tests, new: a view with a caret stays; a view with a closed fold stays; a view
   that a print shows stays; a view that nothing reaches goes at the next print,
@@ -216,6 +216,14 @@ They are approved with this plan.
   element that left the list goes; a view that code got and then changed stays.
   The step starts with a test of one fact: each print of a view reads a cell of
   that view.
+  **Done on 2026-11-17.** The function is `drop_unreached_views!` in
+  `CellVectorView.jl`, and the step of a view calls it for each list view of
+  that view (`_drop_unreached_child_views!` in `Viewing.jl`). The new test
+  `test_cell_vector_view_drop` has 31 of 31, and the fact is one of its test
+  sets. The eleven narrow tests keep their counts with the drop in each print.
+  The list view keeps, for each view, the index where it saw the element last.
+  So a drop reads only the views that it keeps, and it reads the whole list one
+  time after a change of the list.
 - [ ] **5. The wide check and the guides.** `test_platform()` and the suites of
   the JSON and the Markdown domains against the same runs at the base commit.
   The recorded precompile calls, if a list goes above its limit of calls that do
@@ -268,6 +276,16 @@ They are approved with this plan.
    each child, and the views below a child. After the print goes and the
    collector runs, no cell of these views has a reader. A probe on the syntax
    pipeline showed it, and step 4 makes it a test.
+
+9. **The step of a view runs when a print of the view is made, and not at each
+   change.** A print is made one time. A change of the content then updates the
+   cells of that print, and the function of the step does not run again. So the
+   drop of proposed decision 5 runs at each new print of the view that holds
+   the list, and a view that nothing reaches can stay until then. A view never
+   goes too soon. One test of the plan had the other expectation and is
+   corrected. Open for the owner: a second time for the drop, when the list view
+   makes a new view and keeps two times the views that it kept after the last
+   drop. This plan does not add it.
 
 ## Risks
 

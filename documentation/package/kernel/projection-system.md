@@ -619,9 +619,14 @@ such as a toggle of a fold of a text into a `ToggleFoldOperation` at the path of
 view of the node. Any other operation goes back through the readers of the content
 print.
 
-**Limits.** A view makes the views of the whole list of its children
-(`make_child_views`), so a lazy list has no view. A child with no view takes no
-caret in its text inside a view. A chain that prints to widgets has no views.
+**The view of a list.** A view keeps the view of each list of its content, a
+`CellVectorView`. The list view makes the view of an element at the first read of
+that element, and the print of a view drops the views of its lists that nothing
+reaches (`drop_unreached_views!`). A view type is declared with `@content_view`,
+which writes the field `viewed` and the child fields.
+
+**Limits.** A child with no view takes no caret in its text inside a view. A chain
+that prints to widgets has no views.
 
 ## A print while a value is still to come
 
