@@ -824,11 +824,14 @@ Two rules make this order possible:
   `omnet-julia`**: the follow of each rename, and `Pkg.precompile` with a count
   of the compiled packages.
 
-1. **A step into a view names a real field.** The type `View`, with `ContentView`
-   and the widget, layout, graphics and pane families below it. The field step of
-   a view to its content goes, and each path into the content of a view takes the
-   step `.viewed`. The plan is
-   `plan/pending/a-step-into-a-view-names-a-real-field.md`.
+1. **`View` is the type of every view.** The type `View`, with `ContentView` and
+   the widget, layout, graphics and pane families below it. The plan is
+   `plan/pending/view-is-the-type-of-every-view.md`. Its first form also had the
+   step `.viewed` in each path of a view. That part moved to points 4 and 11 on
+   2026-11-17, when the owner chose way A ("I agree with A"): the step `.viewed`
+   comes for each content family together with the loss of its selection field.
+   With the field still there, the selection walk of the kernel goes through
+   `viewed` and writes the caret into the shared content.
 2. **The declaration of a view type, and the view of a list.** `@content_view`,
    `CellVectorView`, a view that is made when something reaches it and that goes
    with its default state, and the view of an element that follows its element.
@@ -838,8 +841,13 @@ Two rules make this order possible:
    path. An edit that makes a new content gives the place of the caret.
 4. **The first content family with no selection: JSON, whole.** The kernel hook
    with its first use. The object and its entry get views, a JSON file shows in a
-   tab through its view, and the 43 calls of `@selected` start to go. **This
-   point ends with the review of the JSON domain by the owner.**
+   tab through its view, and the 43 calls of `@selected` start to go. The paths
+   of the JSON views take the step `.viewed`, with the two functions that change
+   a path between a view and its content. A view of a content that still keeps a
+   selection, such as a syntax view or a text view, keeps the form of today. The
+   two selection walks of the kernel get one answer for a document with no
+   selection field. **This point ends with the review of the JSON domain by the
+   owner.**
 5. **The state to keep, and the store of the editor.** The store writes the views.
    A printer gives a widget the cell of the view for each state to keep. The
    eighteen types with `get_view_state_fields` move that state to a view.
@@ -860,16 +868,19 @@ Two rules make this order possible:
 10. **The widget domains and the documents of the session**, about 180 types. One
     plan sorts them into content and view, and one plan for each group converts
     it.
-11. **The end.** The default of the kernel hook becomes `false`. A guard checks
-    that only a `View` has a selection. The section "Content documents and view
-    documents" of `architecture-rules.md` takes the rules of the design document.
+11. **The end.** The text and the syntax keep no selection, and the paths of
+    their views and of the text of a widget take the step `.viewed`. The field
+    step of a `ContentView` to its content goes. The default of the kernel hook
+    becomes `false`. A guard checks that only a `View` has a selection. The
+    section "Content documents and view documents" of `architecture-rules.md`
+    takes the rules of the design document.
 
 The work of `omnet-julia` itself has plans in that repository after point 4: the
 summaries, `SimulationView` below `ContentView`, the field `viewed`, and the types
 that mix content and state of a view.
 
-The reason for the order. Point 1 changes what a path means, so each later point
-writes its paths one time. Point 2 gives the form in which each later point
-declares a view. Point 3 comes before point 4 because a content can lose its
+The reason for the order. Point 1 gives each later point the type that it
+declares a view below. Point 2 gives the form in which each later point declares
+a view. Point 3 comes before point 4 because a content can lose its
 caret only when no row of its key table reads it. Point 4 proves the whole design
 on one domain before the other domains follow.
