@@ -1,6 +1,8 @@
 # A view type is declared, and a list has a view
 
-**Status:** pending, written on 2026-11-17. Not approved and not started.
+**Status:** in work since 2026-11-17, in the worktree
+`projectured-julia-list-view` on the branch `list-view`. The owner approved the
+plan on 2026-11-17 ("Yes").
 
 This plan is point 2 of the order in section 13.3 of
 `plan/tentative/content-and-view-for-the-whole-project.md`. The design is

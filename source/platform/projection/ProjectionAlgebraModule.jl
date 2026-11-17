@@ -48,7 +48,7 @@ export ConstantProjection
 export ChainingProjection, ChainingIoMap
 export TypeDispatchingProjection
 export RecursiveProjection
-export View, ContentView, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view, make_child_views,
+export View, ContentView, CellVectorView, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view, make_child_views,
        get_content_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation,
        make_sibling_view
 export SwitchingProjection, SwitchingIoMap
@@ -79,6 +79,7 @@ include("higherorder/ReferenceDispatching.jl")
 include("higherorder/Nesting.jl")
 include("higherorder/WindowInputUnwrapping.jl")
 include("higherorder/Viewing.jl")
+include("higherorder/CellVectorView.jl")
 include("ProjectionDocument.jl")
 include("higherorder/FaultCatching.jl")
 include("generic/Focusing.jl")
