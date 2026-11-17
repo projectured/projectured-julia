@@ -254,4 +254,9 @@ descending function and one without it breaks. The two new functions descend int
 only `read_intent` passes a change to a child, through the stored child IO maps, as today, and
 each projection has the two through their defaults. So the design keeps the reason and changes
 the letter. The docstring of `ClaimedGesture` gives the same rule as the reason for a payload in
-place of a function. Step 2 waits for the owner.
+place of a function. **Answer of the owner:** "But read_gesture and map_operation_backward are not recursive in the
+sense that they do not call themselves directly. They still go back to the child's four
+functions, so they are ok, right? So in this sense, they are helper functions." So the two are
+helpers of one stage, as `print_child` is of the printer; they call no child, and only
+`read_intent` passes a change to the `read_intent` of a child. Step 6 adds one sentence to
+PAR-FOUR-FUNCTIONS that says so.
