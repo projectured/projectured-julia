@@ -305,3 +305,27 @@ PAR-FOUR-FUNCTIONS that says so.
   5215 passed, 2 broken, none failed, which is the 5192 of the kernel before and the 23 new
   ones; the compare with the baseline follows when the baseline runs.
 
+**2026-11-17, step 3: the template reader.**
+
+- **`ClaimedGesture` goes.** `read_template_intent` calls the override walk itself
+  (`_read_template_override`), so no payload carries a claim. Each level of the walk reads
+  `read_gesture(projection, iomap, gesture; claimed)`, which is the code of
+  `_read_own_override_click`, so that function goes too. A key now reads the table of the
+  projection of each level as well as the table of its document, as a click did. The type was
+  exported from `IntentModule`, so the next release takes a minor version step. Its test in
+  `IntentTest.jl` and the three lines of the layer tables of `architecture.md` and
+  `system-anatomy.md` go with it.
+- **A key goes to the focused child through `read_child_intent`** (`_read_template_key`). It
+  does three things that the old key walk did not: an `override` rule of the node wins over the
+  answer of the child (O2); the node reads the table of its projection before the table of its
+  document; and the collection on the steps to the child reads its table. No list and no
+  generic document declares a table, so the third adds nothing today.
+- **The maps of an operation stay** in the 3-argument methods on `TemplateIoMap` until step 4.
+- **The runs.** `test_kernel()`: 5212 passed, 2 broken, none failed: step 2 and the 3 assertions
+  of the removed test less.
+  The domain suites on the branch: `test_json()` 405, `test_xml()` 86, `test_yaml()` 64 and 2
+  broken, `test_sql()` 671, `test_markdown()` 346 and `test_rst()` 140 pass with no failure;
+  `test_julia()` has 794 passed and 1 failure, `TooltipWindowTest.jl:179`, the padding `(9, 9)`
+  where the test expects `(13, 13)`, which fails on main since `2d8d7e117`. The compare with
+  the baseline follows when it runs.
+

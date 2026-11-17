@@ -1521,49 +1521,37 @@ function find_template_value_retype(iomap::TemplateIoMap, reference)
         Symbol(reference.head.name) === w.bound_field ? w.retype : nothing
 end
 
-# Innermost-first, bubbling to the nearest enclosing structural node: delegate to the
-# selected child's projection (lifting its operation back into this node's input
-# domain), and only when the child declines fall back to this node's own reified
-# gestures.
+# Innermost-first, bubbling to the nearest enclosing structural node: the focused
+# child reads a key first, and the rules of this node answer by the order of an
+# override (`read_child_intent`). A caller of the older form reads with no recursion.
 read_intent(p::Projection, iomap::TemplateIoMap, evt::Union{KeyPress, KeyDown}) =
-    _read_template_gesture(iomap, evt; recursion = nothing)
+    _read_template_key(p, nothing, Intent(evt), iomap).operation
 
-# The child reads the gesture with its own 4-argument reader, and with the
-# `recursion` that printed it.
-function _read_template_gesture(iomap::TemplateIoMap, evt; recursion)
+# A key goes to the child that the selection of the node is in, with the `recursion`
+# that printed it, and the answer comes back through the rules of the node; with no
+# such child, the node reads the key itself.
+function _read_template_key(p, recursion, change::Intent, iomap::TemplateIoMap)
     input = iomap.input
-    input isa Document || return nothing
-    sel = getfield(input, :selection)[]
-    if sel !== nothing
-        fc = _focused_child(iomap.wiring, iomap, sel)
-        if fc !== nothing
-            child, steps = fc
-            answer = read_intent(child.projection, recursion, Intent(evt), child)
-            child_op = answer.operation
-            child_op === nothing || return reroot_operation(child_op, steps)
-        end
-    end
-    # Own-level handling: the nearest enclosing node's reified gestures, and the
-    # override seam (a node that must special-case a gesture does so here).
-    return read_gesture(input, evt)
+    answer(operation) = Intent(change.gesture, operation, change.description, change.domain)
+    input isa Document || return answer(nothing)
+    selection = getfield(input, :selection)[]
+    focused = selection === nothing ? nothing : _focused_child(iomap.wiring, iomap, selection)
+    focused === nothing && return answer(read_gesture(p, iomap, change.gesture))
+    child, steps = focused
+    read_child_intent(p, recursion, change, iomap, child, steps)
 end
 
-# A gesture that a stage nearer the output already turned into an operation. Only
-# `override` bindings fire (`fire_gesture_bindings` skips the rest once
-# `claimed !== nothing`), so this is inert for every ordinary gesture and the caller
-# goes on to translate the claimed operation.
-#
-# The descent is a private walk over `TemplateIoMap` children rather than the
-# `read_intent` recursion the unclaimed path uses, for two reasons. A hand-written reader
-# takes an *untyped* payload argument and would mistake a `ClaimedGesture` for an event;
-# and the claimed operation is expressed in the *enclosing* stage's output vocabulary, so
-# a child that translated it rather than declining would map a reference it does not own.
-# Nothing is lost: only a template node hosts gestures, and gestures are all this is
-# looking for.
-function read_intent(p::Projection, iomap::TemplateIoMap, c::ClaimedGesture)
-    c.gesture isa MouseClick && return _read_override_click(p, iomap, c.gesture, c.operation)
-    c.gesture isa Union{KeyPress, KeyDown} || return nothing
-    return _read_override_gesture(iomap, c.gesture, c.operation)
+# A key or a click that a stage nearer the output already turned into an operation,
+# `claimed`: the parts on the way of the gesture read it with their `override` rules
+# only (`read_gesture` with `claimed`), innermost first, and an answer wins over the
+# claimed operation. A key goes along the selection, a click along the path of the
+# part that the click selected. The walk reads the tables of the parts, not their
+# readers: the claimed operation is in the vocabulary of the stage nearer the output,
+# so a child that translated it would map a reference that it does not own.
+function _read_template_override(p, iomap::TemplateIoMap, gesture, claimed)
+    gesture isa MouseClick && return _read_override_click(p, iomap, gesture, claimed)
+    gesture isa Union{KeyPress, KeyDown} || return nothing
+    _read_override_gesture(iomap, gesture, claimed)
 end
 
 # A click that a stage nearer the output already answered, as a text view answers
@@ -1596,7 +1584,7 @@ function _read_override_click_along(iomap::TemplateIoMap, evt, claimed, path)
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
-    return _read_own_override_click(iomap, evt, claimed)
+    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
 end
 
 # A part that no template prints: the child whose input the path reaches first,
@@ -1622,17 +1610,7 @@ function _read_part_override_click(iomap, evt, claimed, path)
         child_op === nothing || return reroot_operation(child_op, Tuple(taken))
         break
     end
-    return _read_own_override_click(iomap, evt, claimed)
-end
-
-# The bindings of the projection of a part, then the table of its document.
-function _read_own_override_click(iomap, evt, claimed)
-    input = get_iomap_input(iomap)
-    selection = input isa Document ? get_selection(input) : nothing
-    bindings = get_projection_gesture_bindings(get_iomap_projection(iomap), iomap)
-    own = isempty(bindings) ? nothing : fire_gesture_bindings(bindings, input, evt; selection, claimed)
-    own === nothing || return own
-    return input isa Document ? read_gesture(input, evt; claimed) : nothing
+    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
 end
 
 # The path of the selection that a claimed answer makes, or `nothing`.
@@ -1670,22 +1648,24 @@ function _read_override_gesture(iomap::TemplateIoMap, evt, claimed)
             child_op === nothing || return reroot_operation(child_op, steps)
         end
     end
-    return read_gesture(input, evt; claimed)
+    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
 end
 
 """
     read_template_intent(p, recursion, change::Intent, iomap) -> Intent
 
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection.
-It offers this node's input domain the gesture *before* translating an operation
-that the stages nearer the output already produced for it — the seam an `override`
-binding fires through: a key along the selection, a click along the path of the
-part that the click selected — and otherwise behaves like the generic bridge in
-`ProjectionModule`. A key goes to the reader of the focused child with `recursion`.
-The answer keeps the description and the domain of `change`. A change with a route
-goes on to the child that the route names, as it does through the generic bridge.
-Where the rule holds no children, this reader follows no route, so an operation
-whose route names a place below the input answers no operation.
+A key or a click that a stage nearer the output already turned into an operation
+goes first to the `override` rules of the parts on its way: a key along the
+selection, a click along the path of the part that the click selected, innermost
+first; an answer wins over the claimed operation. Otherwise an operation maps back
+through the reader of the older form, a key goes to the focused child with
+`recursion` through [`read_child_intent`](@ref), so the rules of the node answer by
+the order of an override, and any other gesture is read by the node. The answer
+keeps the description and the domain of `change`. A change with a route goes on to
+the child that the route names, as it does through the generic bridge. Where the
+rule holds no children, this reader follows no route, so an operation whose route
+names a place below the input answers no operation.
 
 Keyed on the concrete projection type rather than on `TemplateIoMap`: the transparent
 recursive and type-dispatching wrappers hand a leaf its own iomap
@@ -1699,17 +1679,16 @@ function read_template_intent(p, recursion, change::Intent, iomap)
         return read_routed_child(recursion, change, iomap)
     change.route isa ConcreteReference && change.operation !== nothing &&
         return Intent(change.gesture, nothing)
-    is_key = iomap isa TemplateIoMap && change.gesture isa Union{KeyPress, KeyDown}
-    is_click = iomap isa TemplateIoMap && change.gesture isa MouseClick
-    if (is_key || is_click) && change.operation !== nothing
-        override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))
-        override === nothing ||
-            return Intent(change.gesture, override, change.description, change.domain)
+    answer(operation) = Intent(change.gesture, operation, change.description, change.domain)
+    template = iomap isa TemplateIoMap
+    if template && change.operation !== nothing
+        override = _read_template_override(p, iomap, change.gesture, change.operation)
+        override === nothing || return answer(override)
     end
-    operation = change.operation !== nothing ? read_intent(p, iomap, change.operation) :
-                is_key ? _read_template_gesture(iomap, change.gesture; recursion) :
-                read_intent(p, iomap, change.gesture)
-    return Intent(change.gesture, operation, change.description, change.domain)
+    change.operation === nothing || return answer(read_intent(p, iomap, change.operation))
+    template && change.gesture isa Union{KeyPress, KeyDown} &&
+        return _read_template_key(p, recursion, change, iomap)
+    answer(read_intent(p, iomap, change.gesture))
 end
 
 # A caret on a part that a node printed maps back to the node's own introduced step,

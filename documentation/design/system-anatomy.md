@@ -442,8 +442,8 @@ includes them in:
                @reference_rules DSLs
 12 selection   get_selection / set_selection! / clear_selection!
 13 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-14 intent      Intent and ClaimedGesture, the unit that flows back through the
-               readers, CollectIntents and CollectedIntentsOperation
+14 intent      Intent, the unit that flows back through the readers,
+               CollectIntents and CollectedIntentsOperation
 15 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
 16 iomap       the IoMap contract (IoMap + accessors), the concrete IO maps

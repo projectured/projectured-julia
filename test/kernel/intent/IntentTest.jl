@@ -1,7 +1,7 @@
 """
 `IntentModule` — the carrier of the reader pipeline. Verifies the labels that
 each constructor of `Intent` keeps, the route that `follow_intent_route` gives a
-child, `ClaimedGesture`, and the collection of intents: its reroot, its way
+child, and the collection of intents: its reroot, its way
 back, and `merge_collected_intents`.
 """
 
@@ -10,11 +10,6 @@ using ProjecturedKernel
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ReferenceModule
-using ProjecturedKernel.ProjectionModule: Projection, read_intent
-
-# A test-local projection with no reader of its own: it answers what the default
-# reader of the kernel answers.
-struct IntentProbeProjection <: Projection end
 
 # The steps from a root to the value of its second item.
 const _INTENT_ROUTE_STEPS = (FieldReferenceStep("items"), RangeReferenceStep(1, 2),
@@ -73,15 +68,6 @@ function test_intent()
     @testset "a route of nothing gives nothing for a step" begin
         change = Intent(:gesture, DoNothingOperation(), "Do nothing", "Probe")
         @test follow_intent_route(change, FieldReferenceStep("items")) === nothing
-    end
-
-    # A projection with nothing to say about a claimed gesture answers nothing, so
-    # the claimed operation goes on as it is.
-    @testset "a claimed gesture holds the gesture and the operation" begin
-        claimed = ClaimedGesture(:gesture, DoNothingOperation())
-        @test claimed.gesture === :gesture
-        @test claimed.operation isa DoNothingOperation
-        @test read_intent(IntentProbeProjection(), nothing, claimed) === nothing
     end
 
     # A collection travels home the same way a compound does, and for the same

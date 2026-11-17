@@ -73,35 +73,6 @@ function follow_intent_route(change::Intent, steps::ReferenceStep...)
 end
 
 """
-    ClaimedGesture(gesture, operation)
-
-A reader **payload**: `gesture`, offered to a projection that has already been
-handed an `operation` that an *output* stage produced for it.
-
-Reading runs last-to-first, so by the time a change reaches an input-domain
-projection the output stages have had their say: a printable key that a text stage
-understood is already a character edit. That is the good default. A key that is
-text inside a string needs no guard, and a structural gesture never has to
-reconstruct what the text stage would have done in order to decline.
-
-A few keys can not be text in their own context and must win anyway, such as a key
-that inserts a child element inside a tag name. A reader offers this payload to such
-a projection *before* it translates the claimed operation. A projection that answers
-it acts only for a gesture that must win over the claimed operation, so the payload
-is inert for every ordinary gesture. A projection with nothing to say returns
-`nothing`, and the claimed operation is translated as it is with no offer.
-
-It is a payload rather than a fifth generic function on purpose: descent rides
-`read_intent`, which already dispatches on what the payload *is* — a raw event, an
-`Operation`, or a claimed event. The recursion contract forbids a new function to
-descend with.
-"""
-struct ClaimedGesture
-    gesture::Any
-    operation::Any
-end
-
-"""
     CollectIntents()
 
 A reader **payload** asking for everything that is available rather than for one
