@@ -324,6 +324,14 @@ PAR-FOUR-FUNCTIONS that says so.
   today either: the one template projection with a table of its own, the rendered reference of
   RST (`RstReferenceToSyntaxNode`), holds click rules only.
 - **The maps of an operation stay** in the 3-argument methods on `TemplateIoMap` until step 4.
+- **The compare with the baseline of main (`e9af3a5a7`), steps 2 and 3 together.** `test_kernel()`:
+  main 5192 passed and 2 broken, the branch 5212 and 2, the 23 new assertions less the 3 removed
+  ones. `test_platform()`: main and the branch 236357 passed, 15 failed, 1 error, 21 broken, with
+  the same lines. The 23 domain suites: the same counts and the same lines of failure on main and
+  on the branch. Main fails in formula (1), graph (6 and 2 errors), julia (1), math (1) and pivot
+  (2 and 1 error). One run of `test_languageserver()` on the branch failed in
+  `SemanticTokensTest.jl:111-113`, where clangd was not seen as ended 10 s after a kill while
+  other jobs ran; a second run alone passed 114 of 114, as main does.
 - **Found at R2: of two `override` rules on the way of a key, the one further out wins.** An
   `XmlElement` has the rule `override(KeyPress('<'))`, "Insert an element". In `<a><b>x</b></a>`
   with the whole of `b` selected, `<` on main gives `b` a new element: the child answers first,
