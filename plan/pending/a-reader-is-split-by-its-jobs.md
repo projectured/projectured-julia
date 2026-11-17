@@ -533,3 +533,47 @@ ProjecturedJulia again?" The list of ProjecturedJulia records again (2331 lines,
 under the share of 10% that fails a precompilation, so they compile what still resolves,
 with no warning; step 8 records them. Steps 2, 3 and 3a land by a fast-forward of main of
 projectured-julia and of omnet-julia; nothing is pushed.
+
+**2026-11-17, step 4: the 3-to-4 wrappers wait for step 6.** Step 4 says that "the 110
+bridges, declines and identities go", and step 6 that "the 3-to-4 wrappers go". The 54
+bridges of §2 are those wrappers (`read_intent(p::X, iomap, payload) = read_intent(p,
+nothing, Intent(payload), iomap).operation`). While the walk calls the older form, a
+3-argument call of a projection that has a reader of the newer form reaches that reader only
+through its wrapper: without it, the call goes to the default of the older form, which hands
+the payload to `read_gesture` or `map_operation_backward` and skips the reader. So the
+wrappers go in step 6, with the older form, and step 4 removes the declines and the
+identities, and converts the readers that only map or only read a gesture. The slices of
+step 4 are the four groups of §2, in the order of the package graph: the kernel and the
+projection algebra, the widgets and the text, the rest of the platform, and the domains, the
+adapters and the examples.
+
+**2026-11-17, step 4, the first slice: the kernel and the projection algebra.** Of its 38
+readers, 6 change in step 4; the walks wait for step 5 and the wrappers for step 6.
+
+- **A reader that is the default goes.** The path map of the template
+  (`ProjectionTemplate.jl`, `read_intent(p, iomap::TemplateIoMap, op::ReplacePathOperation)`)
+  is the path branch of the default `map_operation_backward`, so it goes, and with it the
+  method of `RecursiveProjection` that broke its ambiguity (`ReaderDefaults.jl`). The reader of
+  `IdentityProjection` goes: the default `read_gesture` asks the table of the input, and the
+  default map passes an operation through the identity map unchanged. The one difference: a
+  gesture other than a key, a click or a help list, such as a dwell, now reads the table of the
+  input too.
+- **A reader that only maps becomes `map_operation_backward`.** The retype of a text edit of
+  the template (`ReaderDefaults.jl`) is `map_operation_backward(p, iomap::TemplateIoMap,
+  op::ReplaceStringRangeOperation)`; its inner call of an element stays the older form until
+  step 6. Its ambiguity breaker for `RecursiveProjection` goes; the breaker of a key stays,
+  because the key reader of the template is a walk of step 5.
+- **A reader that declines everything is not the default.** The default `read_gesture` asks
+  the table of the input, and the default map keeps an operation that names no reference. So
+  `ConstantProjection`, whose output does not come from its input, answers nothing in two
+  methods, typed on its `SimpleIoMap` so that they are not ambiguous with the method of the
+  template.
+- **`FocusingProjection` gets the defaults, with two changes of behavior.** Its two readers go.
+  The default `read_gesture` fires its table first, as before, and then the table of the input,
+  which the old reader did not ask. The default map puts the focused part before the paths of
+  every operation; the old reader mapped a path and declined every other operation, so an edit
+  through a focus mapped to nothing.
+- **For the next slices: a hand-written `read_gesture` of a container reads `answer`.** A stage
+  of a chain reads a gesture only when no later stage answered, so its `answer` is `nothing`.
+  But `read_child_intent` calls the `read_gesture` of a container with the answer of the child,
+  so a method of a container that does not read `answer` acts as an unconditional `override`.

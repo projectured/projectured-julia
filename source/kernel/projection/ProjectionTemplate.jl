@@ -1707,13 +1707,6 @@ function read_template_intent(p, recursion, change::Intent, iomap)
     answer(read_intent(p, iomap, change.gesture))
 end
 
-# A caret on a part that a node printed maps back to the node's own introduced step,
-# which the backward map makes.
-function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
-end
-
 # ── Sugar ─────────────────────────────────────────────────────────────────────
 
 """

@@ -40,7 +40,9 @@ import ..DocumentModule: copy_document, has_document_duplicate, is_admitted_by_d
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: get_content_iomap, show_barrier_mark!, retry_barrier_print!
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure,
+                           map_operation_backward
+import ..GestureBindingModule: read_gesture
 
 export IdentityProjection
 export ReversingProjection

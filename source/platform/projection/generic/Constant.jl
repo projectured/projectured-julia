@@ -11,9 +11,12 @@ function print_document(p::ConstantProjection, recursion, input, ctx)
     SimpleIoMap(p, input, p.output)
 end
 
-function read_intent(::ConstantProjection, iomap, op)
-    nothing
-end
+# The output does not come from the input, so no gesture on it is a gesture on
+# the input and no operation on it maps back. The defaults would ask the table of
+# the input and keep an operation that names no reference, so the projection
+# answers nothing for both.
+read_gesture(::ConstantProjection, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::ConstantProjection, iomap::SimpleIoMap, operation) = nothing
 
 function map_reference_forward(::ConstantProjection, iomap, reference)
     nothing

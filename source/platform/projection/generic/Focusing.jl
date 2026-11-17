@@ -54,14 +54,10 @@ function evaluate_operation(editor, op::ReplaceFocusPartOperation)
     op.projection.part = op.part
 end
 
-function read_intent(p::FocusingProjection, iomap::SimpleIoMap, event::ReplacePathOperation)
-    input_selection = map_reference_backward(p, iomap, event.path)
-    input_selection === nothing && return nothing
-    return make_path_operation(event, input_selection)
-end
-
-# Own gestures, reified as a `get_projection_gesture_bindings` table so the firing path (via
-# `read_projection_gesture`) is the one a listing shows. Focus-out is
+# Own gestures, reified as a `get_projection_gesture_bindings` table, which the default
+# `read_gesture` of a projection fires, so the firing path is the one a listing
+# shows. The default `map_operation_backward` puts the focused part before each path
+# of an operation, through `map_reference_backward`. Focus-out is
 # gated by `applicable` (so its op may assume a non-empty part); focus-in
 # self-declines in its operation (no selection, or no deeper part of the right
 # type). ModifierKeys are matched exactly.
@@ -86,9 +82,6 @@ function _focus_in(p::FocusingProjection, iomap)
     new_part = _longest_prefix_of_type(iomap.input, sel, p.part_type)
     new_part === nothing ? nothing : ReplaceFocusPartOperation(p, new_part)
 end
-
-read_intent(p::FocusingProjection, iomap::SimpleIoMap, event) =
-    read_projection_gesture(p, iomap, event)
 
 function _drop_last(path::ConcreteReference)
     tail = path.tail

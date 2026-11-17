@@ -1,20 +1,22 @@
 # Fragment of `ProjectionAlgebraModule`.
 #
 # Fragment of the projection layer's reader defaults — the Primitive-operation
-# branches of `read_intent` that dispatch on the *IoMap*.
+# branch of `map_operation_backward` that dispatches on the *IoMap*.
 #
 # The plain backward map of a `Replace…RangeOperation` is not here: it goes
 # through the `operation_reference` / `retarget_operation` seam (see
-# `primitive/Primitive.jl`), which the kernel's catch-all
-# `read_intent(p, iomap, operation)` calls. A
-# `read_intent(::Projection, iomap, ::Replace…RangeOperation)` method would be
-# ambiguous with the catch-all reader that concrete projections define, because
-# one is more specific in the projection and the other in the operation.
+# `primitive/Primitive.jl`), which the kernel's default
+# `map_operation_backward(p, iomap, operation)` calls. A
+# `map_operation_backward(::Projection, iomap, ::Replace…RangeOperation)` method
+# would be ambiguous with a method that a concrete projection writes for each
+# operation, because one is more specific in the projection and the other in the
+# operation.
 #
 # What remains here needs a concrete IoMap type — the `ProjectionTemplate`
-# `TemplateIoMap` retype and the disambiguations the `RecursiveProjection` wrapper
-# needs over it.
-import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
+# `TemplateIoMap` retype — and the disambiguation of a key that the
+# `RecursiveProjection` wrapper needs over it.
+import ProjecturedKernel.ProjectionModule: read_intent, map_operation_backward, map_reference_backward,
+                                           Projection
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionModule: TemplateIoMap, AtomicWiring,
                                            find_template_value_retype, find_template_output_child
@@ -25,7 +27,7 @@ import ProjecturedKernel.EventModule: KeyDown, KeyPress
 # in `kernel/projection/ProjectionTemplate.jl`) because it references
 # `ReplaceStringRangeOperation` (a base/Primitive type) that the kernel
 # cannot import.
-function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::Projection, iomap::TemplateIoMap, op::ReplaceStringRangeOperation)
     w = iomap.wiring
     # An opaque atomic leaf (no bound field — `JsonInsertion`, `JsonNull`,
     # …) has no editable text, so a character insert there is never a
@@ -70,21 +72,13 @@ function read_intent(p::Projection, iomap::TemplateIoMap, op::ReplaceStringRange
     return ReplaceStringRangeOperation(new_ref, op.replacement)
 end
 
-# Disambiguations for the transparent `RecursiveProjection` wrapper over
-# `TemplateIoMap`. The recursive reader in `ProjectionTemplate.jl` (`Projection`) and
-# the wrapper's 3-arg reader both match `(RecursiveProjection, TemplateIoMap, …)`,
-# neither more specific — so one concrete-typed method per payload defers to the
-# wrapper, which threads the read into its child projection. These live here (not
-# in `kernel/projection/ProjectionTemplate.jl`) because they dispatch on
+# Disambiguation for the transparent `RecursiveProjection` wrapper over
+# `TemplateIoMap`. The key reader in `ProjectionTemplate.jl` (`Projection`) and the
+# wrapper's 3-arg reader both match `(RecursiveProjection, TemplateIoMap, key)`,
+# neither more specific — so this method defers to the wrapper, which threads the
+# read into its child projection. It lives here (not in
+# `kernel/projection/ProjectionTemplate.jl`) because it dispatches on
 # `RecursiveProjection`, a base projection the kernel cannot name.
 read_intent(rp::RecursiveProjection, iomap::TemplateIoMap,
             evt::Union{KeyPress, KeyDown}) =
     read_intent(rp, nothing, Intent(evt), iomap).operation
-
-read_intent(rp::RecursiveProjection, iomap::TemplateIoMap, op::ReplacePathOperation) =
-    read_intent(rp, nothing, Intent(op), iomap).operation
-
-# Disambiguation for RecursiveProjection over TemplateIoMap.
-read_intent(rp::RecursiveProjection, iomap::TemplateIoMap,
-            op::ReplaceStringRangeOperation) =
-    read_intent(rp, nothing, Intent(op), iomap).operation
