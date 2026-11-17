@@ -117,10 +117,19 @@ rest by hand:
   position and the lists of parts of the two charts go. Found: the widget mapper searches for
   the steps of a child at each point (`search_references`, three levels); the printer knew
   them, so the entry carries them.
-- **Open point O2, the order.** The innermost stage answers first; a stage further out
-  answers when all inner stages decline, or first when its rule is an override. Find the
-  readers that answer their own gesture first, such as a button, and whether an override
-  rule covers each of them.
+- **Open point O2, the order of a container and its child.** The readers of today use two
+  orders. The child first, and the own rule of the container only when the child declines:
+  focus cycling, selection walking, Escape, the tooltip decorator, the file, the settings, the
+  appearance, the arrangement, the undo buffer ("with a buffer inside a buffer, the inner one
+  must win") and the node of a template. The own rule first: the versioning wrapper, the
+  tooltip window (Escape closes it), the two clipboard wrappers and the global shortcuts of the
+  window shell. Proposal: one rule for the stages and for the containers. The part nearer the
+  gesture answers first, and a rule further out answers when it declines. A rule marked
+  `override` wins over the answer nearer the gesture. Today `override` means this for a stage:
+  a document rule replaces an operation that a stage nearer the screen made
+  (`GestureBinding.jl:119`); with the proposal it means the same for a container and its
+  child. The rules that answer first today become `override` rules of the table of the
+  container, and no container writes the order by hand.
 - **Open point O3, a wrapper around the walk.** The fault barrier and the unwrapping of a
   window input act on the walk and not on one answer. Find whether they stay stages of the
   walk or become part of it.
