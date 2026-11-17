@@ -501,6 +501,19 @@ PAR-FOUR-FUNCTIONS that says so.
   run of steps 2 and 3. The 23 domain suites: the counts and the lines of failure of main;
   `test_xml()` has 90 for the 86 of main, the 4 assertions of the two nested cases of §7, which
   pass.
+- **omnet-julia and the guards.** `Pkg.precompile()` of omnet-julia in an environment that
+  names the two worktrees (`/var/tmp/projectured-julia-reader-split-depot/env-omnet`): 101
+  packages, no error and no warning. No suite of omnet-julia presses the two links. The guards
+  `test_naming()`, `test_arguments()`, `test_exports()`, `test_documentation()` and
+  `test_package_graph()` give the lines of failure of main on the branch: `test_arguments()`
+  6, `test_exports()` 37 and `test_documentation()` 11, the same on main; `test_package_graph()`
+  562 passed. The probe of the nested XML case gives the answer of main again: `b` gets the
+  new element, with the syntax stage alone and with the full chain.
+- **Found: the list of ProjecturedJulia goes stale.** On the branch, a load of ProjecturedJulia
+  warns "The precompilation of ProjecturedJulia failed, so it compiles more while it runs. 511
+  of the 2968 recorded calls of ProjecturedJulia no longer resolve"; main does not warn. The
+  calls name the keyword `claimed` and the operations of two arguments. Proposed for R2: record
+  that list again before steps 2, 3 and 3a land, so main does not warn until step 8.
 - **The documentation of the process:** PAR-DELEGATE-AND-LIFT; the section "Reader (reverse
   projection)" of `system-anatomy.md` and the section "Edit" of `concepts.md`; the section
   "Recursive gesture reading: ask the child, lift its answer, apply the rules" of
