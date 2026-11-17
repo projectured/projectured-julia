@@ -179,7 +179,8 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   at the base with a depot of its own. The counts and the failing lines go in §7. The baseline
   of omnet-julia (`test_legacy()`, `test_ide_file_navigator()`, the presentation suites) is
   taken at step 7, because main holds steps 2 to 5 then.
-- [ ] **2. The seams and the passing, in the kernel.** `read_gesture(projection, iomap,
+- [ ] **2. The seams and the passing, in the kernel.** Built 2026-11-17, waits for R1 and for the
+  compare of `test_platform()` with the baseline (§7). `read_gesture(projection, iomap,
   gesture)` with its default (the table of the projection, then the table of the input
   document), `map_operation_backward(projection, iomap, operation)` with its default (each
   reference mapped back, any other operation kept), and the one helper that passes a change to
@@ -260,3 +261,47 @@ functions, so they are ok, right? So in this sense, they are helper functions." 
 helpers of one stage, as `print_child` is of the printer; they call no child, and only
 `read_intent` passes a change to the `read_intent` of a child. Step 6 adds one sentence to
 PAR-FOUR-FUNCTIONS that says so.
+
+**2026-11-17, step 2: the seams and the passing.**
+
+- **The transition goes through the older form.** Each entry point still calls
+  `read_intent`: the walk calls the 3-argument form, as before. Its default is now a bridge:
+  an operation goes to `map_operation_backward`, a gesture, a key or a `CollectIntents` payload
+  to `read_gesture`, and any other payload answers `nothing`, as the old default did through
+  `operation_reference` and `is_self_contained_operation`. So a projection with a 3-argument
+  reader of its own answers first, and a projection that moved to the two functions answers
+  through the bridge. A member of a compound, the operation of a wrapper and each operation of
+  a collection go back through the 3-argument `read_intent` too, so an old reader for a member
+  still answers. Until step 6 no code calls the two functions directly; step 6 removes the
+  bridge, and then the walk and the default of a compound call them.
+- **`read_gesture(projection, iomap, gesture; claimed)`** is a method of the function of
+  `GestureBindingModule`, so a stage and a document share one name, and the subject comes from
+  dispatch. Its default is the rule that `_read_own_override_click` of the template already
+  has: the table of the projection, then the table of the input document. No projection of
+  today gets a table fired twice: each projection that declares a table has a reader of its own
+  that fires it, so the default is not reached for it. `read_projection_gesture` takes
+  `claimed` too.
+- **The default of `map_operation_backward`** is the operation half of the old default, branch
+  for branch.
+- **`read_child_intent(projection, recursion, change, iomap, child, steps = ())`** (P1). It needs
+  the projection and the IoMap of the container as well, because the rules of the container
+  answer by the order of O2. The child reads with `read_intent`, or with `read_routed_intent`
+  when the change has a route. The documents on the steps read outward as in `read_routed_child`
+  (`_read_outward`), now with the override of O2: a rule of a level answers when nothing
+  answered, an `override` rule wins over a plain answer, and an answer that collects is joined.
+  The container level reads `read_gesture(projection, iomap, gesture)`. A child whose input is
+  the input of the container shares its table, so the container level then reads only the table
+  of its projection, as the wrappers do today.
+- **The default walk of a container is not changed in step 2.** A container with no reader of
+  its own still reads a change through the bridge, as today; a generic choice of the child would
+  change what such a container does. Step 5 moves each container to `read_child_intent`.
+- **Found, for R1: the point mapper does not give the point in the frame of the child.** O1 says
+  that the answer of the point mapper names the steps to the child and the point in its frame.
+  The mapper of a widget container (`_map_point_to_child`, `WidgetToGraphics.jl:1701`) finds the
+  child and the point in its frame, but then gives that point to the mapper of the child and
+  answers the whole path down to the innermost part: the point of the child does not come back.
+  So the passing of a pointer gesture needs the one level that the mapper finds before it
+  delegates.- **The runs of step 2.** `test_reader_jobs()` (new, 23 assertions) passes. `test_kernel()`:
+  5215 passed, 2 broken, none failed, which is the 5192 of the kernel before and the 23 new
+  ones; the compare with the baseline follows when the baseline runs.
+

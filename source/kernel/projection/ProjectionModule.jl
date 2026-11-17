@@ -63,11 +63,11 @@ selection mechanism.
 |---|---|
 | [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree; `is_live_place` — whether the live selection reaches the place of a context |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
-| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
+| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics, `map_operation_backward` and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
 | [`OutputPaths.jl`](OutputPaths.jl) | `make_output_path_cells` — every kind of path of an output document, from one forward map; `set_output_tree_path_computations!` carries them down a built output |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
-| [`ProjectionGestureBindings.jl`](ProjectionGestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
+| [`ProjectionGestureBindings.jl`](ProjectionGestureBindings.jl) | the default gesture table of a projection, `read_projection_gesture`, and `read_gesture` of a projection |
 | [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine that many structural projections are written with |
 """
 module ProjectionModule
@@ -88,6 +88,7 @@ using ..SelectionModule
 
 export Projection, print_document, print_child, print_document_pure, print_child_pure,
        read_intent, map_reference_forward, map_reference_backward, read_routed_intent,
+       map_operation_backward, read_child_intent,
        get_child_iomaps, read_routed_child, read_child_by_route, read_gesture_outward,
        get_content_iomap
 export show_barrier_mark!, retry_barrier_print!

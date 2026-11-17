@@ -109,52 +109,34 @@ function map_reference_backward(projection::Projection, iomap, reference)
 end
 
 """
-    read_intent(projection::Projection, iomap, operation)
+    read_intent(projection::Projection, iomap, payload)
 
-Default implementation for projection operation reading. Re-targets any
-operation that carries a reference from output space to input space using
-`map_reference_backward`: the path of a `ReplacePathOperation` (the selection,
-the part under the pointer), the reference of
-the text- and number-range replace operations, plus each member
-of a `CompoundOperation` recursively (so edits flow back through
-structure-preserving generic projections without a bespoke reader), and the one
-operation a `WrappingOperation` holds. A `SelectDocumentOperation` whose document
-the input holds becomes the selection of its path there, to be shown
-(`ShowSelectionOperation`), and goes on as it is otherwise and inside a compound. A compound goes back whole or not at all,
-except the answer to a move, which holds a `ReplaceMouseTargetOperation`: each of
-its members goes back alone, and a member with no image is left out. A
-`document === nothing` (`editor.document`-rooted)
-`ReplaceReferencedValueOperation` has its `reference` re-targeted — this covers
-document-replace and sequence-insert/delete, which are
-`ReplaceReferencedValueOperation`s with a terminal `RangeReferenceStep`; a self-contained one
-(carrying its own root) is forwarded unchanged.
-
-An operation type the kernel cannot name re-targets through the open
-`operation_reference` / `retarget_operation` seam — this is how the
-`Replace*RangeOperation`s of the package above travel back. An operation that
-reports no reference is forwarded unchanged when `is_self_contained_operation`
-answers `true` for it, as for `DoNothingOperation` and `ToggleCollapseOperation`,
-and returns `nothing` otherwise.
+The bridge of the older form of the reader to the two jobs of a stage: a gesture,
+a key or a `CollectIntents` payload goes to [`read_gesture`](@ref) of the
+projection, an operation to [`map_operation_backward`](@ref), and any other
+payload answers `nothing`. A projection that has a 3-argument method of its own
+answers before this default, so an old reader keeps working while the readers
+move to the two functions.
 """
-function read_intent(projection::Projection, iomap, operation)
+function read_intent(projection::Projection, iomap, payload)
+    payload isa Operation && return map_operation_backward(projection, iomap, payload)
+    payload isa Union{KeyPress, KeyDown, Gesture, CollectIntents} &&
+        return read_gesture(projection, iomap, payload)
+    nothing
+end
+
+# The default of `map_operation_backward`, declared in `ProjectionInterface.jl`.
+# A member of a compound, the operation of a wrapper and each operation of a
+# collection go back through the 3-argument `read_intent` of the projection, so a
+# 3-argument reader of the projection for that member answers first, as the bridge
+# above says.
+function map_operation_backward(projection::Projection, iomap, operation)
     # A path-bearing operation that the kernel does not name reaches the `else`
     # branch through the pair `operation_reference` / `retarget_operation`, the
     # same pair through which `reroot_operation` reroots it (operation/Rerooting.jl).
     # A type with no pair is dropped here. See
     # documentation/package/kernel/operation.md.
-    if operation isa Union{KeyPress, KeyDown, Gesture, CollectIntents}
-        # Generic event fallback: a leaf projection with no authoring reader of
-        # its own delegates a key and every gesture to the projection-independent
-        # `read_gesture` of its input document, so a document's own table gives
-        # the meaning of a click, a chord or a dwell on it. `CollectIntents` rides
-        # the same route, so every leaf contributes its document's whole table to
-        # a collection without a line of its own. So any `@gestures`-declared
-        # domain is reachable through any projection with no bespoke reader.
-        # (Higher-order projections route events through their own 4-arg readers
-        # and never reach this leaf default.)
-        input = (iomap !== nothing && hasproperty(iomap, :input)) ? iomap.input : nothing
-        return input isa Document ? read_gesture(input, operation) : nothing
-    elseif operation isa ReplaceReferencedValueOperation
+    if operation isa ReplaceReferencedValueOperation
         # Self-contained (carries its own root): forward unchanged — this is the
         # path identity-rooted controls (widgets, rendered controls) take
         # back through any generic projection. Document-rooted (`document === nothing`):
@@ -211,8 +193,8 @@ function read_intent(projection::Projection, iomap, operation)
         # reference it targets. An operation that reports one is re-targeted like
         # the branches above; every other operation returns `nothing`. This keeps
         # the default open over new operation types without a
-        # `read_intent(::Projection, iomap, ::TheOperation)` method, which would
-        # collide with the catch-all reader of every concrete projection.
+        # `map_operation_backward(::Projection, iomap, ::TheOperation)` method, which
+        # would collide with the catch-all method of a concrete projection.
         reference = operation_reference(operation)
         # An operation that names no reference either carries its own subject —
         # and travels — or is one this level cannot place, and is dropped.
@@ -414,6 +396,106 @@ function read_gesture_outward(answer, gesture, document; steps, with_part::Bool 
         push!(nodes, node)
     end
     _read_outward(Intent(gesture), answer, nodes, taken, with_part)
+end
+
+"""
+    read_child_intent(projection, recursion, change, iomap, child, steps = ()) -> Intent
+
+The one passing of `change` from a container to `child`, the IoMap of the child
+that the container chose for it, and back: what a container reader calls once it
+knows which child the change goes to. `projection` and `iomap` are the container's,
+and `steps` lead from the input of the container to the input of the child.
+
+- The child reads `change` with its own `read_intent`, with the route that remains
+  below `steps` ([`follow_intent_route`](@ref)). A change whose route does not start
+  with `steps` does not reach the child, and the answer is no operation.
+- The answer of the child comes back rerooted by `steps`, with the description and
+  the domain of the answer, or of `change` when the answer has none.
+- For a gesture, the rules further out answer by the order of an override, the
+  deepest first: the tables of the documents on `steps` below the input of the
+  container, then the rules of the container, `read_gesture(projection, iomap,
+  gesture)`. At each level an `override` rule wins over an answer that is there
+  already, and any other rule answers only when nothing answered. After an answer
+  that collects (`is_collecting_operation`), each level reads too, and an answer of
+  the same kind is joined. A `CollectIntents` list holds the rows of the child,
+  then of each level out. The input of the child is not read here: the child reads
+  it. A child whose input is the input of the container shares that table, so the
+  container then reads only the table of its projection.
+
+Use it in a container reader after it chose the child: by the position of a pointer
+gesture, by its selection for a key, or by the route of an operation.
+
+# Example
+
+    child = iomap.content_iomap
+    read_child_intent(p, recursion, change, iomap, child, (FieldReferenceStep("content"),))
+
+See also `read_intent`, which the child reads with, and `read_gesture`, which the
+rules of each level answer with.
+"""
+function read_child_intent(projection, recursion, change::Intent, iomap, child, steps::Tuple = ())
+    routed = change.route === nothing ? change : follow_intent_route(change, steps...)
+    routed === nothing && return Intent(change.gesture, nothing, change.description, change.domain)
+    child_projection = get_iomap_projection(child)
+    inner = routed.route === nothing ? read_intent(child_projection, recursion, routed, child) :
+                                       read_routed_intent(child_projection, recursion, routed, child)
+    answer = reroot_operation(inner.operation, steps)
+    answer isa Operation || (answer = nothing)
+    description = isempty(inner.description) ? change.description : inner.description
+    domain = isempty(inner.domain) ? change.domain : inner.domain
+    gesture = change.gesture
+    if change.operation === nothing && gesture !== nothing
+        nodes = _find_step_nodes(get_iomap_input(iomap), steps)
+        # The documents below the input of the container and above the input of the
+        # child, the deepest first; the input of the child reads in the child.
+        for index in (length(nodes) - 1):-1:2
+            document = nodes[index]
+            document isa Document || continue
+            answer = _read_level(answer, gesture, Tuple(steps[1:(index - 1)])) do claimed
+                read_gesture(document, gesture; claimed)
+            end
+        end
+        shares_input = get_iomap_input(child) === get_iomap_input(iomap)
+        answer = _read_level(answer, gesture, ()) do claimed
+            shares_input ? read_projection_gesture(projection, iomap, gesture; claimed) :
+                           read_gesture(projection, iomap, gesture; claimed)
+        end
+    end
+    Intent(gesture, answer, description, domain)
+end
+
+# The documents that `steps` reach from `document`: the first is `document`, and a
+# step that fails to evaluate ends the list.
+function _find_step_nodes(document, steps)
+    nodes = Any[document]
+    node = document
+    for step in steps
+        node = try
+            evaluate_reference_step(step, node)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            break
+        end
+        push!(nodes, node)
+    end
+    nodes
+end
+
+# The answer after one level read `gesture` with `read(claimed)`, by the order of an
+# override: a collection gathers every row; an answer that collects lets the level
+# read, and joins an answer of the same kind; any other answer lets only an override
+# rule of the level answer, and that answer wins; with no answer, the level answers.
+function _read_level(read, answer, gesture, steps::Tuple)
+    if gesture isa CollectIntents
+        own = reroot_operation(read(nothing), steps)
+        return merge_collected_intents(_get_collected(answer), _get_collected(own))
+    end
+    claimed = answer isa Operation && !is_collecting_operation(answer) ? answer : nothing
+    own = reroot_operation(read(claimed), steps)
+    own isa Operation || return answer
+    answer === nothing && return own
+    claimed === nothing || return own
+    is_collecting_operation(own) ? join_collected_operations(answer, own) : answer
 end
 
 # The documents of a walk read the gesture of `change`, from the deepest out to

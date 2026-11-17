@@ -399,6 +399,40 @@ single mapper in both directions; do not add a parallel generic for either.
 function map_reference_backward end
 
 """
+    map_operation_backward(projection, iomap, operation) -> operation_or_nothing
+
+Bring an edit of what is shown back to an edit of what the document holds,
+through one projection: the operation of the output of `projection` in, the
+operation of its input out, or `nothing` when the edit has no place in the input.
+
+Use it to say what an operation that a stage nearer the screen made means for the
+input of a projection: a range of the text becomes a range of a string of the
+document, or a selection on a fold becomes `ToggleCollapseOperation`. It calls no
+child: [`read_intent`](@ref) calls it for its own stage, and passes a change to a
+child only through the `read_intent` of the child.
+
+# Example
+
+    # A replace of a range of the shown text replaces the same range of the field.
+    function map_operation_backward(p::SyntaxToText, iomap, operation::ReplaceStringRangeOperation)
+        reference = map_reference_backward(p, iomap, operation.reference)
+        reference === nothing ? nothing : ReplaceStringRangeOperation(reference, operation.value)
+    end
+
+The default maps each reference of the operation with
+[`map_reference_backward`](@ref): the path of a `ReplacePathOperation`, the
+reference of a `ReplaceReferencedValueOperation`, the reference that the open seam
+`operation_reference` reports, and each member of a compound, a wrapper and a
+collection. An operation that names no reference goes on as it is when it is
+self-contained (`is_self_contained_operation`), and answers `nothing` otherwise.
+Julia chooses the method by the type of the operation.
+
+See also `read_gesture`, the other job of a stage, and `map_reference_backward`,
+which it uses for each place.
+"""
+function map_operation_backward end
+
+"""
     get_child_iomaps(iomap) -> collection of IoMaps, or nothing
 
 The IO maps of the children that `iomap` holds: what the reader of a container
