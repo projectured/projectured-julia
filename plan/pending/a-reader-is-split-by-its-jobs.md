@@ -103,14 +103,20 @@ rest by hand:
   of the answer, the change with its route, its description and its domain, the merge of a
   `CollectIntents` list, and the rule of an override. The default reader of a container
   chooses by these rules, and a container writes `read_intent` only to choose otherwise.
-- **Open point O1, how a container names its children at places.** The graphics slice has
-  the form already: a list of drawn children `(; x, y, w, h, iomap, steps)`,
-  `find_drawn_child_at` and `read_drawn_child_event`
-  ([DrawnChild.jl](../../source/platform/graphics/DrawnChild.jl)). Only the two charts use it,
-  each with its own list of parts, and 42 places move a position into the frame of a child by
-  hand, 23 of them in `WidgetToGraphics.jl`. Proposal: each container that draws children at
-  places answers that list with one function, and the default reader of a container finds the
-  child under the pointer in it.
+- **O1, decided by the owner (2026-11-17, "yes, that's better"): a pointer gesture goes to
+  the child that the container's own point mapper names.** A point is a reference step,
+  `PointReferenceStep(x, y)`, and each container that draws children maps a point back to the
+  child at that point with its own `map_reference_backward`, as 13 files do today (for example
+  [WidgetToGraphics.jl:1701](../../source/platform/widget/WidgetToGraphics.jl#L1701)). The
+  answer names the steps to the child and the point in the frame of the child, so the passing
+  gives the gesture to that child at that point, and the choice stays in the container. The
+  generic child entry of the kernel (`get_child_iomaps`, the entries of `ChildrenIoMap`) gets
+  no place and no pixel: a domain with no positions never sees a pointer gesture. Rejected: a
+  list of drawn children with their rectangles (`DrawnChild.jl`) for each container, because it
+  repeats the children and their steps beside the generic list. The 42 hand-written moves of a
+  position and the lists of parts of the two charts go. Found: the widget mapper searches for
+  the steps of a child at each point (`search_references`, three levels); the printer knew
+  them, so the entry carries them.
 - **Open point O2, the order.** The innermost stage answers first; a stage further out
   answers when all inner stages decline, or first when its rule is an override. Find the
   readers that answer their own gesture first, such as a button, and whether an override
