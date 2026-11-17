@@ -21,9 +21,9 @@ end
 """
     SyntaxNodeView(viewed::SyntaxNode)
 
-A view of the syntax node `viewed`. `children` holds the view of each child of the
-node, in the order of the children, and follows them by identity
-(`make_child_views`). `collapsed` is the fold of this view: a closed view shows the
+A view of the syntax node `viewed`. `children` holds the view of the list of the
+children of the node (`CellVectorView`), which gives the view of each child at the
+index of the child. `collapsed` is the fold of this view: a closed view shows the
 first line of its node and the placeholder of its fold, and another view of the
 same node keeps a fold of its own. The caret of the view goes into the view of a
 child, as `.children[2]` and the caret of that view, or ends at the view, as `∅` or
@@ -33,11 +33,12 @@ that are closed.
 """
 @document struct SyntaxNodeView <: ContentView
     viewed::SyntaxNode
-    children::CellVector
+    children::CellVectorView
     collapsed::Bool = false
 end
 
-SyntaxNodeView(content::SyntaxNode) = SyntaxNodeView(content, make_child_views(content, :children))
+SyntaxNodeView(content::SyntaxNode) =
+    SyntaxNodeView(content, CellVectorView(Cell(Computation(() -> content.children))))
 
 # The views that a parent view makes for its children, and that a viewing step prints.
 make_content_view(content::SyntaxLeaf) = SyntaxLeafView(content)
@@ -45,7 +46,8 @@ make_content_view(content::SyntaxNode) = SyntaxNodeView(content)
 
 # The view of a node that a viewing step gives over the views of its children, as
 # the step of a JSON array gives over the steps of its elements.
-make_content_view(content::SyntaxNode, children) = SyntaxNodeView(content, children)
+make_content_view(content::SyntaxNode, children) =
+    SyntaxNodeView(content, CellVectorView(Cell(Computation(() -> content.children)), children))
 
 # The fold of that view is the fold of the view that the step printed.
 function map_view_state!(output::SyntaxNodeView, view::ContentView, iomap)

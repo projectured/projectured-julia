@@ -36,6 +36,12 @@ makes no view. `kept` holds the views that the list view made, by their elements
     kept::IdDict{Any,Any} = IdDict{Any,Any}()
 end
 
+# A list is a document, and `@document` gives a type whose first field is a list a
+# constructor that takes documents as the items of that list. These two take a list
+# as the content of the view.
+CellVectorView(list::CellVector) = CellVectorView(Cell(list))
+CellVectorView(list::CellVector, given::Union{CellVector, Nothing}) = CellVectorView(Cell(list), Cell(given))
+
 make_content_view(list::CellVector) = CellVectorView(list)
 
 DocumentModule.is_element_collection(::CellVectorView) = true
@@ -80,6 +86,17 @@ function _get_element_view(view::CellVectorView, element)
     made = make_content_view(element)
     made === nothing || (kept[element] = made)
     made
+end
+
+# The views that `view` has take their state to the views of the same places of
+# `copy`, and no other view is made.
+function _copy_view_state!(copy::CellVectorView, view::CellVectorView)
+    for (step, child) in child_reference_steps(view)
+        child isa ContentView || continue
+        child_copy = copy[step.stop]
+        child_copy isa ContentView && _copy_view_state!(child_copy, child)
+    end
+    _copy_stored_caret!(copy, view)
 end
 
 # The child documents of a list view are the views that exist: the views that a

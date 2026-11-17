@@ -21,8 +21,9 @@ abstract type View <: Document end
     ContentView
 
 The supertype of every view of a content. A view holds its content in the field
-`viewed` and declares the child fields of its content, which hold the views of
-the children. What every view does is written here once:
+`viewed`, and it has a child field for each list of its content, which holds the
+view of that list ([`CellVectorView`](@ref)). What every view does is written
+here once:
 
 - a field step that the view does not have reads that field of its content, so a
   path into the content, such as `.value{3}`, is a path of the view, and the
@@ -95,27 +96,6 @@ _clear_written_selection!(value::Document) = clear_selection!(value)
 _clear_written_selection!(value) = nothing
 
 """
-    make_child_views(content, field::Symbol) -> CellVector
-
-The views of the children in the collection `field` of `content`, in their order:
-what the field of the same name of a view of `content` holds. A child keeps its
-view while it stays in the collection, at any place, so the caret and the fold of
-its view stay with it; a child that goes takes its view with it. A child that has
-no view (`make_content_view` answers `nothing`) has `nothing` at its place.
-"""
-function make_child_views(content, field::Symbol)
-    views = IdDict{Any,Any}()
-    CellVector(Computation(function ()
-        children = collect(getproperty(content, field))
-        present = IdDict{Any,Nothing}(child => nothing for child in children)
-        for child in collect(keys(views))
-            haskey(present, child) || delete!(views, child)
-        end
-        Any[get!(() -> make_content_view(child), views, child) for child in children]
-    end))
-end
-
-"""
     make_sibling_view(view::ContentView) -> ContentView
 
 A second view of the content of `view`. It starts with the state of `view`: its
@@ -137,20 +117,23 @@ make_sibling_view(view::ContentView) =
 
 # Copy the state of `view` to `copy`, a new view of the same kind over the same
 # content or over a copy of it: each field of state, and the stored caret as a
-# dormant one, which the next selection of the copy wakes. The views of the
-# children take the state of the views of the children of `view`, in their order.
+# dormant one, which the next selection of the copy wakes. The list view of each
+# list of children takes the state of the list view of `view`.
 function _copy_view_state!(copy::ContentView, view::ContentView)
     for name in fieldnames(typeof(view))
         (name === :viewed || is_view_state_field(name)) && continue
         value = getproperty(view, name)
-        if value isa CellVector
-            for (child_copy, child) in zip(getproperty(copy, name), value)
-                (child_copy isa ContentView && child isa ContentView) && _copy_view_state!(child_copy, child)
-            end
+        if value isa CellVectorView
+            _copy_view_state!(getproperty(copy, name), value)
         else
             setproperty!(copy, name, value)
         end
     end
+    _copy_stored_caret!(copy, view)
+end
+
+# The stored caret of `view` goes to `copy` as a dormant caret.
+function _copy_stored_caret!(copy::ContentView, view::ContentView)
     path = get_stored_selection(view)
     path isa ConcreteReference &&
         (getfield(copy, :selection)[] = SelectionDocument(; primary = copy_reference(path), live = false))
@@ -404,11 +387,11 @@ function _find_caret_view_steps(view::ContentView)
     node = view
     while path isa ConcreteReference
         node = try_evaluate_reference(node, Reference(path.head), nothing)
-        # A collection of child views is on the way to a view; any other value is a
+        # A list of child views is on the way to a view; any other value is a
         # field of a content, or a child that has no view.
         (node isa ContentView || node isa AbstractVector || node isa CellVector) || break
         push!(pending, path.head)
-        if node isa ContentView
+        if node isa ContentView && !(node isa CellVectorView)
             append!(steps, pending)
             empty!(pending)
         end

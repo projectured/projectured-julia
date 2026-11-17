@@ -58,8 +58,9 @@ end
 """
     JsonArrayView(viewed::JsonArray)
 
-A view of the JSON array `viewed`. `elements` holds the view of each element, in
-the order of the elements, and follows them by identity (`make_child_views`).
+A view of the JSON array `viewed`. `elements` holds the view of the list of the
+elements (`CellVectorView`), which gives the view of each element at the index of
+the element.
 `collapsed` is the fold of this view, which another view of the array does not
 share. A viewing step of `JsonToSyntax` prints it as the `SyntaxNodeView` of the
 node of the array, whose children are the views of the nodes of the elements and
@@ -67,11 +68,12 @@ whose fold is the fold of this view.
 """
 @document struct JsonArrayView <: JsonView
     viewed::JsonArray
-    elements::CellVector
+    elements::CellVectorView
     collapsed::Bool = false
 end
 
-JsonArrayView(content::JsonArray) = JsonArrayView(content, make_child_views(content, :elements))
+JsonArrayView(content::JsonArray) =
+    JsonArrayView(content, CellVectorView(Cell(Computation(() -> content.elements))))
 
 # The views that a parent view makes for its children, and that a viewing step prints.
 make_content_view(content::JsonNull) = JsonNullView(content)

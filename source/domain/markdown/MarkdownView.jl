@@ -31,38 +31,37 @@ end
 """
     MarkdownParagraphView(viewed::MarkdownParagraph)
 
-A view of the paragraph `viewed`. `content` holds the view of each inline node of
-the paragraph, in their order, and follows them by identity (`make_child_views`).
+A view of the paragraph `viewed`. `content` holds the view of the list of the
+inline nodes of the paragraph (`CellVectorView`).
 """
 @document struct MarkdownParagraphView <: MarkdownView
     viewed::MarkdownParagraph
-    content::CellVector
+    content::CellVectorView
 end
 
 MarkdownParagraphView(viewed::MarkdownParagraph) =
-    MarkdownParagraphView(viewed, make_child_views(viewed, :content))
+    MarkdownParagraphView(viewed, CellVectorView(Cell(Computation(() -> viewed.content))))
 
 """
     MarkdownHeadingView(viewed::MarkdownHeading)
 
-A view of the heading `viewed`. `content` holds the view of each inline node of the
-heading, in their order, and follows them by identity (`make_child_views`).
+A view of the heading `viewed`. `content` holds the view of the list of the inline
+nodes of the heading (`CellVectorView`).
 """
 @document struct MarkdownHeadingView <: MarkdownView
     viewed::MarkdownHeading
-    content::CellVector
+    content::CellVectorView
 end
 
 MarkdownHeadingView(viewed::MarkdownHeading) =
-    MarkdownHeadingView(viewed, make_child_views(viewed, :content))
+    MarkdownHeadingView(viewed, CellVectorView(Cell(Computation(() -> viewed.content))))
 
 """
     MarkdownRootView(viewed::MarkdownRoot)
 
-A view of the Markdown document `viewed`. `elements` holds the view of each block
-of the document, in their order, and follows them by identity
-(`make_child_views`); a block of another domain has the view of that domain, with
-the state of that view, such as the fold of a JSON array.
+A view of the Markdown document `viewed`. `elements` holds the view of the list of
+the blocks of the document (`CellVectorView`); a block of another domain has the
+view of that domain, with the state of that view, such as the fold of a JSON array.
 
 # Example
 
@@ -74,11 +73,11 @@ the state of that view, such as the fold of a JSON array.
 """
 @document struct MarkdownRootView <: MarkdownView
     viewed::MarkdownRoot
-    elements::CellVector
+    elements::CellVectorView
 end
 
 MarkdownRootView(viewed::MarkdownRoot) =
-    MarkdownRootView(viewed, make_child_views(viewed, :elements))
+    MarkdownRootView(viewed, CellVectorView(Cell(Computation(() -> viewed.elements))))
 
 # The views that a parent view makes for its children, and that a viewing step prints.
 make_content_view(content::MarkdownText) = MarkdownTextView(content)

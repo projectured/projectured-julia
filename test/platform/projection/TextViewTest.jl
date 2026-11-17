@@ -19,7 +19,7 @@ function _text_view_collect(x, T, found = Any[], seen = Set{UInt64}())
         # A dictionary is a cache of a print, such as the blocks of the places of
         # the lines. It can hold a cell of a place that is gone, which no drawing
         # reads.
-    elseif x isa Union{AbstractVector, Tuple, CellVector}
+    elseif x isa Union{AbstractVector, Tuple, CellVector, CellVectorView}
         foreach(element -> _text_view_collect(element, T, found, seen), x)
     else
         for name in fieldnames(typeof(x))
@@ -41,7 +41,7 @@ function _text_view_cells(x, found = Cell[], seen = Set{UInt64}())
         _text_view_cells(x[], found, seen)
     elseif x isa AbstractDict
         # A cache of a print, as in `_text_view_collect`.
-    elseif x isa Union{AbstractVector, Tuple, CellVector}
+    elseif x isa Union{AbstractVector, Tuple, CellVector, CellVectorView}
         foreach(element -> _text_view_cells(element, found, seen), x)
     else
         for name in fieldnames(typeof(x))
