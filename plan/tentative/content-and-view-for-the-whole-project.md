@@ -838,8 +838,10 @@ Two rules make this order possible:
    with its default state, and the view of an element that follows its element.
    The twelve view types of the pilot take the declaration. The plan is
    `plan/done/a-view-type-is-declared-and-a-list-has-a-view.md`, done on
-   2026-11-17 on the branch `list-view`. It leaves one point open: the time of
-   the drop of the views that nothing reaches.
+   2026-11-17 on the branch `list-view`. The owner decided on 2026-11-17 that
+   the memory of the views gets a general solution later, with no second time
+   for the drop: "The printer is not a good place to drop stuff." The drop in
+   the print of a view can go.
 3. **The keys at the caret.** In the domains that have views, the rows for a
    caret stay only in the key table of the view. An operation of a content takes a
    path. An edit that makes a new content gives the place of the caret.

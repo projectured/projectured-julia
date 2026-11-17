@@ -312,9 +312,13 @@ They are approved with this plan.
    drop of proposed decision 5 runs at each new print of the view that holds
    the list, and a view that nothing reaches can stay until then. A view never
    goes too soon. One test of the plan had the other expectation and is
-   corrected. Open for the owner: a second time for the drop, when the list view
-   makes a new view and keeps two times the views that it kept after the last
-   drop. This plan does not add it.
+   corrected. The session proposed a second time for the drop, when the list
+   view makes a new view and keeps two times the views that it kept after the
+   last drop. **The owner decided against it on 2026-11-17**: "Don't do the
+   second drop, the memory consumption will be dealt with in a more general
+   way. We may even drop it, I'm not sure it's worth the hassle. The printer is
+   not a good place to drop stuff." So the memory of the views waits for a
+   general solution, and the drop in the print of a view can go.
 
 10. **A paste asked the list view if a place takes a value, and the list view
     said yes.** The clipboard reads the declared type of the elements of a list

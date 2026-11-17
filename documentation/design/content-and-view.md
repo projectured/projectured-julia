@@ -343,3 +343,7 @@ The code differs from this design in these places.
 3. **The sort of each document type that is left.** About 180 document types of
    the widget domains and of the session are not sorted into content and view
    yet. The rules of this document decide each one.
+4. **The memory of the views.** The drop of the views that nothing reaches runs
+   when a print of a view is made. A print is not a good place for it. The
+   memory of a lazy structure needs one general solution, which is not designed,
+   and this drop can go when that solution comes.
