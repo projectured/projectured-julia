@@ -1,7 +1,6 @@
 # A view type is declared, and a list has a view
 
-**Status:** in work since 2026-11-17, in the worktree
-`projectured-julia-list-view` on the branch `list-view`. The owner approved the
+**Status:** done on 2026-11-17, on the branch `list-view`. The owner approved the
 plan on 2026-11-17 ("Yes").
 
 This plan is point 2 of the order in section 13.3 of
@@ -224,7 +223,7 @@ They are approved with this plan.
   The list view keeps, for each view, the index where it saw the element last.
   So a drop reads only the views that it keeps, and it reads the whole list one
   time after a change of the list.
-- [ ] **5. The wide check and the guides.** `test_platform()` and the suites of
+- [x] **5. The wide check and the guides.** `test_platform()` and the suites of
   the JSON and the Markdown domains against the same runs at the base commit.
   The recorded precompile calls, if a list goes above its limit of calls that do
   not resolve. `Pkg.precompile` of `omnet-julia` against the branch, with a
@@ -236,6 +235,36 @@ They are approved with this plan.
   A rule for `@content_view` in `documentation/rule/architecture-rules.md`. The
   plan moves to `plan/done/`. Then the session asks for the landing, and for
   the push apart.
+  **Done on 2026-11-17.** The base commit is `d39e01fba`.
+  - `test_platform()` at the base: 236368 passes, 15 failures, 1 error, 21
+    broken. On the branch: 236456 passes, 15 failures, 0 errors, 21 broken. The
+    15 failures are the same, at the same lines. The error of the base is
+    `TaskWorkItemTest.jl`, line 171, which depends on the load of the machine.
+    The counts agree: 103 new tests, 5 tests of that task test, and 20 tests
+    fewer in the example `syntax_node_view` (1760 to 1740, all pass). That test
+    has one test for each reactive cell of a print, and the list view keeps its
+    views in a plain table and not in one cell for each view. The 106 other
+    examples have the same counts.
+  - The JSON suite: 405 of 405 at the base, 423 of 423 on the branch. The
+    Markdown suite: 346 of 346 at the base, 361 of 361 on the branch. The
+    difference is the new tests.
+  - The new tests and the narrow tests on the last commit: `test_cell_vector_view`
+    38, `test_cell_vector_view_drop` 31, `test_content_view_declaration` 34,
+    `test_json_view_pastes` 66, and the eleven narrow tests with the counts of
+    steps 2 and 3.
+  - The six guard scripts of `test/suite/` give the same output at the base and
+    on the branch: the naming guard and the tree guard pass, and the four others
+    have the findings of `main`.
+  - No recorded list of precompile calls goes stale: no log has a recorded call
+    that does not resolve, and two calls of 11695 name a view type.
+  - `Pkg.precompile` of `omnet-julia` (`main` at `f58aa51b4`) against the branch:
+    295 packages compiled, 199 were compiled before, and none failed. The 295
+    hold all 75 packages of `omnet-julia`. All 68 paths of the manifest into
+    this repository lead to the branch. The log has no warning.
+  - The documents: `documentation/design/content-and-view.md` (the status, "The
+    code now" and open point 2), `documentation/design/engineer-tour.md`,
+    `documentation/rule/architecture-rules.md`, and three package documents that
+    named `make_child_views`: the syntax, JSON and the projection system.
 
 ## Found during the work
 
