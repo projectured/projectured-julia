@@ -836,7 +836,9 @@ Two rules make this order possible:
 2. **The declaration of a view type, and the view of a list.** `@content_view`,
    `CellVectorView`, a view that is made when something reaches it and that goes
    with its default state, and the view of an element that follows its element.
-   The twelve view types of the pilot take the declaration.
+   The twelve view types of the pilot take the declaration. The plan is
+   `plan/pending/a-view-type-is-declared-and-a-list-has-a-view.md`, written on
+   2026-11-17 and not approved yet.
 3. **The keys at the caret.** In the domains that have views, the rows for a
    caret stay only in the key table of the view. An operation of a content takes a
    path. An edit that makes a new content gives the place of the caret.
