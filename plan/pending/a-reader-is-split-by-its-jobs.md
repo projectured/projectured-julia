@@ -127,8 +127,10 @@ dispatch, not from the name.
 | 3 | `read_intent` | the walk keeps its name; only the kernel writes it | the name stays, with a new meaning |
 | 3 | `run_reader` | says that it runs the stages | a new name for the walk of the editor |
 
-The recommendation of the assistant: `read_gesture`, `map_operation_backward` and
-`read_intent` for the walk. Each follows the kind that the rules give it.
+**Decided by the owner (2026-11-17, "looks good to me"):** `read_gesture(projection, iomap,
+gesture)` for job 1, `map_operation_backward(projection, iomap, operation)` for job 2, and
+`read_intent` for the walk, which only the kernel writes. Each follows the kind that the
+rules give it.
 
 ## 6. After the decisions
 
