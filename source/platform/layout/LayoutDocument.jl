@@ -18,7 +18,7 @@ See also `search_documents`, `find_pane`, `describe_document` and `VerticalLayou
 
 For the assistant.
 """
-abstract type LayoutDocument <: Document end
+abstract type LayoutDocument <: View end
 
 # A layout arranges what it holds, so its duplicate arranges the duplicates.
 has_document_duplicate(::LayoutDocument) = true

@@ -2,7 +2,7 @@
 # `WidgetDocument`, its insertion placeholder, and every concrete widget the
 # slice offers.
 
-abstract type WidgetDocument <: Document end
+abstract type WidgetDocument <: View end
 
 # A widget is what a person sees and sets, so its duplicate is a copy of it. The
 # `Action` a button shows declares no duplicate, so the duplicate shares it, as

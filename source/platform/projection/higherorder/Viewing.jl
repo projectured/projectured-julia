@@ -8,6 +8,16 @@
 # the maps of the content projection.
 
 """
+    View
+
+The supertype of every view: a document that keeps the state of one showing. A
+[`ContentView`](@ref) shows one content, which it names in the field `viewed`. A
+widget, a layout, a graphics document and a pane keep the state of their own
+showing in fields of their own, and their families are below `View` too.
+"""
+abstract type View <: Document end
+
+"""
     ContentView
 
 The supertype of every view of a content. A view holds its content in the field
@@ -24,7 +34,7 @@ the children. What every view does is written here once:
   view puts a second view of the same content (`make_sibling_view`), each with the
   folds of the view.
 """
-abstract type ContentView <: Document end
+abstract type ContentView <: View end
 
 DocumentModule.get_edited_field(::ContentView) = :viewed
 

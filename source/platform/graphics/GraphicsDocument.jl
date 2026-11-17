@@ -27,7 +27,7 @@ See also `search_documents`, `find_pane`, `describe_document` and `GraphicsText`
 
 For the assistant.
 """
-abstract type GraphicsDocument <: Document end
+abstract type GraphicsDocument <: View end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical
 

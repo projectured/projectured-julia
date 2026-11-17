@@ -18,7 +18,7 @@ See also `search_documents`, `find_pane`, `describe_document` and `PaneTab`.
 
 For the assistant.
 """
-abstract type PaneDocument <: Document end
+abstract type PaneDocument <: View end
 
 # ── PaneTabTitle ───────────────────────────────────────────────────────────
 

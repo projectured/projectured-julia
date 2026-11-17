@@ -73,12 +73,19 @@ They are approved with this plan.
 
 ## Steps
 
-- [ ] **1. The type `View`.** `abstract type View <: Document` in `Viewing.jl`,
+- [x] **1. The type `View`.** `abstract type View <: Document` in `Viewing.jl`,
   `ContentView` below it, and the widget, layout, graphics and pane families below
   it. The export of `View`.
   Tests: a new test that each of the five families is below `View`;
   `test_platform_layering()`; the eleven narrow tests of the views and of the text
   of a widget, against their result on the branch before the change.
+  **Done on 2026-11-17.** The new test is `test_view_families` in
+  `test/platform/projection/ViewingTest.jl`: 11 of 11 pass. The eleven narrow
+  tests pass with the same counts as before the change: 29, 34, 25, 31, 48, 35,
+  49, 36, 17, 97 and 111. `test_platform_layering()` has 19 passes and 2
+  failures. Both failures name files that this plan does not change: a qualified
+  name in `assistant/AssistantList.jl`, and the form of an import in six modules.
+  Step 2 compares them with the base commit. The naming guard passes.
 - [ ] **2. The wide check and the guides.** `test_platform()` against the known
   failures of `main`. A new record of the precompile calls of each package whose
   list goes stale. `Pkg.precompile` of `omnet-julia` against the branch, with a
