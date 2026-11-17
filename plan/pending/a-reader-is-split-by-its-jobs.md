@@ -577,3 +577,11 @@ readers, 6 change in step 4; the walks wait for step 5 and the wrappers for step
   of a chain reads a gesture only when no later stage answered, so its `answer` is `nothing`.
   But `read_child_intent` calls the `read_gesture` of a container with the answer of the child,
   so a method of a container that does not read `answer` acts as an unconditional `override`.
+- **The runs of the first slice**, against a new baseline of main `24536d808` (main holds steps
+  2 to 3a and the plan of the type `View` of another session, which adds tests to the
+  platform suite), in the base worktree moved to that commit. `test_kernel()`: 5226 passed on
+  both; one run of the branch failed the time guard `FeedsTest.jl:260` (0.064 s for a limit
+  of 0.045 s) while the two chains ran, and a run alone passed 5226. `test_platform()`: 236368
+  passed, 15 failed, 1 error, 21 broken on both, with the same lines. The JSON, XML, YAML, SQL,
+  Julia, Markdown and RST suites: the same counts and lines on both. The precompile of the
+  branch gives no warning.
