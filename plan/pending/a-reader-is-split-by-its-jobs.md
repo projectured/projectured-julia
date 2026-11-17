@@ -585,3 +585,10 @@ readers, 6 change in step 4; the walks wait for step 5 and the wrappers for step
   passed, 15 failed, 1 error, 21 broken on both, with the same lines. The JSON, XML, YAML, SQL,
   Julia, Markdown and RST suites: the same counts and lines on both. The precompile of the
   branch gives no warning.
+
+**2026-11-17, R3: the owner approves the pattern.** "Yes" to: "do you approve these four
+rules and the behavior changes of `FocusingProjection` for the other three slices of step 4?"
+The four rules: a reader that only does what the default does goes; a reader that only maps an
+operation becomes `map_operation_backward`; a reader that declines everything becomes two
+methods that answer nothing; the 54 wrappers wait for step 6. A change of behavior is taken
+where the default is the correct model, and each one is named in this section.
