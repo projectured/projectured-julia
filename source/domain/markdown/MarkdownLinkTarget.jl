@@ -10,15 +10,16 @@
 # resolves it. In the source view a press puts the caret in the text of the link,
 # so Ctrl+click follows the link and Ctrl+Shift+click opens it in a new tab; the
 # rendered view follows it on a plain click and opens a new tab on Ctrl+click, as a
-# browser does. Each is an `override` rule, which takes the click from the caret of
-# the text. The tooltip of a link shows its target.
+# browser does. Each is an `override` rule with the condition
+# `is_selection_change(answer)`: it takes the click from the text, which answered it
+# with a move of its caret. The tooltip of a link shows its target.
 
 _make_link_open(link::MarkdownLink, place::Symbol) =
     OpenPageOperation(nothing, EmptyReference(), place; target = link.url)
 
 _make_link_binding(modifiers::Vector{Symbol}, place::Symbol, description::String) =
-    GestureBinding(MouseClickPattern(:left; modifiers), (link, gesture) -> _make_link_open(link, place);
-                   description, domain = "markdown", override = true)
+    GestureBinding(MouseClickPattern(:left; modifiers), (link, gesture, answer) -> _make_link_open(link, place);
+                   description, domain = "markdown", override = is_selection_change)
 
 const _MARKDOWN_LINK_BINDINGS = GestureBinding[
     _make_link_binding([:ctrl], :here, "Follow the link"),

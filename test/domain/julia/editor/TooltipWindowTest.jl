@@ -304,7 +304,7 @@ end
     @test evaluate_reference(editor.document, place) === button
     binding = only(filter(binding -> binding.domain == "tooltip",
                           collect_document_gesture_bindings(WidgetButton)))
-    operation = read_rooted_operation(editor, place, binding.operation(button, nothing))
+    operation = read_rooted_operation(editor, place, binding.operation(button, nothing, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))
@@ -346,7 +346,7 @@ end
     @test evaluate_reference(editor.document, place) === label
     binding = only(filter(binding -> binding.domain == "tooltip",
                           collect_document_gesture_bindings(WidgetLabel)))
-    evaluate_operation(editor, read_rooted_operation(editor, place, binding.operation(label, nothing)))
+    evaluate_operation(editor, read_rooted_operation(editor, place, binding.operation(label, nothing, nothing)))
     tip = only(_tw_tooltips(scene))
     @test _tw_place(editor, scene, tip) == (100 + 10, 100 + 30 + height + 4)
 end
@@ -373,7 +373,7 @@ end
     @test function_ isa JuliaFunction
     binding = only(filter(binding -> binding.name == "Show the signature",
                           collect_document_gesture_bindings(JuliaFunction)))
-    operation = read_rooted_operation(editor, place, binding.operation(function_, nothing))
+    operation = read_rooted_operation(editor, place, binding.operation(function_, nothing, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))

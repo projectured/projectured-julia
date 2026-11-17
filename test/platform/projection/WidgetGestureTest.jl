@@ -23,7 +23,7 @@ _bproj() = ChainingProjection(
 @testset "button: a per-instance right-click binding fires (left-click unchanged)" begin
     fired = Ref(false)
     rc = GestureBinding(MouseClickPattern(:right),
-                        (doc, evt) -> InvokeActionOperation(doc.action);
+                        (doc, evt, _) -> InvokeActionOperation(doc.action);
                         applicable = _always, description = "context menu",
                         domain = "test")
     btn = WidgetButton("Go";
@@ -41,7 +41,7 @@ end
 
 @testset "button: an instance binding shadows the default left-click" begin
     shadow = GestureBinding(MouseClickPattern(:left),
-                            (doc, evt) -> ReplaceReferencedValueOperation(doc, "pressed", true);
+                            (doc, evt, _) -> ReplaceReferencedValueOperation(doc, "pressed", true);
                             applicable = _always, description = "custom left",
                             domain = "test")
     fired = Ref(false)
@@ -57,7 +57,7 @@ end
 @testset "button: suppression via DoNothingOperation makes left-click inert" begin
     fired = Ref(false)
     suppress = GestureBinding(MouseClickPattern(:left),
-                              (doc, evt) -> DoNothingOperation(); applicable = _always,
+                              (doc, evt, _) -> DoNothingOperation(); applicable = _always,
                               description = "disabled left", domain = "test")
     btn = WidgetButton("Go";
                        size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [suppress])
@@ -86,7 +86,7 @@ end
 @testset "checkbox: a right-click binding fires; left-click still toggles" begin
     fired = Ref(false)
     rc = GestureBinding(MouseClickPattern(:right),
-                        (doc, evt) -> (fired[] = true; DoNothingOperation());
+                        (doc, evt, _) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
     cb = WidgetCheckbox(false; gestures = [rc])
     proj = _bproj()
@@ -99,7 +99,7 @@ end
 @testset "switch: a right-click binding fires; left-click still toggles" begin
     fired = Ref(false)
     rc = GestureBinding(MouseClickPattern(:right),
-                        (doc, evt) -> (fired[] = true; DoNothingOperation());
+                        (doc, evt, _) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
     sw = WidgetSwitch(; checked = false, gestures = [rc])
     proj = _bproj()
@@ -130,7 +130,7 @@ _pathref(i) = ConcreteReference(FieldReferenceStep("roots"),
 @testset "tree: a per-node right-click binding fires on the resolved row" begin
     opened = Ref(false)
     nb = GestureBinding(MouseClickPattern(:right),
-                        (node, evt) -> (opened[] = true; DoNothingOperation());
+                        (node, evt, _) -> (opened[] = true; DoNothingOperation());
                         applicable = _always, description = "open", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [nb])
     w = WidgetTree(Any[node])
@@ -153,7 +153,7 @@ end
 @testset "tree: a per-node key binding fires against the selected node" begin
     entered = Ref(false)
     kb = GestureBinding(KeyPressPattern('\n'),
-                        (node, evt) -> (entered[] = true; DoNothingOperation());
+                        (node, evt, _) -> (entered[] = true; DoNothingOperation());
                         applicable = _always, description = "enter", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [kb])
     w = WidgetTree(Any[node])

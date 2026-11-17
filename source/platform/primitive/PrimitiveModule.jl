@@ -19,7 +19,7 @@ import ..OperationModule: evaluate_operation, operation_reference, retarget_oper
                           make_inverse_operation, child_reference_steps
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
-export has_only_number_characters
+export has_only_number_characters, is_text_edit
 export parse_primitive_document, get_primitive_text, find_primitive_document,
        find_exact_primitive_document, make_number_edit_operation,
        make_incomplete_number_document, make_number_range_operation, with_value_caret

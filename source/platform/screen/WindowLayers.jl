@@ -64,13 +64,13 @@ window is open. `domain` names the wrapper in the gesture help.
 make_window_layer_bindings(make_content::Function; domain::AbstractString) =
     GestureBinding[
         GestureBinding(WINDOW_LAYER_MORE_KEY,
-                       (state, gesture) ->
+                       (state, gesture, _) ->
                            show_window_layers(state, state.shown + 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,
                        description = "Show what the next part around says",
                        domain = String(domain)),
         GestureBinding(WINDOW_LAYER_FEWER_KEY,
-                       (state, gesture) ->
+                       (state, gesture, _) ->
                            show_window_layers(state, state.shown - 1, make_content);
                        applicable = (state, selection) -> state.shown > 0,
                        description = "Show one part fewer", domain = String(domain)),

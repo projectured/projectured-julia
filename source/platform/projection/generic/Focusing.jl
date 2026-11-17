@@ -68,11 +68,11 @@ end
 function get_projection_gesture_bindings(p::FocusingProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:comma; modifiers = [:ctrl]),
-                       (doc, event) -> ReplaceFocusPartOperation(p, _drop_last(p.part));
+                       (doc, event, _) -> ReplaceFocusPartOperation(p, _drop_last(p.part));
                        applicable = (doc, sel) -> !isempty(p.part),
                        description = "Focus out", domain = "focus"),
         GestureBinding(KeyDownPattern(:period; modifiers = [:ctrl]),
-                       (doc, event) -> _focus_in(p, iomap); description = "Focus in",
+                       (doc, event, _) -> _focus_in(p, iomap); description = "Focus in",
                        domain = "focus"),
     ]
 end

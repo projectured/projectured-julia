@@ -116,7 +116,7 @@ function _make_command_items(document, steps)
         pattern = binding.pattern
         # A rule of the pointer, such as a menu or a tooltip, is no command.
         (pattern === nothing || pattern isa GesturePattern{KeyDown} || pattern isa GesturePattern{KeyPress}) || continue
-        operation = binding.operation(document, nothing)
+        operation = binding.operation(document, nothing, nothing)
         operation isa Operation || continue
         push!(items, WidgetMenuItem(binding.description; operation = reroot_operation(operation, steps)))
     end
@@ -125,6 +125,6 @@ end
 
 # A right click on a row opens its menu, wherever the selection is.
 const _EXPLORER_POINTER_BINDINGS = GestureBinding[
-    GestureBinding(MouseClickPattern(:right), (explorer, gesture) -> _make_row_menu_operation(explorer, gesture);
+    GestureBinding(MouseClickPattern(:right), (explorer, gesture, _) -> _make_row_menu_operation(explorer, gesture);
                    description = "Show the menu of the row", domain = "context menu",
                    name = "Show the menu of the row")]

@@ -222,7 +222,7 @@ function _make_option_row(projection, t::EvaluatorToplevel)
 end
 
 function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::AbstractString, text::AbstractString)
-    toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
+    toggle = (document, event, _) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
     gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
@@ -234,8 +234,8 @@ function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol, label::Abst
 end
 
 # A key that a layer inside the toplevel already answered, as the hole of a
-# structured form answers Enter, is offered to the table of the toplevel as a
-# claimed key, so only an `override` rule can take it over. The reader that
+# structured form answers Enter, is offered to the table of the toplevel with that
+# answer, so only an `override` rule can replace it. The reader that
 # `@projection_template` emits does the same for a template node.
 #
 # A plain left press that nothing inside answered, on the empty space of the
@@ -246,7 +246,7 @@ end
 function read_intent(projection::EvaluatorToplevelToWidgetComposite, recursion,
                      change::Intent, iomap)
     if change.operation !== nothing && change.gesture isa Union{KeyPress, KeyDown}
-        own = read_gesture(iomap.input, change.gesture; claimed = change.operation)
+        own = read_gesture(iomap.input, change.gesture; answer = change.operation)
         own === nothing || return Intent(change.gesture, own)
     end
     if change.operation === nothing && _is_plain_left_press(change.gesture)

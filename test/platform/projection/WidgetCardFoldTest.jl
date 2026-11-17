@@ -271,7 +271,7 @@ function test_widget_card_fold()
     # card uses, before the card takes it as a solid surface.
     @testset "a binding of a card answers a plain left click on its own area" begin
         proj = _fold_proj()
-        selected = (_, _) -> ReplaceSelectionOperation(
+        selected = (_, _, _) -> ReplaceSelectionOperation(
             ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
         binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), selected;
                                  description = "Select the content", domain = "test")

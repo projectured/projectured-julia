@@ -12,8 +12,9 @@ _is_no_pattern(ex) = ex === :nothing || ex === nothing
 # pattern slot is `nothing`. `rhs` is everything right of the `=>`, and it must be
 # `"description" => body`: the description is mandatory here, because it is the name
 # the user types and there is no pattern to derive a rendering from. The operation
-# closure still takes an event so every binding fires through one loop, but the
-# event is unused — a command rule binds no pattern variable.
+# closure still takes an event and an answer so every binding fires through one
+# loop, but both are unused — a command rule binds no pattern variable, and no
+# child answers a name.
 function _command_binding_expr(rhs, domain::String)
     (rhs isa Expr && rhs.head == :call && rhs.args[1] == :(=>) &&
      rhs.args[2] isa String) ||
@@ -21,7 +22,7 @@ function _command_binding_expr(rhs, domain::String)
               "`nothing => \"what it does\" => rhs`, got `$rhs`")
     description = rhs.args[2]
     body = rhs.args[3]
-    operation = :(($(esc(:doc)), $(gensym(:event))) -> $(esc(body)))
+    operation = :(($(esc(:doc)), $(gensym(:event)), $(gensym(:answer))) -> $(esc(body)))
     :(GestureBinding(nothing, $operation; applicable = _applicable,
                      description = $description, domain = $domain, name = $description))
 end
@@ -61,22 +62,28 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
     return (applicable, items)
 end
 
-# `override(PATTERN) => …` is the rule `PATTERN => …` that claims its key. Answer the
-# plain rule, so the event parser sees it, and whether the pattern was wrapped.
+# `override(PATTERN) => …` is the rule `PATTERN => …` that replaces any answer of the
+# child, and `override(PATTERN, CONDITION) => …` the rule that replaces it when
+# CONDITION, an expression of `answer`, holds. Answer the plain rule, so the event
+# parser sees it, and the expression of its `override` function: `Returns(false)`
+# for a rule that `override` does not wrap.
 function _unwrap_override(e)
     lhs = e.args[2]
-    (lhs isa Expr && lhs.head == :call && lhs.args[1] == :override) || return (e, false)
-    length(lhs.args) == 2 ||
-        error("@gestures: `override` wraps exactly one pattern, got `$lhs`")
+    (lhs isa Expr && lhs.head == :call && lhs.args[1] == :override) ||
+        return (e, :(Base.Returns(false)))
+    length(lhs.args) in (2, 3) ||
+        error("@gestures: `override` wraps one pattern and an optional condition, got `$lhs`")
     _is_no_pattern(lhs.args[2]) &&
-        error("@gestures: `override(nothing)` is not a rule — override claims a key, " *
-              "and a `nothing` rule has none")
-    (Expr(:call, :(=>), lhs.args[2], e.args[3]), true)
+        error("@gestures: `override(nothing)` is not a rule — override replaces the answer " *
+              "of a gesture, and a `nothing` rule has none")
+    condition = length(lhs.args) == 2 ? :(Base.Returns(true)) :
+                :(($(esc(:answer))) -> $(esc(lhs.args[3])))
+    (Expr(:call, :(=>), lhs.args[2], e.args[3]), condition)
 end
 
 # Build the `GestureBinding(...)` expression for one rule: PATTERN => [ "desc" => ] rhs
-# (or when(PATTERN, guard) => …), with the pattern optionally wrapped in `override(…)`,
-# or a command rule `nothing => "desc" => rhs`.
+# (or when(PATTERN, guard) => …), with the pattern optionally wrapped in
+# `override(…)` or `override(…, condition)`, or a command rule `nothing => "desc" => rhs`.
 function _parse_gesture_rule(e, domain::String; scope::Module)
     (e isa Expr && e.head == :call && e.args[1] == :(=>)) ||
         error("@gestures: expected `PATTERN => rhs`, `splice(set)`, or `when(expr)`, " *
@@ -108,7 +115,7 @@ function _parse_gesture_rule(e, domain::String; scope::Module)
     # description read the same object.
     pattern = gensym(:pattern)
 
-    # Operation closure: (doc, event) -> rhs, with bound fields in scope.
+    # Operation closure: (doc, event, answer) -> rhs, with bound fields in scope.
     # `build_gesture_field_bindings` returns the body untouched when the rule binds
     # no pattern variable, and wraps it in a `let` when it does. Identity of the
     # result is therefore the answer to "does this rhs read the event?", asked
@@ -116,7 +123,7 @@ function _parse_gesture_rule(e, domain::String; scope::Module)
     escaped_body = esc(body)
     bound_body = build_gesture_field_bindings(rule, event, escaped_body)
     reads_event = bound_body !== escaped_body
-    operation = :(($document, $event) -> $bound_body)
+    operation = :(($document, $event, $(esc(:answer))) -> $bound_body)
 
     description_expr =
         description === nothing ? :(describe_gesture_pattern($pattern)) : description
@@ -141,8 +148,9 @@ Declare the reified gesture table for document type `DocumentType`. Each entry i
 of:
 
   - `PATTERN => "description" => rhs` — a rule (description optional); `PATTERN` uses
-    the event pattern syntax, `rhs` builds the operation with `doc`, `event` and any
-    bound pattern variables in scope.
+    the event pattern syntax, `rhs` builds the operation with `doc`, `answer` and any
+    bound pattern variables in scope. `answer` is the answer of the child, or
+    `nothing` when the child answered nothing; a plain rule answers only then.
   - `nothing => "description" => rhs` — a rule with **no gesture**. No key and no
     click reaches it. A user runs it by its description, which is also its name, so
     the description is mandatory here. `override(nothing)` is an error, and the rhs
@@ -150,13 +158,18 @@ of:
     spending a key on it, from the one table that already says what a document can
     do.
   - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
-  - `override(PATTERN) => …` — a rule that claims its key even when a stage nearer
-    the output already turned it into an operation (see [`GestureBinding`](@ref)).
-    Without it, a printable key that a text stage turned into a text edit reaches the
-    document only where no stage can carry that edit, such as a `,` on a delimiter or
-    in a number.
-    Inside a string the edit is carried, so an ordinary structural rule needs no guard
-    against firing mid-text.
+  - `override(PATTERN, condition) => …` — a rule that replaces the answer of the
+    child when `condition`, an expression of `answer`, holds for it. The reader of a
+    level asks its child first, and then the rules of the level read the answer
+    (see [`GestureBinding`](@ref)). So `override(KeyPress('<'), is_text_edit(answer))`
+    takes `<` back from the text that made it a character in a name, and leaves the
+    answer of an inner element that already took it.
+  - `override(PATTERN) => …` — a rule that replaces any answer of the child, such as
+    a command of a container that its content must not take. Without `override`, a
+    printable key that a text stage turned into a text edit reaches the document
+    only where no stage can carry that edit, such as a `,` on a delimiter or in a
+    number. Inside a string the edit is carried, so an ordinary structural rule needs
+    no guard against firing mid-text.
   - `when(<expr over doc, sel>)` — an optional block-level `applicable` precondition
     (event-independent). A block has at most one, and it holds for every rule of the
     block.

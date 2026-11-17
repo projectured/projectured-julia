@@ -31,8 +31,8 @@ bar, the content and the layouts:
     FindBarView => ChainingProjection(FindBarViewToWidget(), VerticalLayoutToGraphicsCanvas())
 
 Ctrl+F and Escape are rules of the `@gestures` table of the view. A key that the
-part under the caret answered reaches that table as a claimed key, which the
-`override` rules of the table take.
+part under the caret answered reaches that table with that answer, which an
+`override` rule of the table replaces.
 """
 struct FindBarViewToWidget <: Projection
     gap::Int
@@ -88,7 +88,7 @@ end
 function _make_find_bar_placement_button(view::FindBarView)
     description = "Put the find bar over the content, or above it"
     press = GestureBinding(MouseClickPattern(:left),
-                           (button, gesture) -> make_find_bar_placement_operation(view);
+                           (button, gesture, _) -> make_find_bar_placement_operation(view);
                            description, domain = "find bar")
     button = WidgetButton("Over"; gestures = GestureBinding[press], labels = ["Over", "Above"],
                           tooltip = description)
@@ -148,7 +148,7 @@ end
 
 # The generic bridge maps the answer of the layout back, and reads the table of
 # the view for a key that no part answered. A key that a part answered reaches the
-# table as a claimed key, so only an `override` rule takes it over; a collection
+# table with that answer, so only an `override` rule replaces it; a collection
 # of the keys joins the keys of the table, for the gesture help.
 function read_intent(p::FindBarViewToWidget, recursion, change::Intent, iomap::SimpleIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
@@ -157,13 +157,13 @@ function read_intent(p::FindBarViewToWidget, recursion, change::Intent, iomap::S
     own === nothing ? answer : Intent(change.gesture, own, answer.description, answer.domain)
 end
 
-_add_find_bar_answer(view::FindBarView, gesture::Union{KeyPress, KeyDown}, answer, claimed) =
-    read_gesture(view, gesture; claimed)
+_add_find_bar_answer(view::FindBarView, gesture::Union{KeyPress, KeyDown}, answer, stage_answer) =
+    read_gesture(view, gesture; answer = stage_answer)
 
-function _add_find_bar_answer(view::FindBarView, gesture::CollectIntents, answer, claimed)
+function _add_find_bar_answer(view::FindBarView, gesture::CollectIntents, answer, stage_answer)
     answer isa CollectedIntentsOperation || return nothing
     own = read_gesture(view, gesture)
     own isa CollectedIntentsOperation ? merge_collected_intents(answer, own) : nothing
 end
 
-_add_find_bar_answer(view::FindBarView, gesture, answer, claimed) = nothing
+_add_find_bar_answer(view::FindBarView, gesture, answer, stage_answer) = nothing

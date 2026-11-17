@@ -106,7 +106,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-REPEATED-MOVE-WRITES-NOTHING](#par-repeated-move-writes-nothing) | A move to the point of the last move writes no cell |
 | [PAR-LIGHT-KEEPS-LAYOUT](#par-light-keeps-layout) | A light changes no size and no place |
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
-| [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
+| [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A level asks its child first, lifts the answer, and then its rules read the answer and replace it only when their condition holds |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
 | [PAR-STABLE-IOMAP-IDENTITY](#par-stable-iomap-identity) | A projection's IoMap keeps its identity; its varying parts are computed cells and its children reconcile by identity, each with a cell of its index |
 | [PAR-CROSS-DOMAIN-LATE](#par-cross-domain-late) | Cross domains as late as possible in the mappers; an introduced part maps forward and backward |
@@ -750,13 +750,32 @@ domain directly (the console pipeline) reuse the domain's editing for free.
 
 ### PAR-DELEGATE-AND-LIFT
 
-**A structural projection's reader delegates a raw gesture to the selected
-child and lifts the result.** For a raw authoring gesture, find the selected
-child from the node's `selection` and `child_iomaps`, delegate to that child's
-`read_intent`, and lift the returned operation with `reroot_operation`
-(prepending the input step that reaches the child); handle the gesture itself
-only when the child declines. The template engine's `TemplateIoMap` reader already
-does this — do not special-case nested editing.
+**A level asks its child first, lifts the answer, and then its rules read the
+answer and replace it only when their condition holds.** This is one rule for a
+container and its child, for a stage and the stage nearer the screen, and for a
+document and the part inside it.
+
+1. Give the gesture to the child that the level chooses: by position for a pointer
+   gesture, along the selection for a key, by the route of an operation that a verb
+   returns from one place. The child reads it with its own `read_intent`.
+2. Lift the answer of the child into the input of the level with
+   `reroot_operation`, which prepends the input steps that reach the child.
+3. Let the rules of the level read that answer. With no answer, the first rule that
+   matches answers. With an answer, a rule replaces it only when its `override`
+   condition holds for it: a plain rule never does, an unconditional `override`
+   always does, and a conditional one does when its condition holds, as
+   `override(KeyPress('<'), is_text_edit(answer))` takes a key back only from the
+   text. A rule can build its operation from the answer.
+
+An answer that collects, such as the layer of a dwell or a list for the gesture
+help, lets each level add its own, and the answers join. Do not order rules by a
+rank, and do not read a level twice: the condition of a rule says which answers of
+the parts inside it the rule replaces, so two nested parts with the same rule
+combine without code in either. A container that chose its child calls
+`read_child_intent`, which does the three moves; the template engine's
+`TemplateIoMap` reader already does this — do not special-case nested editing. The
+kernel guide describes the process with its cases
+([projection-system.md](../package/kernel/projection-system.md#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules)).
 
 ### PAR-SHARED-CHILDREN-IOMAP
 

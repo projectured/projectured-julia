@@ -189,11 +189,11 @@ end
 function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:s; modifiers = [:ctrl, :shift]),
-                       (doc, event) -> _create_version(p, iomap);
+                       (doc, event, _) -> _create_version(p, iomap);
                        description = "Create version", domain = "versioning",
                        name = "Create version"),
         GestureBinding(KeyDownPattern(:delete; modifiers = [:alt]),
-                       (doc, event) -> _delete_version(iomap);
+                       (doc, event, _) -> _delete_version(iomap);
                        description = "Delete version", domain = "versioning",
                        name = "Delete version"),
     ]

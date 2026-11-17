@@ -117,7 +117,7 @@ function _make_tab_menu(tree::PaneTree, group::PaneGroup, index::Integer)
 end
 
 # The menu of the tab under the pointer, as a layer named by the tab.
-function _make_tab_menu_operation(tree::PaneTree, gesture)
+function _make_tab_menu_operation(tree::PaneTree, gesture, _)
     found = _find_pointed_tab_header(tree)
     found === nothing && return nothing
     group, index = found

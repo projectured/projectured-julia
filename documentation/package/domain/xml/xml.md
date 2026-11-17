@@ -44,7 +44,7 @@ The delimiters and the closing tag are chrome that no field produces. The backwa
 | `=` | in the name of an attribute | move the caret to the value |
 | no key | in the value of an attribute | move the caret to the name |
 
-A letter or a digit on a placeholder is not a retype key, so it goes into the name of an insertion buffer. The two element keys `<` and `"` are `override` bindings: a tag name can not hold either character, so the element takes the key before the text stage makes it a character. `=` is an `override` binding for the same reason: an attribute name can not hold it. Outside an attribute name its rule returns `nothing`, so there `=` stays a character. Space does not fire when the caret is in a child, so a space in text stays a space.
+A letter or a digit on a placeholder is not a retype key, so it goes into the name of an insertion buffer. The two element keys `<` and `"` are `override` bindings with the condition `is_text_edit(answer)`: a tag name can not hold either character, so the element takes the key back from the text stage that made it a character. The answer of an inner element that took the key is no text edit, so of two nested elements the inner one gets the new child. `=` is an `override` binding with the same condition, for the same reason: an attribute name can not hold it. Outside an attribute name its rule returns `nothing`, so there `=` stays a character. Space does not fire when the caret is in a child, so a space in text stays a space.
 
 ### The text form
 
@@ -79,7 +79,7 @@ The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/domain/x
 - **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See [plan/done/xml-attribute-insertable.md](../../../../plan/done/xml-attribute-insertable.md).
 - **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See [plan/done/xml-authoring-gestures.md](../../../../plan/done/xml-authoring-gestures.md) and [plan/done/xml-to-syntax-template.md](../../../../plan/done/xml-to-syntax-template.md).
 - **A caret on the chrome is the rule's own introduced step.** It holds the path of the delimiter in the output of the rule, so the forward map gives the same caret back.
-- **`<`, `"` and `=` override the text stage.** Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value.
+- **`<`, `"` and `=` take the key back from the text stage.** Their condition is `is_text_edit(answer)`. Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value. An inner element that took the key answered with no text edit, so the element around it keeps that answer.
 - **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See [plan/done/document-file-storage.md](../../../../plan/done/document-file-storage.md).
 
 ## Usage

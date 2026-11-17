@@ -87,7 +87,7 @@ end
     @test binding.applicable(with, nothing)
     @test !binding.applicable(without, nothing)
     # A command runs the binding with no pointer, so the answer has no point.
-    @test get_wrapped_operation(binding.operation(with, nothing)).point === nothing
+    @test get_wrapped_operation(binding.operation(with, nothing, nothing)).point === nothing
 end
 
 end # @testset

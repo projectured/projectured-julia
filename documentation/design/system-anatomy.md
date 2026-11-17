@@ -552,6 +552,21 @@ for adding one.
 
 ### Reader (reverse projection)
 
+The reader turns a gesture into an operation by the rule of a level, the same for a
+container and its child, for a stage and the stage nearer the screen, and for a
+document and the part inside it. A level asks its child first, lifts the answer of
+the child into its own input with `reroot_operation`, and then its rules read that
+answer: with no answer, the first rule that matches answers; with an answer, a rule
+replaces it only when its `override` condition holds for it. A rule can build its
+operation from the answer. So the answer goes up level by level, innermost first,
+and no walk over the tree orders the rules. `read_child_intent` does the three
+moves for a container, `fire_gesture_bindings` decides for one table, and the
+template reader applies the rule to every node of a template. The kernel guide
+describes the process with its cases
+([projection-system.md](../package/kernel/projection-system.md#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules)),
+and the rule PAR-DELEGATE-AND-LIFT states it
+([architecture-invariants.md](../rule/architecture-invariants.md#par-delegate-and-lift)).
+
 | Step | Status |
 |---|---|
 | Selection movement across all major pipelines | ⚠️ rightwards ✅; leftwards stalls on projection-introduced text in every syntax-backed pipeline (`test_text_navigation_invariants_all`, [plan/pending/left-motion-stalls-on-introduced-text.md](../../plan/pending/left-motion-stalls-on-introduced-text.md)) |

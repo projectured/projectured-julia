@@ -41,7 +41,7 @@ function print_document(p::UrlViewToWidget, recursion, view::UrlView, context)
                             for part in (WidgetLabel(String(piece)),
                                          WidgetLabel(() -> _format_url_piece(getproperty(url, piece))))], 2;
                         horizontal_gap = p.gap)
-    open(_, _) = OpenUrlOperation(url)
+    open(_, _, _) = OpenUrlOperation(url)
     button = WidgetButton("Open in the browser";
                           gestures = GestureBinding[
                               GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open;

@@ -57,7 +57,7 @@ function _build_place_widgets(folder::WorkspaceFolder)
     set_cell_computation!(getfield(field, :content), () -> String(folder.pathname))
     set_output_path_computations!(field, folder, path -> _map_place_field_path(path))
     button = WidgetButton("Open"; gestures = GestureBinding[
-        GestureBinding(MouseClickPattern(:left), (_, _) -> _make_folder_place_operation(folder);
+        GestureBinding(MouseClickPattern(:left), (_, _, _) -> _make_folder_place_operation(folder);
                        description = "Open the folder at this place", domain = "filesystem")])
     Any[WidgetLabel("The place of the folder on the disk:"), field, button]
 end

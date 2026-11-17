@@ -212,11 +212,12 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   and `ClaimedGesture` becomes the override of O2. Test: `test_syntax()`, the JSON, XML, YAML,
   SQL, Julia, Markdown and RST suites, `test_position_navigations()`. Built 2026-11-17; R2 found
   the fault of §7, which step 3a corrects.
-- [ ] **3a. The rule of a level (O4, O5, O6), in the kernel and the template.** A rule gets its
+- [ ] **3a. The rule of a level (O4, O5, O6), in the kernel and the template.** Built
+  2026-11-17; waits for R2. A rule gets its
   condition and the answer of the child (P4, P5, P6); the passing helper and the template walk
   read the rules of a level with the answer of the child (P7, P8); the XML rules and the links
   of Markdown and RST get their conditions (P9); the 82 calls of `GestureBinding` in
-  projectured-julia and the 2 files in omnet-julia and inet-julia take the answer. The process
+  projectured-julia and the 2 files of omnet-julia take the answer. The process
   is documented as one process: a level asks its child, lifts the answer of the child into its
   own input, and then its rules read that answer and replace it when their condition holds, so
   the answer goes up level by level, innermost first. The owner (2026-11-17): "I meant by
@@ -289,8 +290,8 @@ owner. A step lands only after its stop.
 - **P3. Steps 2, 3 and 3a land together, steps 4 and 5 land one at a time, and steps 6 and 7
   land together.** The bridge keeps each old reader working until step 6, so a step lands when
   its suites equal the baseline. Step 3 alone has the fault of §7, so it lands only with step
-  3a. Step 3a lands in omnet-julia and inet-julia too, because their rules take the answer
-  (P5). Step 6 removes the old form, which the readers of omnet-julia and inet-julia still use,
+  3a. Step 3a lands in omnet-julia too, because its rules take the answer (P5); inet-julia has
+  no rule. Step 6 removes the old form, which the readers of omnet-julia and inet-julia still use,
   so step 7 lands with it.
 
 **Decisions of step 3a, approved by the owner (2026-11-17, "Yes, I agree"):**
@@ -456,3 +457,57 @@ PAR-FOUR-FUNCTIONS that says so.
   where the test expects `(13, 13)`, which fails on main since `2d8d7e117`. The compare with
   the baseline follows when it runs.
 
+**2026-11-17, step 3a: the rule of a level.**
+
+- **The two conditions.** `is_selection_change(operation)` is in the kernel, beside
+  `ReplaceSelectionOperation` (`Operations.jl`): a selection move, wrapped or in a compound,
+  as a text answers a click. `is_text_edit(operation)` is in the primitive slice of the
+  platform, beside `ReplaceRangeOperation` (`PrimitiveDocument.jl`): a range edit of
+  characters, wrapped or in a compound, as a text answers a typed key. The kernel docstrings
+  name only the kernel one.
+- **`GestureBinding`.** The field `override` is a function of the answer, `Returns(false)` by
+  default; the operation is `operation(document, gesture, answer)`; `fire_gesture_bindings`
+  fires a binding with an answer only when `binding.override(answer)` holds. `@gestures` writes
+  `override(PATTERN)` as `Base.Returns(true)` and `override(PATTERN, CONDITION)` as
+  `answer -> CONDITION`, and the `rhs` of every rule names `answer`. A Sonnet agent changed the
+  operations of the hand-written bindings: about 80 sites in `source/` and 30 in `test/`, and
+  the direct calls of a binding operation; a parse of every `GestureBinding(` call finds no
+  operation with two arguments.
+- **The answer goes up one step at a time.** `read_child_intent` lifts the answer of the child
+  by one step of `steps` at a time, so each document on the steps reads it in its own frame, as
+  a rule that builds from the answer needs (O5).
+- **The outward reading of a route reads by the rule of a level too** (`_read_outward`, under
+  `read_routed_child` and `read_gesture_outward`). There the answer is in the frame of the input
+  of the container, so a condition can read its kind and not its paths. Step 5 moves the pointer
+  containers to the point mapper and the helper, which gives each level its own frame.
+- **The claim walks of the template follow the rule of a level.** Each part reads the answer
+  that came up so far: the answer of the stage nearer the output, or the operation of a part
+  inside that replaced it, and the walk no longer stops at the first answer. The answer of the
+  stage is in the vocabulary of that stage, not mapped into the input of the part; a condition
+  reads its kind. Step 4 moves the operation maps to `map_operation_backward`, which can give
+  the mapped answer.
+- **Other repositories.** omnet-julia has two bindings with a two-argument operation
+  (`SimulationToWidget.jl`, `LegacyIniFileEntryToWidget.jl`), changed in the worktree
+  `/home/projectured/workspace/omnet-julia-reader-split` on the branch `reader-split`.
+  inet-julia has no binding and no claim, so step 3a does not change it.
+- **The compile-ahead lists** of `package/*/precompile/workload.txt` hold signatures with the
+  keyword `claimed`; step 8 records them again. The precompile of the branch warns once: "511
+  of the 2968 recorded calls of ProjecturedJulia no longer resolve"; main warns not at all.
+- **The runs of step 3a**, against the baseline of main (`e9af3a5a7`). `test_kernel()`: 5226
+  passed and 2 broken, none failed: step 3 and 14 new assertions of the rule (`ReaderJobsTest.jl`
+  and `GestureBindingTest.jl`). `test_platform()`: 236362 passed, 15 failed, 21 broken, with the
+  15 lines of main; main has one more error, `TaskWorkItemTest.jl:171`, a test of a running loop,
+  which did not occur here, so its testset ran 4 more assertions; it occurred on main and on the
+  run of steps 2 and 3. The 23 domain suites: the counts and the lines of failure of main;
+  `test_xml()` has 90 for the 86 of main, the 4 assertions of the two nested cases of §7, which
+  pass.
+- **The documentation of the process:** PAR-DELEGATE-AND-LIFT; the section "Reader (reverse
+  projection)" of `system-anatomy.md` and the section "Edit" of `concepts.md`; the section
+  "Recursive gesture reading: ask the child, lift its answer, apply the rules" of
+  `projection-system.md`, with the eight cases, and the paragraph of `operation.md` that links
+  it; the docstrings of `read_intent`, `read_child_intent`, `read_routed_child`,
+  `read_gesture_outward`, `read_gesture`, `read_projection_gesture`, `fire_gesture_bindings`,
+  `read_bound_gesture`, `GestureBinding`, `@gestures` and the reader of `ChainingProjection`.
+  The level below: the rules of a table in `devices-and-backends.md`, `domain-anatomy.md`,
+  `xml.md`, `markdown.md`, and the wording of a claimed key in `navigator.md`, `explorer.md` and
+  `conversation.md`.

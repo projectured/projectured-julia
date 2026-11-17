@@ -309,11 +309,13 @@ node it reached is the part, and it may be the container itself. Then, and after
 a child answers, the documents that the walk passed read the gesture with their
 own tables (`read_gesture`), the deepest first, up to the input of the container.
 The input of a child that answered nothing reads too, because the reader of a
-projection need not ask that table. The answer decides how far this goes: a
-document reads when nothing deeper answered, and the nearest that answers wins;
-after an answer that collects ([`is_collecting_operation`](@ref)), it reads too,
-and an answer of the same kind is joined ([`join_collected_operations`](@ref));
-any other answer ends it. The tables of the documents are asked, not the readers of
+projection need not ask that table. Each document reads by the rule of a level of
+[`read_child_intent`](@ref): with no answer from deeper, a rule that matches
+answers; with an answer, a rule replaces it only when its `override` condition
+holds for it, so the nearest answer stays unless a rule further out takes it on
+purpose; after an answer that collects ([`is_collecting_operation`](@ref)), each
+document reads too, and an answer of the same kind is joined
+([`join_collected_operations`](@ref)). The tables of the documents are asked, not the readers of
 the projections: a projection changes an answer on its way up. A change that
 already carries an operation goes to its place and is not read.
 """
@@ -370,10 +372,11 @@ at its point, read outward over the container's own stretch. `document` is the
 input of the container, `steps` lead from it to the input of the child, and
 `answer` is the child's answer in the frame of the container. The documents on
 the steps above the child's input read the gesture with their own tables
-(`read_gesture`), the deepest first, up to `document`, by the rule of
-[`read_routed_child`](@ref): a document reads when nothing deeper answered, and
-after an answer that collects; an answer of the same kind is joined, and any
-other answer ends the walk. The child's input does not read here: the hand-off to
+(`read_gesture`), the deepest first, up to `document`, by the rule of a level of
+[`read_child_intent`](@ref): with no answer from deeper, a rule that matches
+answers; with an answer, a rule replaces it only when its `override` condition
+holds for it; after an answer that collects, an answer of the same kind is joined.
+The child's input does not read here: the hand-off to
 the child (`read_child_event`) reads the documents inside the child when the
 child answers nothing. With `with_part`, the document at the end of `steps` reads
 too, as the part itself.
@@ -411,16 +414,20 @@ and `steps` lead from the input of the container to the input of the child.
   with `steps` does not reach the child, and the answer is no operation.
 - The answer of the child comes back rerooted by `steps`, with the description and
   the domain of the answer, or of `change` when the answer has none.
-- For a gesture, the rules further out answer by the order of an override, the
-  deepest first: the tables of the documents on `steps` below the input of the
-  container, then the rules of the container, `read_gesture(projection, iomap,
-  gesture)`. At each level an `override` rule wins over an answer that is there
-  already, and any other rule answers only when nothing answered. After an answer
-  that collects (`is_collecting_operation`), each level reads too, and an answer of
-  the same kind is joined. A `CollectIntents` list holds the rows of the child,
-  then of each level out. The input of the child is not read here: the child reads
-  it. A child whose input is the input of the container shares that table, so the
-  container then reads only the table of its projection.
+- For a gesture, the answer then goes up level by level: through the documents on
+  `steps` below the input of the container, the deepest first, and last through
+  the container itself, `read_gesture(projection, iomap, gesture)`. At each level
+  the answer is rerooted into the input of that level, and the rules of the level
+  read it. With no answer, the first rule that matches answers. With an answer, a
+  rule replaces it only when its `override` condition holds for it
+  ([`fire_gesture_bindings`](@ref)), so a plain rule never does, and of two nested
+  parts with the same rule the inner one keeps the gesture when the condition of the
+  outer one rejects the answer of the inner one. An answer that collects
+  (`is_collecting_operation`), such as the layer of a dwell, lets each level answer
+  too, and an answer of the same kind is joined. A `CollectIntents` list holds the
+  rows of the child, then of each level out. The input of the child is not read
+  here: the child reads it. A child whose input is the input of the container
+  shares that table, so the container then reads only the table of its projection.
 
 Use it in a container reader after it chose the child: by the position of a pointer
 gesture, by its selection for a key, or by the route of an operation.
@@ -439,29 +446,33 @@ function read_child_intent(projection, recursion, change::Intent, iomap, child, 
     child_projection = get_iomap_projection(child)
     inner = routed.route === nothing ? read_intent(child_projection, recursion, routed, child) :
                                        read_routed_intent(child_projection, recursion, routed, child)
-    answer = reroot_operation(inner.operation, steps)
-    answer isa Operation || (answer = nothing)
+    answer = inner.operation isa Operation ? inner.operation : nothing
     description = isempty(inner.description) ? change.description : inner.description
     domain = isempty(inner.domain) ? change.domain : inner.domain
     gesture = change.gesture
     if change.operation === nothing && gesture !== nothing
+        # Up from the child, one step at a time: `nodes[i]` is reached by
+        # `steps[1:i-1]`, so after the step `steps[i]` the answer is in the frame of
+        # `nodes[i]`, whose rules read it there. The input of the child reads in the
+        # child, and the input of the container reads last, with its projection.
         nodes = _find_step_nodes(get_iomap_input(iomap), steps)
-        # The documents below the input of the container and above the input of the
-        # child, the deepest first; the input of the child reads in the child.
-        for index in (length(nodes) - 1):-1:2
+        for index in length(steps):-1:1
+            answer = reroot_operation(answer, (steps[index],))
+            (2 <= index <= length(nodes) && nodes[index] isa Document) || continue
             document = nodes[index]
-            document isa Document || continue
-            answer = _read_level(answer, gesture, Tuple(steps[1:(index - 1)])) do claimed
-                read_gesture(document, gesture; claimed)
+            answer = _read_level(answer, gesture) do given
+                read_gesture(document, gesture; answer = given)
             end
         end
         shares_input = get_iomap_input(child) === get_iomap_input(iomap)
-        answer = _read_level(answer, gesture, ()) do claimed
-            shares_input ? read_projection_gesture(projection, iomap, gesture; claimed) :
-                           read_gesture(projection, iomap, gesture; claimed)
+        answer = _read_level(answer, gesture) do given
+            shares_input ? read_projection_gesture(projection, iomap, gesture; answer = given) :
+                           read_gesture(projection, iomap, gesture; answer = given)
         end
+    else
+        answer = reroot_operation(answer, steps)
     end
-    Intent(gesture, answer, description, domain)
+    Intent(gesture, answer isa Operation ? answer : nothing, description, domain)
 end
 
 # The documents that `steps` reach from `document`: the first is `document`, and a
@@ -481,20 +492,19 @@ function _find_step_nodes(document, steps)
     nodes
 end
 
-# The answer after one level read `gesture` with `read(claimed)`, by the order of an
-# override: a collection gathers every row; an answer that collects lets the level
-# read, and joins an answer of the same kind; any other answer lets only an override
-# rule of the level answer, and that answer wins; with no answer, the level answers.
-function _read_level(read, answer, gesture, steps::Tuple)
-    if gesture isa CollectIntents
-        own = reroot_operation(read(nothing), steps)
-        return merge_collected_intents(_get_collected(answer), _get_collected(own))
-    end
-    claimed = answer isa Operation && !is_collecting_operation(answer) ? answer : nothing
-    own = reroot_operation(read(claimed), steps)
+# The answer after the rules of one level read `gesture` with `read(given)`, where
+# `given` is the answer of the child that the rules see: a collection gathers every
+# row; with no answer, the level answers; an answer that collects is no answer for
+# the rules, and joins an answer of the same kind; any other answer is given to the
+# rules, and an answer of the rules replaces it, as only a rule whose `override`
+# condition holds for it answers then.
+function _read_level(read, answer, gesture)
+    gesture isa CollectIntents &&
+        return merge_collected_intents(_get_collected(answer), _get_collected(read(nothing)))
+    given = answer isa Operation && !is_collecting_operation(answer) ? answer : nothing
+    own = read(given)
     own isa Operation || return answer
-    answer === nothing && return own
-    claimed === nothing || return own
+    (answer === nothing || given !== nothing) && return own
     is_collecting_operation(own) ? join_collected_operations(answer, own) : answer
 end
 
@@ -504,18 +514,20 @@ end
 # that took it answered nothing, because the reader of a projection need not ask
 # the table of its input. An answer that is no operation, such as the gesture
 # that a reader hands back when it declines, counts as none, and comes back when
-# no document answers.
+# no document answers. Each document reads by the rule of a level (`_read_level`):
+# its rules read the answer from deeper, and replace it only when their `override`
+# condition holds for it. The answer is in the frame of the input of the
+# container, so a condition reads its kind, not its paths.
 function _read_outward(change::Intent, answer, nodes, taken, with_last::Bool)
     change.operation === nothing && change.gesture !== nothing || return answer
     found = answer isa Operation ? answer : nothing
     for index in (with_last ? length(nodes) : length(nodes) - 1):-1:1
-        found === nothing || is_collecting_operation(found) || return found
         document = nodes[index]
         document isa Document || continue
-        own = reroot_operation(read_gesture(document, change.gesture), Tuple(taken[1:(index - 1)]))
-        own isa Operation || continue
-        found = found === nothing ? own :
-                is_collecting_operation(own) ? join_collected_operations(found, own) : found
+        prefix = Tuple(taken[1:(index - 1)])
+        found = _read_level(found, change.gesture) do given
+            reroot_operation(read_gesture(document, change.gesture; answer = given), prefix)
+        end
     end
     found === nothing ? answer : found
 end

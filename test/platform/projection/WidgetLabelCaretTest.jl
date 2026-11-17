@@ -180,7 +180,7 @@ function test_widget_label_caret()
     @testset "a press that is bound to a label acts before the caret, as for a chip" begin
         p = _label_caret_printer()
         chosen = ReplaceSelectionOperation(EmptyReference())
-        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> chosen;
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _, _) -> chosen;
                                  description = "Choose the chip", domain = "test")
         label = WidgetLabel("open"; gestures = GestureBinding[binding])
         iomap = print_document(p, nothing, label, PrinterContext())
@@ -303,7 +303,7 @@ function test_widget_label_caret()
 
         # On a chip a plain press acts by its binding and starts no drag; a press with Alt does.
         chosen = ReplaceSelectionOperation(EmptyReference())
-        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> chosen;
+        binding = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _, _) -> chosen;
                                  description = "Choose the chip", domain = "test")
         chip = WidgetLabel("open"; gestures = GestureBinding[binding])
         chip_io = print_document(p, nothing, chip, PrinterContext())

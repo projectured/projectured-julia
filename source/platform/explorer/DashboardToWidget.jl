@@ -171,13 +171,13 @@ function _make_card_title(p::DashboardToWidget, dashboard::Dashboard, card::Dash
     toggle = () -> _make_toggle_maximize_operation(dashboard, card)
     fills = _is_card_maximized(dashboard, card)
     double_click = GestureBinding(MouseClickPattern(:left),
-                                  (_, gesture) -> gesture.count == 2 ? toggle() : nothing;
+                                  (_, gesture, _) -> gesture.count == 2 ? toggle() : nothing;
                                   description = "Fill the page with the card, or give the page back",
                                   domain = "dashboard")
     label = WidgetLabel(card.title; gestures = GestureBinding[double_click], text_style = p.title_style)
     name = fills ? "Give the page back" : "Fill the page with the card"
     button = WidgetToolbarItem(name; icon = WidgetIcon(fills ? :minimize : :maximize), focusable = false,
-                               gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> toggle();
+                               gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _, _) -> toggle();
                                                                         description = name, domain = "dashboard")],
                                margin = inset_default, border = inset_default, padding = inset_default,
                                style = p.title_style === nothing ? nothing :

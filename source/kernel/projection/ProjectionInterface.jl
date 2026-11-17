@@ -261,6 +261,14 @@ most involved:
   answer to decide its own final operation — e.g. to choose among alternatives,
   or to act only when the child declines by returning `nothing`.
 
+For a gesture, these moves are one process, the rule of a level: the reader asks
+its child first, lifts the answer of the child into its own input, and then its
+rules read that answer. With no answer, the first rule that matches answers; with
+an answer, a rule replaces it only when its `override` condition holds for it, and
+a rule can build its operation from it. So the answer goes up level by level,
+innermost first. A container that chose its child calls
+[`read_child_intent`](@ref), which does the three moves.
+
 Whichever moves it makes, a 4-arg reader returns an `Intent` whose operation is in
 its own input domain, or is `nothing`; the operation the **top-level** projection
 ultimately returns is the final answer the editor applies to the document.

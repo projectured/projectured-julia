@@ -95,10 +95,10 @@ const OUT_PROBE_LOG = String[]
 function _out_probe_bindings(name)
     GestureBinding[
         GestureBinding(MouseDwellPattern(),
-                       (document, gesture) -> (push!(OUT_PROBE_LOG, name); OutProbeLayers([name]));
+                       (document, gesture, _) -> (push!(OUT_PROBE_LOG, name); OutProbeLayers([name]));
                        description = "Show the layer of the $name", domain = "test"),
         GestureBinding(MouseClickPattern(:right),
-                       (document, gesture) -> (push!(OUT_PROBE_LOG, name);
+                       (document, gesture, _) -> (push!(OUT_PROBE_LOG, name);
                                                ReplaceSelectionOperation(EmptyReference()));
                        description = "Select the $name", domain = "test"),
     ]

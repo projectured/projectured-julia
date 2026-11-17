@@ -8,27 +8,40 @@ struct GestureBinding
     applicable::Function
     description::String
     domain::String
-    override::Bool
+    override::Function
     name::Union{String,Nothing}
 end
 
 """
     GestureBinding(pattern, operation; applicable, description, domain,
-                   override = false, name = nothing)
+                   override = Returns(false), name = nothing)
 
 One rule: `pattern` is the gesture it answers and `operation` is what it makes of
-it. The rest says when the rule stands and how it is shown.
+it. The rest says when the rule stands, when it replaces an answer, and how it is
+shown.
+
+`operation(document, gesture, answer)` makes the operation, or `nothing` to decline.
+`answer` is the answer of the child: the operation that a part or a stage nearer
+the gesture made of it, or `nothing` when the child answered nothing. So a rule can
+build its operation from that answer, as a rule of a line finds its line from the
+caret that the child moved.
+
+`override(answer)` answers whether the rule replaces `answer` when the child
+answered. The default, `Returns(false)`, is a plain rule: it answers only when the
+child answered nothing. `Returns(true)` is an unconditional rule, and any other
+function is a condition on the answer, as `is_selection_change(answer)` lets a link
+take a click back from the text that moved its caret for it, and from nothing else.
+This is what `override(...)` in a `@gestures` table writes.
+[`fire_gesture_bindings`](@ref) reads it.
 
 `applicable(document, selection)` answers whether the rule stands where the
 selection is, and the default is a rule that always stands. `description` is the
 text that a listing of the bindings shows, `domain` is the vocabulary it belongs to,
 and `name` is the text that a user types to run the rule with no gesture.
-`override = true` lets the rule fire for a key that a stage nearer the output already
-turned into an operation, which is what `override(...)` in a `@gestures` table writes.
 """
 GestureBinding(pattern, operation; applicable = (document, selection) -> true,
                description::AbstractString, domain::AbstractString,
-               override::Bool = false, name = nothing) =
+               override::Function = Returns(false), name = nothing) =
     GestureBinding(pattern, operation, applicable, String(description), String(domain),
                    override, name)
 
@@ -83,7 +96,7 @@ collect_document_gesture_bindings(document::Document) =
 get_instance_gesture_bindings(document) = GestureBinding[]
 
 """
-    fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)
+    fire_gesture_bindings(bindings, target, event; selection, answer = nothing)
         -> Operation | Nothing
 
 The firing loop: the first binding whose pattern matches the event, whose
@@ -94,21 +107,25 @@ event-dependent decline and is skipped, so a later binding may still fire.
 A binding with no pattern is skipped: it has no gesture, so no event fires it. Run
 it with [`fire_named_gesture_binding`](@ref).
 
-`claimed` is the operation that a stage nearer the output has already produced for
-this event, or `nothing` when the event is unclaimed. A claimed event only fires
-bindings marked `override`: the reader runs last-to-first, so the stages nearer the
-output have already made their operation, and a document gesture that is not an
-explicit override has nothing to add. A composed reader drops a claim that no stage
-can carry, such as a character insert on a delimiter, and the event arrives
-unclaimed at the stage that cannot carry the claim. So a structural gesture needs
-no guard against firing mid-text: a key that is text where it is typed never
-arrives unclaimed.
+`answer` is the answer of the child of the level that fires the table: the
+operation that a part or a stage nearer the gesture already made of the event, or
+`nothing` when the child answered nothing. The reader of a level asks its child
+first and then fires its own table with that answer, so the answer goes up level by
+level, innermost first ([`read_child_intent`](@ref)). With no answer, every binding
+can fire. With an answer, a binding fires only when its `override` condition holds
+for the answer, and then its operation replaces the answer: a plain binding never
+does, an unconditional one always does, and a condition such as
+`is_selection_change(answer)` takes a click back only from a move of the caret. A composed reader
+drops an answer that no stage can carry, such as a character insert on a delimiter,
+so the event arrives with no answer at the stage that cannot carry it. So a
+structural gesture needs no guard against firing mid-text: a key that is text where
+it is typed never arrives with no answer.
 
 This is the one place a table of bindings becomes an operation. Anything holding
 bindings — a document, an instance, a projection — fires them through here rather
 than walking them itself, so *what fires* cannot drift from what a listing shows.
 """
-function fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)
+function fire_gesture_bindings(bindings, target, event; selection, answer = nothing)
     # Asked what is available rather than for one thing to happen: answer with all
     # of them instead of the first match. Same table, same preconditions, same
     # operation closures — so what is listed cannot drift from what fires.
@@ -116,10 +133,10 @@ function fire_gesture_bindings(bindings, target, event; selection, claimed = not
         return collect_binding_intents(bindings, target, selection)
     for binding in bindings
         binding.pattern === nothing && continue
-        claimed === nothing || binding.override || continue
+        answer === nothing || binding.override(answer) || continue
         if matches_gesture_pattern(binding.pattern, event) &&
            binding.applicable(target, selection)
-            operation = binding.operation(target, event)
+            operation = binding.operation(target, event, answer)
             operation === nothing || return operation
         end
     end
@@ -135,18 +152,16 @@ non-`nothing`. The counterpart of [`fire_gesture_bindings`](@ref): where that on
 selects a binding by the event that fires it, this one selects it by the name a
 user types.
 
-The operation closure gets `nothing` for the event. A named binding never reads
-the event, because `@gestures` withholds the name from a rule that binds a
-pattern variable.
-
-`claimed` has no counterpart here. A name comes from a user who picked a command
-from a list, so no stage nearer the output can have claimed it first.
+The operation closure gets `nothing` for the event and for the answer. A named
+binding never reads the event, because `@gestures` withholds the name from a rule
+that binds a pattern variable. A name comes from a user who picked a command from a
+list, so no child answered it first.
 """
 function fire_named_gesture_binding(bindings, target, name::AbstractString; selection)
     for binding in bindings
         binding.name == name || continue
         binding.applicable(target, selection) || continue
-        operation = binding.operation(target, nothing)
+        operation = binding.operation(target, nothing, nothing)
         operation === nothing || return operation
     end
     return nothing
@@ -163,8 +178,8 @@ payload: where firing stops at the first match, this builds them all. A binding
 whose precondition fails, or whose operation declines, still yields an `Intent` —
 with `operation === nothing`, which is the greyed row a listing shows.
 
-The operation closure gets `nothing` for the event, so a binding that *reads* the
-event yields an `Intent` with no operation: it has no meaning without the keystroke
+The operation closure gets `nothing` for the event and for the answer, so a binding
+that *reads* the event yields an `Intent` with no operation: it has no meaning without the keystroke
 that carries its argument. `@gestures` marks exactly those by withholding the
 `name`. Such a binding still earns its row — a listing should say the key exists —
 it simply cannot be run from a list.
@@ -174,7 +189,7 @@ function collect_binding_intents(bindings, target, selection)
     for binding in bindings
         runnable = binding.name !== nothing
         operation = (runnable && binding.applicable(target, selection)) ?
-                    binding.operation(target, nothing) : nothing
+                    binding.operation(target, nothing, nothing) : nothing
         push!(intents, Intent(binding.pattern, operation, binding.description,
                               binding.domain))
     end
@@ -182,8 +197,8 @@ function collect_binding_intents(bindings, target, selection)
 end
 
 """
-    read_bound_gesture(target, event; claimed = nothing) -> Operation | Nothing
-    read_bound_gesture(target, event, selection; claimed = nothing) -> Operation | Nothing
+    read_bound_gesture(target, event; answer = nothing) -> Operation | Nothing
+    read_bound_gesture(target, event, selection; answer = nothing) -> Operation | Nothing
 
 Fire the first matching binding for `target`, checking its per-instance
 [`get_instance_gesture_bindings`](@ref) ahead of its per-type
@@ -193,22 +208,23 @@ an instance can add to, shadow, or suppress the type's defaults.
 `selection` defaults to `target`'s own — pass it explicitly for a target that has
 none of its own, such as a node whose identity is its path inside an enclosing tree
 (then it is usually the enclosing document's). A target with neither instance nor
-type bindings yields `nothing`. `claimed` restricts firing to `override` bindings —
-see [`fire_gesture_bindings`](@ref).
+type bindings yields `nothing`. `answer` is the answer of the child, and with it only
+a binding whose `override` condition holds for it fires — see
+[`fire_gesture_bindings`](@ref).
 """
-function read_bound_gesture(target, event, selection; claimed = nothing)
+function read_bound_gesture(target, event, selection; answer = nothing)
     bindings = _gesture_bindings(target)
     isempty(bindings) && return nothing
-    return fire_gesture_bindings(bindings, target, event; selection, claimed)
+    return fire_gesture_bindings(bindings, target, event; selection, answer)
 end
 
-function read_bound_gesture(target, event; claimed = nothing)
+function read_bound_gesture(target, event; answer = nothing)
     bindings = _gesture_bindings(target)
     # Read the selection only once a binding could fire: reading a cell to answer
     # "no bindings" would register a dependency on it for nothing.
     isempty(bindings) && return nothing
     return fire_gesture_bindings(bindings, target, event;
-                                 selection = get_selection(target), claimed)
+                                 selection = get_selection(target), answer)
 end
 
 # The instance's own bindings ahead of its type's, so an instance shadows a
@@ -220,11 +236,11 @@ function _gesture_bindings(target)
 end
 
 # The projection-independent reader for any `@gestures`-declared document is the
-# table interpreter. Documents with no registered gestures get `nothing`. `claimed`
-# (an operation that a stage nearer the output already produced for this event)
-# restricts firing to `override` bindings — see `fire_gesture_bindings`.
-read_gesture(document::Document, event; claimed = nothing) =
-    read_bound_gesture(document, event; claimed)
+# table interpreter. Documents with no registered gestures get `nothing`. `answer`
+# (the answer of the child for this event) lets only a binding whose `override`
+# condition holds for it fire — see `fire_gesture_bindings`.
+read_gesture(document::Document, event; answer = nothing) =
+    read_bound_gesture(document, event; answer)
 
 """
     compute_applicable_gesture_bindings(document, bindings) -> Vector{GestureBinding}

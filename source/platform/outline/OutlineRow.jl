@@ -46,7 +46,7 @@ end
 # The binding of a press on a part of an outline: `make()` makes the operation at
 # the time of the press, and `name` says what the press does.
 _make_press_binding(name::AbstractString, make::Function) =
-    GestureBinding(MouseClickPattern(:left), (_, _) -> make(); description = name, domain = "outline")
+    GestureBinding(MouseClickPattern(:left), (_, _, _) -> make(); description = name, domain = "outline")
 
 """
     make_outline_chip(outline, text, name, make; tooltip = nothing) -> WidgetLabel
@@ -208,10 +208,10 @@ function _make_row_menu_bindings(title, compute_menu::Function)
     description = "Show the menu of " * title
     GestureBinding[
         GestureBinding(MouseClickPattern(:right),
-                       (document, gesture) -> make_context_menu_operation(document, compute_menu(), gesture; title);
+                       (document, gesture, _) -> make_context_menu_operation(document, compute_menu(), gesture; title);
                        description, domain = "outline"),
         GestureBinding(KeyDownPattern(:f10; modifiers = [:shift]),
-                       (document, gesture) -> make_context_menu_operation(document, compute_menu(), nothing; title);
+                       (document, gesture, _) -> make_context_menu_operation(document, compute_menu(), nothing; title);
                        description, domain = "outline", name = description)]
 end
 

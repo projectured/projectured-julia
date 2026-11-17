@@ -60,6 +60,8 @@ An **edit** is a typed change of the data, not a change of a text. "Insert an el
 
 Every edit arrives through the reader side of the view definitions. A key press enters the outermost view, and each step translates it until it reaches the domain that owns the data. The same edits are what the assistant makes, so a change by a model and a change by a person are the same kind of thing, and both can be tested.
 
+One rule decides which part makes the edit, and it is the same at every level. A level asks its child first: the part under the pointer, the part that holds the selection, or the step nearer the screen. It lifts the answer of the child into its own data. Then its own rules read that answer, and a rule replaces it only when its condition holds for it. So a character typed in the name of an XML element stays a character, unless the element has a rule that takes that character back from the text; and of two nested elements, the inner one keeps the key, because the answer that comes up from it is no longer a character. No part knows the parts around it, and the rules of nested parts combine without code in either.
+
 ### 4. Selection
 
 The **selection** says where you are. It is a path from the root of the data to a part of it: the first entry of an object, then its value, then the third character. It is not a position in a text.

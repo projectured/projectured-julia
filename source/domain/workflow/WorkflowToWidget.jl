@@ -389,7 +389,7 @@ end
 function _make_workflow_row_keys(row)
     node, parent, index = row.node, row.parent, row.index
     siblings() = get_workflow_node_children(parent)
-    add_sibling = (_, _) -> begin
+    add_sibling = (_, _, _) -> begin
         _is_caret_at_title_end(node) || return nothing
         sibling = _make_sibling(node)
         field = sibling isa WorkflowDecision ? "question" : "title"
@@ -398,17 +398,17 @@ function _make_workflow_row_keys(row)
                                                                          FieldReferenceStep("value"),
                                                                          RangeReferenceStep(0, 0)))])
     end
-    move_up = (_, _) -> index > 1 ? _make_move_node_operation(node, parent, index, parent, index - 1) : nothing
-    move_down = (_, _) -> index < length(siblings()) ?
+    move_up = (_, _, _) -> index > 1 ? _make_move_node_operation(node, parent, index, parent, index - 1) : nothing
+    move_down = (_, _, _) -> index < length(siblings()) ?
         _make_move_node_operation(node, parent, index, parent, index + 1) : nothing
-    indent = (_, _) -> begin
+    indent = (_, _, _) -> begin
         index > 1 || return nothing
         before = siblings()[index - 1]
         (node isa Union{WorkflowStep, WorkflowDecision} && before isa Union{WorkflowStep, WorkflowOption}) ||
             return nothing
         _make_move_node_operation(node, parent, index, before, length(before.children) + 1)
     end
-    outdent = (_, _) -> begin
+    outdent = (_, _, _) -> begin
         grand = row.grand
         (node isa Union{WorkflowStep, WorkflowDecision} && grand isa Union{WorkflowStep, WorkflowOption}) ||
             return nothing

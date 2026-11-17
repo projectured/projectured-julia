@@ -92,7 +92,7 @@ See also `compute_clicked_sort_keys`, `find_sort_state`.
 function make_sort_glyph(keys, name::String, unsorted_color::StyleColor, make_operation; domain::String)
     state = find_sort_state(keys, name)
     icon = state === nothing ? :arrow_up_down : state[1] ? :arrow_down : :arrow_up
-    sort(adding) = (document, event) -> make_operation(adding)
+    sort(adding) = (document, event, _) -> make_operation(adding)
     bind(pattern, adding, description) = GestureBinding(pattern, sort(adding); description, domain)
     adding = MouseClickPattern(:left; modifiers = [:shift])
     gestures = GestureBinding[

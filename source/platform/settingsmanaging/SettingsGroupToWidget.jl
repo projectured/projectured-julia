@@ -180,7 +180,7 @@ end
 _make_command_button(text::AbstractString, tooltip::AbstractString, make) =
     WidgetButton(text; tooltip = tooltip,
                  gestures = GestureBinding[
-                     GestureBinding(MouseClickPattern(:left), (_, _) -> make();
+                     GestureBinding(MouseClickPattern(:left), (_, _, _) -> make();
                                     description = tooltip, domain = "settings")])
 
 # The write of the default of one setting, and of every setting of `groups`.

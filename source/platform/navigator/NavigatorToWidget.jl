@@ -317,8 +317,8 @@ end
 # After an answer of the page that collects, such as the menu of a part, the
 # navigator adds the answer of its own table, as a document around a part does;
 # the keys of its table join the keys of the page for the gesture help. A key that
-# the page answered goes to the table as a claimed key, which an `override` rule
-# of the table takes.
+# the page answered goes to the table with that answer, which an `override` rule
+# of the table replaces.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
     navigator = iomap.input
     gesture = change.gesture
@@ -415,10 +415,10 @@ function _find_address_rest(iomap::NavigatorToWidgetIoMap, reference)
     rest
 end
 
-# A key that the page answered reaches the table of the navigator as a claimed
-# key, so only an `override` rule takes it over, as the evaluator does.
+# A key that the page answered reaches the table of the navigator with that answer,
+# so only an `override` rule replaces it, as the evaluator does.
 function _add_own_answer(navigator::Navigator, gesture::Union{KeyPress, KeyDown}, operation)
-    own = read_gesture(navigator, gesture; claimed = operation)
+    own = read_gesture(navigator, gesture; answer = operation)
     own === nothing ? operation : own
 end
 

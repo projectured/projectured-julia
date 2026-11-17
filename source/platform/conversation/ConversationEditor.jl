@@ -654,7 +654,7 @@ end
 # content of the card with no offset, which the backward map turns into the caret
 # at the end of what is written, as a press anywhere in an empty field expects.
 const _DRAFT_CARD_PRESS = GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]),
-    (_, _) -> ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"),
+    (_, _, _) -> ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("content"),
                                                           EmptyReference()));
     description = "Type at the end", domain = "composer")
 
@@ -821,26 +821,26 @@ _shown_length(::Any, body::TextBlock) = length(get_flat_string(body))
 # over plain Return (first match).
 function _composer_bindings(draft::ConversationDraft)
     newline = GestureBinding(KeyPressPattern('\n'; modifiers = [:shift]),
-                             (d, e) -> _make_newline_operation(d);
+                             (d, e, _) -> _make_newline_operation(d);
                              description = "New line", domain = "composer")
     revert = GestureBinding(KeyDownPattern(:escape),
-                            (d, e) -> ComposerRevertOperation(d); description = "Cancel",
+                            (d, e, _) -> ComposerRevertOperation(d); description = "Cancel",
                             domain = "composer")
     c = _active_content(draft)
     if c isa PrimitiveString
         GestureBinding[
             newline,
             GestureBinding(KeyPressPattern('\n'),
-                           (d, e) -> ComposerSubmitOperation(d); description = "Submit",
+                           (d, e, _) -> ComposerSubmitOperation(d); description = "Submit",
                            domain = "composer"),
             GestureBinding(KeyDownPattern(:insert),
-                           (d, e) -> ComposerInsertPartOperation(d);
+                           (d, e, _) -> ComposerInsertPartOperation(d);
                            description = "Add a structured part", domain = "composer"),
         ]
     elseif c isa DocumentInsertion
         GestureBinding[
             GestureBinding(KeyPressPattern('\n'),
-                           (d, e) -> ComposerCommitChooserOperation(d);
+                           (d, e, _) -> ComposerCommitChooserOperation(d);
                            description = "Choose insertion kind", domain = "composer"),
             revert,
         ]
@@ -849,11 +849,11 @@ function _composer_bindings(draft::ConversationDraft)
         # Julia's alone, which is why this arm names the format.
         GestureBinding[
             GestureBinding(KeyPressPattern('\n'; modifiers = [:alt]),
-                           (d, e) -> ComposerEvaluateOperation(d);
+                           (d, e, _) -> ComposerEvaluateOperation(d);
                            description = "Evaluate", domain = "composer"),
             newline,
             GestureBinding(KeyPressPattern('\n'),
-                           (d, e) -> ComposerCommitSourceOperation(d);
+                           (d, e, _) -> ComposerCommitSourceOperation(d);
                            description = "Commit source", domain = "composer"),
             revert,
         ]
@@ -864,7 +864,7 @@ function _composer_bindings(draft::ConversationDraft)
         GestureBinding[
             newline,
             GestureBinding(KeyPressPattern('\n'),
-                           (d, e) -> ComposerCommitSourceOperation(d);
+                           (d, e, _) -> ComposerCommitSourceOperation(d);
                            description = "Commit source", domain = "composer"),
             revert,
         ]

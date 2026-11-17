@@ -23,7 +23,7 @@ function test_scroll_pane_show()
     projection = _scroll_show_projection()
     rows = Any[WidgetLabel("row $index") for index in 1:40]
     link(document) = GestureBinding[GestureBinding(MouseClickPattern(:left),
-                                                   (_, _) -> SelectDocumentOperation(document);
+                                                   (_, _, _) -> SelectDocumentOperation(document);
                                                    description = "Go to the row", domain = "test")]
     far = WidgetLabel("Go to row 30"; gestures = link(rows[30]))
     near = WidgetLabel("Go to row 2"; gestures = link(rows[2]))

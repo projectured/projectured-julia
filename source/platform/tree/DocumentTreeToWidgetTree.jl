@@ -320,7 +320,7 @@ end
 # row, because only a press with a count of two matches. A node answers in the
 # frame of the widget, so the open names the node by its path there.
 function _make_open_page_bindings(path::Vector{Int})
-    make_operation = (node, event) -> OpenPageOperation(nothing, _make_node_reference(path))
+    make_operation = (node, event, _) -> OpenPageOperation(nothing, _make_node_reference(path))
     is_applicable = (node, selection) -> true
     GestureBinding[
         GestureBinding(KeyPressPattern('\n'), make_operation;

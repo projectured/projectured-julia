@@ -105,7 +105,7 @@ function test_widget_text_fit()
         chip = WidgetLabel("Q1"; corner_radius = 4, padding = Inset(2, 2, 6, 6),
                            style = WidgetStyle(; padding_color = color_red, content_color = color_red),
                            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left),
-                                                                    (_, _) -> (pressed[] += 1; DoNothingOperation());
+                                                                    (_, _, _) -> (pressed[] += 1; DoNothingOperation());
                                                                     description = "Select Q1",
                                                                     domain = "test")])
         iomap = print_at(chip, 400)

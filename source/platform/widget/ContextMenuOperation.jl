@@ -170,7 +170,7 @@ See also `make_tooltip_binding`, which answers a dwell the same way.
 make_context_menu_binding(compute::Function;
                           description::AbstractString = "Show the context menu") =
     GestureBinding(MouseClickPattern(:right),
-                   (document, gesture) ->
+                   (document, gesture, _) ->
                        make_context_menu_operation(document, compute(document), gesture);
                    applicable = (document, selection) -> compute(document) !== nothing,
                    description = description, domain = "context menu",
@@ -192,7 +192,7 @@ See also `make_context_menu_binding`, which opens the menu at a right click.
 """
 make_menu_button_binding(compute::Function; description::AbstractString = "Show the menu") =
     GestureBinding(MouseClickPattern(:left),
-                   (document, gesture) -> make_context_menu_operation(document, compute(document), nothing);
+                   (document, gesture, _) -> make_context_menu_operation(document, compute(document), nothing);
                    applicable = (document, selection) -> compute(document) !== nothing,
                    description = description, domain = "context menu",
                    name = String(description))

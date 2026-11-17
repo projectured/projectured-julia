@@ -10,17 +10,18 @@
 # or its text for a named reference. In the source view a press puts the caret in
 # its text, so Ctrl+click follows it and Ctrl+Shift+click opens it in a new tab;
 # the rendered view, which shows no markers, follows it on a plain click and opens
-# a new tab on Ctrl+click. Each is an `override` rule, which takes the click from
-# the caret of the text. The tooltip of a reference shows its target.
+# a new tab on Ctrl+click. Each is an `override` rule with the condition
+# `is_selection_change(answer)`: it takes the click from the text, which answered it
+# with a move of its caret. The tooltip of a reference shows its target.
 
 _get_reference_target(reference::RstReference) =
     isempty(reference.target) ? reference.text : reference.target
 
 _make_reference_binding(modifiers::Vector{Symbol}, place::Symbol, description::String) =
     GestureBinding(MouseClickPattern(:left; modifiers),
-                   (reference, gesture) -> OpenPageOperation(nothing, EmptyReference(), place;
-                                                             target = _get_reference_target(reference));
-                   description, domain = "rst", override = true)
+                   (reference, gesture, answer) -> OpenPageOperation(nothing, EmptyReference(), place;
+                                                                     target = _get_reference_target(reference));
+                   description, domain = "rst", override = is_selection_change)
 
 const _RST_REFERENCE_BINDINGS = GestureBinding[
     _make_reference_binding([:ctrl], :here, "Follow the reference"),

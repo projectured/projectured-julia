@@ -151,7 +151,7 @@ end
 # The glyph that reads the frame of `view` again: a flat toolbar item, whose
 # tooltip names the key of the view that does the same.
 function _make_refresh_glyph(view)
-    refresh = (document, event) -> RefreshDataFrameViewOperation(view)
+    refresh = (document, event, _) -> RefreshDataFrameViewOperation(view)
     gestures = GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), refresh;
                                              description = "Read the frame again", domain = "data frame")]
     tooltip = TooltipNote(; title = "Refresh", keys = find_bound_keys(DataFrameView, "Read the frame again"),

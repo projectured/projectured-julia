@@ -128,15 +128,15 @@ get_projection_gesture_bindings(::GitTextToText, iomap::SimpleIoMap) =
     _make_git_line_bindings(_find_pointed_line(iomap.input))
 
 function _read_git_line_gesture(iomap::SimpleIoMap, change::Intent)
-    text, gesture, claimed = iomap.input, change.gesture, change.operation
+    text, gesture, stage_answer = iomap.input, change.gesture, change.operation
     selection = get_selection(text)
-    claimed === nothing && gesture isa Union{CollectIntents, MouseDwell} &&
+    stage_answer === nothing && gesture isa Union{CollectIntents, MouseDwell} &&
         return fire_gesture_bindings(_make_git_line_bindings(_find_pointed_line(text)), text, gesture; selection)
-    (gesture isa MouseClick && claimed isa ReplaceSelectionOperation) || return nothing
-    offset = get_flat_caret(iomap.output, claimed.path)
+    (gesture isa MouseClick && stage_answer isa ReplaceSelectionOperation) || return nothing
+    offset = get_flat_caret(iomap.output, stage_answer.path)
     offset === nothing && return nothing
     line = _find_offset_line(getfield(text, :lines)[], offset)
-    fire_gesture_bindings(_make_git_line_bindings(line), text, gesture; selection, claimed)
+    fire_gesture_bindings(_make_git_line_bindings(line), text, gesture; selection, answer = stage_answer)
 end
 
 # The gestures of `line`, a `GitTextLine`, or `nothing`: Ctrl+click opens the file at
@@ -148,7 +148,7 @@ end
 function _make_git_line_bindings(line)
     place = line === nothing ? nothing : line.place
     has_place = (_, _) -> place !== nothing
-    open(where) = (_, _) -> place === nothing ? nothing :
+    open(where) = (_, _, _) -> place === nothing ? nothing :
         OpenPageOperation(GitFileRevision(place.repository, place.revision, place.path; line = place.number),
                           EmptyReference(), where)
     click(modifiers) = MouseClickPattern(:left; modifiers, guard = event -> event.count == 1)
@@ -156,9 +156,9 @@ function _make_git_line_bindings(line)
     new_tab = "Open the file at this line in a new tab"
     GestureBinding[
         GestureBinding(click([:ctrl]), open(:here); applicable = has_place, description = here, domain = "git",
-                       override = true, name = here),
+                       override = is_selection_change, name = here),
         GestureBinding(click([:ctrl, :shift]), open(:new_tab); applicable = has_place, description = new_tab,
-                       domain = "git", override = true, name = new_tab),
+                       domain = "git", override = is_selection_change, name = new_tab),
         make_tooltip_binding(_ -> _make_git_line_note(line); description = "Show the file that the line opens")]
 end
 

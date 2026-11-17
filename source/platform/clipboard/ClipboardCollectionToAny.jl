@@ -139,15 +139,15 @@ end
 function get_projection_gesture_bindings(p::ClipboardCollectionToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:asterisk; modifiers = [:ctrl]),
-                       (doc, event) -> ToggleClipboardCollectionOperation(p);
+                       (doc, event, _) -> ToggleClipboardCollectionOperation(p);
                        description = "Toggle collection", domain = "clipboard",
                        name = "Toggle collection"),
         GestureBinding(KeyDownPattern(:equals; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_collection_add(doc);
+                       (doc, event, _) -> _clipboard_collection_add(doc);
                        description = "Add to collection", domain = "clipboard",
                        name = "Add to collection"),
         GestureBinding(KeyDownPattern(:minus; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_collection_remove(doc);
+                       (doc, event, _) -> _clipboard_collection_remove(doc);
                        description = "Remove from collection", domain = "clipboard",
                        name = "Remove from collection"),
     ]

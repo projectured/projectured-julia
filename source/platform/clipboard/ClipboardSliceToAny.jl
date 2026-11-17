@@ -697,32 +697,32 @@ end
 function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:slash; modifiers = [:ctrl]),
-                       (doc, event) -> ToggleClipboardSliceOperation(p);
+                       (doc, event, _) -> ToggleClipboardSliceOperation(p);
                        description = "Toggle stored slice", domain = "clipboard",
                        name = "Toggle stored slice"),
         GestureBinding(KeyDownPattern(:c; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_copy(p, doc); description = "Copy",
+                       (doc, event, _) -> _clipboard_copy(p, doc); description = "Copy",
                        domain = "clipboard", name = "Copy"),
         GestureBinding(KeyDownPattern(:c; modifiers = [:ctrl, :shift]),
-                       (doc, event) -> CopyReferenceOperation(doc);
+                       (doc, event, _) -> CopyReferenceOperation(doc);
                        description = "Copy the reference of the selected object",
                        domain = "clipboard", name = "Copy reference"),
         GestureBinding(KeyDownPattern(:x; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_cut(p, iomap, doc, event); description = "Cut",
+                       (doc, event, _) -> _clipboard_cut(p, iomap, doc, event); description = "Cut",
                        domain = "clipboard", name = "Cut"),
         GestureBinding(KeyDownPattern(:n; modifiers = [:ctrl]),
-                       (doc, event) -> _clipboard_note(p, doc); description = "Note",
+                       (doc, event, _) -> _clipboard_note(p, doc); description = "Note",
                        domain = "clipboard", name = "Note"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :shift]),
-                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste_copy(p, doc));
+                       (doc, event, _) -> _read_paste(p, iomap, _clipboard_paste_copy(p, doc));
                        description = "Paste copy", domain = "clipboard",
                        name = "Paste copy"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl]),
-                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste(p, doc));
+                       (doc, event, _) -> _read_paste(p, iomap, _clipboard_paste(p, doc));
                        description = "Paste",
                        domain = "clipboard", name = "Paste"),
         GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :alt]),
-                       (doc, event) -> _read_paste(p, iomap, _clipboard_paste_same_view(p, doc));
+                       (doc, event, _) -> _read_paste(p, iomap, _clipboard_paste_same_view(p, doc));
                        description = "Paste the same view at a second place",
                        domain = "clipboard", name = "Paste the same view"),
     ]

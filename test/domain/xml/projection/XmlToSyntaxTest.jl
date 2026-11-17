@@ -85,6 +85,15 @@ end
     @test e.children[1] isa XmlElement
 end
 
+@testset "of two nested elements, `<` on the inner one gives it the new element" begin
+    b = XmlElement("b", XmlDocument[XmlText("x")])
+    a = XmlElement("a", XmlDocument[b])
+    op = read_key(a, @reference(a, children[1]), KeyPress('<'; time = 0.0))
+    evaluate_operation(_XmlReaderEditor(a, nothing), op)
+    @test length(a.children) == 1
+    @test length(b.children) == 2 && b.children[2] isa XmlElement
+end
+
 @testset "element insert appends a child element and selects its tag" begin
     e = XmlElement("a", XmlDocument[XmlText("hi")])
     op = read_key(e, whole, KeyPress('<'; time = 0.0))
@@ -179,6 +188,15 @@ end
     e = XmlElement("div", XmlDocument[XmlText("hi")])
     @test read_key(e, EmptyReference(), KeyPress('<'; time = 0.0)) isa CompoundOperation
     @test read_key(e, EmptyReference(), KeyPress('"'; time = 0.0)) isa CompoundOperation
+end
+
+@testset "`<` in the tag name of an inner element gives the inner one the new child" begin
+    b = XmlElement("b", XmlDocument[XmlText("x")])
+    a = XmlElement("a", XmlDocument[b])
+    op = read_key(a, @reference(a, children[1].tag{1}), KeyPress('<'; time = 0.0))
+    evaluate_operation(_XmlReaderEditor(a, nothing), op)
+    @test length(a.children) == 1
+    @test length(b.children) == 2 && b.children[2] isa XmlElement
 end
 
 # An attribute name can not hold `=`, so in the name the key moves the caret to the

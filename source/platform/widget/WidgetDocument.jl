@@ -1246,7 +1246,7 @@ function make_column_chooser_widget(; columns, is_shown, choose, theme = nothing
     # `choose`, through the gestures of the box. The whole strip is rebuilt when
     # the answer changes, which is what makes a tick follow a press.
     function make_box(name, label)
-        ask = (document, event) -> InvokeActionOperation(Action(label;
+        ask = (document, event, _) -> InvokeActionOperation(Action(label;
             callback = () -> (choose(name, !is_shown(name)); nothing)))
         bind(pattern) = GestureBinding(pattern, ask; description = "Show or hide the column",
                                        domain = "widget")

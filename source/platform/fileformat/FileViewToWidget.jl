@@ -93,7 +93,7 @@ _make_file_reading_row(view::FileView) =
 function _make_file_band_row(p::FileViewToWidget, band::FileBand)
     sentence = WidgetLabel(band.message; style = WidgetStyle(; label_text_color = p.text))
     buttons = Any[WidgetButton(label; gestures = GestureBinding[
-                      GestureBinding(MouseClickPattern(:left), (button, gesture) -> operation;
+                      GestureBinding(MouseClickPattern(:left), (button, gesture, _) -> operation;
                                      description = label, domain = "file")])
                   for (label, operation) in band.choices]
     row = HorizontalLayout(Any[sentence, buttons...]; gap = p.button_gap, vertical_align = :center)

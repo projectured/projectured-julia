@@ -111,7 +111,8 @@ end
     KeyPress('a')                  => "any tag"       => MarkOperation(:any)
 end
 
-# A plain rule and a rule that claims its key from the output layers.
+# A plain rule, an unconditional rule, a rule whose condition reads the answer of
+# the child, and a rule that builds its operation from that answer.
 @document struct ClaimProbe
     value::Int = 0
 end
@@ -119,6 +120,9 @@ end
 @gestures ClaimProbe begin
     KeyPress('<')                  => "plain"         => MarkOperation(:plain)
     override(KeyPress('>'))        => "claims"        => MarkOperation(:claims)
+    override(KeyPress('='), answer.tag === :text) => "takes text" => MarkOperation(:took)
+    override(KeyPress('!'))        => "reads answer"  =>
+        MarkOperation(answer === nothing ? :alone : Symbol("after_", answer.tag))
 end
 
 # Two rules of one key: the first makes no operation while `value` is 0.
@@ -151,7 +155,7 @@ GestureBindingModule.get_instance_gesture_bindings(target::GestureTargetProbe) =
 
 # One rule of `key` that makes `MarkOperation(tag)`, and stands where a selection is.
 make_probe_binding(key, tag) =
-    GestureBinding(KeyPressPattern(key), (doc, event) -> MarkOperation(tag);
+    GestureBinding(KeyPressPattern(key), (doc, event, _) -> MarkOperation(tag);
                    applicable = (doc, sel) -> sel !== nothing,
                    description = string(tag), domain = "probe")
 
@@ -397,16 +401,29 @@ function test_gesture_binding()
         @test read_gesture(other, KeyPress('t'; time = 0.0)) === nothing
     end
 
-    @testset "a claimed event fires only a rule that overrides" begin
+    @testset "with an answer of the child, only a rule whose condition holds fires" begin
         probe = ClaimProbe()
         claim = MarkOperation(:output)
-        @test [b.override for b in get_document_gesture_bindings_own(ClaimProbe)] ==
-              [false, true]
+        text = MarkOperation(:text)
+        @test [b.override(claim) for b in get_document_gesture_bindings_own(ClaimProbe)] ==
+              [false, true, false, true]
+        @test [b.override(text) for b in get_document_gesture_bindings_own(ClaimProbe)] ==
+              [false, true, true, true]
+        # A plain rule answers only with no answer.
         @test read_gesture(probe, KeyPress('<'; time = 0.0)) == MarkOperation(:plain)
-        @test read_gesture(probe, KeyPress('<'; time = 0.0); claimed = claim) === nothing
-        @test read_gesture(probe, KeyPress('>'; time = 0.0); claimed = claim) ==
+        @test read_gesture(probe, KeyPress('<'; time = 0.0); answer = claim) === nothing
+        # An unconditional rule answers with any answer, and with none.
+        @test read_gesture(probe, KeyPress('>'; time = 0.0); answer = claim) ==
               MarkOperation(:claims)
         @test read_gesture(probe, KeyPress('>'; time = 0.0)) == MarkOperation(:claims)
+        # A conditional rule answers with no answer, and with an answer that its
+        # condition holds for.
+        @test read_gesture(probe, KeyPress('='; time = 0.0)) == MarkOperation(:took)
+        @test read_gesture(probe, KeyPress('='; time = 0.0); answer = text) == MarkOperation(:took)
+        @test read_gesture(probe, KeyPress('='; time = 0.0); answer = claim) === nothing
+        # The operation of a rule reads the answer.
+        @test read_gesture(probe, KeyPress('!'; time = 0.0)) == MarkOperation(:alone)
+        @test read_gesture(probe, KeyPress('!'; time = 0.0); answer = text) == MarkOperation(:after_text)
     end
 
     @testset "a rule that makes no operation lets a later rule fire" begin

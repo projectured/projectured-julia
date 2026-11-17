@@ -973,7 +973,7 @@ function test_explorer()
         # "New section" adds a section at the end of a selected section.
         run_gesture_command = binding -> binding.description == "New section"
         binding = only(filter(run_gesture_command, collect_document_gesture_bindings(Explorer)))
-        evaluate_operation(editor, binding.operation(explorer, nothing))
+        evaluate_operation(editor, binding.operation(explorer, nothing, nothing))
         @test content.entries[2] isa ExplorerSection && content.entries[2].title == "New section"
     end
 
@@ -1005,9 +1005,9 @@ function test_explorer()
         binding = only(filter(binding -> binding.description == "Add the tab to the explorer",
                               collect_document_gesture_bindings(PaneTree)))
         # With no focused tab the command adds nothing; a press in the tab focuses it.
-        @test binding.operation(tree, nothing) === nothing
+        @test binding.operation(tree, nothing, nothing) === nothing
         _nav_press!(editor, backend, _explorer_click(backend, "start"))
-        evaluate_operation(editor, binding.operation(tree, nothing))
+        evaluate_operation(editor, binding.operation(tree, nothing, nothing))
         @test last(get_session_explorer_content(; editor).entries) === document
     end
 

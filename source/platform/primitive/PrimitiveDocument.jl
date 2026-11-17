@@ -155,6 +155,25 @@ struct ReplaceStringRangeOperation <: ReplaceRangeOperation
     replacement::String
 end
 
+"""
+    is_text_edit(operation) -> Bool
+
+Whether `operation` edits the characters of a text: it is a range edit
+([`ReplaceRangeOperation`](@ref) or [`ReplaceNumberRangeOperation`](@ref)), wraps
+one, or holds one among the members of a `CompoundOperation`. A text stage answers a
+typed key with such an edit, so a rule that takes a key back from the text has this
+as the condition on the answer of its child, as `<` in the name of an XML element:
+
+    override(KeyPress('<'), is_text_edit(answer)) => "Insert an element" => ...
+
+The answer of an inner element that already took the key is no text edit, so the
+outer element keeps it.
+"""
+is_text_edit(operation) = false
+is_text_edit(::Union{ReplaceRangeOperation, ReplaceNumberRangeOperation}) = true
+is_text_edit(operation::WrappingOperation) = is_text_edit(get_wrapped_operation(operation))
+is_text_edit(operation::CompoundOperation) = any(is_text_edit, operation.operations)
+
 # ── Operation evaluation ──────────────────────────────────────────────────────
 
 # Split `op.reference` into (target_path, field_name, range_step). The

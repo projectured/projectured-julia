@@ -725,7 +725,7 @@ end
 
 _insert_gesture_binding(::Type{I}, tag::String) where {I} =
     GestureBinding(KeyDownPattern(:insert),
-                   (doc, event) -> insert_document_operation(I);
+                   (doc, event, _) -> insert_document_operation(I);
                    description = "Insert a new " * (isempty(tag) ? "" : tag * " ") * "document",
                    domain = isempty(tag) ? "document" : tag)
 

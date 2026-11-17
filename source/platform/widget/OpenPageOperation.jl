@@ -63,7 +63,7 @@ end
 # click and Return here, and Ctrl and a click and a middle click in a new tab.
 # `open(part, place)` makes the open of the part that answers the gesture.
 function _make_open_page_bindings(open; domain::AbstractString)
-    at(place) = (part, _) -> open(part, place)
+    at(place) = (part, _, _) -> open(part, place)
     GestureBinding[GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), at(:here);
                                   description = "Open as a page", domain),
                    GestureBinding(MouseClickPattern(:left; modifiers = [:ctrl]), at(:new_tab);

@@ -306,25 +306,25 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
     GestureBinding[
         GestureBinding(KeyPressPattern('\n'),
-                       (doc, event) -> _insertion_commit(p, ins);
+                       (doc, event, _) -> _insertion_commit(p, ins);
                        description = "Commit insertion", domain = "insertion"),
         # Escape aborts to the domain's own placeholder (`get_nothing_document`, a
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
         GestureBinding(KeyDownPattern(:escape),
-                       (doc, event) -> _make_insertion_cancel_operation(p, ins);
+                       (doc, event, _) -> _make_insertion_cancel_operation(p, ins);
                        description = "Cancel insertion", domain = "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
         # (keeps propagating) when there is nothing to extend.
         GestureBinding(KeyPressPattern('\t'),
-                       (doc, event) -> _insertion_tab(p, ins);
+                       (doc, event, _) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
         # Insert widens the insertion of a domain to the insertion of every domain, with
         # the same text, where the place admits a `DocumentInsertion` as it is: a
         # person can then type a document of any domain there.
         GestureBinding(KeyDownPattern(:insert),
-                       (doc, event) -> _make_insertion_widen_operation(ins);
+                       (doc, event, _) -> _make_insertion_widen_operation(ins);
                        applicable = (doc, selection) -> _is_insertion_widenable(p, ins),
                        description = "Widen the insertion to every domain", domain = "insertion"),
     ]

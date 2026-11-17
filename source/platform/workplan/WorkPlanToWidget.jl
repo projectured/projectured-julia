@@ -69,7 +69,7 @@ function _make_file_link(uri::AbstractString)
     path = startswith(uri, "file://") ? uri[(length("file://") + 1):end] : String(uri)
     WidgetButton(path; tooltip = "Open the file.",
                  gestures = GestureBinding[
-                     GestureBinding(MouseClickPattern(:left), (_, _) -> OpenFileOperation(path);
+                     GestureBinding(MouseClickPattern(:left), (_, _, _) -> OpenFileOperation(path);
                                     description = "Open the file", domain = "workplan")])
 end
 

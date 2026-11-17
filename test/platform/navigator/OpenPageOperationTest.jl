@@ -10,7 +10,7 @@ function _nav_make_linked_page(shelf)
     page = Ref{Any}(nothing)
     path = Reference(FieldReferenceStep("children"), ElementReferenceStep(2),
                      FieldReferenceStep("books"), ElementReferenceStep(2))
-    open(place) = (_, _) -> OpenPageOperation(page[], path, place)
+    open(place) = (_, _, _) -> OpenPageOperation(page[], path, place)
     link = WidgetButton("Open B"; gestures = GestureBinding[
         GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), open(:here);
                        description = "Open", domain = "test"),

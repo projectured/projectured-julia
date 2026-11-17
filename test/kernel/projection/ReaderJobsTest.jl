@@ -4,7 +4,9 @@
 # to the one of the two that reads it, and a 3-argument reader of a projection
 # answers before them. A container passes a change to the child that it chose
 # with `read_child_intent`: the answer comes back rerooted with its labels, and the
-# rules further out answer by the order of an override.
+# rules of each level out read it by the rule of a level: with no answer the first
+# rule that matches answers, and with an answer a rule replaces it only when its
+# `override` condition holds for it.
 
 using Test
 using ProjecturedKernel.ProjectionModule
@@ -24,6 +26,13 @@ struct JobProbeOperation <: Operation
     name::String
 end
 OperationModule.is_self_contained_operation(::JobProbeOperation) = true
+
+# A text edit, as a text stage answers a typed key with one.
+struct JobProbeText <: Operation
+    text::String
+end
+OperationModule.is_self_contained_operation(::JobProbeText) = true
+_job_is_text(answer) = answer isa JobProbeText
 
 # A layer that collects: the names of the levels that answered, the deepest first.
 struct JobProbeLayers <: Operation
@@ -49,26 +58,47 @@ end
 _job_left() = MouseClick(:left, 1, 2; time = 0.0)
 _job_right() = MouseClick(:right, 1, 2, 1, ModifierKeys(); time = 0.0)
 _job_dwell() = MouseDwell(1, 2; time = 0.0)
-_job_select(name) = (document, gesture) -> ReplaceSelectionOperation(EmptyReference())
+_job_select(name) = (document, gesture, _) -> ReplaceSelectionOperation(EmptyReference())
+
+# The rule that the middle document and the box share, as two nested elements of
+# XML share theirs: `<` takes the key back from a text edit only, so the answer of
+# an inner part that took it stays.
+_job_nest_rule() =
+    GestureBinding(KeyPressPattern('<'), (document, gesture, _) -> JobProbeOperation("insert in " * _job_level(document));
+                   description = "Insert a part", domain = "test", override = _job_is_text)
+_job_level(::Any) = "?"
 
 # The middle document answers a right click and adds a layer to a dwell; the box
 # answers a right click, adds a layer to a dwell, and has an override for a left
-# click; the tabled document answers a dwell.
+# click; the tabled document answers a dwell. Both the middle document and the box
+# have the shared rule of `<`; the middle document takes `>` back from a text edit,
+# and the box has a plain rule of `>` and a rule of `!` that builds its operation
+# from the answer.
 GestureBindingModule.get_document_gesture_bindings_own(::Type{JobProbeMid}) = GestureBinding[
     GestureBinding(MouseClickPattern(:right), _job_select("mid"); description = "Select the mid", domain = "test"),
-    GestureBinding(MouseDwellPattern(), (document, gesture) -> JobProbeLayers(["mid"]);
+    GestureBinding(MouseDwellPattern(), (document, gesture, _) -> JobProbeLayers(["mid"]);
                    description = "Show the layer of the mid", domain = "test"),
+    _job_nest_rule(),
+    GestureBinding(KeyPressPattern('>'), (document, gesture, _) -> JobProbeOperation("mid >");
+                   description = "Take > from the text", domain = "test", override = _job_is_text),
 ]
 GestureBindingModule.get_document_gesture_bindings_own(::Type{JobProbeBox}) = GestureBinding[
-    GestureBinding(MouseClickPattern(:right), (document, gesture) -> JobProbeOperation("box");
+    GestureBinding(MouseClickPattern(:right), (document, gesture, _) -> JobProbeOperation("box");
                    description = "Answer for the box", domain = "test"),
-    GestureBinding(MouseDwellPattern(), (document, gesture) -> JobProbeLayers(["box"]);
+    GestureBinding(MouseDwellPattern(), (document, gesture, _) -> JobProbeLayers(["box"]);
                    description = "Show the layer of the box", domain = "test"),
-    GestureBinding(MouseClickPattern(:left), (document, gesture) -> JobProbeOperation("box override");
-                   description = "Win over the click of a part", domain = "test", override = true),
+    GestureBinding(MouseClickPattern(:left), (document, gesture, _) -> JobProbeOperation("box override");
+                   description = "Win over the click of a part", domain = "test", override = Returns(true)),
+    _job_nest_rule(),
+    GestureBinding(KeyPressPattern('>'), (document, gesture, _) -> JobProbeOperation("box >");
+                   description = "A plain rule of >", domain = "test"),
+    GestureBinding(KeyPressPattern('!'), (document, gesture, answer) -> JobProbeOperation("box saw " * answer.text);
+                   description = "Build from the answer", domain = "test", override = _job_is_text),
 ]
+_job_level(::JobProbeMid) = "mid"
+_job_level(::JobProbeBox) = "box"
 GestureBindingModule.get_document_gesture_bindings_own(::Type{JobProbeTabled}) = GestureBinding[
-    GestureBinding(MouseDwellPattern(), (document, gesture) -> JobProbeOperation("document table");
+    GestureBinding(MouseDwellPattern(), (document, gesture, _) -> JobProbeOperation("document table");
                    description = "Answer from the document", domain = "test"),
 ]
 
@@ -82,9 +112,15 @@ ProjectionModule.print_document(p::JobProbeMapProjection, recursion, input, ctx)
 ProjectionModule.map_operation_backward(::JobProbeMapProjection, iomap, operation::JobProbeOperation) =
     JobProbeOperation("mapped " * operation.name)
 
+# A leaf that answers each typed key with a text edit, as a text stage does.
+struct JobProbeTextProjection <: Projection end
+ProjectionModule.print_document(p::JobProbeTextProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
+GestureBindingModule.read_gesture(::JobProbeTextProjection, iomap, key::KeyPress; answer = nothing) =
+    JobProbeText(string(key.char))
+
 struct JobProbeClickProjection <: Projection end
 ProjectionModule.print_document(p::JobProbeClickProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
-GestureBindingModule.read_gesture(::JobProbeClickProjection, iomap, click::MouseClick; claimed = nothing) =
+GestureBindingModule.read_gesture(::JobProbeClickProjection, iomap, click::MouseClick; answer = nothing) =
     JobProbeOperation("click")
 
 # A leaf with an older reader for one kind of operation, and a new method for it.
@@ -99,9 +135,9 @@ ProjectionModule.map_operation_backward(::JobProbeOldProjection, iomap, operatio
 struct JobProbeTableProjection <: Projection end
 ProjectionModule.print_document(p::JobProbeTableProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
 ProjectionModule.get_projection_gesture_bindings(::JobProbeTableProjection, iomap) = GestureBinding[
-    GestureBinding(MouseClickPattern(:right), (document, gesture) -> JobProbeOperation("projection table");
+    GestureBinding(MouseClickPattern(:right), (document, gesture, _) -> JobProbeOperation("projection table");
                    description = "Answer from the projection", domain = "test"),
-    GestureBinding(MouseDwellPattern(), (document, gesture) -> JobProbeOperation("projection dwell");
+    GestureBinding(MouseDwellPattern(), (document, gesture, _) -> JobProbeOperation("projection dwell");
                    description = "Dwell from the projection", domain = "test"),
 ]
 
@@ -126,7 +162,7 @@ function ProjectionModule.print_document(p::JobProbeWrapProjection, recursion, i
     ContentIoMap(p, input, get_iomap_output(inner), inner)
 end
 ProjectionModule.get_projection_gesture_bindings(::JobProbeWrapProjection, iomap) = GestureBinding[
-    GestureBinding(MouseDwellPattern(), (document, gesture) -> JobProbeOperation("wrapper");
+    GestureBinding(MouseDwellPattern(), (document, gesture, _) -> JobProbeOperation("wrapper");
                    description = "Dwell from the wrapper", domain = "test"),
 ]
 ProjectionModule.read_intent(p::JobProbeWrapProjection, recursion, change::Intent, iomap::ContentIoMap) =
@@ -139,6 +175,7 @@ _job_read(iomap, gesture; description = "", route = nothing) =
     read_intent(get_iomap_projection(iomap), get_iomap_projection(iomap),
                 Intent(gesture, nothing, description, "", route), iomap)
 _job_names(collection) = [intent.description for intent in collection.intents]
+_job_key(char) = KeyPress(char; time = 0.0)
 
 function test_reader_jobs()
 @testset "the two jobs of a stage and the passing to a child" begin
@@ -177,7 +214,7 @@ function test_reader_jobs()
         rows = _job_names(read_gesture(p, iomap, CollectIntents()))
         @test rows == ["Answer from the projection", "Dwell from the projection", "Answer from the document"]
         # A claim lets only an override answer, and these tables have none.
-        @test read_gesture(p, iomap, _job_right(); claimed = JobProbeOperation("claimed")) === nothing
+        @test read_gesture(p, iomap, _job_right(); answer = JobProbeOperation("claimed")) === nothing
     end
 
     @testset "a container passes a change to the child it chose and reroots the answer" begin
@@ -210,8 +247,42 @@ function test_reader_jobs()
     @testset "a collection holds the rows of the child and of each level out" begin
         iomap = _job_box_iomap(JobProbeLeafProjection())
         rows = _job_names(_job_read(iomap, CollectIntents()).operation)
-        @test rows == ["Select the mid", "Show the layer of the mid",
-                       "Answer for the box", "Show the layer of the box", "Win over the click of a part"]
+        @test rows == ["Select the mid", "Show the layer of the mid", "Insert a part", "Take > from the text",
+                       "Answer for the box", "Show the layer of the box", "Win over the click of a part",
+                       "Insert a part", "A plain rule of >", "Build from the answer"]
+    end
+
+    @testset "the rule of a level" begin
+        # The child answers each key with a text edit; the middle document and the
+        # box read the answer, the deepest first.
+        iomap = _job_box_iomap(JobProbeTextProjection())
+        @testset "a plain rule further out never replaces an answer" begin
+            @test _job_read(iomap, _job_key('q')).operation == JobProbeText("q")
+        end
+        @testset "a rule whose condition holds replaces the answer" begin
+            @test _job_read(iomap, _job_key('>')).operation == JobProbeOperation("mid >")
+        end
+        @testset "a plain rule further out keeps the answer of an override nearer" begin
+            # The box has a plain rule of `>`, and the middle document took the key.
+            @test _job_read(iomap, _job_key('>')).operation != JobProbeOperation("box >")
+        end
+        @testset "of two parts with the same rule, the inner one keeps the key" begin
+            # The middle document takes `<` back from the text; its answer is no text
+            # edit, so the condition of the same rule of the box fails.
+            @test _job_read(iomap, _job_key('<')).operation == JobProbeOperation("insert in mid")
+        end
+        @testset "with no answer, the nearest rule that matches answers" begin
+            quiet = _job_box_iomap(JobProbeLeafProjection())
+            @test _job_read(quiet, _job_key('<')).operation == JobProbeOperation("insert in mid")
+            @test _job_read(quiet, _job_key('>')).operation == JobProbeOperation("mid >")
+        end
+        @testset "a rule can build its operation from the answer" begin
+            @test _job_read(iomap, _job_key('!')).operation == JobProbeOperation("box saw !")
+        end
+        @testset "an unconditional rule replaces any answer" begin
+            click = _job_box_iomap(JobProbeClickProjection())
+            @test _job_read(click, _job_left()).operation == JobProbeOperation("box override")
+        end
     end
 
     @testset "a change with a route reaches the child only on its way" begin

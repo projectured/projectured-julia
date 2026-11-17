@@ -92,8 +92,8 @@ falls through instead of being swallowed.
 """
 function get_projection_gesture_bindings(p::UndoBufferToAnyProjection, iomap)
     buffer = iomap.input
-    undo = (document, event) -> length(buffer.undo_entries) == 0 ? nothing : UndoOperation(buffer)
-    redo = (document, event) -> length(buffer.redo_entries) == 0 ? nothing : RedoOperation(buffer)
+    undo = (document, event, _) -> length(buffer.undo_entries) == 0 ? nothing : UndoOperation(buffer)
+    redo = (document, event, _) -> length(buffer.redo_entries) == 0 ? nothing : RedoOperation(buffer)
     GestureBinding[
         GestureBinding(KeyDownPattern(:z; modifiers = [:ctrl]), undo;
                        description = "Undo the last change", domain = "undo", name = "Undo"),

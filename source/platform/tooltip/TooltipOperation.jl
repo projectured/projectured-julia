@@ -71,6 +71,6 @@ has something to say, so a listing greys it elsewhere.
 """
 make_tooltip_binding(compute::Function; description::AbstractString = "Show the tooltip") =
     GestureBinding(MouseDwellPattern(),
-                   (document, gesture) -> make_tooltip_operation(document, compute(document), gesture);
+                   (document, gesture, _) -> make_tooltip_operation(document, compute(document), gesture);
                    applicable = (document, selection) -> compute(document) !== nothing,
                    description = description, domain = "tooltip", name = String(description))

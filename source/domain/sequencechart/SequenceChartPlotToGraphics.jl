@@ -1768,7 +1768,7 @@ function make_sequence_chart_buttons(plot::SequenceChartPlot)
     function button(label, icon, key, action)
         item = WidgetToolbarItem(label; icon, focusable = false, tooltip = "$label ($key)",
             gestures = GestureBinding[GestureBinding(MouseClickPattern(:left),
-                                                     (_, _) -> _compute_window_operation(action, plot);
+                                                     (_, _, _) -> _compute_window_operation(action, plot);
                                                      description = label, domain = "sequence chart")])
         set_cell_computation!(getfield(item, :enabled), () -> _compute_window_operation(action, plot) !== nothing)
         item

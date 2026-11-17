@@ -118,17 +118,19 @@ Reading is **last to first**, the mirror of printing. A step that produces no
 operation passes the raw gesture on to the step before it, so the input-domain
 stage — the last one visited, the one that owns the meaning of an edit — gets its
 say on any key the output layers decline (a `,` on a delimiter where the text edit
-would die becomes a JSON sibling insert). A step *also* sees the gesture when an
-operation has already been produced, so it can supersede a claimed key rather than
-translate it: that is the `override` flag on a `GestureBinding`, not a privilege
-the chain hands out. A structural gesture therefore never has to reconstruct what
-the output layers would have done in order to decline — if they did anything, they
+would die becomes a JSON sibling insert). This is the rule of a level for a chain:
+the step nearer the output is the child, which answers first, and an earlier step
+gets the gesture together with that answer. So its rules read the answer, and a
+rule whose `override` condition holds for it replaces the answer instead of letting
+the step translate it (`GestureBinding`, `read_child_intent`): the chain hands out
+no privilege. A structural gesture therefore never has to reconstruct what the
+output layers would have done in order to decline — if they did anything, they
 already did it.
 
-**A claim that no step can carry is no claim.** When a step can not translate the
+**An answer that no step can carry is no answer.** When a step can not translate the
 operation a later step made of the gesture, nothing of that operation reaches the
-input, so the gesture is unclaimed again: that step and the ones before it read the
-raw gesture, as if no later step had answered. A text insert on a delimiter, or a
+input, so the gesture has no answer again: that step and the ones before it read
+the raw gesture, as if no later step had answered. A text insert on a delimiter, or a
 comma in a number, dies at the step that owns the delimiter or the number, and that
 step then answers the key with its own meaning.
 """

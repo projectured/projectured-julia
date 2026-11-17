@@ -48,8 +48,8 @@ function test_widget_column_header()
         # The click and the Shift+click of the glyph ask for the operation.
         click, shift = parts[1].gestures
         @test click.domain == "table" && shift.domain == "table"
-        @test click.operation(nothing, nothing) === false
-        @test shift.operation(nothing, nothing) === true
+        @test click.operation(nothing, nothing, nothing) === false
+        @test shift.operation(nothing, nothing, nothing) === true
         @test posted == [false, true]
     end
 

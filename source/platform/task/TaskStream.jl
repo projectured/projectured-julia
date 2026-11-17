@@ -155,7 +155,7 @@ end
 # readers carry it up as any answer.
 function _make_task_stream_bar(lines::TaskStreamLines)
     button(text, make; tooltip = nothing) = WidgetButton(text; tooltip, gestures = GestureBinding[
-        GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _) -> something(make(), DoNothingOperation());
+        GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]), (_, _, _) -> something(make(), DoNothingOperation());
                        description = text, domain = "stream")])
     matches = WidgetLabel(() -> _format_stream_matches(lines))
     WidgetCard(; title = "Find", collapsible = false,

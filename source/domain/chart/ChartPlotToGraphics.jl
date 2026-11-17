@@ -2448,7 +2448,7 @@ so "Show all the data" is disabled while the chart shows all its data.
 function make_chart_buttons(plot::ChartPlot)
     function button(label, icon, key, action)
         item = WidgetToolbarItem(label; icon, focusable = false, tooltip = "$label ($key)",
-            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> action(plot);
+            gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _, _) -> action(plot);
                                                      description = label, domain = "chart")])
         set_cell_computation!(getfield(item, :enabled), () -> action(plot) !== nothing)
         item

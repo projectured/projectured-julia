@@ -78,7 +78,7 @@ _format_read_failure(failure) = first(split(sprint(showerror, failure), '\n'))
 # press with a count of two matches.
 _make_open_file_bindings(pathname, ::Nothing) = GestureBinding[]
 function _make_open_file_bindings(pathname, open_file)
-    make_operation = (node, event) -> open_file(pathname)
+    make_operation = (node, event, _) -> open_file(pathname)
     is_applicable = (node, selection) -> true
     GestureBinding[
         GestureBinding(KeyPressPattern('\n'), make_operation;

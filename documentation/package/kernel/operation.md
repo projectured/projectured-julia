@@ -278,11 +278,13 @@ further toward the document's own domain.
 Within a single structural projection, the reader recurses the same way the
 printer does: it **delegates a raw authoring gesture to the projection of the
 selected child** and **lifts** the child's operation back into its own domain by
-prepending the step that reaches the child (`reroot_operation`). It handles the
-gesture itself (via [`read_gesture`](projection-system.md#domain-owned-geometry-free-gesture-mapping-read_gesture))
-only when the child returns nothing for it. This is what makes `,`/`Tab` reach the *nearest
-enclosing* object/array rather than only the root. See
-[Recursive gesture reading](projection-system.md#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation).
+prepending the step that reaches the child (`reroot_operation`). Then its own rules
+(via [`read_gesture`](projection-system.md#domain-owned-geometry-free-gesture-mapping-read_gesture))
+read the answer of the child: with no answer, a rule that matches answers; with an
+answer, a rule replaces it only when its `override` condition holds for it. This is
+what makes `,`/`Tab` reach the *nearest enclosing* object/array rather than only the
+root. See
+[Recursive gesture reading](projection-system.md#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules).
 
 ## Adding a new operation
 

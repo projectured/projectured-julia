@@ -208,6 +208,20 @@ rewrap_operation(::ShowSelectionOperation, inner) = ShowSelectionOperation(inner
 evaluate_operation(editor, operation::ShowSelectionOperation) = evaluate_operation(editor, operation.operation)
 
 """
+    is_selection_change(operation) -> Bool
+
+Whether `operation` moves the selection: it is a `ReplaceSelectionOperation`, wraps
+one, or holds one among the members of a `CompoundOperation`. A text answers a
+click with such a move of its caret, so a rule that takes the click back from the
+text, as a link does, has this as the condition on the answer of its child: the
+`override` of its gesture binding.
+"""
+is_selection_change(operation) = false
+is_selection_change(::ReplaceSelectionOperation) = true
+is_selection_change(operation::WrappingOperation) = is_selection_change(get_wrapped_operation(operation))
+is_selection_change(operation::CompoundOperation) = any(is_selection_change, operation.operations)
+
+"""
     find_document_path(root, document) -> Reference or nothing
 
 The path from `root` to `document`, a document that `root` holds, found by

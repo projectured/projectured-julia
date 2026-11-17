@@ -331,43 +331,103 @@ so that fallback is a no-op and SDL behaviour is unchanged.
 > the generic bridge adapts to the 4-arg `Intent` interface. Reach for the 4-arg
 > `Intent` form when a reader must do more than return an operation.
 
-#### Recursive gesture reading: delegate to the selected child, lift the operation
+#### Recursive gesture reading: ask the child, lift its answer, apply the rules
 
-The "Recurse, then extend" and "act only when the child returns nothing" patterns
-above are not just options. Together they are the **default** a structural
-(container) projection's reader should follow for a raw authoring gesture:
+A gesture becomes an operation by one process, the same at each level: for a
+container and its child, for a stage and the stage nearer the screen, and for a
+document and the part inside it. The "Recurse, then extend" and "Probe a child to
+decide" patterns above are this process.
 
-> **A structural projection delegates a raw gesture to the projection of the
-> *selected child* element, and lifts the child's operation back into its own
-> domain. It handles the gesture itself only when the child returns nothing for
-> it. It may override, but in general it should not.**
+> **The rule of a level.** A level asks its child first. It lifts the answer of the
+> child into its own input. Then its rules read that answer:
+>
+> - When the child answered nothing, the first rule of the level that matches
+>   answers.
+> - When the child answered, a rule replaces the answer only when its `override`
+>   condition holds for the answer. A plain rule has no condition, so it never
+>   replaces an answer. An unconditional `override` always replaces it.
+>
+> A rule can build its operation from the answer, not only test its condition on it.
 
-This is the reader-side mirror of three things the printer side already does:
+The answer goes up level by level, innermost first, and the answer of the
+outermost level is the operation that the editor applies. No level decides for
+another, and no walk over the tree orders the rules: each level reads only its
+own rules and the one answer that comes up to it.
 
-- the **printer** is recursive — a `@projection_template`'s `collection`/`project`
-  delegate each child subtree to the child's projection and record the per-child
-  correspondence (`child_iomaps`);
-- the **operation reader** is recursive — `map_reference_backward` walks
-  `child_iomaps`, so an operation whose path points into a child is mapped through
-  the child projection (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses));
-- **container event routing already lifts** — `WidgetToGraphics` / `LayoutToGraphics`
-  route a mouse gesture to the hit child and lift the returned operation with
-  `reroot_operation` ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
+**The three moves of a level.**
 
-The template engine applies the rule **automatically**: the `TemplateIoMap` reader in
-[projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
-handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
-left unhandled — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
-by (1) finding the selected child from the node's `selection` and its
-`child_iomaps`, (2) delegating the gesture to that child's `read_intent`, and
-(3) **lifting** the child's operation with `reroot_operation`, prepending the
-input step that reaches the child (`entries[i].value`, `elements[i]`). Only when
-the focused child returns `nothing` does the node fall back to `read_gesture` on
-its own input document. So a node never needs to special-case nested editing. The
-recursion descends innermost-first and **bubbles**: the *nearest enclosing*
-structural node whose `read_gesture` produces an operation wins (e.g. `,` inserts
-a sibling into the nearest enclosing object/array, `Tab` steps key→value in the
-enclosing object), exactly where the cursor is.
+1. **Ask the child.** The container chooses the child: by the position of a
+   pointer gesture, along its selection for a key, or by the route of an operation
+   that a verb returns from one place. A stage of a chain asks the stage nearer the
+   screen, as the chain reads last to first. The child reads the gesture with its
+   own `read_intent`, so the child is again a level.
+2. **Lift the answer.** The answer of the child is in the input of the child.
+   `reroot_operation` puts the steps from the input of the level to the input of
+   the child before each path of the answer
+   ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)). The
+   description and the domain of the answer stay. A stage lifts an operation of its
+   output into its input with its reference maps (`map_reference_backward`).
+3. **Apply the rules of the level.** The rules are the gesture table of the
+   projection and the table of its input document (`read_gesture(projection,
+   iomap, gesture; answer)`), and the tables of the documents on the steps to the
+   child, the deepest first. Each reads the answer in its own frame.
+
+**Writing a rule.** In a `@gestures` table, a plain rule is `PATTERN => … => rhs`.
+`override(PATTERN) => …` is an unconditional rule, and `override(PATTERN,
+condition) => …` is a conditional one, where `condition` is an expression of
+`answer`. The `rhs` can read `answer` too: it is the answer of the child, or
+`nothing`.
+
+```julia
+@gestures XmlElement begin
+    # Take `<` back from the text that made it a character in a name. The answer of
+    # an inner element that already took the key is no text edit, so it stays.
+    override(KeyPress('<'), is_text_edit(answer)) => "Insert an element" => _xml_insert_element(doc)
+end
+```
+
+**How rules combine.** "Nearer" is the part nearer the gesture, or the stage
+nearer the screen; "further" is the part or the stage around it.
+
+| Nearer answer | Further rule | Result | Example |
+| --- | --- | --- | --- |
+| plain | plain | nearer | An undo buffer in an undo buffer, Ctrl+Z: the inner one undoes. |
+| none | plain | further | JSON, `,` on a delimiter: the text can not take it, so a sibling goes in. |
+| plain | `override` whose condition holds | further | XML, `<` in a tag name: a child element, not a character. A click on a link: the link opens, not a caret move. |
+| `override` | plain | nearer | A plain rule never replaces an answer. |
+| `override` | `override` whose condition fails | nearer | `<a><b>x</b></a>`, `b` selected, `<`: `b` gets the new element, because the answer of `b` is no text edit. |
+| any | unconditional `override` | further | The window, Ctrl+S: it saves, whatever part is selected. |
+| list | list | both | The gesture help lists the keys of the part and of each level around it. |
+| layer | layer | both, joined | A dwell: the tooltip shows the layer of the part and of each level around it. |
+
+The last two rows are the two answers that collect. A `CollectIntents` list holds
+the rows of the child and then of each level out. An answer for which
+`is_collecting_operation` holds, such as the layer of a dwell, lets each rule of the
+level answer too, and an answer of the same kind is joined
+(`join_collected_operations`).
+
+**An answer that no stage can carry is no answer.** When a stage can not lift the
+answer of the stage nearer the screen, nothing of it reaches the input, so that
+stage and the ones before it read the gesture as if no stage had answered. A text
+insert on a JSON delimiter dies at the stage that owns the delimiter, and that
+stage answers the key with its own meaning. So a structural rule needs no guard
+against firing in the middle of a text: a key that is text where it is typed
+always arrives with the answer of the text.
+
+**Where the process is written.** A container that chose its child calls
+[`read_child_intent`](../../../source/kernel/projection/ProjectionDefaults.jl): it
+asks the child, lifts the answer, and applies the rules of each level by this rule.
+`fire_gesture_bindings` decides for one table which rule answers with the answer of
+the child ([binding/GestureBinding.jl](../../../source/kernel/binding/GestureBinding.jl)).
+The template engine applies the process **automatically**: the `TemplateIoMap`
+reader in [projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
+gives a key to the child that the selection of the node is in and lets the rules
+of the node read the answer, so a node never needs to special-case nested editing.
+A key that a stage nearer the screen already answered goes up through the parts on
+its way in the same order, a key along the selection and a click along the path of
+the part that the click selected. So `,` inserts a sibling into the nearest
+enclosing object or array, and `Tab` steps from a key to its value in the
+enclosing object, exactly where the cursor is.
 
 Each level reads its **own** `iomap.input.selection`: `set_selection!` propagates
 the selection down the document tree, so every focused node already holds its own
@@ -548,7 +608,7 @@ input that is no view, the step prints the input with the content projection.
 **The reader.** A key goes down along the live caret, and the deepest view reads it
 first. `read_intent` of a `ViewingProjection` asks the key tables of the views on
 the live caret, from the deepest, with `read_gesture_outward`
-([the recursive reading](#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation)),
+([the recursive reading](#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules)),
 so the view of a JSON array inside the view of a Markdown document answers its keys
 there. A key table belongs to a view type, such as `@gestures JsonArrayView`. An
 edit that the table makes with the helpers of the content goes through the view

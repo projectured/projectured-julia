@@ -83,11 +83,11 @@ struct DefaultsStuckOperation <: Operation end
 struct DefaultsTableProjection <: Projection end
 ProjecturedKernel.ProjectionModule.get_projection_gesture_bindings(
         ::DefaultsTableProjection, iomap) = GestureBinding[
-    GestureBinding(KeyDownPattern(:x), (document, event) -> nothing;
+    GestureBinding(KeyDownPattern(:x), (document, event, _) -> nothing;
                    description = "Make nothing", domain = "Probe"),
-    GestureBinding(KeyDownPattern(:x), (document, event) -> ToggleCollapseOperation();
+    GestureBinding(KeyDownPattern(:x), (document, event, _) -> ToggleCollapseOperation();
                    description = "Flip", domain = "Probe"),
-    GestureBinding(KeyDownPattern(:x), (document, event) -> DoNothingOperation();
+    GestureBinding(KeyDownPattern(:x), (document, event, _) -> DoNothingOperation();
                    description = "Stop", domain = "Probe")]
 
 _make_defaults_key(key) = KeyDown(key, ModifierKeys(); time = 0.0)

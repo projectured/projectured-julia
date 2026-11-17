@@ -1542,54 +1542,59 @@ function _read_template_key(p, recursion, change::Intent, iomap::TemplateIoMap)
 end
 
 # A key or a click that a stage nearer the output already turned into an operation,
-# `claimed`: the parts on the way of the gesture read it with their `override` rules
-# only (`read_gesture` with `claimed`), innermost first, and an answer wins over the
-# claimed operation. A key goes along the selection, a click along the path of the
-# part that the click selected. The walk reads the tables of the parts, not their
-# readers: the claimed operation is in the vocabulary of the stage nearer the output,
-# so a child that translated it would map a reference that it does not own.
-function _read_template_override(p, iomap::TemplateIoMap, gesture, claimed)
-    gesture isa MouseClick && return _read_override_click(p, iomap, gesture, claimed)
+# `stage_answer`: it goes up through the parts on its way by the rule of a level,
+# innermost first. Each part asks the part inside it first, and then its rules read
+# the answer that came up so far, the answer of the stage when no part replaced it,
+# and replace it only when their `override` condition holds for it. A key goes
+# along the selection, a click along the path of the part that the click selected.
+# The walk reads the tables of the parts, not their readers: the answer of the stage
+# is in the vocabulary of the stage nearer the output, so a child that translated it
+# would map a reference that it does not own. The answer is the operation that a
+# rule made, or `nothing` when no rule replaced the answer of the stage.
+function _read_template_override(p, iomap::TemplateIoMap, gesture, stage_answer)
+    gesture isa MouseClick && return _read_override_click(p, iomap, gesture, stage_answer)
     gesture isa Union{KeyPress, KeyDown} || return nothing
-    _read_override_gesture(iomap, gesture, claimed)
+    _read_override_gesture(iomap, gesture, stage_answer)
 end
 
 # A click that a stage nearer the output already answered, as a text view answers
 # each click with a caret. It goes to the parts on the path of the part that the
-# click selected, innermost first, as a claimed key goes along the selection: the
-# answer of a stage is not applied yet, so the path is the one of the claimed
-# selection, mapped into this node's input. Each part answers with the bindings of
-# its projection, then with its document's table, so a view can give a click a
-# meaning of its own. Only `override` bindings fire.
-function _read_override_click(p, iomap::TemplateIoMap, evt, claimed)
-    selected = _find_claimed_selection(claimed)
+# click selected, innermost first, as a key goes along the selection: the answer of
+# a stage is not applied yet, so the path is the one of the selection that the
+# answer makes, mapped into this node's input. Each part answers with the bindings
+# of its projection, then with its document's table, so a view can give a click a
+# meaning of its own.
+function _read_override_click(p, iomap::TemplateIoMap, evt, stage_answer)
+    selected = _find_answer_selection(stage_answer)
     selected === nothing && return nothing
     path = map_reference_backward(p, iomap, selected)
     path isa Reference || return nothing
-    return _read_override_click_along(iomap, evt, claimed, path)
+    return _read_override_click_along(iomap, evt, stage_answer, path)
 end
 
-function _read_override_click_along(iomap::TemplateIoMap, evt, claimed, path)
+function _read_override_click_along(iomap::TemplateIoMap, evt, stage_answer, path)
     input = iomap.input
     input isa Document || return nothing
+    replaced = nothing
     fc = _focused_child(iomap.wiring, iomap, path)
     if fc !== nothing
         child, steps = fc
         below = _get_path_below_steps(path, steps)
         if below !== nothing
             content = get_content_iomap(child)
-            child_op = content isa TemplateIoMap ?
-                       _read_override_click_along(content, evt, claimed, below) :
-                       _read_part_override_click(content, evt, claimed, below)
-            child_op === nothing || return reroot_operation(child_op, steps)
+            inner = content isa TemplateIoMap ?
+                    _read_override_click_along(content, evt, stage_answer, below) :
+                    _read_part_override_click(content, evt, stage_answer, below)
+            replaced = reroot_operation(inner, steps)
         end
     end
-    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
+    _read_own_override(iomap, evt, stage_answer, replaced)
 end
 
 # A part that no template prints: the child whose input the path reaches first,
 # as a route reaches a child (`read_routed_child`), then the part itself.
-function _read_part_override_click(iomap, evt, claimed, path)
+function _read_part_override_click(iomap, evt, stage_answer, path)
+    replaced = nothing
     children = get_child_iomaps(iomap)
     node, rest, taken = get_iomap_input(iomap), path, ReferenceStep[]
     while children !== nothing && rest isa ConcreteReference
@@ -1604,26 +1609,36 @@ function _read_part_override_click(iomap, evt, claimed, path)
         index = findfirst(child -> get_iomap_input(child) === node, children)
         index === nothing && continue
         content = get_content_iomap(children[index])
-        child_op = content isa TemplateIoMap ?
-                   _read_override_click_along(content, evt, claimed, rest) :
-                   _read_part_override_click(content, evt, claimed, rest)
-        child_op === nothing || return reroot_operation(child_op, Tuple(taken))
+        inner = content isa TemplateIoMap ?
+                _read_override_click_along(content, evt, stage_answer, rest) :
+                _read_part_override_click(content, evt, stage_answer, rest)
+        replaced = reroot_operation(inner, Tuple(taken))
         break
     end
-    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
+    _read_own_override(iomap, evt, stage_answer, replaced)
 end
 
-# The path of the selection that a claimed answer makes, or `nothing`.
-_find_claimed_selection(operation::ReplaceSelectionOperation) = operation.path
-_find_claimed_selection(operation::WrappingOperation) = _find_claimed_selection(get_wrapped_operation(operation))
-function _find_claimed_selection(operation::CompoundOperation)
+# The rules of one part on the way of an answer of a stage: they read the answer
+# that the parts inside replaced it with, or the answer of the stage itself, and a
+# rule whose `override` condition holds for it replaces it. The answer is the
+# operation of a rule, of this part or of a part inside, or `nothing`.
+function _read_own_override(iomap, evt, stage_answer, replaced)
+    answer = replaced === nothing ? stage_answer : replaced
+    own = read_gesture(get_iomap_projection(iomap), iomap, evt; answer)
+    own === nothing ? replaced : own
+end
+
+# The path of the selection that an answer makes, or `nothing`.
+_find_answer_selection(operation::ReplaceSelectionOperation) = operation.path
+_find_answer_selection(operation::WrappingOperation) = _find_answer_selection(get_wrapped_operation(operation))
+function _find_answer_selection(operation::CompoundOperation)
     for member in operation.operations
-        found = _find_claimed_selection(member)
+        found = _find_answer_selection(member)
         found === nothing || return found
     end
     nothing
 end
-_find_claimed_selection(::Any) = nothing
+_find_answer_selection(::Any) = nothing
 
 # The part of `path` below the steps that lead to a child, or `nothing` when
 # `path` does not go through them.
@@ -1635,20 +1650,20 @@ function _get_path_below_steps(path, steps)
     path
 end
 
-function _read_override_gesture(iomap::TemplateIoMap, evt, claimed)
+function _read_override_gesture(iomap::TemplateIoMap, evt, stage_answer)
     input = iomap.input
     input isa Document || return nothing
+    replaced = nothing
     sel = getfield(input, :selection)[]
     if sel !== nothing
         fc = _focused_child(iomap.wiring, iomap, sel)
         if fc !== nothing && get_content_iomap(fc[1]) isa TemplateIoMap
             child, steps = fc
-            child = get_content_iomap(child)
-            child_op = _read_override_gesture(child, evt, claimed)
-            child_op === nothing || return reroot_operation(child_op, steps)
+            replaced = reroot_operation(_read_override_gesture(get_content_iomap(child), evt, stage_answer),
+                                        steps)
         end
     end
-    return read_gesture(get_iomap_projection(iomap), iomap, evt; claimed)
+    _read_own_override(iomap, evt, stage_answer, replaced)
 end
 
 """
@@ -1656,9 +1671,10 @@ end
 
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection.
 A key or a click that a stage nearer the output already turned into an operation
-goes first to the `override` rules of the parts on its way: a key along the
-selection, a click along the path of the part that the click selected, innermost
-first; an answer wins over the claimed operation. Otherwise an operation maps back
+goes first up through the parts on its way, innermost first: a key along the
+selection, a click along the path of the part that the click selected. The rules of
+each part read the answer so far and replace it only when their `override`
+condition holds for it, and a replaced answer is the answer. Otherwise an operation maps back
 through the reader of the older form, a key goes to the focused child with
 `recursion` through [`read_child_intent`](@ref), so the rules of the node answer by
 the order of an override, and any other gesture is read by the node. The answer
@@ -1724,8 +1740,8 @@ macro projection_template(projname, intype, builder)
         end
 
         # Without this the projection falls to the generic bridge, which collapses the
-        # `Intent` to a single payload and so can only ever translate a claimed
-        # operation — the input domain never sees the key that caused it.
+        # `Intent` to a single payload and so can only ever translate the answer of
+        # a stage — the input domain never sees the key that caused it.
         function ProjectionModule.read_intent(p::$(esc(projname)), recursion,
                                               change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)

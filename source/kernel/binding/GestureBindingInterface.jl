@@ -5,13 +5,18 @@
 # are in `GestureBinding.jl`.
 
 """
-    read_gesture(document, gesture; claimed = nothing) -> Union{Operation, Nothing}
+    read_gesture(document, gesture; answer = nothing) -> Union{Operation, Nothing}
 
 Map a backend-agnostic input gesture to an `Operation` expressed against `document`
 itself (i.e. against `document`'s own reference vocabulary, reading only
 `document`'s structure and `document.selection`). Returns `nothing` when the document
 does not handle the gesture, so a caller can fall back to its own geometry-dependent
 handling or let the gesture propagate.
+
+`answer` is the answer of the child: the operation that a part or a stage nearer
+the gesture already made of it. With it, a rule answers only when its `override`
+condition holds for it, and its operation then replaces the answer
+([`fire_gesture_bindings`](@ref)).
 
 This is the projection-independent half of a domain's reader: any caller whose
 input (or output) is `document` can obtain navigation/editing operations without

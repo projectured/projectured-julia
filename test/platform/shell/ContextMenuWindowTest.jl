@@ -276,7 +276,7 @@ end
     @test evaluate_reference(editor.document, place) === wrap
     binding = only(filter(binding -> binding.domain == "context menu",
                           collect_document_gesture_bindings(WidgetContextMenu)))
-    operation = read_rooted_operation(editor, place, binding.operation(wrap, nothing))
+    operation = read_rooted_operation(editor, place, binding.operation(wrap, nothing, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)
     window = only(_cm_menus(scene))

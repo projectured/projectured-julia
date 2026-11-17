@@ -137,7 +137,7 @@ function test_git_gestures()
                 # Markdown answers, which the navigator resolves.
                 link(target) = WidgetLabel(target; gestures = GestureBinding[
                     GestureBinding(MouseClickPattern(:left; modifiers = Symbol[]),
-                                   (_, _) -> OpenPageOperation(nothing, EmptyReference(), :here; target);
+                                   (_, _, _) -> OpenPageOperation(nothing, EmptyReference(), :here; target);
                                    description = "Follow the link", domain = "test")])
                 targets = ["git+file://$repository#v1", "git+file://$repository#v1:b.txt",
                            "git+file://$repository#no-such-revision"]

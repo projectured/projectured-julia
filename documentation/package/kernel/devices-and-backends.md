@@ -737,7 +737,7 @@ an `applicable(document, selection) -> Bool` precondition + a human
 fires the edit and can be listed to a user. [`@gestures`](../../../source/kernel/binding/Gestures.jl)
 emits the `get_document_gesture_bindings_own` method holding a type's own
 table; `collect_document_gesture_bindings` walks it plus every supertype's, and at each concrete level it asks the schema type of the document first, so a table on `File{JsonFileFormat}` applies to the files of that format only ([gesture.md](gesture.md#the-schema-type-in-the-walk)).
-`fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)` is
+`fire_gesture_bindings(bindings, target, event; selection, answer = nothing)` is
 the one firing loop — the first binding whose pattern matches, whose precondition holds, and
 whose operation returns non-`nothing`, wins — shared by
 `read_bound_gesture(target, event[, selection])` (the catch-all behind
@@ -746,6 +746,33 @@ gesture-binding reader, so *what fires* cannot drift from what a listing
 shows. `read_bound_gesture`'s optional third argument covers a target whose
 selection comes from elsewhere (e.g. a node addressed by path inside its
 enclosing document), so one entry point serves both.
+
+#### A rule and the answer of the child
+
+The reader of a level asks its child first and then fires its own table with the
+answer of the child as `answer`: the operation that a part or a stage nearer the
+gesture made of the event, or `nothing`. This is the rule of a level of the
+[projection system](projection-system.md#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules).
+For one table it means:
+
+- With no answer, every binding can fire.
+- With an answer, a binding fires only when its `override` condition holds for the
+  answer, and then its operation replaces the answer. The field `override` of a
+  `GestureBinding` is that condition, a function of the answer: `Returns(false)`,
+  the default, for a plain rule, which never replaces an answer; `Returns(true)` for
+  an unconditional rule; any other function for a conditional one.
+- The operation of a binding is `operation(document, gesture, answer)`, so a rule
+  can build its operation from the answer.
+
+In a `@gestures` table, `override(PATTERN)` writes an unconditional rule and
+`override(PATTERN, condition)` a conditional one; `condition` and the `rhs` of every
+rule can name `answer`, as they name `doc`:
+
+```julia
+@gestures XmlElement begin
+    override(KeyPress('<'), is_text_edit(answer)) => "Insert an element" => _xml_insert_element(doc)
+end
+```
 
 #### Asking what is available
 
@@ -788,15 +815,18 @@ of the table sees the absence of a gesture and has no second surface to learn.
 Three rules follow from the shape. A `nothing` rule must carry a description,
 because the description is the name and there is no pattern to derive one from. A
 `nothing` rule binds no pattern variable, so its body reads `doc` and `sel` only.
-`override(nothing)` is an error, because override claims a key and there is none.
+`override(nothing)` is an error, because override replaces the answer of a gesture
+and there is none.
 
 An `override` rule takes a click too, after a stage nearer the output answered it,
-as a text view answers each click with a caret. The template reads the claimed
+as a text view answers each click with a caret. The template reads the answered
 click along the path of the part that the click selected, mapped into its input,
 innermost first, also through a part that no template prints; each part answers
-with the bindings of its projection, then with its table. So a link in a text view
-binds `override(Ctrl+click)` in its table, and a view in which a plain click
-follows a link binds `override(click)` on the projection of the link.
+with the bindings of its projection, then with its table, and reads the answer
+that came up so far. So a link in a text view binds a Ctrl+click in its table with
+the condition `is_selection_change(answer)`, and a view in which a plain click
+follows a link binds the plain click with that condition on the projection of the
+link.
 
 `name` is filled in by `@gestures`, and only when the author wrote a description
 **and** the rule reads no event. A rule that binds a pattern variable — JSON's

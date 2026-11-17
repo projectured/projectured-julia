@@ -219,7 +219,7 @@ function _read_formula_edit_key(env::FormulaEnvironment, change::Intent)
     1 <= index <= length(env.formulas) || return nothing
     formula = env.formulas[index]
     formula.draft === nothing && return nothing
-    operation = read_gesture(formula, gesture; claimed = change.operation)
+    operation = read_gesture(formula, gesture; answer = change.operation)
     operation === nothing ? nothing : reroot_operation(operation, (steps[1], steps[2]))
 end
 

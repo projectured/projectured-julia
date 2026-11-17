@@ -581,10 +581,10 @@ function _make_research_row_keys(study, item::ResearchItem)
     kind = get_research_kind(item)
     items() = getproperty(study, kind.field)
     place() = something(findfirst(other -> other === item, collect(items())), 0)
-    add = (_, _) -> _is_caret_at_name_end(item) ?
+    add = (_, _, _) -> _is_caret_at_name_end(item) ?
         _make_add_and_type_operation(study, make_research_item(study, kind.type; author = :person)) : nothing
-    move_up = (_, _) -> (index = place(); index > 1 ? _make_move_item_operation(study, item, index, index - 1) : nothing)
-    move_down = (_, _) -> (index = place();
+    move_up = (_, _, _) -> (index = place(); index > 1 ? _make_move_item_operation(study, item, index, index - 1) : nothing)
+    move_down = (_, _, _) -> (index = place();
                            0 < index < length(items()) ? _make_move_item_operation(study, item, index, index + 1) : nothing)
     binding(pattern, make, description) = GestureBinding(pattern, make; description, domain = "research")
     GestureBinding[
@@ -670,7 +670,7 @@ end
 
 # A button of the panel of a decision, which a press answers with `make()`.
 _make_panel_button(name::AbstractString, make::Function) =
-    WidgetButton(name; gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _) -> make();
+    WidgetButton(name; gestures = GestureBinding[GestureBinding(MouseClickPattern(:left), (_, _, _) -> make();
                                                                 description = name, domain = "research")])
 
 # The put of `other` in the basis of `draft`, or its take out of the basis.
@@ -722,7 +722,7 @@ function _make_decision_panel!(slots, embedded, outline, study, draft::ResearchD
     buttons = HorizontalLayout(Any[_make_panel_button("Record", () -> _make_record_draft_operation(study, draft)),
                                    _make_panel_button("Cancel", () -> _make_close_decision_operation(study))];
                                gap = outline.button_gap)
-    cancel = GestureBinding(KeyDownPattern(:escape), (_, _) -> _make_close_decision_operation(study);
+    cancel = GestureBinding(KeyDownPattern(:escape), (_, _, _) -> _make_close_decision_operation(study);
                             description = "Cancel the decision", domain = "research")
     basis = _make_basis_line(outline, study, draft)
     parts = basis === nothing ? Any[verdict, reason, buttons] : Any[verdict, reason, basis, buttons]

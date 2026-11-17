@@ -15,12 +15,12 @@
 # the navigator, as in a browser.
 const _NAVIGATOR_POINTER_BINDINGS = GestureBinding[
     GestureBinding(MouseClickPattern(:right),
-                   (navigator, gesture) -> _make_part_menu_operation(navigator, gesture);
+                   (navigator, gesture, _) -> _make_part_menu_operation(navigator, gesture);
                    description = "Show the menu of the part as a page", domain = "context menu",
                    name = "Show the menu of the part as a page"),
-    GestureBinding(MouseClickPattern(:back), (navigator, gesture) -> make_navigator_back_operation(navigator);
+    GestureBinding(MouseClickPattern(:back), (navigator, gesture, _) -> make_navigator_back_operation(navigator);
                    description = "Go back", domain = "navigator"),
-    GestureBinding(MouseClickPattern(:forward), (navigator, gesture) -> make_navigator_forward_operation(navigator);
+    GestureBinding(MouseClickPattern(:forward), (navigator, gesture, _) -> make_navigator_forward_operation(navigator);
                    description = "Go forward", domain = "navigator")]
 
 @gestures Navigator begin
