@@ -1,6 +1,8 @@
 # A step into a view names a real field
 
-**Status:** pending, written on 2026-11-17, not approved, nothing built.
+**Status:** pending, written on 2026-11-17. The owner approved it with the order
+of the plans on 2026-11-17 ("Yes, I mostly agree"). Nothing is built, and the
+work starts only when the owner asks for it.
 
 This plan is point 1 of the order in section 13.3 of
 `plan/tentative/content-and-view-for-the-whole-project.md`. The design is

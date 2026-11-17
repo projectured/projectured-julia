@@ -803,10 +803,16 @@ Each line gives the decision, and the words of the owner where they are short.
 
 ### 13.3 The order of the work
 
-Proposed by the session on 2026-11-17, not approved yet. Each point is a plan of
-its own in `plan/pending/`, with steps that are fixed when the plan is written.
-Each plan leaves the tests of `main` as they are, and each plan ends with a
-request to land.
+Proposed by the session on 2026-11-17, and approved by the owner on the same day
+with one condition: "Yes, I mostly agree. I would like to review the JSON domain
+when it's done before the whole plan is applied to all parts of the editor." So
+points 1 to 4 run first. After point 4 the session shows the JSON domain to the
+owner and stops. No point from 5 to 11 starts before the owner says so, and the
+review can change the design and the points after it.
+
+Each point is a plan of its own in `plan/pending/`, with steps that are fixed
+when the plan is written. Each plan leaves the tests of `main` as they are, and
+each plan ends with a request to land.
 
 Two rules make this order possible:
 
@@ -832,7 +838,8 @@ Two rules make this order possible:
    path. An edit that makes a new content gives the place of the caret.
 4. **The first content family with no selection: JSON, whole.** The kernel hook
    with its first use. The object and its entry get views, a JSON file shows in a
-   tab through its view, and the 43 calls of `@selected` start to go.
+   tab through its view, and the 43 calls of `@selected` start to go. **This
+   point ends with the review of the JSON domain by the owner.**
 5. **The state to keep, and the store of the editor.** The store writes the views.
    A printer gives a widget the cell of the view for each state to keep. The
    eighteen types with `get_view_state_fields` move that state to a view.
