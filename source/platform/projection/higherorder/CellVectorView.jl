@@ -60,6 +60,11 @@ make_content_view(list::CellVector) = CellVectorView(list)
 
 DocumentModule.is_element_collection(::CellVectorView) = true
 
+# A list view declares no type for its elements, as a plain list of views. So the
+# owner of the list decides if a place of the list takes a value, and a view owns
+# no place that takes one.
+DocumentModule.find_declared_element_type(::CellVectorView) = Any
+
 # A save, a search and a list of the fields of a document leave out the views that a
 # list view holds for its elements.
 DocumentModule.get_view_state_fields(::Type{<:CellVectorView}) = (:given, :kept)

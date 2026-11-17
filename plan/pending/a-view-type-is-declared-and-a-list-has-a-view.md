@@ -287,6 +287,15 @@ They are approved with this plan.
    makes a new view and keeps two times the views that it kept after the last
    drop. This plan does not add it.
 
+10. **A paste asked the list view if a place takes a value, and the list view
+    said yes.** The clipboard reads the declared type of the elements of a list
+    (`find_declared_element_type`) and then asks the owner of the list. A plain
+    list of views declares the type `Any`, and the list view declared none, so
+    the clipboard did not ask the owner and wrote into the list view. The JSON
+    suite found it in `test_json_view_pastes`, which is not one of the eleven
+    narrow tests. The list view now declares `Any`, so a view owns no place that
+    takes a pasted value, as before.
+
 ## Risks
 
 1. **The drop needs a cell that each print of a view reads.** If a print can

@@ -20,6 +20,9 @@ same(pairs, expected) = length(pairs) == length(expected) &&
     @test view isa ContentView && view.viewed === list
     @test make_content_view(list) isa CellVectorView && make_content_view(list).viewed === list
     @test is_element_collection(view)
+    # A paste asks the owner of a list of any type, and a view owns no place.
+    @test find_declared_element_type(view) === Any
+    @test !is_admitted_by_declared_type(view, find_declared_element_type(view), SyntaxLeafView(leaf_a))
 end
 
 @testset "A read of the length makes no view" begin
