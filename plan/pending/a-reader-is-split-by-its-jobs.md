@@ -217,9 +217,10 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
 - **P2. The steps of a child are in its entry.** A container writes the steps from its input
   to the child when it prints the child, and the point mapper reads them; no mapper searches
   for them (O1).
-- **P3. Steps 2 to 5 land together, and step 6 after them.** The bridge keeps each old reader
-  working between steps, so each step lands on its own branch only after its suites equal the
-  baseline.
+- **P3. Steps 2 to 5 land one at a time, and steps 6 and 7 land together.** The bridge keeps
+  each old reader working until step 6, so each of steps 2 to 5 lands when its suites equal the
+  baseline. Step 6 removes the old form, which the readers of omnet-julia and inet-julia still
+  use, so step 7 lands with it.
 
 ## 7. Found during the work
 
