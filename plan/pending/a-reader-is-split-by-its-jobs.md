@@ -301,7 +301,8 @@ PAR-FOUR-FUNCTIONS that says so.
   child and the point in its frame, but then gives that point to the mapper of the child and
   answers the whole path down to the innermost part: the point of the child does not come back.
   So the passing of a pointer gesture needs the one level that the mapper finds before it
-  delegates.- **The runs of step 2.** `test_reader_jobs()` (new, 23 assertions) passes. `test_kernel()`:
+  delegates.
+- **The runs of step 2.** `test_reader_jobs()` (new, 23 assertions) passes. `test_kernel()`:
   5215 passed, 2 broken, none failed, which is the 5192 of the kernel before and the 23 new
   ones; the compare with the baseline follows when the baseline runs.
 
@@ -319,8 +320,24 @@ PAR-FOUR-FUNCTIONS that says so.
   does three things that the old key walk did not: an `override` rule of the node wins over the
   answer of the child (O2); the node reads the table of its projection before the table of its
   document; and the collection on the steps to the child reads its table. No list and no
-  generic document declares a table, so the third adds nothing today.
+  generic document declares a table, so the third adds nothing today. The second adds nothing
+  today either: the one template projection with a table of its own, the rendered reference of
+  RST (`RstReferenceToSyntaxNode`), holds click rules only.
 - **The maps of an operation stay** in the 3-argument methods on `TemplateIoMap` until step 4.
+- **Found at R2: of two `override` rules on the way of a key, the one further out wins.** An
+  `XmlElement` has the rule `override(KeyPress('<'))`, "Insert an element". In `<a><b>x</b></a>`
+  with the whole of `b` selected, `<` on main gives `b` a new element: the child answers first,
+  and `a` answers only when it declines. On the branch, `b` answers, and then the `override`
+  rule of `a` wins over that answer (`_read_level`), so `a` gets the new element. The probe
+  shows it with the syntax stage only and with the full chain. No suite covers the case: the
+  one test with a selected child is an `XmlInsertion`, where `_xml_insert_element` declines by
+  hand. The claimed walk of the same branch (`_read_override_gesture`) reads the innermost
+  part first and stops at the first answer, so the same key and the same rules give a
+  different element when a stage nearer the output claimed the key. Proposed rule, for the
+  owner: an `override` rule wins over an answer nearer the gesture that no `override` rule
+  made; of two `override` rules, the one nearer the gesture wins. The level then must know
+  whether the answer nearer came from an `override` rule; how it learns that is the next
+  question.
 - **The runs.** `test_kernel()`: 5212 passed, 2 broken, none failed: step 2 and the 3 assertions
   of the removed test less.
   The domain suites on the branch: `test_json()` 405, `test_xml()` 86, `test_yaml()` 64 and 2
