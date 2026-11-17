@@ -50,6 +50,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [delivery-roadmap.md](requirement/delivery-roadmap.md) | what | What is delivered, what is in progress, and what is next? |
 | [architecture-decisions.md](design/architecture-decisions.md) | decision | Why is it built this way, and why not otherwise? |
 | [compile-ahead.md](design/compile-ahead.md) | decision | What is compiled ahead of time, where is it saved, and what does each preference choose? In design. |
+| [content-and-view.md](design/content-and-view.md) | design | What are a value, a content document and a view, and which rules must each domain follow? In design. |
 | [architecture-invariants.md](rule/architecture-invariants.md) | rule | What must every change respect, so the system stays tractable as it grows? `PAR-…` |
 | [architecture-rules.md](rule/architecture-rules.md) | rule | How is the code divided, and where does a new thing belong? |
 | [package-rules.md](rule/package-rules.md) | rule | What is a package for, what may it depend on, and which one do I load? |
