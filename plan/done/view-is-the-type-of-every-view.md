@@ -1,7 +1,6 @@
 # `View` is the type of every view
 
-**Status:** in work since 2026-11-17, in the worktree
-`projectured-julia-view-steps` on the branch `view-steps`. The owner approved the
+**Status:** done on 2026-11-17, on the branch `view-steps`. The owner approved the
 plan with the order of the plans on 2026-11-17 ("Yes, I mostly agree"), and asked
 for the start on the same day ("yes").
 
@@ -86,13 +85,38 @@ They are approved with this plan.
   failures. Both failures name files that this plan does not change: a qualified
   name in `assistant/AssistantList.jl`, and the form of an import in six modules.
   Step 2 compares them with the base commit. The naming guard passes.
-- [ ] **2. The wide check and the guides.** `test_platform()` against the known
+- [x] **2. The wide check and the guides.** `test_platform()` against the known
   failures of `main`. A new record of the precompile calls of each package whose
   list goes stale. `Pkg.precompile` of `omnet-julia` against the branch, with a
   count of the compiled packages against the manifest. In
   `documentation/design/content-and-view.md`, the line of "The code now" that
   says that no type `View` exists goes. The plan moves to `plan/done/`. Then the
   session asks for the landing, and for the push apart.
+  **Done on 2026-11-17.**
+  - `test_platform()` at the base commit `e9af3a5a7`: 236362 passes, 15 failures,
+    0 errors, 21 broken. On the branch: 236367 passes, 16 failures, 1 error, 21
+    broken. The 15 failures of the base are on the branch too, at the same lines.
+    Six of them are the failures of the layering checks, which include the two of
+    step 1. The branch has two more results, both in tests of the tasks:
+    `TaskVerbsTest.jl`, line 102, and `TaskWorkItemTest.jl`, line 171. The four
+    tests after the error did not run, so the counts agree:
+    236362 + 11 - 1 - 1 - 4 = 236367.
+  - The two more results come from the load and not from the change. The test of
+    line 171 waits 30 seconds for the editor, and one frame of it took 29.47 s at
+    the base and 35.57 s on the branch. The test of line 102 reads the facts of a
+    real shell process. The thirteen task tests alone pass at the base and on the
+    branch with the same counts, and the frame takes 25.37 s and 25.85 s.
+  - No recorded list of precompile calls goes stale: step 1 removes and moves no
+    name, and no log shows a recorded call that does not resolve.
+  - `Pkg.precompile` of `omnet-julia` (`main` at `ddf4b88fb`) against the branch:
+    103 packages compiled, 389 were compiled before, and none failed. The 103
+    hold all 75 packages of `omnet-julia`. All 68 paths of the manifest into this
+    repository lead to the branch. The log has no warning of a method that
+    overwrites another and none of an ambiguity.
+  - The documentation check gives the same output at the base and on the branch:
+    10 findings, in files that this plan does not change.
+  - The line of the design document went in the commit `c4085e307`, with a new
+    rule in `documentation/rule/architecture-rules.md`.
 
 ## Risks
 

@@ -826,7 +826,8 @@ Two rules make this order possible:
 
 1. **`View` is the type of every view.** The type `View`, with `ContentView` and
    the widget, layout, graphics and pane families below it. The plan is
-   `plan/pending/view-is-the-type-of-every-view.md`. Its first form also had the
+   `plan/done/view-is-the-type-of-every-view.md`, done on 2026-11-17 on the
+   branch `view-steps`. Its first form also had the
    step `.viewed` in each path of a view. That part moved to points 4 and 11 on
    2026-11-17, when the owner chose way A ("I agree with A"): the step `.viewed`
    comes for each content family together with the loss of its selection field.
