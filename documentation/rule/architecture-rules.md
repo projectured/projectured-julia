@@ -293,6 +293,9 @@ state, and the code keeps them apart.
   workspace.
 - **A view document of one kind of content takes the suffix `View`**
   ([naming-rules.md](naming-rules.md)).
+- **`View` is the supertype of each view.** `ContentView` is below it, for a view
+  of one content. The widget, layout, graphics and pane families are below it
+  too: a widget and a layout keep the state of their own showing.
 
 ### A type that has views
 

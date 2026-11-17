@@ -281,8 +281,6 @@ The code differs from this design in these places.
 - `@document` adds the fields `selection` and `mouse_target` to each document
   type, so each content can keep a caret. `PrimitiveString` and `ObjectField`
   keep one.
-- No type `View` exists. `ContentView`, `WidgetDocument`, `LayoutDocument`,
-  `GraphicsDocument` and `PaneDocument` are each below `Document`.
 - `ContentView` in `source/platform/projection/higherorder/Viewing.jl` sends a
   field step that a view does not have to the field `viewed`.
 - `make_child_views` reads its whole collection, makes a view for each element,
