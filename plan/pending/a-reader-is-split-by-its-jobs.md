@@ -1,6 +1,7 @@
 # A reader is split by its jobs
 
-> **Status:** design to decide, 2026-11-17. Theme T1 of the architecture review
+> **Status:** plan proposed, 2026-11-17: the design is decided (§4, §5), and the steps of §6
+> wait for the approval of the owner. Theme T1 of the architecture review
 > ([architecture-review/README.md](architecture-review/README.md)). Nothing is built. The
 > owner rejected one form of `read_intent` with a mixed payload: "what? no, from one bad
 > solution to another? There should be a better way. Perhaps a different function?" The
@@ -130,7 +131,7 @@ rest by hand:
   child. The rules that answer first today become `override` rules of the table of the
   container, and no container writes the order by hand. The text below is the proposal that
   the owner accepted.
-- **Open point O3, a wrapper that acts on the passing.** Six higher-order stages with one
+- **O3, decided by the owner (2026-11-17, "yes"): the six wrappers that act on the passing keep a `read_intent` of their own, and pass the change only through the one helper.** Six higher-order stages with one
   child do something to the passing itself, not to one answer:
   - they change the gesture for the inner stage: `WindowInputUnwrapping` gives it the event
     of a `WindowInput`, and `DragTracking` and `GestureTracking` keep state over time and make
@@ -141,7 +142,7 @@ rest by hand:
     a fault.
 
   `WindowInputUnwrapping` and `FaultCatching` drop the description and the domain of the
-  change. Proposal: these six keep a `read_intent` of their own, as stages of the walk, because
+  change. The rule: these six keep a `read_intent` of their own, as stages of the walk, because
   each does what no part can do alone. Each passes the change to its child with the one helper
   of the passing, so the route, the description and the domain stay.
 
@@ -168,7 +169,58 @@ gesture)` for job 1, `map_operation_backward(projection, iomap, operation)` for 
 `read_intent` for the walk, which only the kernel writes. Each follows the kind that the
 rules give it.
 
-## 6. After the decisions
+## 6. Steps
 
-A plan of steps follows the names and the open points O1 to O3. omnet-julia and inet-julia
-follow it, and the 194 template readers change in one place, `read_template_intent`.
+Each step keeps main working: the old forms stay reachable through the bridge until step 6.
+Each step runs its suites against a baseline of main, in a worktree with a private depot.
+
+- [ ] **1. The baseline.** On main: `test_kernel()`, `test_platform()`, the eighteen domain
+  suites, and the omnet-julia suites that open a file or press a key (`test_legacy()`,
+  `test_ide_file_navigator()`, the presentation suites). The counts and the failing lines go
+  in §7.
+- [ ] **2. The seams and the passing, in the kernel.** `read_gesture(projection, iomap,
+  gesture)` with its default (the table of the projection, then the table of the input
+  document), `map_operation_backward(projection, iomap, operation)` with its default (each
+  reference mapped back, any other operation kept), and the one helper that passes a change to
+  a chosen child and back (P1). The default `read_intent` of a stage calls the two seams, and of
+  a container chooses the child by the rules of §4 and the order of O2. Test: `test_kernel()`
+  with new testsets for each default, the passing and the override order.
+- [ ] **3. The template reader.** `read_template_intent` uses the seams and the helper, so the
+  194 readers of `@projection_template`, `@rst_flat` and `@rst_indented` follow in one place,
+  and `ClaimedGesture` becomes the override of O2. Test: `test_syntax()`, the JSON, XML, YAML,
+  SQL, Julia, Markdown and RST suites, `test_position_navigations()`.
+- [ ] **4. The stages.** The 249 readers that only map become methods of
+  `map_operation_backward`, the 56 that only read a gesture become methods of `read_gesture`,
+  and the 110 bridges, declines and identities go, slice by slice in the order of the package
+  graph. Test: the suite of each slice.
+- [ ] **5. The containers and the wrappers.** The 128 readers that walk keep only their own
+  rules: a pointer gesture goes through the point mapper of the container (O1), the rules that
+  answer first become `override` rules (O2), and the six wrappers of O3 pass with the helper.
+  The 42 hand-written moves of a position and the lists of parts of the two charts go. Test:
+  `test_platform()`, the chart and graph suites, `test_dataframes()`.
+- [ ] **6. One form.** The 3-argument form of `read_intent`, the bridge and the 3-to-4
+  wrappers go; the docstrings of `ProjectionInterface.jl`, the guide of the projection system
+  and the naming rules say the new form. Test: `test_kernel()`, `test_platform()`, the guards.
+- [ ] **7. omnet-julia and inet-julia follow:** 86 of the 89 readers only map, so they become
+  methods of `map_operation_backward`. Test: the suites of step 1, `Pkg.precompile()` with no
+  warning.
+- [ ] **8. The compile-ahead lists** of the three repositories record again, as in
+  [a-file-format-is-declared-once.md](../done/a-file-format-is-declared-once.md). Test: a
+  precompile with no warning of a stale list.
+
+**Proposed decisions (approved with the plan):**
+- **P1. The helper of the passing is `read_child_intent(recursion, change, child)`**, beside
+  `print_child(recursion, input, context)` of the printer: it gives `change` to the chosen
+  child, moves a point into the frame of the child, puts the steps of the child before each
+  path of the answer, keeps the route, the description and the domain, and merges a
+  `CollectIntents` list.
+- **P2. The steps of a child are in its entry.** A container writes the steps from its input
+  to the child when it prints the child, and the point mapper reads them; no mapper searches
+  for them (O1).
+- **P3. Steps 2 to 5 land together, and step 6 after them.** The bridge keeps each old reader
+  working between steps, so each step lands on its own branch only after its suites equal the
+  baseline.
+
+## 7. Found during the work
+
+(empty)
