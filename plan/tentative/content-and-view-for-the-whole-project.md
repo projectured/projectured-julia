@@ -1,10 +1,13 @@
 # Content and view for the whole project: the picture for the decision
 
-Status 2026-11-16: the owner decided to go on. The owner approved the order of
-section 10 on 2026-11-15, and point 1 of it is done and on `main`. Section 11 holds
-the decisions of 2026-11-16 on what gets a view. Section 12 holds the order after
-those decisions, which the owner approved on 2026-11-16. This document has no
-steps: the steps of each point come in a plan of their own.
+Status 2026-11-17: the owner said that the rules are complete. The design is
+`documentation/design/content-and-view.md`, and section 13 holds the decisions of
+2026-11-16 and 2026-11-17 behind it and the order of the work. Section 13
+replaces decisions 1, 3 and 6 of section 11.1, the rules of section 11.6, the
+open points of section 11.7 and the order of section 12. The inventory and the
+other facts of section 11 stay. The owner approved the order of section 10 on
+2026-11-15, and point 1 of it is done and on `main`. This document has no steps:
+the steps of each point come in a plan of their own.
 
 The pilot is `plan/done/views-compose-as-content-composes.md`. It was on the
 branch `views-compose`, and it is on `main` since 2026-11-15 (`adea9d83f`). Its
@@ -467,10 +470,10 @@ decisions of the owner.
    plan, "Keys belong to the views"; a key still goes down along the caret of the
    views, the deepest first.
 
-The plan of point 2 of the order is
-`plan/pending/one-generic-view-for-a-content-with-no-state-of-its-own.md`. It
-holds the proposed answers to the other three open points of the generic view in
-section 11.7.
+The plan of point 2 of the order was
+`plan/pending/one-generic-view-for-a-content-with-no-state-of-its-own.md`. The
+owner rejected it on 2026-11-16, and it is in `plan/obsolete/`. Section 13
+replaces decisions 1, 3 and 6 above.
 
 ### 11.2 The inventory
 
@@ -680,6 +683,8 @@ Other:
 
 ## 12. The order after the decisions of 2026-11-16
 
+Replaced on 2026-11-17 by the order of section 13.3.
+
 Proposed by the session, and approved by the owner on 2026-11-16 ("yes", to "Do
 you approve this order?"). It replaces points 2 to 5 of the order of section 10;
 point 1 is done.
@@ -708,3 +713,156 @@ The reason for the place of point 2: each later point makes or changes views, so
 the form of a view comes first. The reason for the place of point 3 before point
 4: the arrangement becomes state of a view by the rules, so the rules are one set
 first.
+
+## 13. The design of 2026-11-17, and the order after it
+
+The owner and the session worked out the rules on 2026-11-16 and 2026-11-17, for
+all the domains of this repository and for `omnet-julia`. On 2026-11-17 the owner
+said that the rules are complete ("yes", to "Are the rules complete for you now,
+so that I write the plans from this design document?"). The design is
+`documentation/design/content-and-view.md`. That document is public, so it names
+no private repository. This section holds what that document cannot hold: the
+words of the owner, the facts of `omnet-julia`, and the order of the work.
+
+### 13.1 The decisions of the owner
+
+Each line gives the decision, and the words of the owner where they are short.
+
+1. **Content has two forms, and a view has one** (2026-11-16): "content can come
+   from an external library such as DataFrames.jl or it can be provided by
+   projectured such as the JSON domain documents. For both cases the view
+   documents are always provided by projectured and they are reactive."
+2. **A content keeps no selection** (2026-11-16 and 2026-11-17): "there should be
+   no selection on content documents", "no mouse target on content documents",
+   and "The editing/viewing state is always added by the view parts".
+3. **A reference step means what it says** (2026-11-16): "the reference step
+   should not lie and should not have a document specific hack, that should be a
+   rule."
+4. **No generic view** (2026-11-16): "I don't like the merged view types and this
+   change." This replaces decision 3 of section 11.1.
+5. **The view of a list** (2026-11-16): "how about having a view for the
+   CellVector as well? we could put there the arrangement parameters", and "each
+   kind of list get its own view type".
+6. **The tree of views mirrors the tree of content** (2026-11-17): "VectorView of
+   StringViews shadowing the Vector of Strings". A view for each node, and a field
+   of a fixed plain type is a part of its node: "kinda arbitrary but it's fine".
+   This replaces the test of decision 1 of section 11.1.
+7. **A gesture at the caret belongs to the key table of the view** (2026-11-17):
+   "why isn't the caret specific operations belong to the gesture table of the
+   view?" This replaces decision 6 of section 11.1.
+8. **A state that must be kept is in the view** (2026-11-17): "The width should
+   stay, so it really depends on what we want to store, because we only store the
+   document." The printer gives the widget the cell of the view.
+9. **The store of the editor writes the views with their state**; a content save,
+   a search and the undo steps leave it out (2026-11-17: "Yes").
+10. **`View` is the supertype of every view, with `ContentView` below it**
+    (2026-11-17: "B, View for every view with ContentView below it").
+11. **The supertype decides who has a selection field**, through one kernel hook
+    (2026-11-17: "I agree with recommendation").
+12. **`@content_view` declares a view type** (2026-11-17: "I like @content_view
+    more").
+13. **The view of a value element follows its index**, and it stays there when
+    another library changes the collection (2026-11-17: "I agree with the first
+    way").
+14. **One description and one user interface for the arrangement**, kept by the
+    view of each kind of collection (2026-11-17: "Yes, I agree").
+15. **A view goes when nothing reaches it and its state is the default**
+    (2026-11-17: "Yes, I agree").
+16. **The word "shadow" names only the reactive variant of a document type with
+    two variants**, and no type has the suffix `Shadow`. The content document of a
+    frame is `DataFrameDocument` (2026-11-17: "Then maybe DataFrameDocument is
+    better and you can store old version there if needed").
+17. **A summary** is a small document of computed values, declared with
+    `@native_document`, with the suffix `Summary` (2026-11-17: "the summary types
+    are looking good", and "yes" to the suffix).
+18. **The names**: `ChartPlot` to `ChartView` and the struct `ChartView` to
+    `ChartRange`, the same for the sequence chart, and a new `GraphView` beside
+    `GraphLayout` (2026-11-17: "I mostly agree").
+
+### 13.2 The facts of `omnet-julia`
+
+- About 186 `@document` types. 20 view kinds are below `SimulationView <:
+  Document`, and they name their content in the field `subject`. The header of
+  `source/presentation/view/View.jl` states the rule that a view owns nothing of
+  its subject.
+- `@native_document` is `@document_preset native_document [M, C]`. 22 types use
+  it, and `sync_document!` keeps the reactive variant in step, for example in
+  `SimulatorMonitor.refresh_monitor!`.
+- Three summaries have a name that ends in `View`: `SimulationExecutionView`,
+  `SimulationSessionView` and `CaptureView`. A function writes each field by hand
+  when it changed. They become `SimulationExecutionSummary`,
+  `SimulationSessionSummary` and `CaptureSummary`, each a `@native_document`.
+  `ExecutionView` and `SessionView` are real views with almost the same names.
+- Types that mix content and state of a view: `SimulationEmbed` keeps the focus,
+  its history and the playback; `IniSection`, a NED node, `LegacyTestFileEntry`,
+  `LegacyTestRoot` and three result types have a field `collapsed`; `ExpandStage`
+  has `selected`.
+- Five methods of `make_document_view`: a NED file entry, a test case, an INI
+  configuration, a baseline entry and a result file entry.
+- No source file of `omnet-julia` calls `@selected`.
+
+### 13.3 The order of the work
+
+Proposed by the session on 2026-11-17, not approved yet. Each point is a plan of
+its own in `plan/pending/`, with steps that are fixed when the plan is written.
+Each plan leaves the tests of `main` as they are, and each plan ends with a
+request to land.
+
+Two rules make this order possible:
+
+- **The kernel hook starts with the answer `true` for each document type**, which
+  is the behaviour of today. A content family answers `false` when its domain has
+  its views. The default becomes `false` in the last plan. So no domain loses its
+  caret before it has views.
+- **Each plan that changes an exported name or a rule has a last step for
+  `omnet-julia`**: the follow of each rename, and `Pkg.precompile` with a count
+  of the compiled packages.
+
+1. **A step into a view names a real field.** The type `View`, with `ContentView`
+   and the widget, layout, graphics and pane families below it. The field step of
+   a view to its content goes, and each path into the content of a view takes the
+   step `.viewed`. The plan is
+   `plan/pending/a-step-into-a-view-names-a-real-field.md`.
+2. **The declaration of a view type, and the view of a list.** `@content_view`,
+   `CellVectorView`, a view that is made when something reaches it and that goes
+   with its default state, and the view of an element that follows its element.
+   The twelve view types of the pilot take the declaration.
+3. **The keys at the caret.** In the domains that have views, the rows for a
+   caret stay only in the key table of the view. An operation of a content takes a
+   path. An edit that makes a new content gives the place of the caret.
+4. **The first content family with no selection: JSON, whole.** The kernel hook
+   with its first use. The object and its entry get views, a JSON file shows in a
+   tab through its view, and the 43 calls of `@selected` start to go.
+5. **The state to keep, and the store of the editor.** The store writes the views.
+   A printer gives a widget the cell of the view for each state to keep. The
+   eighteen types with `get_view_state_fields` move that state to a view.
+6. **The arrangement in the view of a collection.** One description and one user
+   interface. `ArrangementDocument` and the printer context of
+   `ArrangingProjection` go. `row_filter`, the filter of the explorer, the query
+   of a data frame and the lines of a task stream take the one description.
+7. **The view documents of the older rule.** `viewed`, `ContentView` and
+   `make_content_view` for `DataFrameView` with `DataFrameDocument`, `ChartView`
+   with `ChartRange`, `SequenceChartView`, `GraphView`, `WorkspaceExplorer`,
+   `DocumentTree`, `Navigator`, `FileView`, `UrlView` and `FindBarView`.
+   `make_document_view` and `follow_content_selection!` go.
+8. **The boxes.** `PrimitiveString`, `PrimitiveNumber`, `PrimitiveBool` and
+   `ObjectField` keep no selection, and each gets its view.
+9. **The other domains that print as code**, one plan for each domain. The view
+   types come from `@content_view`, the content family answers `false` to the
+   hook, and each fold moves to its view.
+10. **The widget domains and the documents of the session**, about 180 types. One
+    plan sorts them into content and view, and one plan for each group converts
+    it.
+11. **The end.** The default of the kernel hook becomes `false`. A guard checks
+    that only a `View` has a selection. The section "Content documents and view
+    documents" of `architecture-rules.md` takes the rules of the design document.
+
+The work of `omnet-julia` itself has plans in that repository after point 4: the
+summaries, `SimulationView` below `ContentView`, the field `viewed`, and the types
+that mix content and state of a view.
+
+The reason for the order. Point 1 changes what a path means, so each later point
+writes its paths one time. Point 2 gives the form in which each later point
+declares a view. Point 3 comes before point 4 because a content can lose its
+caret only when no row of its key table reads it. Point 4 proves the whole design
+on one domain before the other domains follow.

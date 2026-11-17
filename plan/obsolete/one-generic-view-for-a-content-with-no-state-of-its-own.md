@@ -1,6 +1,12 @@
 # One generic view for a content with no state of its own
 
-**Status:** pending, written on 2026-11-16, not approved, nothing built.
+**Status:** obsolete, 2026-11-17. Nothing of it was built. The owner rejected one
+generic view type on 2026-11-16: "I don't like the merged view types and this
+change. Many content documents are not foldable. There can be additional view
+specific differences later." Each content type that is a node keeps a view type of
+its own, which `@content_view` declares. The design that replaces this plan is
+`documentation/design/content-and-view.md`, and the order of the work is in
+section 13 of `plan/tentative/content-and-view-for-the-whole-project.md`.
 
 This plan is point 2 of the order in section 12 of
 `plan/tentative/content-and-view-for-the-whole-project.md`, which the owner
