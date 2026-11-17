@@ -171,7 +171,7 @@ They are approved with this plan.
 
 ## Steps
 
-- [ ] **1. The view of a list.** `CellVectorView` in a file of its own in the
+- [x] **1. The view of a list.** `CellVectorView` in a file of its own in the
   projection slice: the field `viewed`, the field `given`, the length, the read
   of an element, the loop, `is_element_collection`, and
   `make_content_view(list::CellVector)`. No view type uses it yet.
@@ -180,7 +180,12 @@ They are approved with this plan.
   removal of another element; an element with no view type gives `nothing`; a
   path with an index step reaches the view; a list view with a `given` list
   answers that list.
-- [ ] **2. The five child fields hold a list view.** `SyntaxNodeView.children`,
+  **Done on 2026-11-17.** The file is
+  `source/platform/projection/higherorder/CellVectorView.jl`, and the test is
+  `test_cell_vector_view` in `test/platform/projection/CellVectorViewTest.jl`:
+  36 of 36 pass. The run that tested step 1 had steps 2 and 3 in it too, because
+  each run waits a long time for memory.
+- [x] **2. The five child fields hold a list view.** `SyntaxNodeView.children`,
   `JsonArrayView.elements`, `MarkdownParagraphView.content`,
   `MarkdownHeadingView.content` and `MarkdownRootView.elements`. The output view
   of a viewing step gets a list view with its `given` list. `_copy_view_state!`
@@ -188,12 +193,21 @@ They are approved with this plan.
   view. `make_child_views` goes.
   Tests: the eleven narrow tests of the views and of the text of a widget,
   against their result on the branch before the change.
-- [ ] **3. The declaration.** `@content_view`, with the function that answers
+  **Done on 2026-11-17.** The eleven narrow tests pass with the counts of the
+  branch before the change: 29, 34, 25, 31, 48, 35, 49, 36, 17, 97 and 111.
+  `test_platform_layering()` has the two failures of `main` and no other.
+- [x] **3. The declaration.** `@content_view`, with the function that answers
   the view type of a kind of list. The twelve view types take it.
   Tests, new: the fields of each of the twelve types, in their order, are the
   fields of today; the constructor and `make_content_view` answer the type; the
   method of the default state answers `true` for a new view and `false` after a
   change of a state field. The eleven narrow tests again.
+  **Done on 2026-11-17.** The file is
+  `source/platform/projection/higherorder/ContentViewDeclaration.jl`. The new
+  test `test_content_view_declaration` has 34 of 34. The tests of the JSON types
+  and of the Markdown types are new test sets in `test_json_string_view` (now 47)
+  and in `test_markdown_view` (now 50). The nine other narrow tests keep their
+  counts, and the layering guard has the two failures of `main` and no other.
 - [ ] **4. A view goes.** The drop of the views that nothing reaches, at the
   start of each print of the view that holds the list.
   Tests, new: a view with a caret stays; a view with a closed fold stays; a view
@@ -214,6 +228,46 @@ They are approved with this plan.
   A rule for `@content_view` in `documentation/rule/architecture-rules.md`. The
   plan moves to `plan/done/`. Then the session asks for the landing, and for
   the push apart.
+
+## Found during the work
+
+1. **`@document` takes a list as one item.** A type whose first field is a list
+   gets a constructor that takes documents as the items of that list. A
+   `CellVector` is a document, so `CellVectorView(list)` made a view of a new
+   list with one item. The list view has two constructors of its own that take a
+   list as the content.
+2. **The list view of a child field follows the field of the content.** Its
+   field `viewed` is a computed cell that reads the field, as `make_child_views`
+   read the field at each run. So the list view shows the list that the content
+   holds now, also after a write of a new list into the field.
+3. **The child documents of a list view are the views that exist.**
+   `child_reference_steps` of a list view names them with their index steps and
+   makes no view. `find_document_path` and the copy of the state of a view use
+   it.
+4. **A reflection walk reads each index of a list view**, because the walk of
+   the kernel reads each element of a document that answers `true` to
+   `is_element_collection` (`source/kernel/document/DocumentWalk.jl`, line 510).
+   So a search through a view makes the view of each element, and the next drop
+   removes the views that nothing reaches. A walk that enters only the views
+   that exist needs a new hook of the kernel. This plan does not add one.
+5. **The list view is not on the route of a key.** `_find_caret_view_steps`
+   passes through it as through a list, so the keys go to the same views as
+   before. The list view gets its place on the route when it gets keys of its
+   own, in point 6 of the order.
+6. **The macro also writes the method that takes the views of a viewing step**,
+   `make_content_view(content, children)`, for a content type with one list.
+   Before, only `SyntaxNode` had that method, and a step with a JSON or a
+   Markdown output lost the views of its children.
+7. **The macro writes each method with the name of the module of the
+   function.** So the modules of JSON, Markdown and the text no longer import
+   `make_content_view`, which the layering guard asks for when a module extends
+   nothing by hand.
+8. **The fact that step 4 needs is true.** A print makes nothing until something
+   reads its drawing. After a read of the drawing, each view that the print
+   shows has a reader on its cell `viewed`: the view of the root, the view of
+   each child, and the views below a child. After the print goes and the
+   collector runs, no cell of these views has a reader. A probe on the syntax
+   pipeline showed it, and step 4 makes it a test.
 
 ## Risks
 
