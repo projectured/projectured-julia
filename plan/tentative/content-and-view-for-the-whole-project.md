@@ -846,6 +846,14 @@ Two rules make this order possible:
 3. **The keys at the caret.** In the domains that have views, the rows for a
    caret stay only in the key table of the view. An operation of a content takes a
    path. An edit that makes a new content gives the place of the caret.
+   **This point has no plan of its own** (the owner on 2026-11-18: "Yes"). Its
+   three rules are steps of point 4 for JSON, and of point 11 for the text and
+   the syntax. The reason is in the code: the editor shows a text, a syntax tree
+   and a JSON file as content with no view, so the key table of a content must
+   keep its caret rows until its domain shows through views. The count of
+   2026-11-18: 38 rows are written two times, in the table of a content and in
+   the table of its view: 22 of the text, 8 of the syntax and 8 of JSON. The
+   helpers of the text and of the syntax take the caret as an argument already.
 4. **The first content family with no selection: JSON, whole.** The kernel hook
    with its first use. The object and its entry get views, a JSON file shows in a
    tab through its view, and the 43 calls of `@selected` start to go. The paths
