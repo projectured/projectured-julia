@@ -144,11 +144,10 @@ function read_intent(p::FilteredTextToText, iomap::FilteredTextToTextIoMap, op::
                                     op.replacement))
 end
 
-# Forward any other Operation upstream unchanged; a raw gesture (MouseClick)
-# falls through to the base `Projection.read_intent`, which delegates via
-# `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
-# gesture back as if it were an operation, breaking upstream chain dispatch.
-read_intent(::FilteredTextToText, ::FilteredTextToTextIoMap, op::Operation) = op
+# Forward any other Operation upstream unchanged; a gesture (MouseClick) is not an
+# operation and goes to `read_gesture`, which reads the tables of the projection
+# and of the input.
+map_operation_backward(::FilteredTextToText, ::FilteredTextToTextIoMap, op::Operation) = op
 
 # A key reaches this stage only when the stages after it gave no operation, or one
 # this stage declines, such as the edit beside an inline image. Read it against the
@@ -160,5 +159,5 @@ read_intent(::FilteredTextToText, iomap::FilteredTextToTextIoMap, evt::Union{Key
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the
 # gesture again against the input of this stage.
-read_intent(::FilteredTextToText, ::FilteredTextToTextIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+map_operation_backward(::FilteredTextToText, ::FilteredTextToTextIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op

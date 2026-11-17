@@ -120,7 +120,7 @@ map_reference_backward(p::TextLineNumbering, ::TextLineNumberingIoMap, reference
 
 # A selection of a number, as a click makes, selects the whole line in the input.
 # Any other path maps to the same path.
-function read_intent(p::TextLineNumbering, iomap::TextLineNumberingIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::TextLineNumbering, iomap::TextLineNumberingIoMap, op::ReplacePathOperation)
     line = _find_numbered_line(p, get_operation_path(op))
     line === nothing && return op
     op isa ReplaceSelectionOperation || return nothing
@@ -129,11 +129,13 @@ function read_intent(p::TextLineNumbering, iomap::TextLineNumberingIoMap, op::Re
     ReplaceSelectionOperation(make_flat_range_reference(start, start + get_flat_length(text.elements[line])))
 end
 
-read_intent(::TextLineNumbering, iomap::TextLineNumberingIoMap, evt::Union{KeyPress, KeyDown}) =
+read_gesture(::TextLineNumbering, iomap::TextLineNumberingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
     _read_lowered_gesture(iomap.input, evt)
 
-read_intent(::TextLineNumbering, ::TextLineNumberingIoMap, payload) =
-    payload isa Operation ? payload : nothing
+# Any other operation maps to itself, and any other gesture answers nothing.
+map_operation_backward(::TextLineNumbering, ::TextLineNumberingIoMap, op::Operation) = op
+
+read_gesture(::TextLineNumbering, ::TextLineNumberingIoMap, gesture; answer = nothing) = nothing
 
 # ── Compound convenience constructor ────────────────────────────────────────
 

@@ -260,12 +260,12 @@ _is_flat_text_place(reference) =
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
-read_intent(::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyPress) =
+read_gesture(::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyPress; answer = nothing) =
     read_gesture(iomap.input, evt)
 
 # A key of the table of the view, and else a key that the layout of the lines
 # answers, read against the caret of the view.
-function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyDown)
+function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyDown; answer = nothing)
     view = iomap.input
     operation = read_gesture(view, evt)
     operation === nothing || return operation
@@ -279,7 +279,7 @@ end
 # it; with Shift, the moving end of the selection goes to the point. A double click
 # selects the word at the point, and a triple click the line. An Alt+click is the
 # caret at the point too.
-function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseClick)
+function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseClick; answer = nothing)
     evt.button === :left || return nothing
     if evt.count >= 2 && !evt.modifiers.alt
         layout = _find_text_layout(iomap.content)
@@ -293,7 +293,7 @@ end
 # moving end of the selection there, and the view takes the pointer for a drag, so
 # each move of the drag goes to the view wherever the pointer is. The drag names
 # the view as a whole, which each projection above maps back to its input.
-function read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseDown)
+function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseDown; answer = nothing)
     evt.button === :left || return nothing
     (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
     selection = _read_pointer_selection(iomap, evt.x, evt.y, evt.modifiers.shift)
@@ -304,7 +304,7 @@ end
 # A move and the end of a drag that a press on the view started: the moving end of
 # the selection goes to the character nearest to the point, and the anchor stays
 # where the press put it.
-read_intent(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::Union{DragMove,DragEnd}) =
+read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::Union{DragMove,DragEnd}; answer = nothing) =
     _read_pointer_selection(iomap, evt.x, evt.y, true)
 
 # The selection of the view that a pointer at `(x, y)` makes: the caret there, or

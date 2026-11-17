@@ -212,15 +212,9 @@ end
 
 # ── The reader ──────────────────────────────────────────────────────────────
 
-function read_intent(p::MarkedTextToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_marked_text(iomap.output, op.path)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
-end
-
 # An edit of the block, in one run or of its lines, is an edit of the string at
 # the same offsets.
-function read_intent(p::MarkedTextToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+function map_operation_backward(p::MarkedTextToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
     range = get_flat_range(iomap.output, operation_reference(op))
     range === nothing && return nothing
     ReplaceStringRangeOperation(_make_marked_text_path(range...), op.replacement)
@@ -229,7 +223,7 @@ end
 # A key that the stages after this one give back: an edit that crosses two runs,
 # which they lower to one run and so decline. Read against the block with no
 # lowering, it is an edit of the string.
-function read_intent(p::MarkedTextToText, iomap::SimpleIoMap, evt::Union{KeyPress, KeyDown})
+function read_gesture(p::MarkedTextToText, iomap::SimpleIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
     op = read_gesture(iomap.output, evt)
     op isa ReplaceTextRangeOperation ? read_intent(p, iomap, op) : nothing
 end

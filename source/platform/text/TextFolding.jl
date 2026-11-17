@@ -272,7 +272,7 @@ function _find_clicked_fold(p::TextFolding, iomap::TextFoldingIoMap, path, is_cl
     caret > start + get_flat_length(line) ? line.fold : nothing
 end
 
-function read_intent(p::TextFolding, iomap::TextFoldingIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::TextFolding, iomap::TextFoldingIoMap, op::ReplacePathOperation)
     path = get_operation_path(op)
     if op isa ReplaceSelectionOperation
         fold = _find_clicked_fold(p, iomap, path)
@@ -301,7 +301,7 @@ end
 
 # A fold with no target, from Ctrl+., gets the innermost fold around the caret; a
 # stage before this one passes an operation that has a target.
-function read_intent(::TextFolding, iomap::TextFoldingIoMap, op::ToggleCollapseOperation)
+function map_operation_backward(::TextFolding, iomap::TextFoldingIoMap, op::ToggleCollapseOperation)
     op.target === nothing || return op
     fold = _find_innermost_fold(iomap.input)
     fold === nothing ? op : ToggleCollapseOperation(fold)
@@ -309,7 +309,7 @@ end
 
 # An edit of a span of a line shown is an edit of the same span of its input line.
 # A span of the placeholder has no pre-image.
-function read_intent(::TextFolding, iomap::TextFoldingIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(::TextFolding, iomap::TextFoldingIoMap, op::ReplaceStringRangeOperation)
     kept = unwrap_cell(iomap.kept)
     path = _remap_element_path(strip_reference_types(op.reference), _get_kept_line(kept))
     path === nothing && return nothing
@@ -332,24 +332,26 @@ end
 # A write of a value of a part of a line, such as a widget in the gutter, writes
 # the same part of its input line. An element write, the edit beside an inline
 # image, names output elements and is declined, so the chain reads the key again.
-function read_intent(::TextFolding, iomap::TextFoldingIoMap, op::ReplaceReferencedValueOperation)
+function map_operation_backward(::TextFolding, iomap::TextFoldingIoMap, op::ReplaceReferencedValueOperation)
     is_text_element_write(op) && return nothing
     op.document === nothing || return op
     path = _remap_element_path(strip_reference_types(op.reference), _get_kept_line(unwrap_cell(iomap.kept)))
     path === nothing ? op : ReplaceReferencedValueOperation(nothing, path, op.value)
 end
 
-read_intent(::TextFolding, ::TextFoldingIoMap, op::CompoundOperation) =
+map_operation_backward(::TextFolding, ::TextFoldingIoMap, op::CompoundOperation) =
     is_text_element_write(op) ? nothing : op
 
 # A key is read against the output, so a motion steps over a closed fold, and its
 # answer maps back as an answer of the stages after this one does.
-function read_intent(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPress, KeyDown})
+function read_gesture(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
     op = _read_lowered_gesture(iomap.output, evt, iomap.places.output)
     op isa Operation ? read_intent(p, iomap, op) : nothing
 end
 
-read_intent(::TextFolding, ::TextFoldingIoMap, payload) = payload isa Operation ? payload : nothing
+# Any other operation maps to itself, and any other gesture answers nothing.
+map_operation_backward(::TextFolding, ::TextFoldingIoMap, op::Operation) = op
+read_gesture(::TextFolding, ::TextFoldingIoMap, gesture; answer = nothing) = nothing
 
 # ── The fold of a text view ─────────────────────────────────────────────────
 
@@ -388,7 +390,7 @@ map_reference_backward(p::TextFolding, iomap::TextViewFoldingIoMap, reference) =
 
 # A click on the placeholder of a fold that the view closes toggles that fold; any
 # other path maps back over the lines kept.
-function read_intent(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplacePathOperation)
     path = get_operation_path(op)
     if op isa ReplaceSelectionOperation
         fold = _find_clicked_fold(p, iomap.content, path, fold -> _is_closed_in_view(iomap.input, fold))
@@ -399,16 +401,18 @@ function read_intent(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplacePat
 end
 
 # Ctrl+. gets the innermost fold around the caret of the view.
-function read_intent(::TextFolding, iomap::TextViewFoldingIoMap, op::ToggleCollapseOperation)
+function map_operation_backward(::TextFolding, iomap::TextViewFoldingIoMap, op::ToggleCollapseOperation)
     op.target === nothing || return op
     fold = _find_innermost_fold(iomap.input.viewed, iomap.input.selection)
     fold === nothing ? nothing : ToggleCollapseOperation(fold)
 end
 
 # A flat edit of the lines shown is an edit at the same place of the text.
-function read_intent(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplaceTextRangeOperation)
+function map_operation_backward(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplaceTextRangeOperation)
     path = map_reference_backward(p, iomap.content, op.reference)
     path === nothing ? nothing : ReplaceTextRangeOperation(path, op.replacement)
 end
 
-read_intent(::TextFolding, ::TextViewFoldingIoMap, payload) = payload isa Operation ? payload : nothing
+# Any other operation maps to itself, and any gesture answers nothing.
+map_operation_backward(::TextFolding, ::TextViewFoldingIoMap, op::Operation) = op
+read_gesture(::TextFolding, ::TextViewFoldingIoMap, gesture; answer = nothing) = nothing

@@ -50,7 +50,8 @@ import ..CellModule: set_cell_computation!
 import ..DocumentModule: replace_wrapped_document!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward, map_operation_backward
+import ..GestureBindingModule: read_gesture
 
 export TextSpanReferenceStep
 export TextColumnReferenceStep

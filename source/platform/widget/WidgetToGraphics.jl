@@ -2158,7 +2158,7 @@ end
 # press puts the caret and starts a drag that selects a range, and with Shift a press
 # or a click moves the moving end of the selection to the point
 # (`read_drawn_text_pointer`); on a chip only a press with Alt does.
-read_intent(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+read_gesture(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = _read_drawn_text(p, iomap, evt)
 function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
     w = iomap.input
     # The moves and the end of a drag that a press on the text started reach the
@@ -2232,7 +2232,8 @@ end
 
 map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetInsertionToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
@@ -2717,7 +2718,8 @@ _map_text_point(point::PointReferenceStep) =
     ConcreteReference(FieldReferenceStep("content"), ConcreteReference(point, EmptyReference()))
 
 # Invisible text (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`. A field is
@@ -2891,7 +2893,7 @@ _checkbox_toggle(iomap::WidgetValueIoMap) =
     make_slot_store_operation(iomap, :content,
         !(_get_slot_value(iomap.input, :content, iomap.value_iomap) === true))
 
-function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick)
+function read_gesture(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
@@ -2903,7 +2905,7 @@ end
 # Enter / Space with no modifier toggle the focused checkbox (the keystroke
 # reaches it via the selection-driven routing). Tab is left to fall through
 # (nothing) so focus traversal can claim it.
-function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
+function read_gesture(::WidgetCheckboxToGraphicsCanvas, iomap::WidgetValueIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
@@ -3427,7 +3429,8 @@ function map_reference_backward(p::WidgetContextMenuToGraphicsCanvas, iomap::Wid
 end
 map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # Every event routes to the child: its answer is re-rooted through `.child`, and a
 # popup the child opens is moved out of the content offset. A dwell and a right
@@ -3650,7 +3653,8 @@ function map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDia
 end
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetDialogToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetDialogToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # Esc / a backdrop click (on the scrim, outside the card) dismiss; a button click
 # runs its action AND closes (one CompoundOperation); a click inside the card on
@@ -3848,7 +3852,8 @@ _describe_menu_item_keys(w::WidgetMenuItem) =
     join((key isa AbstractString ? String(key) : describe_gesture_pattern(key) for key in w.keys), ", ")
 
 # Invisible item (printer returned a bare empty canvas): inert.
-read_intent(::WidgetMenuItemToGraphicsCanvas, ::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetMenuItemToGraphicsCanvas, ::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetMenuItemToGraphicsCanvas, ::WidgetBoxIoMap, operation) = nothing
 
 function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -8828,7 +8833,8 @@ end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
-read_intent(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetStatusBarToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # ── WidgetScrollBar ─────────────────────────────────────────────────────────
 
@@ -9156,7 +9162,7 @@ _is_owned_scroll_bar_drag(w::WidgetScrollBar) =
 # sends are one `MouseClick` each, so each moves one page. The drag comes by the
 # path of the bar, wherever the pointer is, and the press is kept in the frame of
 # the bar.
-function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+function read_gesture(p::WidgetScrollBarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing)
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     @gesture_case evt begin
@@ -9189,13 +9195,15 @@ end
 # Extension widgets
 # ════════════════════════════════════════════════════════════════════════════
 
-# The reader trio of a widget that takes no input: a badge, a separator, a
-# progress bar, an avatar, an alert, a highlight and a skeleton only show a value.
+# The reference maps and the two jobs of a widget that takes no input: an icon, a
+# separator, a progress bar or ring, a highlight, a skeleton and a swatch only show
+# a value, so no gesture on them makes an operation and no operation maps back.
 macro _printer_only(P)
     quote
         map_reference_forward(::$(esc(P)), iomap, reference) = nothing
         map_reference_backward(::$(esc(P)), iomap, reference) = nothing
-        read_intent(::$(esc(P)), iomap, evt) = nothing
+        read_gesture(::$(esc(P)), iomap, gesture; answer = nothing) = nothing
+        map_operation_backward(::$(esc(P)), iomap, operation) = nothing
     end
 end
 
@@ -9398,7 +9406,7 @@ end
 map_reference_forward(::WidgetBadgeToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 map_reference_backward(p::WidgetBadgeToGraphicsCanvas, iomap, reference) =
     _map_drawn_text_backward(p, iomap, reference)
-read_intent(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+read_gesture(p::WidgetBadgeToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
@@ -10149,7 +10157,7 @@ _switch_toggle(iomap::WidgetValueIoMap) =
     make_slot_store_operation(iomap, :checked,
         !(_get_slot_value(iomap.input, :checked, iomap.value_iomap) === true))
 
-function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick)
+function read_gesture(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt::MouseClick; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
@@ -10158,7 +10166,7 @@ function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, ev
     _switch_toggle(iomap)
 end
 
-function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
+function read_gesture(::WidgetSwitchToGraphicsCanvas, iomap::WidgetValueIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
@@ -10450,7 +10458,8 @@ map_reference_forward(::WidgetSliderToGraphicsCanvas, iomap, reference) = _map_c
 map_reference_backward(::WidgetSliderToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible slider (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetSliderToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetSliderToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetSliderToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # Where along the track `x` falls, as a fraction. Clamped, so a drag that leaves
 # the control at either end pins rather than runs away — which is what a slider
@@ -10471,8 +10480,8 @@ _slider_value(track_width::Int, x::Real) =
 #
 # The value write names the slider's `target` when it has one, so a control that
 # is *for* something says so in the operation itself.
-function read_intent(p::WidgetSliderToGraphicsCanvas,
-                     iomap::WidgetSliderToGraphicsCanvasIoMap, evt)
+function read_gesture(p::WidgetSliderToGraphicsCanvas,
+                     iomap::WidgetSliderToGraphicsCanvasIoMap, evt; answer = nothing)
     w = iomap.input
     w.enabled === false && return nothing
     width  = Int(iomap.track_width)
@@ -10678,7 +10687,8 @@ map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = _m
 map_reference_backward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetRadioGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetRadioGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # The option an arrow key moves to: the next or the previous one, around the
 # ends, and the first or the last one when no option is on.
@@ -10693,8 +10703,8 @@ end
 # The option that is already on is not a change, so it answers nothing. A plain
 # `selected` stores the index; a document in it stores the option itself
 # (`make_slot_store_operation`).
-function read_intent(::WidgetRadioGroupToGraphicsCanvas,
-                     iomap::WidgetRadioGroupToGraphicsCanvasIoMap, evt)
+function read_gesture(::WidgetRadioGroupToGraphicsCanvas,
+                     iomap::WidgetRadioGroupToGraphicsCanvasIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
@@ -10796,7 +10806,7 @@ const _INITIALS_PART = ConcreteReference(FieldReferenceStep("initials"), EmptyRe
 map_reference_forward(::WidgetAvatarToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 map_reference_backward(p::WidgetAvatarToGraphicsCanvas, iomap, reference) =
     _map_drawn_text_backward(p, iomap, reference)
-read_intent(p::WidgetAvatarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+read_gesture(p::WidgetAvatarToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
@@ -10915,7 +10925,7 @@ const _ALERT_DESCRIPTION = ConcreteReference(FieldReferenceStep("description"), 
 map_reference_forward(::WidgetAlertToGraphicsCanvas, iomap, reference) = _map_drawn_text_forward(iomap, reference)
 map_reference_backward(p::WidgetAlertToGraphicsCanvas, iomap, reference) =
     _map_drawn_text_backward(p, iomap, reference)
-read_intent(p::WidgetAlertToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = _read_drawn_text(p, iomap, evt)
+read_gesture(p::WidgetAlertToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = _read_drawn_text(p, iomap, evt)
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
@@ -11355,7 +11365,7 @@ map_reference_backward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothi
 # A left press flips `pressed`, and so do Return and Space while the toggle has
 # the focus: a container gives a key only to the child that its selection names.
 # The flip stores the opposite of the value (`make_slot_store_operation`).
-function read_intent(::WidgetToggleToGraphicsCanvas, iomap::WidgetValueIoMap, evt)
+function read_gesture(::WidgetToggleToGraphicsCanvas, iomap::WidgetValueIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.visible === false || w.enabled === false) && return nothing
@@ -11535,7 +11545,8 @@ map_reference_backward(::WidgetToggleGroupToGraphicsCanvas, iomap, reference) =
     reference === nothing ? nothing : map_drawn_place_backward(iomap.drawn, iomap.output, reference)
 
 # Invisible group (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetToggleGroupToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # Which segment holds `x`, counting from the group's own left edge, or nothing
 # when the widths do not reach it. The widths are the printer's own, so this
@@ -11716,13 +11727,14 @@ map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, ref
 map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothing
 
 # Invisible select (printer returned a bare empty canvas): inert.
-read_intent(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetSelectToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # A left click on the box opens the option list as a floating popup window just
 # below the box. The reader answers that position in its own frame; each reader
 # above moves it into its own frame, and the layer of the window turns it into an
 # `OpenWindowOperation`. The deep reader never computes its own screen position.
-function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt)
+function read_gesture(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
@@ -11820,7 +11832,7 @@ function _pick_option(w::WidgetOption)
     ])
 end
 
-function read_intent(::WidgetOptionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt)
+function read_gesture(::WidgetOptionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     @gesture_case evt begin
@@ -11959,8 +11971,9 @@ map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
 map_reference_forward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 map_reference_backward(::WidgetSpinBoxToGraphicsCanvas, iomap, reference) = nothing
 
-read_intent(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
-function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt)
+read_gesture(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
+function read_gesture(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGraphicsCanvasIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
@@ -12308,13 +12321,14 @@ function _find_list_row_at(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGra
     (1 <= r <= n) ? r : 0
 end
 
-read_intent(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, evt) = _read_rows_pane(p, iomap, evt)
 map_reference_backward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_backward(iomap, reference)
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_forward(iomap, reference)
-function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
+function read_gesture(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
@@ -12465,7 +12479,8 @@ function map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetT
 end
 
 # Invisible text area (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # The Text domain edits the content, as it edits the content of a `WidgetText`;
 # a plain Return breaks the line there.
@@ -12723,7 +12738,8 @@ function _get_accordion_body_offset(iomap::WidgetAccordionToGraphicsCanvasIoMap,
 end
 
 # Invisible accordion (the printer returned a bare empty canvas): inert.
-read_intent(::WidgetAccordionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt) = nothing
+read_gesture(::WidgetAccordionToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) = nothing
+map_operation_backward(::WidgetAccordionToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 
 # A left press on the header of an item opens that item, or closes it when it is
 # the open one. `expanded` holds one index, so the accordion shows one item at a
@@ -15282,7 +15298,7 @@ map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, 
 # nav below is the fallback. A press that selects never acts, so it reads no
 # binding, such as the double click that opens the file of a row, and opens or
 # closes no row: the row under it is the answer.
-function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
+function read_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt; answer = nothing)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     if !is_selection_press(evt)

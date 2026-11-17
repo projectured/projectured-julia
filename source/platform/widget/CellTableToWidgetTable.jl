@@ -70,4 +70,5 @@ end
 # widget table by an introduced reference, so a point names the cell under it; the
 # default forward mapping takes such a reference to its place, and the whole table
 # to the whole widget table.
-read_intent(::CellTableToWidgetTable, iomap, op) = nothing
+read_gesture(::CellTableToWidgetTable, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::CellTableToWidgetTable, iomap::SimpleIoMap, operation) = nothing

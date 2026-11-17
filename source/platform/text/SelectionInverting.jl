@@ -227,7 +227,7 @@ map_reference_forward(p::SelectionInverting, iomap::SelectionInvertingIoMap, ref
 map_reference_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, reference) =
     _map_line_path(iomap.segs, reference, false)
 
-function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
@@ -235,7 +235,7 @@ end
 
 # Translate a `ReplaceStringRangeOperation` from the split output domain back to
 # the un-split input domain, across the segments of its line.
-function read_intent(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::SelectionInverting, iomap::SelectionInvertingIoMap, op::ReplaceStringRangeOperation)
     reference = _map_line_path(iomap.segs, op.reference, false)
     reference === nothing ? nothing : ReplaceStringRangeOperation(reference, op.replacement)
 end
@@ -243,11 +243,11 @@ end
 # Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
 # unchanged. Raw gestures (KeyDown, KeyPress, …) return nothing so the
 # ChainingProjection tries earlier steps (e.g. SyntaxToText's console fallback).
-read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
+map_operation_backward(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the
 # gesture again against the input of this stage.
-read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+map_operation_backward(::SelectionInverting, ::SelectionInvertingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op
-read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
+read_gesture(::SelectionInverting, ::SelectionInvertingIoMap, gesture; answer = nothing) = nothing

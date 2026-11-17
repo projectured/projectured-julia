@@ -111,16 +111,19 @@ end
 """
     read_intent(projection::Projection, iomap, payload)
 
-The bridge of the older form of the reader to the two jobs of a stage: a gesture,
-a key or a `CollectIntents` payload goes to [`read_gesture`](@ref) of the
-projection, an operation to [`map_operation_backward`](@ref), and any other
-payload answers `nothing`. A projection that has a 3-argument method of its own
+The bridge of the older form of the reader to the two jobs of a stage: an input
+event (a key, a press, a move, a scroll), a gesture (a click, a dwell, a drag) or a
+`CollectIntents` payload goes to [`read_gesture`](@ref) of the projection, an
+operation to [`map_operation_backward`](@ref), and any other payload answers
+`nothing`. No gesture table has a pattern of a raw press, release, move or scroll,
+so the default `read_gesture` answers nothing for one, and a projection reads it
+with a method of its own. A projection that has a 3-argument method of its own
 answers before this default, so an old reader keeps working while the readers
 move to the two functions.
 """
 function read_intent(projection::Projection, iomap, payload)
     payload isa Operation && return map_operation_backward(projection, iomap, payload)
-    payload isa Union{KeyPress, KeyDown, Gesture, CollectIntents} &&
+    payload isa Union{Event, Gesture, CollectIntents} &&
         return read_gesture(projection, iomap, payload)
     nothing
 end

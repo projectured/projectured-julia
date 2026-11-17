@@ -274,7 +274,7 @@ end
 
 # Forward any other Operation (ToggleCollapseOperation, collection ops, etc.)
 # upstream unchanged.
-read_intent(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Operation) = op
+map_operation_backward(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Operation) = op
 
 # A key reaches this stage only when the stages after it gave no operation, or one
 # this stage declines, such as the edit beside an inline image. Read it against the
@@ -286,5 +286,5 @@ read_intent(::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, evt::Uni
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the
 # gesture again against the input of this stage.
-read_intent(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+map_operation_backward(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op

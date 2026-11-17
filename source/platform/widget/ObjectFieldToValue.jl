@@ -32,9 +32,9 @@ print_document(p::ObjectFieldToValue, field::ObjectField) =
     print_document(p, nothing, field, nothing)
 
 # "Replace your output with `value`": a write on the field of its own object and
-# path. The reader returns the operation and writes nothing (PAR-READER-IS-PURE).
-function read_intent(::ObjectFieldToValue, iomap::SimpleIoMap,
-                     operation::ReplaceReferencedValueOperation)
+# path. The mapper returns the operation and writes nothing (PAR-READER-IS-PURE).
+function map_operation_backward(::ObjectFieldToValue, iomap::SimpleIoMap,
+                                operation::ReplaceReferencedValueOperation)
     (operation.document === nothing &&
      strip_reference_types(operation.reference) isa EmptyReference) || return operation
     field = iomap.input
@@ -42,7 +42,7 @@ function read_intent(::ObjectFieldToValue, iomap::SimpleIoMap,
                                     _coerce(get_object_field_value(field), operation.value))
 end
 
-read_intent(::ObjectFieldToValue, iomap::SimpleIoMap, operation) = operation
+map_operation_backward(::ObjectFieldToValue, iomap::SimpleIoMap, operation) = operation
 
 function map_reference_forward(p::ObjectFieldToValue, iomap::SimpleIoMap, reference)
     range = find_object_field_range(iomap.input, reference)

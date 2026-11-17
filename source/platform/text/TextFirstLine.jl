@@ -61,7 +61,7 @@ map_reference_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference) =
     _map_selection_over_runs(_reverse_flat_runs(_make_first_line_runs(iomap.input, iomap.output)),
                              iomap.output, reference)
 
-function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplacePathOperation)
     input_path = map_reference_backward(p, iomap, op.path)
     input_path === nothing && return nothing
     make_path_operation(op, input_path)
@@ -69,25 +69,24 @@ end
 
 # A range edit on the first line maps back to the same line and range: the one
 # output line is the first input line.
-function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_line_span_path(op.reference)
     (parsed !== nothing && parsed[1] == 1 && parsed[3] !== nothing) ? op : nothing
 end
 
-# Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
-# MouseClick) falls through to the base `Projection.read_intent`, which delegates
-# via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
-# gesture back as if it were an operation, breaking upstream chain dispatch.
-read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
+# Forward any Operation upstream unchanged; a gesture is not an operation, so it
+# never reaches this method and goes to `read_gesture`, which reads the tables of
+# the projection and of the input.
+map_operation_backward(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
 
 # A key reaches this stage only when the stages after it gave no operation, or one
 # this stage declines, such as the edit beside an inline image. Read it against the
 # input and lower it there, as `WordWrapping` does.
-read_intent(::TextFirstLine, iomap::TextFirstLineIoMap, evt::Union{KeyPress, KeyDown}) =
+read_gesture(::TextFirstLine, iomap::TextFirstLineIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
     _read_lowered_gesture(iomap.input, evt)
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the
 # gesture again against the input of this stage.
-read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+map_operation_backward(::TextFirstLine, ::TextFirstLineIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op

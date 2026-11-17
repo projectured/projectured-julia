@@ -592,3 +592,46 @@ The four rules: a reader that only does what the default does goes; a reader tha
 operation becomes `map_operation_backward`; a reader that declines everything becomes two
 methods that answer nothing; the 54 wrappers wait for step 6. A change of behavior is taken
 where the default is the correct model, and each one is named in this section.
+
+**2026-11-17, step 4, the second slice: the widgets and the text.** Two Sonnet agents
+converted the rows of `source/platform/widget/` (37 of 70) and of `source/platform/text/`
+(60 of 69) by the four rules, and the walks and the wrappers stay.
+
+- **Found: the bridge gave no raw input event to `read_gesture`.** `MouseDown`, `MouseUp`,
+  `MouseMove` and `MouseScroll` are subtypes of `Event`, not of `Gesture`, so the bridge of
+  step 2 answered nothing for them, and a reader of a press or a move that became a method of
+  `read_gesture` was never reached: the first run of this slice failed 36 assertions and gave
+  9 more errors, in the carets of labels, the drags of scroll bars, sliders and headers, the
+  drag tracking, and the Alt+double click of `TextToGraphics`. The bridge now gives every
+  `Event`, every `Gesture` and a `CollectIntents` payload to `read_gesture`. No gesture table
+  has a pattern of a raw press, release, move or scroll, so the default answers nothing for
+  one, as the bridge did.
+- **The widgets.** 16 widgets whose reader declined everything on the `WidgetBoxIoMap` get the
+  two methods that answer nothing; the macro `@_printer_only` (7 widgets that only show a value)
+  writes them too. 17 readers of a gesture become methods of `read_gesture`, and
+  `ObjectFieldToValue` maps an operation with `map_operation_backward`. Change of behavior: the
+  readers of a gesture of the label, the badge, the avatar, the alert and seven more widgets
+  took any payload and declined an operation; an operation now goes to the default map, which
+  maps it with the reference map of the widget. `ObjectFieldToValue` gave a gesture back as its
+  answer; a gesture now goes to the default `read_gesture`.
+- **The text.** The maps of `PrimitiveToText`, `MarkedTextToText`, `TextLineNumbering`,
+  `TextFirstLine`, `SelectionInverting`, `TextFolding`, `HighlightedTextToText`,
+  `FilteredTextToText` and `WordWrapping` become methods of `map_operation_backward`, the
+  readers of a key, a click, a press, a move and a drag of `TextToGraphics` and `TextView` become
+  methods of `read_gesture`, and the five projections of `TextToString` answer nothing. Three
+  maps of `PrimitiveToText` called the default of the older form with `invoke`; that call now
+  reaches the same method again through the bridge, so they call the default of
+  `map_operation_backward` instead. Where an old reader declined a payload for which the default
+  would answer, a method that answers nothing keeps the old answer: `TextToGraphics` (any other
+  gesture, any operation but a path), `TextLineNumbering` and `TextFolding` (a gesture).
+  `TextBlockToScrollLayout.jl:318` stays: the walk of its untyped reader at :323 catches the call
+  first, so step 5 converts both.
+- **The runs of the second slice**, against main `24536d808`, after the change of the bridge.
+  `test_kernel()` 5226 passed on both. `test_platform()`: the 15 lines of failure of the base,
+  and 236373 passed for its 236368; the base gave the error of the running loop
+  (`TaskWorkItemTest.jl:171`), which did not occur here, so its testset ran 4 more assertions.
+  The 23 domain suites: the counts and the lines of the base, with two exceptions that depend on
+  the load. `test_formula()` passed its time guard `FormulaFrameGuardTest.jl:67` (312 for 311
+  and 1 failure). `test_process()` passed 316, as on `e9af3a5a7`; on the base it hung in
+  `ProcessDebugTest.jl:185`, where `wait(run.task)` waits while the task of the process waits on
+  its channel, and the run was stopped after 45 minutes.

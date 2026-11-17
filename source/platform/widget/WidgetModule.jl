@@ -44,13 +44,14 @@ import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edite
                          get_document_title, is_walk_opaque, get_view_state_fields
 import ..DomainModule: accepts_pasted_text, compute_context_menu
 import ..SerializationModule: pred_arguments
-import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
+import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own, read_gesture
 import ..GraphicsModule: map_operation_position, find_first_baseline
 import ..OperationModule: evaluate_operation, is_self_contained_operation,
                           is_collecting_operation, join_collected_operations,
                           operation_reference, retarget_operation, describe_operation,
                           get_wrapped_operation, rewrap_operation
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           map_operation_backward
 import ..SelectionModule: has_dormant_selection
 
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,

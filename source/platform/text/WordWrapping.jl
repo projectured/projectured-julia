@@ -151,16 +151,16 @@ map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference) = r
 # A key reaches this stage only when the stages after it gave no operation, or one
 # this stage declines, such as the edit beside an inline image. Read it against the
 # input and lower it there: in a pure-text pipeline no stage below lowers it.
-read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown}) =
+read_gesture(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
     _read_lowered_gesture(iomap.input, evt)
 
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
 # MouseClick) is handled above — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
-read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
+map_operation_backward(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
 # An element write of the output (the edit beside an inline image) names an output
 # line, which is another object than its input line. Decline it: the chain then
 # reads the gesture again against the input of this stage.
-read_intent(::WordWrapping, ::WordWrappingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+map_operation_backward(::WordWrapping, ::WordWrappingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
     is_text_element_write(op) ? nothing : op

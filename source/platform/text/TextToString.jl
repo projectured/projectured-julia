@@ -23,9 +23,8 @@ function print_document(p::TextStringToString, recursion, ts::TextString, ctx)
     SimpleIoMap(p, ts, Cell(@computation ts.content::AbstractString))
 end
 
-function read_intent(::TextStringToString, iomap::SimpleIoMap, op)
-    return nothing
-end
+read_gesture(::TextStringToString, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::TextStringToString, iomap::SimpleIoMap, operation) = nothing
 
 # ── TextSpacingToString ───────────────────────────────────────────────────────
 
@@ -37,7 +36,8 @@ map_reference_backward(::TextSpacingToString, iomap, reference) = nothing
 print_document(p::TextSpacingToString, recursion, spacing::TextSpacing, ctx) =
     SimpleIoMap(p, spacing, Cell(" "))
 
-read_intent(::TextSpacingToString, iomap::SimpleIoMap, op) = nothing
+read_gesture(::TextSpacingToString, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::TextSpacingToString, iomap::SimpleIoMap, operation) = nothing
 
 # ── TextGraphicsToString ──────────────────────────────────────────────────────
 
@@ -49,7 +49,8 @@ map_reference_backward(::TextGraphicsToString, iomap, reference) = nothing
 print_document(p::TextGraphicsToString, recursion, image::TextGraphics, ctx) =
     SimpleIoMap(p, image, Cell(string(OBJECT_REPLACEMENT_CHARACTER)))
 
-read_intent(::TextGraphicsToString, iomap::SimpleIoMap, op) = nothing
+read_gesture(::TextGraphicsToString, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::TextGraphicsToString, iomap::SimpleIoMap, operation) = nothing
 
 # ── TextLineToString ──────────────────────────────────────────────────────────
 
@@ -82,9 +83,8 @@ function print_document(proj::TextLineToString, recursion, line::TextLine, ctx)
     SimpleIoMap(proj, line, output)
 end
 
-function read_intent(::TextLineToString, iomap::SimpleIoMap, op)
-    return nothing
-end
+read_gesture(::TextLineToString, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::TextLineToString, iomap::SimpleIoMap, operation) = nothing
 
 # ── TextBlockToString ───────────────────────────────────────────────────────
 
@@ -118,9 +118,8 @@ function print_document(proj::TextBlockToString, recursion, text::TextBlock, ctx
     SimpleIoMap(proj, text, output)
 end
 
-function read_intent(::TextBlockToString, iomap::SimpleIoMap, op)
-    return nothing
-end
+read_gesture(::TextBlockToString, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::TextBlockToString, iomap::SimpleIoMap, operation) = nothing
 
 # ── Compound convenience constructor ────────────────────────────────────────
 

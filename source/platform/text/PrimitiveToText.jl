@@ -88,15 +88,9 @@ function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx
     SimpleIoMap(p, b, out)
 end
 
-function read_intent(p::PrimitiveBoolToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_bool(iomap.output, op.path)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
-end
-
 # A key that would edit the text of a Bool does nothing: a Bool switches by the
 # keys of `@gestures PrimitiveBool`, and a range edit of a Bool has no result.
-read_intent(::PrimitiveBoolToText, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
+map_operation_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
 
 # ── PrimitiveNumberToText ────────────────────────────────────────────────────
 
@@ -127,18 +121,12 @@ function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber,
     SimpleIoMap(p, n, out)
 end
 
-function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_number(iomap.output, op.path)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
-end
-
 # A key in the number is a range replace that the default reader maps back to
 # `value{s:e}`; with `allows_type_in`, a text that the number can not show makes
 # a type-in instead.
-function read_intent(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+function map_operation_backward(p::PrimitiveNumberToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
     changes_lines(op) && return nothing
-    mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    mapped = invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
     p.allows_type_in && mapped isa ReplaceRangeOperation ? make_number_edit_operation(iomap.input, mapped) : mapped
 end
 
@@ -206,15 +194,9 @@ function print_document(p::PrimitiveInsertionToText, recursion, ins::PrimitiveIn
     SimpleIoMap(p, ins, out)
 end
 
-function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_insertion(iomap.output, op.path, iomap.input)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
-end
-
-function read_intent(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+function map_operation_backward(p::PrimitiveInsertionToText, iomap::SimpleIoMap, op::ReplaceRangeOperation)
     changes_lines(op) && return nothing
-    mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+    mapped = invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
     mapped isa ReplaceRangeOperation || return mapped
     range = find_value_range(mapped.reference)
     range === nothing ? mapped : make_type_in_edit_operation(iomap.input, range, mapped.replacement)
@@ -288,14 +270,8 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     SimpleIoMap(p, s, out)
 end
 
-function read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = _backward_string(iomap.output, op.path)
-    input_path === nothing && return nothing
-    make_path_operation(op, input_path)
-end
-
-read_intent(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
-    changes_lines(op) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+map_operation_backward(p::PrimitiveStringToTextBlock, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
+    changes_lines(op) ? nothing : invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
 
 # The keys of a type-in that mean something to a type-in: Return makes the value
 # that the text parses as, and Escape drops the text. The keys that edit the text
