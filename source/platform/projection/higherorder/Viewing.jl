@@ -209,6 +209,7 @@ end
 
 function print_document(p::ViewingProjection, recursion, input, ctx)
     input isa ContentView || return print_document(p.content, recursion, input, ctx)
+    _drop_unreached_child_views!(input)
     view_recursion = ViewRecursion(input, recursion, ctx, IdDict{Any,Any}())
     viewed = getproperty(input, :viewed)
     hasfield(typeof(viewed), :viewed) && throw(ArgumentError(
@@ -224,6 +225,17 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
                                   context = ctx)
     map_view_state!(output, input, content)
     ViewingIoMap(p, input, output, content)
+end
+
+# Each list view of `view` drops the views of its elements that nothing reaches,
+# before the print asks for the views that it shows.
+function _drop_unreached_child_views!(view::ContentView)
+    for name in fieldnames(typeof(view))
+        is_view_state_field(name) && continue
+        value = run_without_cell_tracking(() -> getproperty(view, name))
+        value isa CellVectorView && drop_unreached_views!(value)
+    end
+    nothing
 end
 
 """
