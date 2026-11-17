@@ -216,19 +216,26 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   condition and the answer of the child (P4, P5, P6); the passing helper and the template walk
   read the rules of a level with the answer of the child (P7, P8); the XML rules and the links
   of Markdown and RST get their conditions (P9); the 82 calls of `GestureBinding` in
-  projectured-julia and the 2 files in omnet-julia and inet-julia take the answer. O4 and O5
-  go into the docstrings of `GestureBinding`, `fire_gesture_bindings`, `read_gesture`,
-  `read_projection_gesture`, `read_child_intent`, `@gestures` and the reader of
-  `ChainingProjection`; into PAR-DELEGATE-AND-LIFT of
-  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md); into the
-  design document [domain-anatomy.md](../../documentation/design/domain-anatomy.md); into the
-  guides of the kernel, [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md)
-  (the rules of a table) and [projection-system.md](../../documentation/package/kernel/projection-system.md)
-  (the walk); into [xml.md](../../documentation/package/domain/xml/xml.md) and
-  [markdown.md](../../documentation/package/domain/markdown/markdown.md); and into a section of
-  [new-domain-guide.md](../../documentation/guide/new-domain-guide.md), where a domain writes
-  its first table. Test: `test_kernel()` with a testset for each of the eight cases of §7, the
-  nested XML case of §7 in `test_xml()`, and the suites of step 3.
+  projectured-julia and the 2 files in omnet-julia and inet-julia take the answer. The process
+  is documented as one process: a level asks its child, lifts the answer of the child into its
+  own input, and then its rules read that answer and replace it when their condition holds, so
+  the answer goes up level by level, innermost first. The owner (2026-11-17): "I meant by
+  documentation earlier that this process of overriding and recursing and lifting needs to be
+  well documented not the individual rules of the domain documents. That's also good but on a
+  different level". The process goes into: the rule PAR-DELEGATE-AND-LIFT of
+  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md); the design
+  section "Reader (reverse projection)" of
+  [system-anatomy.md](../../documentation/design/system-anatomy.md); the kernel guide
+  [projection-system.md](../../documentation/package/kernel/projection-system.md), section
+  "Recursive gesture reading", with the eight cases of §7 as its examples; and the docstrings of
+  `read_child_intent`, `read_intent`, `read_gesture`, `fire_gesture_bindings`, `GestureBinding`,
+  `@gestures` and the reader of `ChainingProjection`. On the level below, the pages that name an
+  `override` rule say its condition: the rules of a table in
+  [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md),
+  [domain-anatomy.md](../../documentation/design/domain-anatomy.md),
+  [xml.md](../../documentation/package/domain/xml/xml.md) and
+  [markdown.md](../../documentation/package/domain/markdown/markdown.md).
+  Test: `test_kernel()` with a testset for each of the eight cases of §7, the nested XML case of §7 in `test_xml()`, and the suites of step 3.
 - [ ] **4. The stages.** The 249 readers that only map become methods of
   `map_operation_backward`, the 56 that only read a gesture become methods of `read_gesture`,
   and the 110 bridges, declines and identities go, slice by slice in the order of the package
@@ -286,7 +293,7 @@ owner. A step lands only after its stop.
   (P5). Step 6 removes the old form, which the readers of omnet-julia and inet-julia still use,
   so step 7 lands with it.
 
-**Proposed decisions of step 3a (2026-11-17, for the approval of the owner):**
+**Decisions of step 3a, approved by the owner (2026-11-17, "Yes, I agree"):**
 - **P4. A table writes the condition beside the pattern.** `override(PATTERN)` is the
   unconditional rule, as today; `override(PATTERN, CONDITION)` is the conditional rule, and
   CONDITION is an expression of `answer`, as the operation of a rule is an expression of `doc`
