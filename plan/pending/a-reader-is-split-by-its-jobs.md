@@ -93,14 +93,24 @@ rest by hand:
   identity readers go. Julia chooses the method by the type of the operation, as about 130
   older readers do today. The undo buffer and the gesture log are methods of job 2: each
   takes the answer of its content and gives it back recorded.
-- **Job 3, written once:** the kernel walks the stages and the children, and no stage
-  writes it. The change carries its gesture, its operation, its route, its description and
-  its domain through the walk, so no stage can lose them.
-- **Open point O1, where a gesture goes.** A key follows the selection path, and a pointer
-  gesture goes to the innermost part under the pointer, as the owner decided for the mouse
-  target. The walk needs, for each container, the child under a position and the frame of
-  each child. Find whether the IO map of a container answers both, so that no container
-  writes them, or whether a container declares them with a third function.
+- **Job 3 stays local, and only the passing is written once.** Each container chooses the
+  child of a gesture, as the owner decided (PAR-DECIDE-LOCALLY and PAR-NO-GLOBAL-ROUTING in
+  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)): a
+  pointer gesture by its position, a key where the container sends it, usually along its
+  selection, and a route only for an operation that a verb returns from one place. No walk
+  over the tree decides it. What is written once is the passing to the chosen child and back:
+  the position into the frame of the child and back, the steps of the child before each path
+  of the answer, the change with its route, its description and its domain, the merge of a
+  `CollectIntents` list, and the rule of an override. The default reader of a container
+  chooses by these rules, and a container writes `read_intent` only to choose otherwise.
+- **Open point O1, how a container names its children at places.** The graphics slice has
+  the form already: a list of drawn children `(; x, y, w, h, iomap, steps)`,
+  `find_drawn_child_at` and `read_drawn_child_event`
+  ([DrawnChild.jl](../../source/platform/graphics/DrawnChild.jl)). Only the two charts use it,
+  each with its own list of parts, and 42 places move a position into the frame of a child by
+  hand, 23 of them in `WidgetToGraphics.jl`. Proposal: each container that draws children at
+  places answers that list with one function, and the default reader of a container finds the
+  child under the pointer in it.
 - **Open point O2, the order.** The innermost stage answers first; a stage further out
   answers when all inner stages decline, or first when its rule is an override. Find the
   readers that answer their own gesture first, such as a button, and whether an override
