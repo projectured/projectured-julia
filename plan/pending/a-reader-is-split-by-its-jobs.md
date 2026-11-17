@@ -194,26 +194,26 @@ rules give it.
 Each step keeps main working: the old forms stay reachable through the bridge until step 6.
 Each step runs its suites against a baseline of main, in a worktree with a private depot.
 
-- [ ] **1. The baseline.** On main: `test_kernel()`, `test_platform()` and the 23 domain
+- [x] **1. The baseline.** Done 2026-11-17 (§7). On main: `test_kernel()`, `test_platform()` and the 23 domain
   suites (`test_book()` … `test_yaml()`), each in a process of its own, in a worktree detached
   at the base with a depot of its own. The counts and the failing lines go in §7. The baseline
   of omnet-julia (`test_legacy()`, `test_ide_file_navigator()`, the presentation suites) is
   taken at step 7, because main holds steps 2 to 5 then.
-- [ ] **2. The seams and the passing, in the kernel.** Built 2026-11-17, waits for R1 and for the
-  compare of `test_platform()` with the baseline (§7). `read_gesture(projection, iomap,
+- [x] **2. The seams and the passing, in the kernel.** Landed 2026-11-17 with steps 3 and 3a,
+  after R1 and R2 (§7). `read_gesture(projection, iomap,
   gesture)` with its default (the table of the projection, then the table of the input
   document), `map_operation_backward(projection, iomap, operation)` with its default (each
   reference mapped back, any other operation kept), and the one helper that passes a change to
   a chosen child and back (P1). The default `read_intent` of a stage calls the two seams, and of
   a container chooses the child by the rules of §4 and the order of O2. Test: `test_kernel()`
   with new testsets for each default, the passing and the override order.
-- [ ] **3. The template reader.** `read_template_intent` uses the seams and the helper, so the
+- [x] **3. The template reader.** Landed 2026-11-17 with steps 2 and 3a. `read_template_intent` uses the seams and the helper, so the
   194 readers of `@projection_template`, `@rst_flat` and `@rst_indented` follow in one place,
   and `ClaimedGesture` becomes the override of O2. Test: `test_syntax()`, the JSON, XML, YAML,
   SQL, Julia, Markdown and RST suites, `test_position_navigations()`. Built 2026-11-17; R2 found
   the fault of §7, which step 3a corrects.
-- [ ] **3a. The rule of a level (O4, O5, O6), in the kernel and the template.** Built
-  2026-11-17; waits for R2. A rule gets its
+- [x] **3a. The rule of a level (O4, O5, O6), in the kernel and the template.** Landed
+  2026-11-17 with steps 2 and 3, in projectured-julia and omnet-julia, after R2. A rule gets its
   condition and the answer of the child (P4, P5, P6); the passing helper and the template walk
   read the rules of a level with the answer of the child (P7, P8); the XML rules and the links
   of Markdown and RST get their conditions (P9); the 82 calls of `GestureBinding` in
@@ -524,3 +524,12 @@ PAR-FOUR-FUNCTIONS that says so.
   The level below: the rules of a table in `devices-and-backends.md`, `domain-anatomy.md`,
   `xml.md`, `markdown.md`, and the wording of a claimed key in `navigator.md`, `explorer.md` and
   `conversation.md`.
+
+**2026-11-17, R2: the owner approves the landing.** "yes" to: "do you approve the landing of
+steps 2, 3 and 3a on main of projectured-julia and omnet-julia, after I record the list of
+ProjecturedJulia again?" The list of ProjecturedJulia records again (2331 lines, no call with
+`claimed`), and a precompile of the branch then gives no warning. The other lists that name
+`claimed` (ProjecturedExample 216, ProjecturedPlatform 93, and 14 more with 4 to 28) stay
+under the share of 10% that fails a precompilation, so they compile what still resolves,
+with no warning; step 8 records them. Steps 2, 3 and 3a land by a fast-forward of main of
+projectured-julia and of omnet-julia; nothing is pushed.
