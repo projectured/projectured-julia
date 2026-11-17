@@ -16,7 +16,6 @@ import ..CellModule: set_cell_computation!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
-import ..ProjectionAlgebraModule: make_content_view
 import ..LinkModule: is_link, get_link_target, get_link_content
 import ..SerializationModule: get_document_section, make_reference_leaf, find_reference_marker,
                               splice_named_file!, make_document_seed,

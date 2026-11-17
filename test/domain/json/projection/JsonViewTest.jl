@@ -107,6 +107,26 @@ end
     @test output isa SyntaxLeaf
 end
 
+@testset "The view types of JSON take the declaration" begin
+    leaves = [(JsonNullView, JsonNull()), (JsonBoolView, JsonBool(true)), (JsonNumberView, JsonNumber(1)),
+              (JsonStringView, JsonString("a"))]
+    for (view_type, content) in leaves
+        @test fieldnames(view_type)[1] === :viewed && !(:value in fieldnames(view_type))
+        @test make_content_view(content) isa view_type && make_content_view(content).viewed === content
+        @test has_default_view_state(view_type(content))
+    end
+    array = JsonArray([JsonString("a")])
+    array_view = JsonArrayView(array)
+    @test fieldnames(JsonArrayView)[1:3] == (:viewed, :elements, :collapsed)
+    @test array_view.elements isa CellVectorView && array_view.elements.viewed === array.elements
+    @test make_content_view(array) isa JsonArrayView
+    given = CellVector(Any[nothing])
+    @test make_content_view(array, given).elements.given === given
+    @test has_default_view_state(array_view)
+    array_view.collapsed = true
+    @test !has_default_view_state(array_view)
+end
+
 end
 end
 

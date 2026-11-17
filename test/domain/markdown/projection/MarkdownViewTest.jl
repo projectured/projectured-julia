@@ -123,5 +123,22 @@ end
     @test output isa SyntaxNode
 end
 
+@testset "The view types of Markdown take the declaration" begin
+    run = MarkdownText("a")
+    @test fieldnames(MarkdownTextView)[1] === :viewed && !(:content in fieldnames(MarkdownTextView))
+    @test make_content_view(run) isa MarkdownTextView && has_default_view_state(MarkdownTextView(run))
+    for (view_type, content, field) in [(MarkdownParagraphView, MarkdownParagraph([MarkdownText("b")]), :content),
+                                        (MarkdownHeadingView, MarkdownHeading(1, [MarkdownText("c")]), :content),
+                                        (MarkdownRootView, MarkdownRoot([MarkdownParagraph([MarkdownText("d")])]), :elements)]
+        made = make_content_view(content)
+        @test fieldnames(view_type)[1:2] == (:viewed, field)
+        @test made isa view_type && made.viewed === content
+        @test getproperty(made, field) isa CellVectorView &&
+              getproperty(made, field).viewed === getproperty(content, field)
+        @test has_default_view_state(made)
+    end
+    @test !(:level in fieldnames(MarkdownHeadingView)) && !(:collapsed in fieldnames(MarkdownRootView))
+end
+
 end
 end

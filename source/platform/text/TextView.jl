@@ -36,15 +36,11 @@ of syntax computes them from the folds of the views of the nodes.
 
     view = TextView(TextBlock(TextLine(TextString("alpha beta"))), true)
 """
-@document struct TextView <: ContentView
-    viewed::TextBlock
+@content_view TextBlock struct TextView <: ContentView
     wrap::Bool = false
     line_spacing::Any = nothing
     closed_folds::Any = nothing
 end
-
-# The view of a text that a viewing step prints.
-make_content_view(content::TextBlock) = TextView(content)
 
 _find_edited_text(view::TextView) = view.viewed
 

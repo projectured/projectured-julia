@@ -14,9 +14,7 @@ A view of the syntax leaf `viewed`. Its caret is a path of the leaf, such as
 same leaf keeps a caret of its own. A viewing step of `SyntaxToText` prints it as
 the `TextView` of the text of the leaf.
 """
-@document struct SyntaxLeafView <: ContentView
-    viewed::SyntaxLeaf
-end
+@content_view SyntaxLeaf struct SyntaxLeafView <: ContentView end
 
 """
     SyntaxNodeView(viewed::SyntaxNode)
@@ -31,23 +29,9 @@ a place in a delimiter. A viewing step of `SyntaxToText` prints it as the
 `TextView` of the text of the node, whose closed folds are the folds of the views
 that are closed.
 """
-@document struct SyntaxNodeView <: ContentView
-    viewed::SyntaxNode
-    children::CellVectorView
+@content_view SyntaxNode struct SyntaxNodeView <: ContentView
     collapsed::Bool = false
 end
-
-SyntaxNodeView(content::SyntaxNode) =
-    SyntaxNodeView(content, CellVectorView(Cell(Computation(() -> content.children))))
-
-# The views that a parent view makes for its children, and that a viewing step prints.
-make_content_view(content::SyntaxLeaf) = SyntaxLeafView(content)
-make_content_view(content::SyntaxNode) = SyntaxNodeView(content)
-
-# The view of a node that a viewing step gives over the views of its children, as
-# the step of a JSON array gives over the steps of its elements.
-make_content_view(content::SyntaxNode, children) =
-    SyntaxNodeView(content, CellVectorView(Cell(Computation(() -> content.children)), children))
 
 # The fold of that view is the fold of the view that the step printed.
 function map_view_state!(output::SyntaxNodeView, view::ContentView, iomap)

@@ -24,9 +24,7 @@ abstract type MarkdownView <: ContentView end
 A view of the run of text `viewed`. Its caret is a path of the run, such as
 `.content{3}`, which the view reads through the run.
 """
-@document struct MarkdownTextView <: MarkdownView
-    viewed::MarkdownText
-end
+@content_view MarkdownText struct MarkdownTextView <: MarkdownView end
 
 """
     MarkdownParagraphView(viewed::MarkdownParagraph)
@@ -34,13 +32,7 @@ end
 A view of the paragraph `viewed`. `content` holds the view of the list of the
 inline nodes of the paragraph (`CellVectorView`).
 """
-@document struct MarkdownParagraphView <: MarkdownView
-    viewed::MarkdownParagraph
-    content::CellVectorView
-end
-
-MarkdownParagraphView(viewed::MarkdownParagraph) =
-    MarkdownParagraphView(viewed, CellVectorView(Cell(Computation(() -> viewed.content))))
+@content_view MarkdownParagraph struct MarkdownParagraphView <: MarkdownView end
 
 """
     MarkdownHeadingView(viewed::MarkdownHeading)
@@ -48,13 +40,7 @@ MarkdownParagraphView(viewed::MarkdownParagraph) =
 A view of the heading `viewed`. `content` holds the view of the list of the inline
 nodes of the heading (`CellVectorView`).
 """
-@document struct MarkdownHeadingView <: MarkdownView
-    viewed::MarkdownHeading
-    content::CellVectorView
-end
-
-MarkdownHeadingView(viewed::MarkdownHeading) =
-    MarkdownHeadingView(viewed, CellVectorView(Cell(Computation(() -> viewed.content))))
+@content_view MarkdownHeading struct MarkdownHeadingView <: MarkdownView end
 
 """
     MarkdownRootView(viewed::MarkdownRoot)
@@ -71,16 +57,4 @@ view of that domain, with the state of that view, such as the fold of a JSON arr
     view.elements[1]       # a MarkdownParagraphView
     view.elements[2]       # a JsonArrayView, which a second place can show
 """
-@document struct MarkdownRootView <: MarkdownView
-    viewed::MarkdownRoot
-    elements::CellVectorView
-end
-
-MarkdownRootView(viewed::MarkdownRoot) =
-    MarkdownRootView(viewed, CellVectorView(Cell(Computation(() -> viewed.elements))))
-
-# The views that a parent view makes for its children, and that a viewing step prints.
-make_content_view(content::MarkdownText) = MarkdownTextView(content)
-make_content_view(content::MarkdownParagraph) = MarkdownParagraphView(content)
-make_content_view(content::MarkdownHeading) = MarkdownHeadingView(content)
-make_content_view(content::MarkdownRoot) = MarkdownRootView(content)
+@content_view MarkdownRoot struct MarkdownRootView <: MarkdownView end

@@ -51,7 +51,6 @@ import ..DocumentModule: replace_wrapped_document!
 import ..OperationModule: splice_value!, evaluate_operation, operation_reference,
                           retarget_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
-import ..ProjectionAlgebraModule: make_content_view
 
 export TextSpanReferenceStep
 export TextColumnReferenceStep

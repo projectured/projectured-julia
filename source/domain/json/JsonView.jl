@@ -21,27 +21,21 @@ abstract type JsonView <: ContentView end
 
 A view of a JSON null. Its caret is the whole null or a place in its text.
 """
-@document struct JsonNullView <: JsonView
-    viewed::JsonNull
-end
+@content_view JsonNull struct JsonNullView <: JsonView end
 
 """
     JsonBoolView(viewed::JsonBool)
 
 A view of a JSON boolean. Its caret is the whole boolean or a place in its text.
 """
-@document struct JsonBoolView <: JsonView
-    viewed::JsonBool
-end
+@content_view JsonBool struct JsonBoolView <: JsonView end
 
 """
     JsonNumberView(viewed::JsonNumber)
 
 A view of a JSON number. Its caret is a path of the number, such as `.value{1}`.
 """
-@document struct JsonNumberView <: JsonView
-    viewed::JsonNumber
-end
+@content_view JsonNumber struct JsonNumberView <: JsonView end
 
 """
     JsonStringView(viewed::JsonString)
@@ -51,9 +45,7 @@ A view of the JSON string `viewed`. Its caret is a path of the string, such as
 the view, so another view of the same string keeps a caret of its own. A viewing
 step of `JsonToSyntax` prints it as the `SyntaxLeafView` of the leaf of the string.
 """
-@document struct JsonStringView <: JsonView
-    viewed::JsonString
-end
+@content_view JsonString struct JsonStringView <: JsonView end
 
 """
     JsonArrayView(viewed::JsonArray)
@@ -66,21 +58,9 @@ share. A viewing step of `JsonToSyntax` prints it as the `SyntaxNodeView` of the
 node of the array, whose children are the views of the nodes of the elements and
 whose fold is the fold of this view.
 """
-@document struct JsonArrayView <: JsonView
-    viewed::JsonArray
-    elements::CellVectorView
+@content_view JsonArray struct JsonArrayView <: JsonView
     collapsed::Bool = false
 end
-
-JsonArrayView(content::JsonArray) =
-    JsonArrayView(content, CellVectorView(Cell(Computation(() -> content.elements))))
-
-# The views that a parent view makes for its children, and that a viewing step prints.
-make_content_view(content::JsonNull) = JsonNullView(content)
-make_content_view(content::JsonBool) = JsonBoolView(content)
-make_content_view(content::JsonNumber) = JsonNumberView(content)
-make_content_view(content::JsonString) = JsonStringView(content)
-make_content_view(content::JsonArray) = JsonArrayView(content)
 
 # The view that the caret of `view` names, when it is a view of a node that a
 # replace may retype: not the view itself, whose content has no place of its own
