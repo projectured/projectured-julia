@@ -226,10 +226,10 @@ They are approved with this plan.
    `CellVector` does not. The tests of the dormant carets of the views are the
    guard.
 4. **Another plan changes the readers.** `a-reader-is-split-by-its-jobs.md` is
-   in work on the branch `reader-split`, 12 commits ahead of `main`. It changed
-   none of the view files until now, but it will change `read_intent` in
-   `Viewing.jl`. This plan changes other functions of that file, so a merge can
-   need work by hand.
+   in work on the branch `reader-split`. Its steps 2, 3 and 3a are on `main`
+   since 2026-11-17, and they changed none of the files that this plan names.
+   Its later steps will change `read_intent` in `Viewing.jl`. This plan changes
+   other functions of that file, so a merge can need work by hand.
 5. **A loop over a list view makes the view of each element.** Code that needs
    only the views that exist must ask the list view for them. The search of
    2026-11-17 found no such loop over a long list.
