@@ -113,7 +113,6 @@ end
     for (view_type, content) in leaves
         @test fieldnames(view_type)[1] === :viewed && !(:value in fieldnames(view_type))
         @test make_content_view(content) isa view_type && make_content_view(content).viewed === content
-        @test has_default_view_state(view_type(content))
     end
     array = JsonArray([JsonString("a")])
     array_view = JsonArrayView(array)
@@ -122,9 +121,7 @@ end
     @test make_content_view(array) isa JsonArrayView
     given = CellVector(Any[nothing])
     @test make_content_view(array, given).elements.given === given
-    @test has_default_view_state(array_view)
-    array_view.collapsed = true
-    @test !has_default_view_state(array_view)
+    @test array_view.collapsed == false
 end
 
 end

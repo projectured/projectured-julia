@@ -18,17 +18,6 @@ find_child_view_type(::Type) = nothing
 find_child_view_type(::Type{<:CellVector}) = CellVectorView
 
 """
-    has_default_view_state(view) -> Bool
-
-`true` when each field of the state of `view` has its default value, so a new view
-of the same content is equal to it. [`@content_view`](@ref) declares a method for
-the view type, from the defaults of the declaration. A view type with no
-declaration answers `false`.
-"""
-function has_default_view_state end
-has_default_view_state(view) = false
-
-"""
     @content_view Content struct Name <: Supertype
         state::Type = default
     end
@@ -41,9 +30,7 @@ only the state that is specific to the view type. The macro writes the rest:
   list, which holds the view of the list ([`CellVectorView`](@ref));
 - the constructor `Name(content)`;
 - the method of [`make_content_view`](@ref) for `Content`, and the method that
-  takes the views that a viewing step gives, when `Content` has one list;
-- the method of [`has_default_view_state`](@ref), which compares each field of the
-  state with its default.
+  takes the views that a viewing step gives, when `Content` has one list.
 
 `Content` is a type that `@document` declared before this declaration.
 
@@ -72,8 +59,7 @@ function _make_content_view_declaration(mod::Module, source, content, declaratio
     name isa Symbol || throw(ArgumentError("@content_view: a view type takes no type parameter"))
     state_lines = declaration.args[3].args
     child_fields = _find_child_view_fields(content_type)
-    state_fields = _find_declared_state_fields(state_lines)
-    for (field, _) in state_fields
+    for field in _find_declared_field_names(state_lines)
         (field === :viewed || any(child -> child[1] === field, child_fields)) && throw(ArgumentError(
             "@content_view: $name declares the field `$field`, which the declaration writes for $content"))
     end
@@ -87,7 +73,6 @@ function _make_content_view_declaration(mod::Module, source, content, declaratio
     result = Expr(:block, Expr(:macrocall, GlobalRef(DocumentModule, Symbol("@document")), source, struct_expr))
 
     make = Expr(:., ProjectionAlgebraModule, QuoteNode(:make_content_view))
-    is_default = Expr(:., ProjectionAlgebraModule, QuoteNode(:has_default_view_state))
     # The view of a list follows the field of the content, so it shows the list
     # that the content holds now.
     make_list_view(field, view_type, given...) =
@@ -102,10 +87,7 @@ function _make_content_view_declaration(mod::Module, source, content, declaratio
         push!(result.args, source,
               :($make(viewed::$content, children) = $name(viewed, $(make_list_view(field, view_type, :children)))))
     end
-    checks = Any[default === nothing ? false : :($(isequal)($(getproperty)(view, $(QuoteNode(field))), $(default.value)))
-                 for (field, default) in state_fields]
-    condition = isempty(checks) ? true : foldl((a, b) -> :($a && $b), checks)
-    push!(result.args, source, :($is_default(view::$name) = $condition), nothing)
+    push!(result.args, nothing)
     result
 end
 
@@ -123,15 +105,14 @@ function _find_child_view_fields(content::Type)
     found
 end
 
-# The fields that the lines of a declaration name, each with its default as
-# `Some(expression)`, or with `nothing` when the field has no default.
-function _find_declared_state_fields(lines)
-    found = Tuple{Symbol,Union{Some,Nothing}}[]
+# The names of the fields that the lines of a declaration declare.
+function _find_declared_field_names(lines)
+    found = Symbol[]
     for line in lines
         if line isa Expr && line.head === :(=)
-            push!(found, (_get_declared_field_name(line.args[1]), Some(line.args[2])))
+            push!(found, _get_declared_field_name(line.args[1]))
         elseif line isa Symbol || (line isa Expr && line.head === :(::))
-            push!(found, (_get_declared_field_name(line), nothing))
+            push!(found, _get_declared_field_name(line))
         end
     end
     found

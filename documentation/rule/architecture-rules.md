@@ -314,11 +314,8 @@ content holds neither.
   elements of its content, so the step `[3]` names the view of element 3. It makes
   the view of an element at the first read of that element, and that view follows
   its element when the list changes.
-- **A view of an element goes when nothing reaches it.** Something reaches it when
-  it holds a caret, when a field of its state does not have the default value,
-  when a print shows it, or when a list view below it keeps a view. The print of a
-  view drops the other views of its lists (`drop_unreached_views!`), and the next
-  read of such an element makes a new view.
+- **A list view keeps each view that it made.** No view goes: the memory of a lazy
+  structure has no general solution yet, and no printer frees memory.
 - **The state of one view is in the view.** The caret, the part under the pointer,
   the folds (`collapsed` of a `SyntaxNodeView` and of a `JsonArrayView`, `closed_folds`
   of a `TextView`) and the look of a text (`wrap`, `line_spacing`) belong to one

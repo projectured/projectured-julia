@@ -329,6 +329,25 @@ They are approved with this plan.
     narrow tests. The list view now declares `Any`, so a view owns no place that
     takes a pasted value, as before.
 
+## After the plan: the drop went
+
+On 2026-11-17, after the landing, the session asked if the drop goes whole, and
+the owner said "Yes". So these parts of the plan are no longer in the code:
+
+- `drop_unreached_views!` and its call in the print of a view (proposed
+  decisions 4 and 5, and step 4);
+- the method of the default state that `@content_view` wrote, which only the
+  drop read (a part of proposed decision 8);
+- the test `test_cell_vector_view_drop`, and the checks of the default state in
+  the tests of the declaration.
+
+The list view makes a view at the first read of an element and keeps it. The
+view of an element that left its list also stays, so proposed decision 6 no
+longer holds. The memory of the views waits for the general solution.
+
+The same change put the docstring of `CellVectorView` back on the type: it was
+on the private struct that step 4 had put before the type.
+
 ## Risks
 
 1. **The drop needs a cell that each print of a view reads.** If a print can

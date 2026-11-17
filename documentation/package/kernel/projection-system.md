@@ -621,9 +621,8 @@ print.
 
 **The view of a list.** A view keeps the view of each list of its content, a
 `CellVectorView`. The list view makes the view of an element at the first read of
-that element, and the print of a view drops the views of its lists that nothing
-reaches (`drop_unreached_views!`). A view type is declared with `@content_view`,
-which writes the field `viewed` and the child fields.
+that element, and it keeps each view that it made. A view type is declared with
+`@content_view`, which writes the field `viewed` and the child fields.
 
 **Limits.** A child with no view takes no caret in its text inside a view. A chain
 that prints to widgets has no views.

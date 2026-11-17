@@ -290,8 +290,9 @@ The code differs from this design in these places.
 - `CellVectorView` is the one view of a list. No plain value has a view type, so
   no view follows an index.
 - A walk of a document reads each element of the view of a list, and so it makes
-  the view of each element. The next drop removes the views that nothing
-  reaches.
+  the view of each element.
+- No view goes. The view of a list keeps each view that it made, also the view
+  of an element that left the list.
 - The other view documents name their content in a field of their own:
   `DataFrameView.frame`, `ChartPlot.chart`, `SequenceChartPlot.chart`,
   `GraphLayout.graph`, `WorkspaceExplorer.workspace`, `DocumentTree.root`,
@@ -343,7 +344,6 @@ The code differs from this design in these places.
 3. **The sort of each document type that is left.** About 180 document types of
    the widget domains and of the session are not sorted into content and view
    yet. The rules of this document decide each one.
-4. **The memory of the views.** The drop of the views that nothing reaches runs
-   when a print of a view is made. A print is not a good place for it. The
-   memory of a lazy structure needs one general solution, which is not designed,
-   and this drop can go when that solution comes.
+4. **The memory of the views.** The view of a list keeps each view that it made.
+   The memory of a lazy structure needs one general solution, which is not
+   designed. A printer is not the place that frees memory.

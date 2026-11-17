@@ -6,6 +6,13 @@
 # element when something reads that element, so a long list has only the views
 # that something reached.
 
+# A view that a list view keeps for an element. `index` is the index at which the
+# list view saw the element last.
+mutable struct _KeptView
+    view::Any
+    index::Int
+end
+
 """
     CellVectorView(viewed::CellVector)
 
@@ -18,14 +25,12 @@ The list view makes the view of an element at the first read of that element. A
 read of the length makes no view. The view of an element follows its element:
 after an insert before the element, the same view is at the next index.
 
-The list view keeps a view while something reaches it, and
-[`drop_unreached_views!`](@ref) drops the others. So a long list has only the views
-that a person changed and the views that a print shows.
+The list view keeps each view that it made. So a long list has the views of the
+elements that something read, and no other.
 
 `given` is the list of the views that a viewing step gives for the elements, in
-their order, or `nothing`. A list view with a `given` list answers that list, and
-it makes and drops no view. `kept` holds the views that the list view made, by
-their elements.
+their order, or `nothing`. A list view with a `given` list answers that list and
+makes no view. `kept` holds the views that the list view made, by their elements.
 
 # Example
 
@@ -35,15 +40,6 @@ their elements.
     view[2]                       # the SyntaxLeafView of the second leaf, made now
     view[2] === view[2]           # true
 """
-# A view that a list view keeps for an element: `index` is the index at which the
-# list view saw the element last, and `asked` says that something asked for the view
-# after the last drop.
-mutable struct _KeptView
-    view::Any
-    index::Int
-    asked::Bool
-end
-
 @document struct CellVectorView <: ContentView
     viewed::CellVector
     given::Union{CellVector, Nothing} = nothing
@@ -103,11 +99,10 @@ function _get_element_view(view::CellVectorView, element, index::Integer)
     found = get(kept, element, nothing)
     if found !== nothing
         found.index = index
-        found.asked = true
         return found.view
     end
     made = make_content_view(element)
-    made === nothing || (kept[element] = _KeptView(made, index, true))
+    made === nothing || (kept[element] = _KeptView(made, index))
     made
 end
 
@@ -141,84 +136,6 @@ function _find_kept_places(view::CellVectorView)
         end
     end
     sort!(places; by = first)
-end
-
-"""
-    drop_unreached_views!(view::CellVectorView) -> view
-
-Drop each view that `view` keeps for an element and that nothing reaches, and each
-view of an element that left the list. The next read of such an element makes a
-new view, which is equal to the view that went.
-
-Something reaches the view of an element when one of these is true:
-
-- the view holds a caret, live or dormant, or the part under the pointer;
-- a field of its state does not have the default value
-  ([`has_default_view_state`](@ref));
-- a computation reads one of its cells, as a print that shows the view does;
-- a list view below it keeps a view;
-- something asked the list view for it after the last drop, so code that gets a
-  view and then writes its state keeps that view.
-
-The print of a view calls it for each list view of that view. A list view with
-given views drops nothing.
-"""
-function drop_unreached_views!(view::CellVectorView)
-    run_without_cell_tracking() do
-        (view.given === nothing && !isempty(view.kept)) || return
-        kept = view.kept
-        present = Base.IdSet{Any}()
-        for (_, element, entry) in _find_kept_places(view)
-            push!(present, element)
-            if entry.asked
-                entry.asked = false
-            elseif !_is_view_reached(entry.view)
-                delete!(kept, element)
-            end
-        end
-        for element in collect(keys(kept))
-            element in present || delete!(kept, element)
-        end
-    end
-    view
-end
-
-# Whether something other than a read of its list reaches `view`, the view of an
-# element.
-function _is_view_reached(view::ContentView)
-    (_has_view_path(view) || _has_view_reader(view) || !has_default_view_state(view)) && return true
-    for name in fieldnames(typeof(view))
-        is_view_state_field(name) && continue
-        value = getproperty(view, name)
-        value isa CellVectorView && _is_view_reached(value) && return true
-    end
-    false
-end
-
-# A list view has no state of its own: something reaches it when it holds a caret,
-# when a computation reads it, or when it keeps a view after its own drop.
-function _is_view_reached(view::CellVectorView)
-    (_has_view_path(view) || _has_view_reader(view)) && return true
-    drop_unreached_views!(view)
-    !isempty(view.kept)
-end
-
-_is_view_reached(view) = true
-
-# Whether `view` holds a caret or the part under the pointer.
-function _has_view_path(view::ContentView)
-    get_stored_selection(view) === nothing || return true
-    target = getfield(view, :mouse_target)
-    target isa AbstractCell && target[] !== nothing
-end
-
-# Whether a computation reads a cell of `view`.
-function _has_view_reader(view::ContentView)
-    for name in fieldnames(typeof(view))
-        cell = getfield(view, name)
-        (cell isa AbstractCell && has_dependent_cells(cell)) && return true
-    end
-    false
 end
 
 # The views that `view` has take their state to the views of the same places of

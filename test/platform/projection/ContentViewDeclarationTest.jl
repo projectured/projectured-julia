@@ -14,11 +14,6 @@ end
     zoom::Int = 1
 end
 
-# A view type that a person wrote in full, with no declaration.
-@document struct ContentViewTestPlainView <: ContentView
-    viewed::ContentViewTestShelf
-end
-
 function test_content_view_declaration()
 @testset "The declaration of a view type" begin
 
@@ -55,30 +50,17 @@ end
     @test over_given.books.given === given && over_given.books[2] === view.books[2]
 end
 
-@testset "The default state of a view" begin
-    fresh = ContentViewTestShelfView(shelf)
-    @test has_default_view_state(fresh)
-    fresh.collapsed = true
-    @test !has_default_view_state(fresh)
-    fresh.collapsed = false
-    @test has_default_view_state(fresh)
-    fresh.zoom = 2
-    @test !has_default_view_state(fresh)
-    @test !has_default_view_state(ContentViewTestPlainView(shelf))
-    @test has_default_view_state(CellVectorView(shelf.books)) == false
-end
-
 @testset "The view types of the text and of the syntax take the declaration" begin
     block = TextBlock(TextLine(TextString("alpha")))
     @test declared(TextView, 4) == (:viewed, :wrap, :line_spacing, :closed_folds)
     @test !(:elements in fieldnames(TextView))
     @test make_content_view(block) isa TextView && make_content_view(block).viewed === block
-    @test has_default_view_state(TextView(block)) && !has_default_view_state(TextView(block, true))
+    @test TextView(block).wrap == false && TextView(block, true).wrap == true
 
     first_leaf = leaf("a")
     @test declared(SyntaxLeafView, 1) == (:viewed,)
     @test isempty(intersect(fieldnames(SyntaxLeafView), (:open, :close, :value)))
-    @test make_content_view(first_leaf) isa SyntaxLeafView && has_default_view_state(SyntaxLeafView(first_leaf))
+    @test make_content_view(first_leaf) isa SyntaxLeafView && make_content_view(first_leaf).viewed === first_leaf
 
     node = SyntaxNode([first_leaf, leaf("b")])
     node_view = SyntaxNodeView(node)
@@ -88,9 +70,7 @@ end
     @test make_content_view(node) isa SyntaxNodeView
     given = CellVector(Any[nothing, nothing])
     @test make_content_view(node, given).children.given === given
-    @test has_default_view_state(node_view)
-    node_view.collapsed = true
-    @test !has_default_view_state(node_view)
+    @test node_view.collapsed == false
 end
 
 @testset "A declaration that names a field of the content again is an error" begin
