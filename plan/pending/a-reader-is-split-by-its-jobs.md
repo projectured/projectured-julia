@@ -242,4 +242,16 @@ owner. A step lands only after its stop.
 
 ## 7. Found during the work
 
-(empty)
+**2026-11-17, before step 2: the design changes an architecture rule.**
+[architecture-invariants.md](../../documentation/rule/architecture-invariants.md),
+PAR-FOUR-FUNCTIONS: "The four functions are the entire projection interface. Every projection
+implements exactly `print_document`, `read_intent`, `map_reference_forward`, and
+`map_reference_backward` … Do not add a fifth generic function that projections are expected
+to implement." `read_gesture(projection, iomap, gesture)` and `map_operation_backward` are two
+such functions. The reason of the rule is PAR-RECURSION-CONTRACT: all descent into a child goes
+through the same function of the child, so a pipeline that mixes a projection with a fifth
+descending function and one without it breaks. The two new functions descend into no child:
+only `read_intent` passes a change to a child, through the stored child IO maps, as today, and
+each projection has the two through their defaults. So the design keeps the reason and changes
+the letter. The docstring of `ClaimedGesture` gives the same rule as the reason for a payload in
+place of a function. Step 2 waits for the owner.
