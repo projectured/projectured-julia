@@ -75,7 +75,9 @@ end
 end # test_introduced_part_round_trip
 
 # Every kind of path maps back as the selection does: a mouse target at a text
-# caret arrives at the collection as the same path, and it stays a mouse target.
+# caret arrives at the collection as the whole part that holds the caret of the
+# selection, the part that an Alt+double click selects, and it stays a mouse
+# target.
 function test_every_kind_of_path()
 @testset "every kind of path maps back as the selection does" begin
     document = CellVector([PrimitiveNumber(1),
@@ -96,7 +98,8 @@ function test_every_kind_of_path()
         target = point(k)
         @test target isa ReplaceMouseTargetOperation
         target isa ReplaceMouseTargetOperation || continue
-        @test _ip_strip(get_operation_path(target)) == _ip_strip(get_operation_path(selection))
+        @test _ip_strip(get_operation_path(target)) ==
+              _ip_strip(find_whole_part(document, get_operation_path(selection)))
         compared += 1
     end
     @test compared > 10

@@ -1727,15 +1727,31 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (`GraphVertexDragTest.jl:166` and `:328`, a press on the content of a vertex
   starts the drag of the text, new on main since 2026-11-08; and
   `GraphScrollPaneTest.jl:183-210`).
-  The D8 work is in commit 1d35d5fbc, but its suites are not done.
-  `test_platform` stopped after 18 minutes: the limit of 12G killed it. Before
-  the stop it showed only the layering lines of main (`CheckLayering.jl:880`,
-  `:889`, `:922`). `test_text_range_selection` of ProjecturedTest and
-  `test_json` did not start. Next: run `test_platform` with a limit of 16G, then
-  the other two, and compare them with the known failures of main. If no line is
-  new, D8 is done. The tools of the runs are in `/var/tmp/ic-scratch`
-  (`step6/agent/run.jl`, `step7/suites.sh`), because `/tmp` does not stay after
-  a restart.
+  **D8 is done (2026-11-17), on the branch rebased on main 5a94c10a0.** The first
+  run of `test_platform` stopped at its limit of 12G; with 16G it ends in 33
+  minutes. The suites after the rebase:
+  - The unit tests of D8 keep their counts: `test_syntax_to_text` 371,
+    `test_text_to_graphics` 200, `test_widget_selection` 120,
+    `test_part_pointer_shape` 32, `test_focusing` 9, `test_formula_to_syntax` 82.
+  - `test_graph` has the 8 lines of main. `test_text_range_selection` 41 and
+    `test_json` 405 pass.
+  - `test_platform` 236161 pass, 216 fail, 21 broken. 201 of the fails were at
+    `IntroducedPartTest.jl:99`, a test that expected a move on a caret to name
+    the caret. A probe showed that each of the 201 moves names
+    `find_whole_part` of the selection, the part of the Alt+double click, as D8
+    says. So the test now expects that part: `test_every_kind_of_path` 410,
+    `test_introduced_part_round_trip` 413 and `test_output_paths` 7 pass.
+  - The other 15 fails are of main: `CheckLayering.jl:880`, `:889`, `:922`
+    (layering), `NavigatorChoicesTest.jl:174-211`, `ClipboardTest.jl:502-504`,
+    `FileDialogTest.jl:138` and `FileChangeStoreTest.jl:971`. The last one is
+    new on main: the load of a text file drops its final line break. It fails
+    in the same way with the code of main in the three platform files of D8.
+  
+  The rebase brought a text view of main (`TextViewToGraphicsCanvas`, the
+  views compose work). Its reader gives the caret to an Alt+double click and
+  reads no move, so in that view an Alt+double click selects no character. The
+  syntax views use `TextToGraphics` and are not affected. That view belongs to
+  another workstream, so D8 leaves it as it is.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
