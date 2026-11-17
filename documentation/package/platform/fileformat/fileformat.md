@@ -210,7 +210,7 @@ It registers three natural rows with `register_natural_graphics!(:fileformat, â€
 
 - **This slice selects a format and adds none.** Each domain declares its format, and the serialization slice owns the binary form, `FileFormat` and `File`. A new domain gets file input and output from the methods of its format alone.
 - **The write raises an error on the extension of another natural format.** A `JsonObject` written to `a.xml` would be read back with the XML parser.
-- **One read and one write.** `read_document_file` and `write_document_file!` go through `load_file` and `save_file!`, so the text that a path gets is the text that a tab saves, with one line break at the end (plan/pending/a-file-format-is-declared-once.md, P6).
+- **One read and one write.** `read_document_file` and `write_document_file!` go through `load_file` and `save_file!`, so the text that a path gets is the text that a tab saves, with one line break at the end (plan/done/a-file-format-is-declared-once.md, P6).
 - **A save goes through the format of the file.** `save_file!` asks `get_file_format` of the file, so a `TextFile` and a `JsonFile` save the same way.
 - **The file verbs of the tool set end at the path.** The host application owns the source of a path, so this package does not depend on a file list.
 

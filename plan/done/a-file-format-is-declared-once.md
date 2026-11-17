@@ -1,13 +1,14 @@
 # A file format is declared once
 
-> **Status:** in progress. Written 2026-11-15. The owner asked for the implementation and the
+> **Status:** done. Written 2026-11-15. The owner asked for the implementation and the
 > landing on 2026-11-15: "I would prefer implement the first decided part, land it and then
-> come back to the next question." Branch `file-format`, worktree
-> `../projectured-julia-file-format`.
+> come back to the next question." Landed on main on 2026-11-16 with omnet-julia and
+> inet-julia. The XML defect of §10, step 5, is the plan
+> [an-xml-text-keeps-its-white-space.md](../pending/an-xml-text-keeps-its-white-space.md).
 
 ## 1. The request
 
-The architecture review of 2026-11-15 ([architecture-review/README.md](architecture-review/README.md),
+The architecture review of 2026-11-15 ([architecture-review/README.md](../pending/architecture-review/README.md),
 theme T6; findings XS-2, AS-2, TD-4 and the notation rows of XS-1) found that a text format
 is declared in two tables that disagree. The owner chose it as the first plan ("Yes, number
 5") and said:
@@ -116,7 +117,7 @@ functions of `source/` do the same.
 - **O3. The names** of §5 ("Yes, it's good"). The words: `file_format`, not `format`,
   because `format_` is a verb of the naming rules; `domain`, not family, because "family" is
   the word for the variants of one document type; `string`, not text, as in
-  [a-print-writes-and-a-make-answers.md](a-print-writes-and-a-make-answers.md).
+  [a-print-writes-and-a-make-answers.md](../pending/a-print-writes-and-a-make-answers.md).
 - **O4. One file type with the format as its parameter** ("I agree with you"):
   `File{F<:FileFormat}`. A file that holds more than a name, a content and a disk state
   keeps a struct of its own.
@@ -173,7 +174,7 @@ with the plan, 2026-11-15, when the owner asked for the implementation.
   `parse_natural_text`, `print_natural_text` and `describe_natural_formats`. They call the
   new functions. Their new names (`parse_document_string` with a short name,
   `make_natural_string`, `print_natural_string`, `describe_file_formats`) belong to
-  [a-print-writes-and-a-make-answers.md](a-print-writes-and-a-make-answers.md), which waits
+  [a-print-writes-and-a-make-answers.md](../pending/a-print-writes-and-a-make-answers.md), which waits
   for decision D18 of the owner: the system prompt of the application does not change now.
 - **P10 (accepted, O6). The four tooltip tables stay on the file type,** through the short name
   (`@gestures JsonFile`). The note of a part shows the name of the file as its title, so it
@@ -433,7 +434,7 @@ its record.
   with its size and its last line break, or the first line of the error. Two runs give the
   same bytes.
 - **For step 5.** Run `julia --project=environment/all
-  plan/pending/a-file-format-record/record.jl <new folder>` and compare with
+  plan/done/a-file-format-record/record.jl <new folder>` and compare with
   `diff -r record <new folder>`. When `import_document` and `export_document` no longer
   exist, the script calls `read_document_file` and `write_document_file!`. It reads the
   folder `input/`, so it needs no registry.
@@ -1117,7 +1118,9 @@ table.
   lines of main name the old file types. Main also changed the chart canvas and the help of
   the builder, which the record of the branch does not hold; their calls compile when they
   run.
-- **Open: the XML defect** (§10, step 5). The contract row of XML fails until its fix. The
-  owner leans to option 2, the white space of a text is data. The plan stays in
-  `plan/pending/` until that fix lands.
+- **The XML defect** (§10, step 5) is a plan of its own: the owner chose option 2, the
+  white space of a text is data, and moved the fix to
+  [an-xml-text-keeps-its-white-space.md](../pending/an-xml-text-keeps-its-white-space.md)
+  on 2026-11-17. The contract row of XML fails until that plan lands. It was on main before
+  this plan: the new contract test found it.
 

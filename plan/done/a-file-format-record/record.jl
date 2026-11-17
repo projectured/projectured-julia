@@ -21,7 +21,7 @@
 #
 # Run it from the root of the repository:
 #
-#     julia --project=environment/all plan/pending/a-file-format-record/record.jl [folder]
+#     julia --project=environment/all plan/done/a-file-format-record/record.jl [folder]
 #
 # The default folder is `record` beside this script. Step 5 writes into another
 # folder and compares: `diff -r record <folder>`.
