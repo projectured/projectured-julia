@@ -117,20 +117,40 @@ rest by hand:
   position and the lists of parts of the two charts go. Found: the widget mapper searches for
   the steps of a child at each point (`search_references`, three levels); the printer knew
   them, so the entry carries them.
-- **O2, decided by the owner (2026-11-17, "yes"): `override` means "this rule wins over the answer nearer the gesture", for a stage and for a container alike.** The readers of today use two
-  orders. The child first, and the own rule of the container only when the child declines:
-  focus cycling, selection walking, Escape, the tooltip decorator, the file, the settings, the
-  appearance, the arrangement, the undo buffer ("with a buffer inside a buffer, the inner one
-  must win") and the node of a template. The own rule first: the versioning wrapper, the
-  tooltip window (Escape closes it), the two clipboard wrappers and the global shortcuts of the
-  window shell. The rule: one rule for the stages and for the containers. The part nearer the
-  gesture answers first, and a rule further out answers when it declines. A rule marked
-  `override` wins over the answer nearer the gesture. Today `override` means this for a stage:
-  a document rule replaces an operation that a stage nearer the screen made
-  (`GestureBinding.jl:119`); with the proposal it means the same for a container and its
-  child. The rules that answer first today become `override` rules of the table of the
-  container, and no container writes the order by hand. The text below is the proposal that
-  the owner accepted.
+- **O2, decided by the owner (2026-11-17, "yes"), replaced by O4 at R2.** It said that
+  `override` means "this rule wins over the answer nearer the gesture", for a stage and for a
+  container alike. At R2 this order gave the outer of two nested XML elements a key that the
+  inner one answered (§7). The owner: "this override rule seems to be pretty bad in terms of
+  how it can combine". The fact stays: the readers of today use two orders. The child first,
+  and the own rule of the container only when the child declines: focus cycling, selection
+  walking, Escape, the tooltip decorator, the file, the settings, the appearance, the
+  arrangement, the undo buffer ("with a buffer inside a buffer, the inner one must win") and
+  the node of a template. The own rule first: the versioning wrapper, the tooltip window
+  (Escape closes it), the two clipboard wrappers and the global shortcuts of the window shell.
+- **O4, decided by the owner (2026-11-17): a level asks its child first, and then its rules
+  read the answer of the child.** The owner: "always go down and ask your child first, then
+  apply your rules, override if the condition holds true for what the child returned.
+  Unconditional override means you don't even need to go down to the child because the part
+  overrides anyway. … an undo buffer can allow not overidding a nested undo buffer by
+  realizing that the operation is an undo buffer related one." The rule of one level:
+
+  ```
+  answer = the answer of the child
+  answer is nothing → the first rule of the level that matches answers
+  otherwise         → a rule replaces answer only when its condition holds for answer
+  ```
+
+  A plain rule has no condition, so it never replaces an answer; an unconditional `override`
+  always replaces it. It is one walk, innermost first, for the stages and for the containers:
+  the "child" of a stage is the stage nearer the screen, as the chain reads today. The eight
+  cases of §7 come out right with it.
+- **O5, decided by the owner (2026-11-17, "yes, absolutely"): a rule can build its operation
+  from the answer of the child**, not only test its condition on it. The layer of a dwell joins
+  the layer of the child; the rule of a Git line finds its line from the caret that the child
+  moved; the explorer adds the opening of the tree to an answer that visits a page.
+- **O6, asked by the owner (2026-11-17): "this rule has to be documented in design documents,
+  guides and code as well".** Step 3a writes O4 and O5 into the docstrings, the architecture
+  rules, the design documents and the guides.
 - **O3, decided by the owner (2026-11-17, "yes"): the six wrappers that act on the passing keep a `read_intent` of their own, and pass the change only through the one helper.** Six higher-order stages with one
   child do something to the passing itself, not to one answer:
   - they change the gesture for the inner stage: `WindowInputUnwrapping` gives it the event
@@ -190,14 +210,37 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
 - [ ] **3. The template reader.** `read_template_intent` uses the seams and the helper, so the
   194 readers of `@projection_template`, `@rst_flat` and `@rst_indented` follow in one place,
   and `ClaimedGesture` becomes the override of O2. Test: `test_syntax()`, the JSON, XML, YAML,
-  SQL, Julia, Markdown and RST suites, `test_position_navigations()`.
+  SQL, Julia, Markdown and RST suites, `test_position_navigations()`. Built 2026-11-17; R2 found
+  the fault of §7, which step 3a corrects.
+- [ ] **3a. The rule of a level (O4, O5, O6), in the kernel and the template.** A rule gets its
+  condition and the answer of the child (P4, P5, P6); the passing helper and the template walk
+  read the rules of a level with the answer of the child (P7, P8); the XML rules and the links
+  of Markdown and RST get their conditions (P9); the 82 calls of `GestureBinding` in
+  projectured-julia and the 2 files in omnet-julia and inet-julia take the answer. O4 and O5
+  go into the docstrings of `GestureBinding`, `fire_gesture_bindings`, `read_gesture`,
+  `read_projection_gesture`, `read_child_intent`, `@gestures` and the reader of
+  `ChainingProjection`; into PAR-DELEGATE-AND-LIFT of
+  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md); into the
+  design document [domain-anatomy.md](../../documentation/design/domain-anatomy.md); into the
+  guides of the kernel, [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md)
+  (the rules of a table) and [projection-system.md](../../documentation/package/kernel/projection-system.md)
+  (the walk); into [xml.md](../../documentation/package/domain/xml/xml.md) and
+  [markdown.md](../../documentation/package/domain/markdown/markdown.md); and into a section of
+  [new-domain-guide.md](../../documentation/guide/new-domain-guide.md), where a domain writes
+  its first table. Test: `test_kernel()` with a testset for each of the eight cases of §7, the
+  nested XML case of §7 in `test_xml()`, and the suites of step 3.
 - [ ] **4. The stages.** The 249 readers that only map become methods of
   `map_operation_backward`, the 56 that only read a gesture become methods of `read_gesture`,
   and the 110 bridges, declines and identities go, slice by slice in the order of the package
   graph. Test: the suite of each slice.
 - [ ] **5. The containers and the wrappers.** The 128 readers that walk keep only their own
   rules: a pointer gesture goes through the point mapper of the container (O1), the rules that
-  answer first become `override` rules (O2), and the six wrappers of O3 pass with the helper.
+  answer first become unconditional `override` rules (O4), and the six wrappers of O3 pass with
+  the helper. The six readers that read a claim by hand (navigator, explorer, evaluator, find
+  bar, formula, Git line) keep only their rules, and their guides
+  ([navigator.md](../../documentation/package/platform/navigator/navigator.md),
+  [explorer.md](../../documentation/package/platform/explorer/explorer.md),
+  [conversation.md](../../documentation/package/platform/conversation/conversation.md)) say O4.
   The 42 hand-written moves of a position and the lists of parts of the two charts go. Test:
   `test_platform()`, the chart and graph suites, `test_dataframes()`.
 - [ ] **6. One form.** The 3-argument form of `read_intent`, the bridge and the 3-to-4
@@ -218,8 +261,8 @@ owner. A step lands only after its stop.
 
 - **R1** after step 2: the two seams, their defaults, the passing helper and the default
   walk, with their tests, before any reader moves.
-- **R2** after step 3: the template reader on the new seams, with the claimed gesture as an
-  override.
+- **R2** after step 3a: the template reader on the new seams, and the rule of a level (O4) with
+  the eight cases of §7.
 - **R3** in step 4, after the first slice: the pattern of a converted slice, before the other
   slices.
 - **R4** in step 5, after the first container and the first wrapper: the pattern, before the
@@ -236,10 +279,42 @@ owner. A step lands only after its stop.
 - **P2. The steps of a child are in its entry.** A container writes the steps from its input
   to the child when it prints the child, and the point mapper reads them; no mapper searches
   for them (O1).
-- **P3. Steps 2 to 5 land one at a time, and steps 6 and 7 land together.** The bridge keeps
-  each old reader working until step 6, so each of steps 2 to 5 lands when its suites equal the
-  baseline. Step 6 removes the old form, which the readers of omnet-julia and inet-julia still
-  use, so step 7 lands with it.
+- **P3. Steps 2, 3 and 3a land together, steps 4 and 5 land one at a time, and steps 6 and 7
+  land together.** The bridge keeps each old reader working until step 6, so a step lands when
+  its suites equal the baseline. Step 3 alone has the fault of §7, so it lands only with step
+  3a. Step 3a lands in omnet-julia and inet-julia too, because their rules take the answer
+  (P5). Step 6 removes the old form, which the readers of omnet-julia and inet-julia still use,
+  so step 7 lands with it.
+
+**Proposed decisions of step 3a (2026-11-17, for the approval of the owner):**
+- **P4. A table writes the condition beside the pattern.** `override(PATTERN)` is the
+  unconditional rule, as today; `override(PATTERN, CONDITION)` is the conditional rule, and
+  CONDITION is an expression of `answer`, as the operation of a rule is an expression of `doc`
+  and `sel`: `override(KeyPress('<'), is_text_edit(answer)) => "Insert an element" =>
+  _xml_insert_element(doc)`. The field `override` of `GestureBinding` holds a function of the
+  answer: `answer -> false` for a plain rule, `answer -> true` for an unconditional one.
+- **P5. The operation of a rule takes `(document, gesture, answer)`**, one form for each rule,
+  and `answer` is `nothing` when the child answered nothing. In a table, the operation names
+  `answer` as it names `doc`.
+- **P6. The keyword `claimed` becomes `answer`** in `fire_gesture_bindings`,
+  `read_bound_gesture`, `read_gesture` of a document and of a projection, and
+  `read_projection_gesture`: it is the answer of the child, of a part or of a stage nearer the
+  screen.
+- **P7. A level always asks its child first**, also when it has an unconditional rule. A reader
+  changes nothing, so the result is the same, and a rule that builds from the answer (O5) needs
+  it. Not to ask is only a saving, which the owner allows ("you don't even need to go down") and
+  which no reader needs now. The gesture help always asks the child, for its rows.
+- **P8. An answer that collects lets each rule of the level answer, and the two answers join**,
+  as `is_collecting_operation` does today for the layers of a dwell. No rule writes this
+  condition.
+- **P9. The conditions of the 28 `override` rules of today.** The XML keys `<`, `"`, space and
+  `=`: "the answer edits a text", so of two nested elements the inner one keeps the key. The
+  links of Markdown and RST: "the answer moves the caret". The Git line: "the answer moves the
+  caret", and its operation finds the line from the answer (O5). The navigator (5), the
+  explorer (2), the pane (2), the find bar (2), the evaluator (1) and the formula (2):
+  unconditional, as today. The undo buffer stays a plain rule, as today; the condition that the
+  owner named ("the operation is an undo buffer related one") is there if it must replace the
+  answer of its content.
 
 ## 7. Found during the work
 
@@ -341,11 +416,31 @@ PAR-FOUR-FUNCTIONS that says so.
   one test with a selected child is an `XmlInsertion`, where `_xml_insert_element` declines by
   hand. The claimed walk of the same branch (`_read_override_gesture`) reads the innermost
   part first and stops at the first answer, so the same key and the same rules give a
-  different element when a stage nearer the output claimed the key. Proposed rule, for the
-  owner: an `override` rule wins over an answer nearer the gesture that no `override` rule
-  made; of two `override` rules, the one nearer the gesture wins. The level then must know
-  whether the answer nearer came from an `override` rule; how it learns that is the next
-  question.
+  different element when a stage nearer the output claimed the key. Two ranks of rules, read in
+  two passes, were proposed and not taken; the owner decided O4 (§4).
+- **The eight cases that the rule of a level must give (R2, 2026-11-17).** "Nearer" is the part
+  nearer the gesture, or the stage nearer the screen; "further" is the part outside it. Step 3a
+  tests each case.
+
+  | # | Nearer answer | Further rule | Result | Example |
+  | --- | --- | --- | --- | --- |
+  | 1 | plain | plain | nearer | An undo buffer in an undo buffer, Ctrl+Z: the inner one undoes. |
+  | 2 | none | plain | further | JSON, `,` on a delimiter: the text can not take it, so a sibling goes in. |
+  | 3 | plain | `override` | further | XML, `<` in a tag name: a child element. A click on a link: the link opens. Evaluator, Enter: the input runs. |
+  | 4 | `override` | plain | nearer | No case today. |
+  | 5 | `override` | `override` | nearer | `<a><b>x</b></a>`, `b` selected, `<`: `b` gets the element. |
+  | 6 | any | answers before its content | further | The window, Ctrl+S; the clipboard, Ctrl+C; an open tooltip, Escape. |
+  | 7 | list | list | both | The gesture help lists the keys of `b` and of `a`. |
+  | 8 | layer | layer | both, joined | A dwell on `b`: the layer of `b` and the layer of `a`. |
+
+  With O4: case 1, the inner undo stays (the outer rule is plain, or its condition rejects an
+  undo); case 2, the child answers nothing, so the plain rule answers; case 3, the condition of
+  the further rule holds ("the answer edits a text", "the answer moves the caret") or the rule
+  is unconditional; case 4, a plain rule never replaces an answer; case 5, the answer of `b` is
+  an XML insert and not a text edit, so `a` keeps it; case 6, the rule is unconditional; case 7,
+  each level asks its child and adds its rows; case 8, the answer collects, so the layers join.
+  In case 3 the further rule must know where the gesture is: today a link learns it from the
+  caret move that the text stage made of the click, which O5 keeps.
 - **The runs.** `test_kernel()`: 5212 passed, 2 broken, none failed: step 2 and the 3 assertions
   of the removed test less.
   The domain suites on the branch: `test_json()` 405, `test_xml()` 86, `test_yaml()` 64 and 2
