@@ -1,7 +1,7 @@
 # A reader is split by its jobs
 
-> **Status:** plan proposed, 2026-11-17: the design is decided (§4, §5), and the steps of §6
-> wait for the approval of the owner. Theme T1 of the architecture review
+> **Status:** approved by the owner, 2026-11-17 ("yes I approve the plan"). In work: the
+> design is decided (§4, §5), and the steps of §6 stop at the review stops of §6. Theme T1 of the architecture review
 > ([architecture-review/README.md](architecture-review/README.md)). Nothing is built. The
 > owner rejected one form of `read_intent` with a mixed payload: "what? no, from one bad
 > solution to another? There should be a better way. Perhaps a different function?" The
@@ -174,10 +174,11 @@ rules give it.
 Each step keeps main working: the old forms stay reachable through the bridge until step 6.
 Each step runs its suites against a baseline of main, in a worktree with a private depot.
 
-- [ ] **1. The baseline.** On main: `test_kernel()`, `test_platform()`, the eighteen domain
-  suites, and the omnet-julia suites that open a file or press a key (`test_legacy()`,
-  `test_ide_file_navigator()`, the presentation suites). The counts and the failing lines go
-  in §7.
+- [ ] **1. The baseline.** On main: `test_kernel()`, `test_platform()` and the 23 domain
+  suites (`test_book()` … `test_yaml()`), each in a process of its own, in a worktree detached
+  at the base with a depot of its own. The counts and the failing lines go in §7. The baseline
+  of omnet-julia (`test_legacy()`, `test_ide_file_navigator()`, the presentation suites) is
+  taken at step 7, because main holds steps 2 to 5 then.
 - [ ] **2. The seams and the passing, in the kernel.** `read_gesture(projection, iomap,
   gesture)` with its default (the table of the projection, then the table of the input
   document), `map_operation_backward(projection, iomap, operation)` with its default (each
@@ -207,6 +208,23 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
 - [ ] **8. The compile-ahead lists** of the three repositories record again, as in
   [a-file-format-is-declared-once.md](../done/a-file-format-is-declared-once.md). Test: a
   precompile with no warning of a stale list.
+
+**Review stops (owner, 2026-11-17: "As we go through the changes I would like to stop at
+places to review what has been changed and how. This is to avoid going in the wrong direction
+and stop early if something is wrong.").** At each stop the assistant shows what changed, file
+by file, one example before and after, and the counts against the baseline, and waits for the
+owner. A step lands only after its stop.
+
+- **R1** after step 2: the two seams, their defaults, the passing helper and the default
+  walk, with their tests, before any reader moves.
+- **R2** after step 3: the template reader on the new seams, with the claimed gesture as an
+  override.
+- **R3** in step 4, after the first slice: the pattern of a converted slice, before the other
+  slices.
+- **R4** in step 5, after the first container and the first wrapper: the pattern, before the
+  other ones.
+- **R5** after step 5, before step 6 removes the old form.
+- **R6** before steps 6 and 7 land.
 
 **Proposed decisions (approved with the plan):**
 - **P1. The helper of the passing is `read_child_intent(recursion, change, child)`**, beside
