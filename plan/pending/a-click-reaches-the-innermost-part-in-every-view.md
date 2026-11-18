@@ -1210,6 +1210,31 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     R2, R3 and R4 are open again: the evaluation of the step is an option, and
     the IO map form must go down by the steps of the path, with no search.
 
+    Found in a survey of the IO maps that hold children (2026-11-19):
+    - 30 IO map types give their children by `get_child_iomaps`. In 16 of them,
+      the child of one step is a field or an index (the six wrappers above the
+      screen, the roster, the arrangement, a turn of a conversation, the scroll
+      pane, the transform pane, the context menu, the grid and the flow layout,
+      the chart plot and the sequence chart plot). In 9 it is not clear: the
+      container keeps only the children that are documents, so the index of a
+      child is not its index in the input (the widget children, the dialog), or
+      the child is two to four steps below (`.tabs[i].content`,
+      `.vertex_layouts[i].vertex.content`, `.items[i].body`). In 5 the
+      container builds the child itself, so no step of the input reaches it:
+      `AppearanceToWidget` prints a `WidgetScrollPane` that it makes.
+    - 57 more IO map types hold children and give none, among them 11 on the
+      way to "Save": the dispatch, the window manager, the screen, the window,
+      the nesting, the chain, the fault barrier, the pane tree, the split and the
+      group. The wrappers among them have the same input as their child, so no
+      step leads to the child.
+    - The view of the content of a tab is in the second stage of the chain. The
+      pane stage passes the content of a tab through as it is
+      (`Application.jl:360`), and the renderer prints it. The input of the
+      second stage is the output of the first, so no step of the document path
+      reaches the IO map of the view. The path must first be mapped forward
+      through the first stage (`map_reference_forward`), as the route of a
+      gesture is (`_read_routed_chain`).
+
     The decisions as first proposed:
     - **S1. The step holds the IO map of the view that drew the part.** The
       fields are `projection`, `iomap` and `output_path`. It evaluates to the
