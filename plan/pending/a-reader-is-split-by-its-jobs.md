@@ -242,7 +242,8 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   `map_operation_backward`, the 56 that only read a gesture become methods of `read_gesture`,
   and the 110 bridges, declines and identities go, slice by slice in the order of the package
   graph. Test: the suite of each slice.
-- [ ] **5. The containers and the wrappers.** The 128 readers that walk keep only their own
+- [x] **5. The containers and the wrappers.** Landed 2026-11-19 after R4 and R5 (§7), rebased with
+  no conflict over main 3d8a0402a. The 128 readers that walk keep only their own
   rules: a pointer gesture goes through the point mapper of the container (O1), the rules that
   answer first become unconditional `override` rules (O4), and the six wrappers of O3 pass with
   the helper. The six readers that read a claim by hand (navigator, explorer, evaluator, find
@@ -958,3 +959,18 @@ remaining readers in the same way, rebase onto main, run the suites again, and l
   - the graph and the copying projection pass a change to a child with the 3-argument form
     (`read_intent(child.projection, child, payload)`), so they change in step 6, which removes
     that form.
+
+**2026-11-19, step 5: the runs before the landing.** The branch, rebased over main 3d8a0402a,
+against main 3d8a0402a, each of the 25 suites in a process of its own:
+
+- 24 suites give the same counts and the same failing lines as main, among them
+  `test_platform()` (236492 pass, 15 fail, 1 error, 21 broken), the chart (656), the graph
+  (630 pass, 6 fail, 2 error) and the data frames (622). The pivot fails only at the lines that
+  fail on main (`PivotModuleTest.jl:21`, `:23`, `PivotZoneEditTest.jl:84`), so the fix of the
+  chart in a cell holds: `PivotChartViewTest.jl:102` and `:105` pass.
+- The kernel has the 6 new tests of `ReaderJobsTest.jl`, which pass, and one failure,
+  `FeedsTest.jl:260`: the reader, print or paint time of a frame over a new backend type
+  must stay below 45 ms. The first such frame compiles code. A probe in a fresh process
+  measured the same time on both sides: reader 26.5 ms and print 21.5 ms on the branch, 27.0 ms
+  and 22.2 ms on main. Under load the time goes above the limit, so the failure is not a change
+  of the branch. It failed once before on the branch at step 4 and passed in the runs after.
