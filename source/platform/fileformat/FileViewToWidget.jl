@@ -6,6 +6,9 @@
 #                    children[2].content.<rest>    the file, in the scroll pane
 #     no row         children[1].content.<rest>    the file, in the scroll pane
 #
+# A view that shows its file through views has the view of what the file holds in the
+# scroll pane, at its field `content`, where another view has the file at `file`.
+#
 # The printer prints no child. The layout stage that follows prints the layout
 # through the recursion, which draws the band with the rows of the widgets and the
 # scroll pane with the row of its own type. A write of `band` arranges the layout
@@ -46,7 +49,13 @@ FileViewToWidget(theme) =
                        button_gap = get_widget_style(theme, :button_gap))
 
 const _FILE_VIEW_FILE_STEP = FieldReferenceStep("file")
+# The field of a scroll pane that holds what it shows. The field of a file view that
+# holds the view of what its file holds has the same name.
 const _FILE_VIEW_CONTENT_STEP = FieldReferenceStep("content")
+
+# The step from `view` to what its scroll pane shows now: the view of what the file
+# holds, or the file.
+_get_shown_step(view::FileView) = view.content === nothing ? _FILE_VIEW_FILE_STEP : _FILE_VIEW_CONTENT_STEP
 const _FILE_VIEW_SCROLL_STEP = FieldReferenceStep("scroll")
 const _FILE_VIEW_FIRST_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 const _FILE_VIEW_SECOND_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
@@ -111,7 +120,9 @@ function _get_file_view_scroll_steps(view::FileView)
 end
 
 # `file.<rest>` ↔ `<scroll pane>.content.<rest>` in the layout: the file is the
-# content of the scroll pane. `scroll.<rest>` is a part that the pane introduced,
+# content of the scroll pane. For a view that shows its file through views, the path
+# of the view is `content.<rest>`, and the content of the scroll pane is the view of
+# what the file holds. `scroll.<rest>` is a part that the pane introduced,
 # which the view keeps by its field. The band names no place, and the whole view is
 # the layout.
 function map_reference_forward(::FileViewToWidget, iomap::SimpleIoMap, reference)
@@ -128,11 +139,11 @@ function map_reference_forward(::FileViewToWidget, iomap::SimpleIoMap, reference
         return concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), scroll_steps...)),
                                  tail)
     end
-    head == _FILE_VIEW_FILE_STEP || return nothing
+    head == _get_shown_step(view) || return nothing
     # The rest keeps the checkpoints that it came with; the steps of the layout take
     # their types.
     is_fully_typed_reference(tail) ||
-        (tail = annotate_reference_types(view.file, strip_reference_types(tail)))
+        (tail = annotate_reference_types(_get_shown_document(view), strip_reference_types(tail)))
     concat_references(annotate_reference_types(output,
                                                extend_reference(EmptyReference(), scroll_steps...,
                                                                 _FILE_VIEW_CONTENT_STEP)),
@@ -149,7 +160,7 @@ function map_reference_backward(::FileViewToWidget, iomap::SimpleIoMap, referenc
     steps = get_reference_steps(strip_reference_types(reference))
     if length(steps) >= 2 && steps[1] == prefix[1] && steps[2] == prefix[2]
         rest = get_reference_tail(get_reference_tail(reference))
-        file = ConcreteReference(_FILE_VIEW_FILE_STEP, EmptyReference())
+        file = ConcreteReference(_get_shown_step(iomap.input), EmptyReference())
         rest isa EmptyReference && return file
         if get_reference_head(rest) == _FILE_VIEW_CONTENT_STEP
             return concat_references(file, get_reference_tail(rest))
@@ -157,4 +168,23 @@ function map_reference_backward(::FileViewToWidget, iomap::SimpleIoMap, referenc
         return ConcreteReference(_FILE_VIEW_SCROLL_STEP, rest)
     end
     isempty(steps) ? EmptyReference() : nothing
+end
+
+# With views in the scroll pane, the printer of the file is not on the path of a key,
+# so the view reads for its file what that printer reads: the key table of the file,
+# such as Ctrl+S and F5, after what the pane shows gave no answer. A list of rows
+# takes the rows of the file too. With the file in the pane, the printer of the file
+# reads them, and this reader adds nothing.
+function read_intent(p::FileViewToWidget, recursion, change::Intent, iomap::SimpleIoMap)
+    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    view = iomap.input
+    (view.content === nothing || change.route !== nothing) && return answer
+    if change.gesture isa CollectIntents
+        own = read_gesture(view.file, change.gesture)
+        return Intent(change.gesture,
+                      merge_collected_intents(_get_collected_intents(answer.operation), _get_collected_intents(own)))
+    end
+    (answer.operation isa Operation || change.operation !== nothing) && return answer
+    own = read_gesture(view.file, change.gesture)
+    own === nothing ? answer : Intent(change.gesture, own)
 end

@@ -320,7 +320,7 @@ They are approved with this plan.
   The narrow tests keep the counts of the base commit. The first run of the
   whole list had one failure in `test_json_view_keys` of plan 4a (found fact
   9).
-- [ ] **5. The file view holds the view of what its file holds.** Proposed
+- [x] **5. The file view holds the view of what its file holds.** Proposed
   decision 7.
   The step starts with a test of one fact: which reader gets a key that
   nothing below the scroll pane of a file view took.
@@ -335,6 +335,18 @@ They are approved with this plan.
   view shows as now. With the default, each test of a file view of today keeps
   its count. One test records where the closed card of a file below itself
   shows through views.
+  **Done on 2026-11-18.** The new test is `test_json_file_view_content`, with 73
+  of 73. `test_file_tab` has 34 of 34, and the other narrow tests keep the
+  counts of the base commit. The fact of this step: with the file in the scroll
+  pane, the printer of the file answers Ctrl+S; with a view in the pane, no
+  printer answered it, so `FileViewToWidget` has a reader now, which reads the
+  key table of the file and adds its rows to a list of rows. A file view with
+  views draws the same texts at the same places as a file view of today. A
+  file in the JSON document of a file prints by reflection, in a tab of today
+  and through views, so the two draw the same texts, also for a file below
+  itself (found fact 12). The function that the macro uses for a slot is public
+  now, `make_slot_view_computation(read)`, and the file view uses it to follow
+  what its file holds.
 - [ ] **6. The place for a new value of every domain.** Proposed decision 9.
   Tests: the comparison for each row of the two new view types; Insert in the
   place of JSON gives the place of every domain, with its view; a typed name of
@@ -423,6 +435,14 @@ They are approved with this plan.
 11. **A route of a gesture exists in the kernel.** An intent with a route and
     no operation is a gesture for one part, and the readers pass it to that
     part. A leave of the pointer uses it now.
+
+12. **A file in a JSON document prints by reflection.** The closed card of a
+    file below itself is made by the printer of a file, which the general
+    renderer uses for a file at its own level. A file that is an element or a
+    value of a JSON document prints inside the syntax tree of that document, as
+    a struct with its fields, and a second meeting of the same file shows as a
+    mark of a cycle. That is the same in a tab of today and through views. So
+    risk 4 has no case in a JSON file.
 
 ## After this plan
 

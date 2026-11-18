@@ -3,10 +3,15 @@
 
 """
     FileView(file, scroll)
+    FileView(file, scroll, content)
 
 The view of a file document at one place, a tab or a card: `file`, the file that it
 shows, and `scroll`, the scroll pane of this place, which keeps where this place is
-scrolled to. The file keeps its content, its hash and its band once
+scrolled to. `content` is the view of what the file holds, when the place shows the
+file through views ([`make_file_view`](@ref)), and `nothing` otherwise. With
+`content`, the caret of the place is a path of the views, such as
+`.content.content.elements[2]`, and the file and what it holds keep no caret. With no
+view there, the place shows the file, and a path of the place goes through `file`. The file keeps its content, its hash and its band once
 ([`FileDiskState`](@ref)), and each place that shows it keeps a view of its own, so
 a scroll in one tab leaves the card that shows the same file where it is. The view
 draws the band of the file above the file in its scroll pane
@@ -24,6 +29,7 @@ answers one.
 @document struct FileView
     file::Any
     scroll::Any
+    content::Any = nothing
 end
 
 get_edited_field(::FileView) = :file
@@ -32,19 +38,50 @@ get_document_decoration(view::FileView) = get_document_decoration(view.file)
 is_field_walked(::FileView, name::Symbol) = name !== :scroll
 
 """
-    make_file_view(file) -> FileView
+    make_file_view(file; views = false) -> FileView
 
 The view of `file` for a new place, with its own scroll pane that grows on its
 height, as a file does, so a table on a Markdown page is as tall as its rows and the
 place scrolls it. Its selection follows the selection of the file
 ([`follow_content_selection!`](@ref)).
 
-Use it where a file shows, such as a tab that opens a file.
-"""
-make_file_view(file::FileDocument) = follow_content_selection!(make_document_view(file))
+With `views`, the place shows the file through views. The field `content` of the
+view holds the view of what the file holds now (`make_content_view`), the scroll
+pane shows that view, and the selection of the file view is its own: a second
+place that shows the same file keeps another caret. While what the file holds has
+no view, the place shows the file as with no `views`.
 
-make_document_view(file::FileDocument) =
-    FileView(file, WidgetScrollPane(file; grows = (width = false, height = true)))
+Use it where a file shows, such as a tab that opens a file.
+
+# Example
+
+    view = make_file_view(make_file_tab("people.json", UndoBuffer); views = true)
+    view.content            # the view of the undo buffer of the file
+    view.content.content    # the view of the JSON document
+"""
+make_file_view(file::FileDocument; views::Bool = false) =
+    follow_content_selection!(make_document_view(file; views))
+
+function make_document_view(file::FileDocument; views::Bool = false)
+    scroll = WidgetScrollPane(file; grows = (width = false, height = true))
+    views || return FileView(file, scroll)
+    view = FileView(file, scroll, Cell(Computation(make_slot_view_computation(() -> get_file_content(file)))))
+    set_cell_computation!(scroll, () -> _get_shown_document(view))
+    view
+end
+
+# Whether `view` shows its file through views: its field `content` follows what the
+# file holds.
+_shows_file_views(view::FileView) = get_cell_computation(getfield(view, :content)) !== nothing
+
+# What the scroll pane of `view` shows: the view of what the file holds, or the file
+# when there is no such view.
+_get_shown_document(view::FileView) = (shown = view.content; shown === nothing ? view.file : shown)
+
+# A file view that shows its file through views keeps its own caret. Any other file
+# view takes the caret of its file.
+follow_content_selection!(view::FileView) =
+    _shows_file_views(view) ? view : invoke(follow_content_selection!, Tuple{Any}, view)
 
 # A view holds its file, so the file watches the disk while a place shows it.
 acquire_document!(editor, view::FileView) = hold_documents!(editor, view, Any[view.file])

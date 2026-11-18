@@ -33,15 +33,26 @@ is_child_view_field(::Type, ::Symbol) = true
 # or as the union of `Document` and `Nothing`.
 _is_document_slot_type(declared::Type) = declared === Document || declared === Union{Document, Nothing}
 
-# The computation of the child field of a view for the field `field` of `content`,
-# a field that takes any document: the view of the document that the field holds
-# now, or `nothing` when the field holds no document or a document that has no view
-# type. It gives the same view while the field holds the same document.
-function _make_slot_view_computation(content, field::Symbol)
+"""
+    make_slot_view_computation(read) -> Function
+
+The computation of a child field of a view that follows a place that takes any
+document: `read()` gives what the place holds now. The computation gives the view
+of that document, or `nothing` when the place holds no document or a document that
+has no view type. It gives the same view while the place holds the same document.
+
+`@content_view` uses it for each field of the content that takes any document. A
+view that is written by hand uses it for a place that it reads through a function.
+
+# Example
+
+    content = Cell(Computation(make_slot_view_computation(() -> get_file_content(file))))
+"""
+function make_slot_view_computation(read)
     shown = nothing
     view = nothing
     function ()
-        document = getproperty(content, field)
+        document = read()
         if document !== shown
             view = make_content_view(document)
             shown = document
@@ -49,6 +60,11 @@ function _make_slot_view_computation(content, field::Symbol)
         view
     end
 end
+
+# The computation of the child field of a view for the field `field` of `content`,
+# a field that takes any document.
+_make_slot_view_computation(content, field::Symbol) =
+    make_slot_view_computation(() -> getproperty(content, field))
 
 """
     @content_view Content struct Name <: Supertype
