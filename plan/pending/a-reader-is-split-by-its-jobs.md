@@ -699,3 +699,11 @@ rows that are no walk and no wrapper) by the four rules.
   line numbers aside (the modules have new import lines). `Pkg.precompile()` of omnet-julia, its
   main checkout `f58aa51b4` with the branch of projectured-julia in the environment
   `/var/tmp/projectured-julia-reader-split-depot/env-omnet`: 89 packages, no error and no warning.
+- **Step 4 rebased over main `31c803857`.** Main got the plan "a view type is declared, and a list
+  has a view" of another session (13 commits, no reader of any form). The rebase had one
+  conflict, in the imports of `TextModule.jl`: main dropped the import of `make_content_view`,
+  and step 4 adds `map_operation_backward` and `read_gesture`; the merge keeps both changes.
+  Against a new baseline of `31c803857`: `test_kernel()` 5226 passed on both; `test_platform()`
+  236418 passed, 15 failed, 21 broken on both, with the same lines; the 23 domain suites the
+  counts and the lines of the base, but for the time guard of `test_formula()`, which passed on
+  the branch.
