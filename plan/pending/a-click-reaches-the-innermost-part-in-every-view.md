@@ -1121,9 +1121,16 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     Found before the design, in a read of the code:
     - The step `ProjectionReferenceStep(projection, output_path)` evaluates to
       `output_path`, a path, and not to the part. A path of a drawn part is one
-      node, `X‹.a.b{3}›`, whose terminal records `Position`, also when the path
-      names a whole widget. So the path does not evaluate in the input, and a
-      copy, a note and the whole-part rule do not reach the part.
+      node, `X‹.a.b{3}›`. Its terminal records `Position` when it is made, and
+      `ConcreteReference` after the selection types it again. So a copy, a note
+      and the whole-part rule get the path and not the part. No new step is
+      needed: this step names the part already, and it does not reach it.
+    - A probe (`/var/tmp/ic-scratch/step11/probe-save.jl`), in the example
+      `appearance/appearance/natural`: an Alt+double click on the button "Save"
+      selects `…PaneTab.content::Appearance‹.content.children[1].children[1].action.label›`.
+      The path evaluates to the path
+      `::WidgetScrollPane.content::VerticalLayout.children::CellVector[1]::HorizontalLayout.children::CellVector[1]::WidgetButton.action::Action.label::String`,
+      and not to the text `"Save"`; Ctrl+C then does nothing.
     - 99 of the 111 makers in the sources call
       `make_introduced_reference(projection, iomap, path)`, so they have the IO
       map of the view. 12 do not: `WholeSelection.jl:151` and
