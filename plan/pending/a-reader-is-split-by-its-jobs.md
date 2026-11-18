@@ -900,3 +900,7 @@ other containers and wrappers.
 - **After the fix of the tab name** (commit `ecaa17619`): the pane, tab, window wrapper,
   navigator and explorer suites, run alone, pass 1985, and fail only the 4 assertions of
   `NavigatorChoicesTest.jl` that fail on main.
+
+**2026-11-18, R5: the owner approves step 5 as built.** "yes" to: "Do you approve step 5 as
+built, with the walk of a stage and the plain rule in the kernel? If yes, I convert the
+remaining readers in the same way, rebase onto main, run the suites again, and land step 5."
