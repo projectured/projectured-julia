@@ -1577,6 +1577,38 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   The landing of 2026-11-13 (main 55e3de361, not pushed) holds steps 6a and
   the causes before it. The omnet follow-up of the Alt+double click is on the
   omnet branch `innermost-click` (b8a8d2c21), not landed.
+- [ ] 6b. **Escape leaves the selection.** The owner asked for it on 2026-11-18,
+  after the chart texts landed: "Shouldn't we add something like ESC to remove
+  the current selection? Where should this behavior be added? Some widgets? For
+  example, pressing ESC in a JSON file editor could remove the selection up to
+  the tab pane. Something like this should be added as an extra step to the
+  plan." The design, proposed by the assistant:
+  - E1. One rule in the tab pane, and no rule in the widgets. The gesture table
+    of `PaneTree` (`PaneGestures.jl`) gets a plain rule for an Escape with no
+    modifier. A plain rule fires only when nothing inside answered, so each part
+    that uses Escape now keeps it: a popup, a tooltip and a dialog close, the
+    command palette and the find bar close, a type-in and the edit of a formula
+    drop, an open cell of a table closes, the caret leaves the name of a tab, a
+    drag stops, a turn of the assistant stops, the filter of the explorer
+    empties, the address of the navigator goes back, a card of a dashboard gives
+    the page back, and the detail of a task table goes.
+  - E2. Escape selects the focused tab as a whole (`make_pane_focus_operation`),
+    which is the top of the Alt walk. From there Alt+Down goes into the content,
+    Alt+Left and Alt+Right go to the next tab, and the keys of the pane act on
+    the tab. An Escape on a whole tab answers nothing.
+  - E3. Escape has one meaning. The math view now moves out by one node on Up
+    and on Escape (`_move_from` in `MathToGraphics.jl`). Escape no longer does
+    that, and Up keeps it. Alt+Up widens the selection by one step, as before.
+  - E4. A view that is not in a tab, such as an example in a window of its own,
+    keeps Escape as it is. An example window of the REPL quits on an Escape that
+    nothing takes (`quit_on_escape`), so in a tab the first Escape selects the
+    tab and the second one quits.
+  Test: in `PaneGestureTest.jl`, with the caret in a text in a tab, Escape
+  selects the tab, and a second Escape answers nothing; with the caret in the
+  name of the tab, Escape leaves the name as before. In `ApplicationTest.jl`, a
+  JSON file in a tab of the application: Escape with the caret in a string
+  selects the tab, and with the find bar open, Escape first hides the bar. The
+  guides `pane.md` and `keyboard-and-mouse-guide.md` say the rule.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
