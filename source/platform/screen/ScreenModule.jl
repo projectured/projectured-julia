@@ -50,7 +50,8 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..OperationModule: evaluate_operation
 import ..SettingsModule: get_setting_environment_names, is_settings_group_applied
 import ..GraphicsModule: map_operation_position
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           read_projection_gesture
 
 export ChangeScreenPointerShapeOperation, make_screen_pointer_shape_operation
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,

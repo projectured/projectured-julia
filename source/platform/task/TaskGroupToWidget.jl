@@ -1514,18 +1514,18 @@ function map_reference_backward(::TaskGroupListToWidgetPane, iomap::SimpleIoMap,
                       get_reference_tail(get_reference_tail(reference)))
 end
 
-# The generic bridge maps the answer of the grid back. The pane keeps the
+# The default map maps the answer of the grid back. The pane keeps the
 # arrangement of its table when the last entry goes, opens the item of a row at
 # its place in the list, `groups[j]`, and a press that puts the selection into a
 # row also makes that row the selected row of the buttons, as view state.
-function read_intent(p::TaskGroupListToWidgetPane, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
+function map_operation_backward(p::TaskGroupListToWidgetPane, iomap::SimpleIoMap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation && return mapped
     list = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(list, :table)[], _LIST_TABLE_STEP)
-    operation = retarget_held_row_open(operation, list, _LIST_TABLE_STEP)
-    operation = _select_pressed_list_row(list, operation)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+    mapped = keep_held_arrangement(mapped, getfield(list, :table)[], _LIST_TABLE_STEP)
+    mapped = retarget_held_row_open(mapped, list, _LIST_TABLE_STEP)
+    _select_pressed_list_row(list, mapped)
 end
 
 # A selection that goes into a row of the table, and the same selection after a write

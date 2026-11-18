@@ -172,16 +172,26 @@ function map_reference_backward(p::ObjectFieldToWidget, iomap::ObjectFieldToWidg
     invoke(map_reference_backward, Tuple{Projection, Any, Any}, p, iomap, reference)
 end
 
-# The widget answers a gesture, and the defaults of `Projection` map its answer
+# The widget answers a gesture, and the default map of `Projection` maps its answer
 # back into the field: a write that names the object of the field goes on as it
 # is, and a path in the widget becomes a path that this projection introduces. An
 # operation is an answer to map back, never a payload for the widget: the default
 # maps each member of a compound through this reader again. The reader returns
-# the operation and writes nothing (PAR-READER-IS-PURE).
-function read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap, payload)
-    payload isa Operation &&
-        return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, payload)
-    child = iomap.widget_iomap
-    answer = read_intent(child.projection, child, payload)
-    answer === nothing ? nothing : read_intent(p, iomap, answer)
+# the operation and writes nothing (PAR-READER-IS-PURE). The IoMap names no
+# children, so a change follows no route, as by default.
+function read_intent(p::ObjectFieldToWidget, recursion, change::Intent, iomap::ObjectFieldToWidgetIoMap)
+    gesture = change.gesture
+    change.route isa ConcreteReference && change.operation !== nothing && return Intent(gesture, nothing)
+    operation = change.operation !== nothing ? change.operation : gesture isa Operation ? gesture : nothing
+    operation === nothing ||
+        return Intent(gesture, map_operation_backward(p, iomap, operation), change.description, change.domain)
+    change = Intent(gesture, nothing, change.description, change.domain)
+    read_child_intent(p, recursion, change, iomap, iomap.widget_iomap; read_child = function (_, r, c, child)
+        inner = read_routed_intent(get_iomap_projection(child), r, c, child)
+        answer = inner.operation isa Operation ? map_operation_backward(p, iomap, inner.operation) : nothing
+        Intent(c.gesture, answer, inner.description, inner.domain)
+    end)
 end
+
+read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation

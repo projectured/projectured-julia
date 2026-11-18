@@ -48,36 +48,21 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
+# The content reads a change first, and the keys of the appearance answer what the
+# content declines (`read_gesture` below). A change of the colour settings of the
+# system belongs to the appearance alone. Each answer marks the change of the
+# appearance (`_mark_appearance_change`).
 function read_intent(p::AppearanceManagingProjection, recursion, change::Intent,
                      iomap::AppearanceManagingIoMap)
-    child = iomap.child_iomap
-    # A collection takes every answer: the keys of the content, rerooted, then
-    # the keys of the appearance.
-    if change.gesture isa CollectIntents
-        inner = read_intent(p.inner, recursion, change, child)
-        inner_operation = reroot_operation(inner isa Intent ? inner.operation : inner, _CONTENT_STEPS)
-        own = read_gesture(iomap.input, change.gesture)
-        return Intent(change.gesture,
-                      merge_collected_intents(_get_collected_intents(inner_operation),
-                                              _get_collected_intents(own)))
-    end
-    # A change of the colour settings of the system belongs to the appearance alone.
     event = _get_device_event(change.gesture)
-    event isa SystemColorsChange &&
+    change.route === nothing && event isa SystemColorsChange &&
         return Intent(change.gesture,
                       _mark_appearance_change(iomap.input, _write_system_colors(iomap.input, event.colors)))
-    # An operation with a route goes to the content.
-    if change.route !== nothing
-        routed = follow_intent_route(change, _CONTENT_STEPS...)
-        routed === nothing && return Intent(change.gesture, nothing)
-        answer = read_routed_intent(p.inner, recursion, routed, child)
-        operation = reroot_operation(answer isa Intent ? answer.operation : answer, _CONTENT_STEPS)
-        return Intent(change.gesture, _mark_appearance_change(iomap.input, operation))
-    end
-    answer = read_intent(p.inner, recursion, change, child)
-    operation = reroot_operation(answer isa Intent ? answer.operation : answer, _CONTENT_STEPS)
-    operation isa Operation || (operation = read_gesture(iomap.input, _get_device_event(change.gesture)))
-    Intent(change.gesture, _mark_appearance_change(iomap.input, operation))
+    answer = read_child_intent(p, recursion, change, iomap, iomap.child_iomap, _CONTENT_STEPS;
+                               read_child = (_, r, c, child) -> read_routed_intent(p.inner, r, c, child))
+    change.gesture isa CollectIntents && return answer
+    Intent(answer.gesture, _mark_appearance_change(iomap.input, answer.operation), answer.description,
+           answer.domain)
 end
 
 read_intent(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap, payload) =
@@ -87,6 +72,9 @@ read_intent(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap, pay
 # appearance read the key, whatever window holds the focus.
 _get_device_event(gesture::WindowInput) = gesture.event
 _get_device_event(gesture) = gesture
+
+read_gesture(p::AppearanceManagingProjection, iomap::AppearanceManagingIoMap, gesture; answer = nothing) =
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, _get_device_event(gesture); answer)
 
 _get_collected_intents(operation::CollectedIntentsOperation) = operation
 _get_collected_intents(_) = nothing

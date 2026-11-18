@@ -130,7 +130,7 @@ function map_operation_backward(p::TextLineNumbering, iomap::TextLineNumberingIo
 end
 
 read_gesture(::TextLineNumbering, iomap::TextLineNumberingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
-    _read_lowered_gesture(iomap.input, evt)
+    answer === nothing ? (_read_lowered_gesture(iomap.input, evt)) : nothing
 
 # Any other operation maps to itself, and any other gesture answers nothing.
 map_operation_backward(::TextLineNumbering, ::TextLineNumberingIoMap, op::Operation) = op

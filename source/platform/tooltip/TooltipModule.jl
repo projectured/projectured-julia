@@ -35,7 +35,7 @@ using ..StyleModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
-import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..GestureBindingModule: get_document_gesture_bindings_own, read_gesture
 import ..GraphicsModule: map_operation_position
 import ..OperationModule: is_collecting_operation, join_collected_operations,
                           operation_reference, retarget_operation

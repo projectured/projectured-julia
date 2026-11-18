@@ -224,6 +224,7 @@ end
 # which they lower to one run and so decline. Read against the block with no
 # lowering, it is an edit of the string.
 function read_gesture(p::MarkedTextToText, iomap::SimpleIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
+    answer === nothing || return nothing
     op = read_gesture(iomap.output, evt)
     op isa ReplaceTextRangeOperation ? read_intent(p, iomap, op) : nothing
 end

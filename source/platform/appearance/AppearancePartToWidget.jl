@@ -123,12 +123,12 @@ function _print_part_view(p::AppearancePartToWidget, recursion, document, ctx, b
                                 tables.writes, tables.edits, tables.folds)
 end
 
-function read_intent(p::AppearancePartToWidget, recursion, change::Intent, iomap::AppearancePartToWidgetIoMap)
-    child = iomap.child_iomap
-    answer = read_intent(child.projection, recursion, change, child)
-    operation = answer isa Intent ? answer.operation : answer
-    Intent(change.gesture, _translate_tab_operation(iomap, operation))
-end
+# The widgets of the part read a change first, and their answer comes back as the
+# appearance tab translates it (`_read_tab_child`).
+read_intent(p::AppearancePartToWidget, recursion, change::Intent, iomap::AppearancePartToWidgetIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap;
+                      read_child = (_, r, c, child) ->
+                          _read_tab_child(iomap, get_iomap_projection(child), r, c, child))
 
 read_intent(p::AppearancePartToWidget, iomap::AppearancePartToWidgetIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

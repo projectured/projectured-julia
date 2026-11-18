@@ -146,24 +146,16 @@ function map_reference_backward(::FindBarViewToWidget, iomap::SimpleIoMap, refer
     EmptyReference()
 end
 
-# The generic bridge maps the answer of the layout back, and reads the table of
-# the view for a key that no part answered. A key that a part answered reaches the
-# table with that answer, so only an `override` rule replaces it; a collection
-# of the keys joins the keys of the table, for the gesture help.
+# The default reader of a stage maps the answer of the layout back, and then the
+# table of the view reads it, as a level reads the answer of its child: a key that
+# no part answered, and a key that a part answered for an `override` rule. A
+# collection of the keys joins the keys of the table here, for the gesture help,
+# because the default reader leaves a collection to the chain.
 function read_intent(p::FindBarViewToWidget, recursion, change::Intent, iomap::SimpleIoMap)
     answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    change.operation === nothing && return answer
-    own = _add_find_bar_answer(iomap.input, change.gesture, answer.operation, change.operation)
-    own === nothing ? answer : Intent(change.gesture, own, answer.description, answer.domain)
+    (change.operation !== nothing && change.gesture isa CollectIntents &&
+     answer.operation isa CollectedIntentsOperation) || return answer
+    own = read_gesture(iomap.input, change.gesture)
+    own isa CollectedIntentsOperation || return answer
+    Intent(change.gesture, merge_collected_intents(answer.operation, own), answer.description, answer.domain)
 end
-
-_add_find_bar_answer(view::FindBarView, gesture::Union{KeyPress, KeyDown}, answer, stage_answer) =
-    read_gesture(view, gesture; answer = stage_answer)
-
-function _add_find_bar_answer(view::FindBarView, gesture::CollectIntents, answer, stage_answer)
-    answer isa CollectedIntentsOperation || return nothing
-    own = read_gesture(view, gesture)
-    own isa CollectedIntentsOperation ? merge_collected_intents(answer, own) : nothing
-end
-
-_add_find_bar_answer(view::FindBarView, gesture, answer, stage_answer) = nothing

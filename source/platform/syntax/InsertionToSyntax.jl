@@ -423,6 +423,7 @@ _insertion_tab(p::InsertionToSyntaxLeaf, ins) =
 # whole-selection authoring gestures firing on the domain insertions
 # (`@gestures JsonDocument`'s `"`/`[`/`{`/digit type-to-replace, …).
 function read_gesture(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event; answer = nothing)
+    answer === nothing || return nothing
     op = read_projection_gesture(p, iomap, event)
     op !== nothing && return op
     event isa Union{KeyPress, KeyDown, MouseClick} && iomap.input isa Document ?

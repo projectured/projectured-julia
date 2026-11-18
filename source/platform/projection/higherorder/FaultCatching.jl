@@ -411,14 +411,15 @@ function read_intent(p::FaultCatchingProjection, recursion, change::Intent,
         return Intent(change.gesture, _read_mark_gesture(barrier, report, change.gesture))
     inner = _get_inner_iomap(barrier)
     inner === nothing && return Intent(change.gesture, nothing)
-    try
-        read_intent(p.inner, recursion, change, inner)
-    catch exception
-        _is_fault_caught(barrier.policy, exception) || rethrow()
-        _record_unrecorded_fault!(barrier, :read, p.inner, nothing, exception,
-                                  catch_backtrace())
-        Intent(change.gesture, nothing)
-    end
+    read_child_intent(p, recursion, change, barrier, inner;
+                      read_child = (_, r, c, child) -> try
+                          read_routed_intent(p.inner, r, c, child)
+                      catch exception
+                          _is_fault_caught(barrier.policy, exception) || rethrow()
+                          _record_unrecorded_fault!(barrier, :read, p.inner, nothing, exception,
+                                                    catch_backtrace())
+                          Intent(c.gesture, nothing)
+                      end)
 end
 
 read_intent(p::FaultCatchingProjection, barrier::FaultCatchingIoMap, payload) =

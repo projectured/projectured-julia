@@ -100,7 +100,7 @@ The container finds the child that the pointer leaves from its own mouse target 
 A view that draws the print of a part of its input over its own canvas, at a place of its choice, keeps that child as `(; x, y, w, h, iomap, steps)`: the rectangle in the frame of the view, the IO map of the child, and the steps from the input of the view to the input of the child. `DrawnChild.jl` holds the routing, with no type of a part in it:
 
 - `find_drawn_child_at(children, x, y)` is the first child whose rectangle holds the point.
-- `read_drawn_child_event(document, child, event)` gives a pointer gesture to the child in its own frame, and its answer comes back in the frame of the view, with the steps of the child in front of each path. A dwell and a right click that the child does not answer go out over `document`, the input of the view.
+- A view gives a pointer gesture to a child in its own frame with `read_child_in_frame` of the layout slice, the one passing of a child: its answer comes back in the frame of the view, with the steps of the child in front of each path, and the rules of the view read it.
 - `read_drawn_child_move(document, children, event)` gives a move to the child under the point, and the leave to the child that the mouse target of `document` names when the pointer is off it now.
 - `map_drawn_child_point(document, child, x, y)` is the path of the part of the child under a point, for the backward map of the view.
 - `find_drawn_child_path(path, steps)` is the part of a path of the view below the steps of a child, or `nothing`: the part of the mouse target that the child holds.

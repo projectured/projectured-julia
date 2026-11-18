@@ -82,7 +82,8 @@ function map_reference_backward(p::UrlViewToWidget, iomap::UrlViewToWidgetIoMap,
 end
 
 # A typed edit in the text line goes to the line, which reads the whole address again.
-function read_intent(p::UrlViewToWidget, iomap::UrlViewToWidgetIoMap, operation::ReplaceStringRangeOperation)
+function map_operation_backward(p::UrlViewToWidget, iomap::UrlViewToWidgetIoMap,
+                                operation::ReplaceStringRangeOperation)
     rest = _get_url_view_rest(operation.reference, _URL_LINE_STEPS)
     rest === nothing && return nothing
     line_iomap = iomap.line_iomap

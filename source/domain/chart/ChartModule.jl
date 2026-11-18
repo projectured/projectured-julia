@@ -30,8 +30,8 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
-    get_child_iomaps
-import ..GestureBindingModule: get_document_gesture_bindings_own
+    get_child_iomaps, map_operation_backward
+import ..GestureBindingModule: get_document_gesture_bindings_own, read_gesture
 import ..DomainModule: compute_context_menu
 import ..DisplayModule: make_workload_file
 import ..EditorModule: make_change

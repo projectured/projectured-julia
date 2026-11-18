@@ -216,29 +216,38 @@ end
 # A pointer event goes to the mark at its point, and an event with no point to the
 # mark that the selection of the gutter names. The answer comes back re-rooted into
 # the field of the lane.
-function read_intent(::TextGutterToGraphics, iomap::ChildrenIoMap, evt)
+function read_intent(p::TextGutterToGraphics, recursion, change::Intent, iomap::ChildrenIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
     entries = getfield(iomap, :child_iomaps)[]::Vector
     gutter = iomap.input
-    if evt isa Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell}
-        found = _find_gutter_mark_at(entries, Int(evt.x), Int(evt.y))
-        found === nothing && return nothing
-        k, lx, ly = found
-        answer = read_child_event(entries[k][3], shift_event_position(evt, lx - Int(evt.x), ly - Int(evt.y)))
-        answer = shift_operation_position(answer, Int(evt.x) - lx, Int(evt.y) - ly)
-        return _reroot_gutter_answer(gutter, answer, k)
+    gesture = change.gesture
+    if change.operation === nothing &&
+       gesture isa Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell}
+        found = _find_gutter_mark_at(entries, Int(gesture.x), Int(gesture.y))
+        found === nothing && return Intent(gesture, nothing)
+        k = found[1]
+        mark_x, mark_y = Int(entries[k][1][]), Int(entries[k][2][])
+        return _annotate_gutter_answer(gutter,
+            read_child_in_frame(p, recursion, change, iomap, entries[k][3], _get_gutter_lane_steps(k);
+                                move_in = (x, y) -> (x - mark_x, y - mark_y),
+                                move_out = (x, y) -> (x + mark_x, y + mark_y)))
     end
-    evt isa Operation && return nothing
+    (change.operation === nothing && !(gesture isa Operation)) || return Intent(gesture, nothing)
     path = getfield(gutter, :selection)[]
-    path isa ConcreteReference && path.head isa FieldReferenceStep || return nothing
+    path isa ConcreteReference && path.head isa FieldReferenceStep || return Intent(gesture, nothing)
     k = _find_gutter_lane(path.head.name)
-    (k === nothing || entries[k] === nothing) && return nothing
-    mark = entries[k][3]
-    _reroot_gutter_answer(gutter, read_intent(mark.projection, mark, evt), k)
+    (k === nothing || entries[k] === nothing) && return Intent(gesture, nothing)
+    _annotate_gutter_answer(gutter,
+        read_child_intent(p, recursion, change, iomap, entries[k][3], _get_gutter_lane_steps(k)))
 end
 
-function _reroot_gutter_answer(gutter, answer, k::Integer)
-    answer isa Operation || return nothing
-    rerooted = reroot_operation(answer, _get_gutter_lane_steps(k))
-    rerooted isa ReplacePathOperation || return rerooted
-    make_path_operation(rerooted, annotate_reference_types(gutter, get_operation_path(rerooted)))
+read_intent(p::TextGutterToGraphics, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# The answer of a mark, rooted at its lane, with the types that its path needs.
+function _annotate_gutter_answer(gutter, answer::Intent)
+    operation = answer.operation
+    operation isa ReplacePathOperation &&
+        (operation = make_path_operation(operation, annotate_reference_types(gutter, get_operation_path(operation))))
+    Intent(answer.gesture, operation, answer.description, answer.domain)
 end

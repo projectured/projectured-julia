@@ -49,7 +49,12 @@ function map_reference_backward(::ImageToWidget, iomap::ContentIoMap, reference)
     map_reference_backward(inner.projection, inner, reference)
 end
 
-function read_intent(::ImageToWidget, iomap::ContentIoMap, evt)
-    inner = iomap.inner_iomap
-    read_intent(inner.projection, inner, evt)
+# The widget of the image reads a change, and its answer comes back as it is. A
+# change with a route goes to the widget, as by default.
+function read_intent(p::ImageToWidget, recursion, change::Intent, iomap::ContentIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    read_child_intent(p, recursion, change, iomap, iomap.inner_iomap)
 end
+
+read_intent(p::ImageToWidget, iomap::ContentIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation

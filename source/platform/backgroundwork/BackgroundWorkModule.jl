@@ -38,7 +38,7 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document, get_document_decoration
 import ..FeedModule: drain_changes!, compute_wake_deadline
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_operation_backward, map_reference_forward, map_reference_backward
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers
 import ..WidgetModule: make_graphics_projection

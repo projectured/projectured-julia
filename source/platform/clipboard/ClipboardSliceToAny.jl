@@ -728,36 +728,25 @@ function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection, iomap)
     ]
 end
 
+# The child on display reads a change, at the steps of its field, and the rules of the
+# projection read its answer (`read_gesture` below).
 function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardSliceToAnyIoMap)
     name, child = _slice_active(iomap)
-    steps = (FieldReferenceStep(name),)
-    # An operation with a route goes to the child on display, when the route
-    # leads there.
-    if change.route !== nothing
-        routed = follow_intent_route(change, steps...)
-        routed === nothing && return Intent(change.gesture, nothing)
-        answer = read_routed_intent(child.projection, recursion, routed, child)
-        return Intent(change.gesture, reroot_operation(answer.operation, steps))
-    end
-    own = read_projection_gesture(p, iomap, change.gesture)
-    # Routing one gesture stops at the first answer; a collection takes both. The
-    # child's is prefixed with the child's field, exactly as its operations are.
-    if change.gesture isa CollectIntents
-        inner = read_intent(child.projection, recursion, change, child).operation
-        return Intent(change.gesture,
-                      merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(reroot_operation(inner, steps))))
-    end
-    own !== nothing && return Intent(change.gesture, own)
-    inner = reroot_operation(read_intent(child.projection, recursion, change, child).operation, steps)
-    # Delete and Backspace that nothing inside answered take a whole selected
-    # document out of its slot.
-    if !(inner isa Operation) && _is_delete_key(change.gesture)
-        whole = _read_whole_delete(p, iomap)
-        whole === nothing || return Intent(change.gesture, whole)
-    end
-    Intent(change.gesture, inner)
+    read_child_intent(p, recursion, change, iomap, child, (FieldReferenceStep(name),))
+end
+
+# The keys of the projection are an unconditional override: they answer whatever the
+# child on display answered. A key that declines falls to the table of the document.
+# Delete and Backspace that nothing inside answered take a whole selected document
+# out of its slot.
+function read_gesture(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, gesture;
+                      answer = nothing)
+    own = read_projection_gesture(p, iomap, gesture)
+    own === nothing || return own
+    answer === nothing && _is_delete_key(gesture) && (whole = _read_whole_delete(p, iomap)) !== nothing &&
+        return whole
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

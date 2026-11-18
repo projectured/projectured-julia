@@ -158,9 +158,8 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
     # is re-rooted up through the `content` field so its reference is valid
     # against the `DraggingState`. So the mouse target of the content follows the
     # pointer, also during a drag.
-    inner = read_intent(iomap.inner_iomap.projection, recursion, change, iomap.inner_iomap)
-    inner_op = inner isa Intent ? inner.operation : inner
-    answer = reroot_operation(inner_op, (FieldReferenceStep("content"),))
+    answer = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap,
+                               (FieldReferenceStep("content"),)).operation
     if press !== nothing && !press.started && gesture isa MouseMove &&
        !is_move_without_button(gesture) &&
        hypot(gesture.x - press.x, gesture.y - press.y) >= state.threshold

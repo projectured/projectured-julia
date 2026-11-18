@@ -2022,39 +2022,38 @@ end
 # A press of another button than the left, a button down, a button up or a dwell
 # goes to the cell under it, a header, a row header or the corner as well as a
 # body cell, in the coordinates of the cell, and its answer is rooted under the
-# cell. For a dwell and a right click the table then reads its own stretch
-# (`read_container_gesture`).
-function _read_table_point_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
-    found = _read_table_point_cell(p, iomap, event)
-    found === nothing && return read_container_gesture(nothing, event, iomap.input)
-    read_container_gesture(found[1], event, iomap.input; steps = found[2])
+# cell. The table then reads its own rules, so its menu is the last layer of a right
+# click.
+function _read_table_point_change(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
+                                  iomap::WidgetTableListIoMap)
+    found = _find_table_point_cell(p, iomap, change.gesture)
+    found === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    cim, steps, dx, dy = found
+    read_child_intent(p, recursion, change, iomap, cim, steps;
+                      read_child = (_, r, c, child) -> _wt_read_cell_change(r, c, child, dx, dy))
 end
 
-# The answer of the cell under `event`, rooted under the cell, and the steps to the
-# cell; `nothing` when the event reaches no cell.
-function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
-                                iomap::WidgetTableListIoMap, event)
+# The cell under `event`, with the steps to the cell and the offset of the frame of
+# the cell in the frame of the table: `(cell_iomap, steps, dx, dy)`, or `nothing`
+# when the event reaches no cell.
+function _find_table_point_cell(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
     st = iomap.state
     found = _find_table_part_at(p, iomap, Int(event.x), Int(event.y))
     found === nothing && return nothing
     part, x, y = found
+    placed(cim, left, top, steps) =
+        _wt_translate_event(event, x - left, y - top) === nothing ? nothing :
+            (cim, steps, Int(event.x) - (x - left), Int(event.y) - (y - top))
     if part === :corner
         st.corner === nothing && return nothing
-        local_event = _wt_translate_event(event, x, y)
-        local_event === nothing && return nothing
-        steps = (FieldReferenceStep("corner"),)
-        return (reroot_operation(_wt_read_cell_event(st.corner, event, local_event), steps), steps)
+        return placed(st.corner, 0, 0, (FieldReferenceStep("corner"),))
     end
     if part === :row_header
         k = _find_table_row_at(st, y)
         k === nothing && return nothing
         cell = _find_table_row_header(st, k)
         cell === nothing && return nothing
-        cim, left, top = cell
-        local_event = _wt_translate_event(event, x - left, y - top)
-        local_event === nothing && return nothing
-        steps = _get_row_header_steps(st, k)
-        return (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
+        return placed(cell..., Tuple(_get_row_header_steps(st, k)))
     end
     c = _find_table_column_at(st, x)
     c === nothing && return nothing
@@ -2066,35 +2065,41 @@ function _read_table_point_cell(p::WidgetTableToGraphicsCanvas,
         (_find_table_cell(st, k, c), _wt_get_cell_steps(iomap.input, k, c))
     end
     cell === nothing && return nothing
-    cim, left, top = cell
-    local_event = _wt_translate_event(event, x - left, y - top)
-    local_event === nothing && return nothing
-    (reroot_operation(_wt_read_cell_event(cim, event, local_event), steps), steps)
+    placed(cell..., Tuple(steps))
 end
 
 # An event that is not a gesture of the table goes to the cell or the header
 # that the selection is in, or to the corner, and its answer is rooted under it.
 # A selected header is not in the header: only a path into it is.
-function _read_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable, event)
+function _read_selected_table_change(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
+                                     iomap::WidgetTableListIoMap)
+    found = _find_selected_table_cell(iomap.state, iomap.input)
+    found === nothing && return Intent(change.gesture, nothing)
+    read_child_intent(p, recursion, change, iomap, found...)
+end
+
+# The cell, the header or the corner that the selection is in, with the steps to it,
+# or `nothing`.
+function _find_selected_table_cell(st::WidgetTablePartsState, w::WidgetTable)
     selection = w.selection
-    (selection isa ConcreteReference && selection.head isa FieldReferenceStep &&
-     selection.head.name == "corner") && return _read_table_corner(st, event)
+    if selection isa ConcreteReference && selection.head isa FieldReferenceStep && selection.head.name == "corner"
+        st.corner === nothing && return nothing
+        return (st.corner, (FieldReferenceStep("corner"),))
+    end
     header = _find_header_in_selection(selection)
     if header !== nothing
         field, k = header
         found = field == "column_headers" ? _find_table_header_cell(st, k) : _find_table_row_header(st, k)
         found === nothing && return nothing
-        return reroot_operation(read_intent(found[1].projection, found[1], event),
-                                field == "column_headers" ? _get_column_header_steps(st, k) :
-                                                              _get_row_header_steps(st, k))
+        return (found[1], Tuple(field == "column_headers" ? _get_column_header_steps(st, k) :
+                                                           _get_row_header_steps(st, k)))
     end
     prefix = _wt_cell_prefix(w, selection)
     prefix === nothing && return nothing
     k, c = prefix
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
-    cim = found[1]
-    reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(w, k, c))
+    (found[1], Tuple(_wt_get_cell_steps(w, k, c)))
 end
 
 # The header that `selection` goes into, `column_headers[c]` or `row_headers[k]`
@@ -2107,14 +2112,6 @@ function _find_header_in_selection(selection)
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep && tail.tail isa ConcreteReference) ||
         return nothing
     (selection.head.name, tail.head.stop)
-end
-
-# An event for the corner, in its coordinates, read by the corner and rooted
-# under `corner`; `nothing` with no corner or when it has nothing to say.
-function _read_table_corner(st::WidgetTablePartsState, event)
-    cim = st.corner
-    cim === nothing && return nothing
-    reroot_operation(read_intent(cim.projection, cim, event), (FieldReferenceStep("corner"),))
 end
 
 # A plain press on the corner: what the corner keeps of the answer of what it
@@ -2270,6 +2267,9 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
                      iomap::WidgetTableListIoMap)
     g = change.gesture
+    g isa Operation && (change = Intent(nothing, g, change.description, change.domain, change.route); g = nothing)
+    change.operation === nothing && _positioned_event(g) && !(g isa MouseMove) && _outside_widget(iomap, g) &&
+        return Intent(g, nothing)
     if change.operation === nothing
         place = _get_table_cells_place(p, iomap)
         _is_table_bar_event(iomap.state.cells_pane, place, g) &&
@@ -2306,36 +2306,15 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
             op === nothing || return Intent(g, op)
         end
     end
-    change.operation === nothing && _positioned_event(g) &&
-        return Intent(g, _read_table_point_event(p, iomap, g))
-    payload = change.operation === nothing ? g : change.operation
-    op = _read_selected_table_cell(iomap.state, iomap.input, payload)
-    (op isa Operation || change.operation !== nothing) && return Intent(g, op)
-    Intent(g, something(_read_whole_cell_key(iomap.input, g), Some(op)))
+    change.operation === nothing && _positioned_event(g) && return _read_table_point_change(p, recursion, change, iomap)
+    answer = _read_selected_table_change(p, recursion, change, iomap)
+    (answer.operation isa Operation || change.operation !== nothing) && return answer
+    whole = _read_whole_cell_key(iomap.input, g)
+    whole === nothing ? answer : Intent(g, whole, answer.description, answer.domain)
 end
 
-function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
-    place = _get_table_cells_place(p, iomap)
-    _is_table_bar_event(iomap.state.cells_pane, place, event) &&
-        return _add_top_row(iomap, _read_table_bar_event(iomap.state.cells_pane, place, event))
-    # The parts of the drag of the width of a column come by the path of the
-    # table, wherever the pointer is.
-    event isa Union{DragMove,DragEnd,DragCancel} && return read_table_column_drag(iomap.input, event)
-    _outside_widget(iomap, event) && return nothing
-    if event isa MouseDown && event.button === :left
-        op = _read_table_column_edge_press(p, iomap, event)
-        op === nothing || return op
-    end
-    if event isa MouseDwell
-        op = _read_table_column_edge_dwell(p, iomap, event)
-        op === nothing || return op
-        op = _read_table_mark_dwell(p, iomap, event)
-        op === nothing || return op
-    end
-    if event isa MouseClick || event isa KeyDown || event isa KeyPress || event isa MouseScroll ||
-       event isa MouseMove
-        return read_intent(p, nothing, Intent(event, nothing), iomap).operation
-    end
-    _positioned_event(event) && return _read_table_point_event(p, iomap, event)
-    _read_selected_table_cell(iomap.state, iomap.input, event)
-end
+read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# The table lists no row of its own for the gesture help; its cells list theirs.
+read_gesture(::WidgetTableToGraphicsCanvas, ::WidgetTableListIoMap, ::CollectIntents; answer = nothing) = nothing

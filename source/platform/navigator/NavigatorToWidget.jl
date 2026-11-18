@@ -304,9 +304,11 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────────
 #
-# The generic bridge reads first: it maps a path of the page back, and it reads
-# the `@gestures` table of the navigator for a key that the page does not answer.
-# Then the reader takes two kinds of answer for itself:
+# The default reader of a stage reads first: it maps a path of the page back, and
+# then the `@gestures` table of the navigator reads the answer of the page, as a
+# level reads the answer of its child: a key that the page does not answer, and a
+# key that the page answered for an `override` rule. Then the reader takes two kinds
+# of answer for itself:
 #
 # - a press on a button or on an item of the address answers
 #   `InvokeActionOperation`, which travels up as it is, and becomes the operation
@@ -316,9 +318,7 @@ end
 #
 # After an answer of the page that collects, such as the menu of a part, the
 # navigator adds the answer of its own table, as a document around a part does;
-# the keys of its table join the keys of the page for the gesture help. A key that
-# the page answered goes to the table with that answer, which an `override` rule
-# of the table replaces.
+# the keys of its table join the keys of the page for the gesture help.
 function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::NavigatorToWidgetIoMap)
     navigator = iomap.input
     gesture = change.gesture
@@ -362,9 +362,6 @@ function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::Nav
     Intent(answer.gesture, _translate_answer(iomap, operation, change.gesture), answer.description,
            answer.domain)
 end
-
-_add_own_answer(navigator::Navigator, gesture, operation) =
-    read_gesture_outward(operation, gesture, navigator; steps = ReferenceStep[], with_part = true)
 
 # The part of `operation`, an answer in the terms of the grid, whose path is in the
 # path view, read by the projection of the address as an edit of the address copy,
@@ -415,18 +412,20 @@ function _find_address_rest(iomap::NavigatorToWidgetIoMap, reference)
     rest
 end
 
-# A key that the page answered reaches the table of the navigator with that answer,
-# so only an `override` rule replaces it, as the evaluator does.
-function _add_own_answer(navigator::Navigator, gesture::Union{KeyPress, KeyDown}, operation)
-    own = read_gesture(navigator, gesture; answer = operation)
-    own === nothing ? operation : own
-end
-
+# The answer of the page reaches the table of the navigator, and the default reader
+# of a stage reads it there: a key that the page answered only an `override` rule
+# replaces. An answer that collects, such as the menu of a part, gets the answer of
+# the table joined after it here, and the collection of the gesture help gets the
+# keys of the navigator, because the default reader leaves both to a stage.
 function _add_own_answer(navigator::Navigator, gesture::CollectIntents, operation)
     operation isa CollectedIntentsOperation || return operation
     own = read_gesture(navigator, gesture)
     own isa CollectedIntentsOperation ? merge_collected_intents(operation, own) : operation
 end
+
+_add_own_answer(navigator::Navigator, gesture, operation) =
+    is_collecting_operation(operation) ?
+        read_gesture_outward(operation, gesture, navigator; steps = ReferenceStep[], with_part = true) : operation
 
 function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActionOperation, gesture)
     navigator, actions = iomap.input, iomap.actions

@@ -118,25 +118,29 @@ end
 # listing and a rest of the pointer read it at the line that a person points at. A
 # click reads it at the line of the caret that the text domain answers, as an
 # override of that caret, so the selection of the person stays.
-function read_intent(p::GitTextToText, recursion, change::Intent, iomap::SimpleIoMap)
-    own = _read_git_line_gesture(iomap, change)
-    own === nothing || return Intent(change.gesture, own)
-    invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-end
-
 get_projection_gesture_bindings(::GitTextToText, iomap::SimpleIoMap) =
     _make_git_line_bindings(_find_pointed_line(iomap.input))
 
-function _read_git_line_gesture(iomap::SimpleIoMap, change::Intent)
-    text, gesture, stage_answer = iomap.input, change.gesture, change.operation
-    selection = get_selection(text)
-    stage_answer === nothing && gesture isa Union{CollectIntents, MouseDwell} &&
-        return fire_gesture_bindings(_make_git_line_bindings(_find_pointed_line(text)), text, gesture; selection)
-    (gesture isa MouseClick && stage_answer isa ReplaceSelectionOperation) || return nothing
-    offset = get_flat_caret(iomap.output, stage_answer.path)
+function read_gesture(::GitTextToText, iomap::SimpleIoMap, gesture::Union{CollectIntents, MouseDwell};
+                      answer = nothing)
+    answer === nothing || return nothing
+    text = iomap.input
+    fire_gesture_bindings(_make_git_line_bindings(_find_pointed_line(text)), text, gesture;
+                          selection = get_selection(text))
+end
+
+# The line of a click is the line of the caret that the text domain answers, in the
+# output of the stage, where the answer was made: the path of the answer maps forward
+# again to find it.
+function read_gesture(p::GitTextToText, iomap::SimpleIoMap, click::MouseClick; answer = nothing)
+    answer isa ReplaceSelectionOperation ||
+        return answer === nothing ? invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, click) : nothing
+    text = iomap.input
+    output_path = map_reference_forward(p, iomap, answer.path)
+    offset = output_path === nothing ? nothing : get_flat_caret(iomap.output, output_path)
     offset === nothing && return nothing
     line = _find_offset_line(getfield(text, :lines)[], offset)
-    fire_gesture_bindings(_make_git_line_bindings(line), text, gesture; selection, answer = stage_answer)
+    fire_gesture_bindings(_make_git_line_bindings(line), text, click; selection = get_selection(text), answer)
 end
 
 # The gestures of `line`, a `GitTextLine`, or `nothing`: Ctrl+click opens the file at
@@ -403,11 +407,10 @@ end
 
 # The page opens the change of a file node at its place in the commit,
 # `changes[j]`, so the address of its page holds no step of the tree.
-function read_intent(p::GitCommitToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
-    operation = _retarget_change_open(answer.operation, iomap.input)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+function map_operation_backward(p::GitCommitToWidget, iomap::SimpleIoMap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation ? mapped : _retarget_change_open(mapped, iomap.input)
 end
 
 # The open of a file node of the tree as the open of its change, `changes[j]`; any
@@ -489,17 +492,17 @@ function map_reference_backward(::GitCommitRangeToWidget, iomap::SimpleIoMap, re
     rest === nothing ? EmptyReference() : ConcreteReference(_RANGE_TABLE_STEP, rest)
 end
 
-# The generic bridge maps the answer of the grid back. The page keeps the
+# The default map maps the answer of the grid back. The page keeps the
 # arrangement of the table when its last entry goes, so the next filter or sort has
 # an arrangement to go to, and it opens the commit of a row at its place in the
 # range, `commits[j]`.
-function read_intent(p::GitCommitRangeToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
+function map_operation_backward(p::GitCommitRangeToWidget, iomap::SimpleIoMap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation && return mapped
     range = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(range, :table)[], _RANGE_TABLE_STEP)
-    operation = retarget_held_row_open(operation, range, _RANGE_TABLE_STEP)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+    mapped = keep_held_arrangement(mapped, getfield(range, :table)[], _RANGE_TABLE_STEP)
+    retarget_held_row_open(mapped, range, _RANGE_TABLE_STEP)
 end
 
 # ── The titles and the projections ──────────────────────────────────────────

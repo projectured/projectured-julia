@@ -35,6 +35,7 @@ import ..DocumentModule: get_document_title, get_wrapped_document, get_edited_fi
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
 import ..EditorModule: make_change
+import ..GestureBindingModule: read_gesture
 import ..OperationModule: operation_reference, retarget_operation
 
 import ..DomainModule: get_document_decoration

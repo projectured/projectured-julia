@@ -1379,12 +1379,13 @@ _is_draft_selected(a::Assistant) =
     (path = a.selection; path isa ConcreteReference && path.head == FieldReferenceStep("draft"))
 
 read_gesture(::AssistantToWidgetCard, iomap, evt::KeyPress; answer = nothing) =
-    (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
-        resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
+    answer === nothing ? ((a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
+        resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)) : nothing
 
 # Escape stops the turn that runs. The composer's own Escape, which reverts the
 # draft, answers at any other time.
 function read_gesture(::AssistantToWidgetCard, iomap, evt::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     a = iomap.input
     a isa Assistant || return nothing
     evt.key === :escape && is_assistant_turn_running(a) && return CancelAssistantTurnOperation(a)

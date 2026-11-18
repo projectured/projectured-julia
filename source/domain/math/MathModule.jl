@@ -24,7 +24,8 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, map_operation_backward, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward,
+                           map_reference_backward
 import ..GestureBindingModule: read_gesture
 import ..GraphicsModule: find_first_baseline
 import ..DisplayModule: make_workload_file

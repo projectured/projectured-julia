@@ -81,7 +81,7 @@ end
 
 function read_intent(p::CommandPaletteDecoratorProjection, recursion, change::Intent,
                      iomap::CommandPaletteDecoratorIoMap)
-    child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    child = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap)
     # A command that asks for the palette comes up from the content as an answer.
     child.operation isa ToggleCommandPaletteOperation &&
         return Intent(change.gesture, _open_command_palette(p, recursion, iomap))

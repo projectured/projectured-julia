@@ -123,6 +123,7 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
 function read_gesture(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt; answer = nothing)
+    answer === nothing || return nothing
     evt isa MouseClick && evt.button === :left || return nothing
     # Always emit a plain click (element + pixel offset). Whole-element promotion
     # (Alt+double click) is decided in SyntaxToText off the originating gesture. Only a

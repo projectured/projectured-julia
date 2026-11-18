@@ -158,6 +158,7 @@ end
 # line, puts the caret at the end of the input line, as a press in a terminal
 # gives it the keys.
 function read_gesture(::TerminalToWidget, iomap::SimpleIoMap, click::MouseClick; answer = nothing)
+    answer === nothing || return nothing
     terminal = iomap.input
     terminal isa TerminalDocument && click.button === :left || return nothing
     ReplaceSelectionOperation(_make_terminal_input_caret(terminal))
@@ -170,6 +171,7 @@ _is_terminal_input_selected(terminal::TerminalDocument) =
 # program runs, and puts the caret at the start of the empty line. Every other
 # key goes on.
 function read_gesture(::TerminalToWidget, iomap::SimpleIoMap, key::KeyPress; answer = nothing)
+    answer === nothing || return nothing
     terminal = iomap.input
     terminal isa TerminalDocument || return nothing
     key.char == '\n' || return nothing

@@ -58,7 +58,8 @@ import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation, make_inverse_operation, describe_operation,
                           is_self_contained_operation
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           map_operation_backward
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 import ..NavigatorModule: find_navigator_address
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type

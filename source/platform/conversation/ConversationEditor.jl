@@ -956,6 +956,7 @@ make_evaluate_operation(::Any) = nothing
 # `parts[i].content.value{k}` the composer's own cursor reads.
 function read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap,
                       click::MouseClick; answer = nothing)
+    answer === nothing || return nothing
     click.button === :left || return nothing
     d = iomap.input
     n = length(d.parts)
@@ -969,7 +970,7 @@ function read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap,
 end
 
 read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress; answer = nothing) =
-    read_composer_gesture(iomap.input, evt)
+    answer === nothing ? (read_composer_gesture(iomap.input, evt)) : nothing
 
 # The composer owns Return: a plain Return submits the draft, and Shift+Return
 # breaks the line of its value (`_composer_bindings`). The text under a card reads
@@ -979,7 +980,7 @@ map_operation_backward(p::ConversationComposerToWidget, iomap::SimpleIoMap, op::
     occursin('\n', op.replacement) ? nothing : invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
 
 read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown; answer = nothing) =
-    (d = iomap.input; resolve_composer_host_operation(d.assistant, read_composer_gesture(d, evt)))
+    answer === nothing ? ((d = iomap.input; resolve_composer_host_operation(d.assistant, read_composer_gesture(d, evt)))) : nothing
 
 """
     resolve_composer_host_operation(assistant, op) -> op

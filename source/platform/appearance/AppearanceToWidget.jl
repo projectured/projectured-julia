@@ -862,10 +862,16 @@ end
 # the theme, an edit of a colour text answers the write of the colour or nothing,
 # and a path of the tree becomes the path that the appearance holds; every other
 # answer passes on.
-function read_intent(p::AppearanceToWidget, recursion, change::Intent, iomap::AppearanceToWidgetIoMap)
-    answer = read_intent(p.scroll_pane, recursion, change, iomap.child_iomap)
-    operation = answer isa Intent ? answer.operation : answer
-    Intent(change.gesture, _translate_tab_operation(iomap, operation))
+read_intent(p::AppearanceToWidget, recursion, change::Intent, iomap::AppearanceToWidgetIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap;
+                      read_child = (_, r, c, child) -> _read_tab_child(iomap, p.scroll_pane, r, c, child))
+
+# The answer of `child`, the widgets of a tab that `projection` prints, to `change`,
+# translated into the frame of the tab (`_translate_tab_operation`).
+function _read_tab_child(iomap, projection, recursion, change::Intent, child)
+    inner = read_routed_intent(projection, recursion, change, child)
+    operation = inner.operation isa Operation ? _translate_tab_operation(iomap, inner.operation) : nothing
+    Intent(inner.gesture, operation, inner.description, inner.domain)
 end
 
 read_intent(p::AppearanceToWidget, iomap::AppearanceToWidgetIoMap, payload) =

@@ -1107,11 +1107,11 @@ for P in (ConversationConversationToWidgetComposite,
           ConversationPartToWidget)
     # A left click that named nothing still landed here, and this node is what it
     # can honestly claim. Another button moves no selection.
-    @eval read_intent(::$P, iomap, click::MouseClick) =
-        click.button === :left ? ReplaceSelectionOperation(EmptyReference()) : nothing
+    @eval read_gesture(::$P, iomap, click::MouseClick; answer = nothing) =
+        answer === nothing && click.button === :left ? ReplaceSelectionOperation(EmptyReference()) : nothing
     # A click that DID name something: say which part it named. The widget path
     # comes up from below and goes down the walk above.
-    @eval function read_intent(p::$P, iomap, op::ReplacePathOperation)
+    @eval function map_operation_backward(p::$P, iomap, op::ReplacePathOperation)
         inner = map_reference_backward(p, iomap, op.path)
         make_path_operation(op, inner === nothing ? EmptyReference() : inner)
     end
@@ -1121,20 +1121,21 @@ for P in (ConversationConversationToWidgetComposite,
     # of a person there, and goes on.
     for O in (:ReplaceReferencedValueOperation, :ReplaceStringRangeOperation,
               :ReplaceNumberRangeOperation)
-        @eval read_intent(p::$P, iomap, op::$O) =
-            _is_live_operation(p, iomap, op) ? invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op) : nothing
+        @eval map_operation_backward(p::$P, iomap, op::$O) =
+            _is_live_operation(p, iomap, op) ? invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op) :
+                                              nothing
     end
     # A compound says each of its parts onward, and a path in it says which part
     # it named, as a path alone does; so the start of a drag in a compound names
     # its part, and the drag comes back to it.
-    @eval read_intent(p::$P, iomap, op::CompoundOperation) =
-        CompoundOperation(Any[o isa Union{ReplacePathOperation,CompoundOperation} ? read_intent(p, iomap, o) : o
+    @eval map_operation_backward(p::$P, iomap, op::CompoundOperation) =
+        CompoundOperation(Any[o isa Union{ReplacePathOperation,CompoundOperation} ? map_operation_backward(p, iomap, o) : o
                               for o in op.operations])
     # Anything else an operation says, it says onward.
-    @eval read_intent(::$P, iomap, op::Operation) = op
+    @eval map_operation_backward(::$P, iomap, op::Operation) = op
     # A raw gesture is not an intent. Answering one would claim it, and the level
     # above could not tell the two apart.
-    @eval read_intent(::$P, iomap, op) = nothing
+    @eval read_gesture(::$P, iomap, gesture; answer = nothing) = nothing
 end
 
 # The WidgetCard chevron-click reader emits `ToggleCollapseOperation(card)` where
@@ -1171,7 +1172,7 @@ _make_fold_choice(node, field::Symbol, card::WidgetCard) =
 for P in (ConversationConversationToWidgetComposite,
           ConversationTurnToWidgetComposite,
           ConversationPartToWidget)
-    @eval function read_intent(::$P, iomap, op::ToggleCollapseOperation)
+    @eval function map_operation_backward(::$P, iomap, op::ToggleCollapseOperation)
         op.target === nothing && return op
         operation = _find_fold_operation(iomap, op.target)
         operation === nothing ? op : operation

@@ -226,13 +226,14 @@ function _lift_menu_part_edit(p::ContextMenuWindowProjection, recursion, iomap::
     nothing
 end
 
-# The answer of the content to `change`, as an operation from the state.
-function _read_menu_content(p::ContextMenuWindowProjection, recursion, change::Intent,
-                            iomap::ContextMenuWindowIoMap)
-    answer = read_intent(p.inner, recursion, change, iomap.child_iomap)
-    operation = answer isa Intent ? answer.operation : answer
-    reroot_operation(operation, (FieldReferenceStep("content"),))
-end
+# The answer of the content to `change`, as an operation from the state. The reader
+# reads the table of the state itself, while the menu window is open, so the level of
+# the state has no rules of its own for the passing.
+read_gesture(::ContextMenuWindowProjection, ::ContextMenuWindowIoMap, gesture; answer = nothing) = nothing
+
+_read_menu_content(p::ContextMenuWindowProjection, recursion, change::Intent, iomap::ContextMenuWindowIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap, (FieldReferenceStep("content"),);
+                      read_child = (_, r, c, child) -> read_routed_intent(p.inner, r, c, child)).operation
 
 # Whether the screen that the state wraps holds the window that the state opened,
 # with what the state put in it: a popup of another widget has the same id.

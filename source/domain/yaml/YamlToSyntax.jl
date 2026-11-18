@@ -226,19 +226,22 @@ function _block_seq_focused_child(iomap, sel)
     end
 end
 
-function read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown})
-    seq = iomap.input
-    sel = getfield(seq, :selection)[]
-    if sel !== nothing
-        fc = _block_seq_focused_child(iomap, sel)
-        if fc !== nothing
-            child, steps = fc
-            child_op = read_intent(child.projection, child, evt)
-            child_op === nothing || return reroot_operation(child_op, steps)
-        end
-    end
-    return read_gesture(seq, evt)
+# A key goes to the element that the selection of the sequence is in, and the table
+# of the sequence answers what the element declines. Any other change is read as
+# the default reader reads it.
+function read_intent(p::YamlSequenceToBlockSyntaxNode, recursion, change::Intent, iomap::ChildrenIoMap)
+    gesture = change.gesture
+    (change.operation === nothing && change.route === nothing && gesture isa Union{KeyPress, KeyDown}) ||
+        return invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    sel = getfield(iomap.input, :selection)[]
+    focused = sel === nothing ? nothing : _block_seq_focused_child(iomap, sel)
+    focused === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    child, steps = focused
+    read_child_intent(p, recursion, change, iomap, child, steps)
 end
+
+read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown}) =
+    read_intent(p, nothing, Intent(evt), iomap).operation
 
 # ── Compound convenience constructor ────────────────────────────────────────
 

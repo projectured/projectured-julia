@@ -398,6 +398,7 @@ end
 _gesture_op(iomap::TextToGraphicsIoMap, evt) = _read_lowered_gesture(iomap.input, evt, iomap.places)
 
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress; answer = nothing)
+    answer === nothing || return nothing
     return _gesture_op(iomap, evt)
 end
 
@@ -434,6 +435,7 @@ _is_live_selection(value::SelectionDocument) = value.live
 # characters it is the caret. The view above selects that part as a whole, where
 # the parts are in hand, as `SyntaxToText` does.
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick; answer = nothing)
+    answer === nothing || return nothing
     evt.button === :left || return nothing
     evt.count >= 2 && !evt.modifiers.alt && return _make_unit_selection(p, iomap, evt.x, evt.y, evt.count)
     if evt.count >= 2 && evt.modifiers == ModifierKeys(alt = true)
@@ -448,6 +450,7 @@ end
 # part that holds it. Off the characters it names nothing here, and the caret
 # nearest to the point names the part (`read_child_move`).
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseMove; answer = nothing)
+    answer === nothing || return nothing
     character = _find_character_at_point(p, iomap, Int(evt.x), Int(evt.y))
     character === nothing ? nothing : ReplaceMouseTargetOperation(character)
 end
@@ -490,6 +493,7 @@ end
 # each move of the drag goes to the text wherever the pointer is. The drag names
 # the text as a whole, which each projection above maps back to its input.
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseDown; answer = nothing)
+    answer === nothing || return nothing
     evt.button === :left || return nothing
     (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
     path = _find_pointer_selection(p, iomap, evt.x, evt.y, evt.modifiers.shift)
@@ -501,6 +505,7 @@ end
 # the selection goes to the character nearest to the point, on the nearest line,
 # and the anchor stays where the press put it.
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::Union{DragMove,DragEnd}; answer = nothing)
+    answer === nothing || return nothing
     path = _find_pointer_selection(p, iomap, evt.x, evt.y, true)
     path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
@@ -549,6 +554,7 @@ function _find_caret_at_point(p::_TextLayoutProjection, iomap::_TextLayoutIoMap,
 end
 
 function read_gesture(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     # Geometry-INDEPENDENT gestures (character cursor left/right, Ctrl+Home/End,
     # Backspace/Delete, the Ctrl+. fold recognition, and the tree-gesture decline
     # rules) live on the Text domain. Delegate to `read_gesture`, which reads

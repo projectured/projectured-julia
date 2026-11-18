@@ -256,7 +256,7 @@ _backward_map_segments(segs, in_block, out_block, reference) = _map_line_path(se
 
 # ── Readers ─────────────────────────────────────────────────────────────────
 
-function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplacePathOperation)
     inner = _backward_map_segments(iomap.segs, iomap.text_iomap.output, iomap.output,
                                    get_operation_path(op))
     inner === nothing && return nothing
@@ -266,7 +266,7 @@ end
 # Translate a `ReplaceStringRangeOperation` from the split output back to the
 # block of the text, across the segments of its line, and then through the IO map
 # of the text.
-function read_intent(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, op::ReplaceStringRangeOperation)
     reference = _map_line_path(iomap.segs, op.reference, false)
     reference === nothing && return nothing
     _read_text_operation(iomap.text_iomap, ReplaceStringRangeOperation(reference, op.replacement))
@@ -280,8 +280,9 @@ map_operation_backward(::HighlightedTextToText, ::HighlightedTextToTextIoMap, op
 # this stage declines, such as the edit beside an inline image. Read it against the
 # block of the text and lower it there, as `WordWrapping` does, and then through
 # the IO map of the text.
-read_intent(::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, evt::Union{KeyPress, KeyDown}) =
-    _read_text_operation(iomap.text_iomap, _read_lowered_gesture(iomap.text_iomap.output, evt))
+read_gesture(::HighlightedTextToText, iomap::HighlightedTextToTextIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
+    answer === nothing ? _read_text_operation(iomap.text_iomap, _read_lowered_gesture(iomap.text_iomap.output, evt)) :
+                         nothing
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the

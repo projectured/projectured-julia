@@ -345,6 +345,7 @@ map_operation_backward(::TextFolding, ::TextFoldingIoMap, op::CompoundOperation)
 # A key is read against the output, so a motion steps over a closed fold, and its
 # answer maps back as an answer of the stages after this one does.
 function read_gesture(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
+    answer === nothing || return nothing
     op = _read_lowered_gesture(iomap.output, evt, iomap.places.output)
     op isa Operation ? read_intent(p, iomap, op) : nothing
 end

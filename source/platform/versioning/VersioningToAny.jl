@@ -201,71 +201,25 @@ end
 
 # ── Reader ─────────────────────────────────────────────────────────────────────
 
+# The keys of the projection come first, then the value of the selected version
+# (`read_gesture` below). The value is the child, at the steps of the selected
+# version. The steps exist only when a version is selected: `iomap.index` is
+# `nothing` otherwise, and then the keys alone answer.
 function read_intent(p::VersioningToAnyProjection, recursion, change::Intent,
                          iomap::VersioningToAnyIoMap)
-    own = read_projection_gesture(p, iomap, change.gesture)
     vim = iomap.value_iomap
-    # The steps exist only when a version is selected — `iomap.index` is `nothing`
-    # otherwise, so build them behind the same guard the delegation uses.
-    value_steps() = (FieldReferenceStep("versions"), ElementReferenceStep(iomap.index),
-                     FieldReferenceStep("value"))
-    # Routing one gesture stops at the first answer; a collection takes both, with
-    # the value's prefixed exactly as its operations are.
-    if change.gesture isa CollectIntents
-        child = vim === nothing ? nothing :
-                _prefix_op(read_intent(vim.projection, recursion, change, vim).operation,
-                           value_steps())
-        return Intent(change.gesture,
-                      merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(child)))
-    end
-    own !== nothing && return Intent(change.gesture, own)
-    vim === nothing && return Intent(change.gesture, nothing)
-    inner = read_intent(vim.projection, recursion, change, vim)
-    Intent(change.gesture, _prefix_op(inner.operation, value_steps()))
+    steps = vim === nothing ? () : (FieldReferenceStep("versions"), ElementReferenceStep(iomap.index),
+                                    FieldReferenceStep("value"))
+    read_child_intent(p, recursion, change, iomap, vim, steps)
+end
+
+# The keys of the projection replace the answer of the value: they are an unconditional
+# override. A key that declines falls to the table of the document.
+function read_gesture(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, gesture; answer = nothing)
+    own = read_projection_gesture(p, iomap, gesture)
+    own === nothing ? invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer) : own
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).
 read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
-
-# ── Operation re-rooting ───────────────────────────────────────────────────────
-# Prepend `steps` to the reference path carried by a delegated value operation,
-# so it is rooted at the VersionedObject rather than at the selected value.
-
-# Only a real collection merges; anything else a reader returned is not one.
-_collected_intents(op::CollectedIntentsOperation) = op
-_collected_intents(::Any) = nothing
-
-function _prefix_op(op, steps::Tuple)
-    op === nothing && return nothing
-    if op isa ReplacePathOperation
-        make_path_operation(op, _prepend(steps, get_operation_path(op)))
-    elseif op isa ReplaceStringRangeOperation
-        ReplaceStringRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceNumberRangeOperation
-        ReplaceNumberRangeOperation(_prepend(steps, op.reference), op.replacement)
-    elseif op isa ReplaceReferencedValueOperation
-        op.document === nothing ?
-            ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
-    elseif op isa CompoundOperation
-        CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
-    elseif op isa WrappingOperation
-        rewrap_operation(op, _prefix_op(get_wrapped_operation(op), steps))
-    elseif op isa CollectedIntentsOperation
-        # Every seam that prefixes a compound must prefix a collection the same way.
-        CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),
-                                          i.description, i.domain)
-                                   for i in op.intents])
-    else
-        op
-    end
-end
-
-function _prepend(steps::Tuple, path::Reference)
-    result = path
-    for step in reverse(steps)
-        result = ConcreteReference(step, result)
-    end
-    result
-end

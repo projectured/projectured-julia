@@ -51,7 +51,7 @@ get_child_iomaps(iomap::ArrangingIoMap) = Any[iomap.inner_iomap]
 # `document`, so its reference is valid against the arrangement. A gesture with a
 # route goes the way of every container, so the gesture table of the
 # arrangement reads it too, as the context menu of a value needs; so does a key
-# that the document does not answer. An
+# that the document does not answer (`read_gesture` below). An
 # `ArrangeCollectionOperation` from inside the document becomes the edit of the
 # arrangement, and an edit that leaves the arrangement with no entry takes the
 # arrangement away.
@@ -60,13 +60,8 @@ function read_intent(p::ArrangingProjection, recursion, change::Intent, iomap::A
         answer = read_routed_child(recursion, change, iomap)
         operation = answer isa Intent ? answer.operation : answer
     else
-        inner = iomap.inner_iomap
-        answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
-        operation = reroot_operation(answer isa Intent ? answer.operation : answer, (FieldReferenceStep("document"),))
-        # A key that the document does not answer goes to the gesture table of
-        # the arrangement, as the keys of find do.
-        operation === nothing && change.operation === nothing && change.gesture isa Union{KeyDown, KeyPress} &&
-            (operation = read_gesture(iomap.input, change.gesture))
+        operation = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap,
+                                      (FieldReferenceStep("document"),)).operation
     end
     operation = _make_arranged_change(iomap.input, operation)
     Intent(change.gesture, _take_away_when_empty(iomap.input, operation))
@@ -143,6 +138,13 @@ keep_held_arrangement(operation, ::ArrangementDocument, ::FieldReferenceStep) = 
 
 read_intent(p::ArrangingProjection, iomap::ArrangingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
+
+# A key that the document does not answer goes to the gesture table of the
+# arrangement, as the keys of find do. Any other gesture has no rule here.
+read_gesture(p::ArrangingProjection, iomap::ArrangingIoMap, gesture; answer = nothing) = nothing
+read_gesture(p::ArrangingProjection, iomap::ArrangingIoMap, gesture::Union{KeyDown, KeyPress};
+             answer = nothing) =
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
 
 function map_reference_forward(::ArrangingProjection, iomap::ArrangingIoMap, reference)
     reference isa ConcreteReference || return reference

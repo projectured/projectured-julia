@@ -465,7 +465,7 @@ _make_shape_step(operation::_DataFrameColumnOperation) = _make_column_step(opera
 # by its KeyPress.
 read_gesture(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
              event::Union{KeyDown, KeyPress}; answer = nothing) =
-    read_gesture(iomap.input, event)
+    answer === nothing ? (read_gesture(iomap.input, event)) : nothing
 
 # A selection in the table selects in the view: a header selects its column, a
 # field of the filter row or of the expression bar its text, a row, a column and
@@ -891,6 +891,7 @@ end
 # frame of the view, where the view kept the press.
 function read_gesture(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
                       event::Union{DragMove,DragEnd,DragCancel}; answer = nothing)
+    answer === nothing || return nothing
     thumb = read_scroll_bar_drag(iomap.bar, event)
     _convert_table_writes(iomap, thumb === nothing ? read_table_column_drag(iomap.table, event) : thumb)
 end

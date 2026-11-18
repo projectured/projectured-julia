@@ -108,41 +108,16 @@ end
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
+# The content reads a change first, and the keys of the buffer answer what the
+# content declines: the passing fires the table of the buffer last, so with a buffer
+# inside a buffer, the inner one wins. The buffer records each operation that it
+# answers, except the answer to a collection (`_record_operation`).
 function read_intent(p::UndoBufferToAnyProjection, recursion, change::Intent,
                      iomap::UndoBufferToAnyIoMap)
-    child = iomap.content_iomap
-    # Routing one gesture stops at the first answer; a collection takes every
-    # answer, with the content's rerooted exactly as its operations are.
-    if change.gesture isa CollectIntents
-        inner = reroot_operation(read_intent(child.projection, recursion, change, child).operation,
-                                 _CONTENT_STEPS)
-        own = read_projection_gesture(p, iomap, change.gesture)
-        return Intent(change.gesture,
-                      merge_collected_intents(_collected_intents(inner), _collected_intents(own)))
-    end
-    # An operation with a route goes to the content, and comes back recorded as
-    # the content's answer to a gesture does.
-    if change.route !== nothing
-        routed = follow_intent_route(change, _CONTENT_STEPS...)
-        routed === nothing && return Intent(change.gesture, nothing)
-        answer = reroot_operation(read_routed_intent(child.projection, recursion, routed, child).operation,
-                                  _CONTENT_STEPS)
-        answer isa Operation || return Intent(change.gesture, nothing)
-        return Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer))
-    end
-    inner = read_intent(child.projection, recursion, change, child)
-    answer = reroot_operation(inner.operation, _CONTENT_STEPS)
-    # Only a real operation is a change to record. A reader that declines answers
-    # `nothing`, or hands the gesture back untranslated, and neither is a change.
-    answer isa Operation &&
-        return Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer))
-    # The content had nothing to say, so the buffer's own keys answer. Last, not
-    # first: with a buffer inside a buffer, the inner one must win.
-    own = read_projection_gesture(p, iomap, change.gesture)
-    own === nothing || return Intent(change.gesture, own)
-    # Neither of us: hand back what the content answered, so a layer above still
-    # sees the gesture it declined.
-    Intent(change.gesture, answer)
+    answer = read_child_intent(p, recursion, change, iomap, iomap.content_iomap, _CONTENT_STEPS)
+    (change.gesture isa CollectIntents || !(answer.operation isa Operation)) && return answer
+    Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer.operation),
+           answer.description, answer.domain)
 end
 
 # 3-arg payload form, for a test and for a parent that hands a bare payload.
@@ -204,10 +179,6 @@ end
 _is_own_history_step(buffer::UndoBuffer, operation::UndoOperation) = operation.buffer === buffer
 _is_own_history_step(buffer::UndoBuffer, operation::RedoOperation) = operation.buffer === buffer
 _is_own_history_step(buffer::UndoBuffer, operation) = false
-
-# Only a real collection merges; anything else a reader answered is not one.
-_collected_intents(op::CollectedIntentsOperation) = op
-_collected_intents(::Any) = nothing
 
 # ── The undo of a window, as a wrapper of `build_editor` ─────────────────────
 

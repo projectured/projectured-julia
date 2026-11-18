@@ -261,11 +261,12 @@ _is_flat_text_place(reference) =
 # ── Readers ─────────────────────────────────────────────────────────────────
 
 read_gesture(::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyPress; answer = nothing) =
-    read_gesture(iomap.input, evt)
+    answer === nothing ? (read_gesture(iomap.input, evt)) : nothing
 
 # A key of the table of the view, and else a key that the layout of the lines
 # answers, read against the caret of the view.
 function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     view = iomap.input
     operation = read_gesture(view, evt)
     operation === nothing || return operation
@@ -280,6 +281,7 @@ end
 # selects the word at the point, and a triple click the line. An Alt+click is the
 # caret at the point too.
 function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseClick; answer = nothing)
+    answer === nothing || return nothing
     evt.button === :left || return nothing
     if evt.count >= 2 && !evt.modifiers.alt
         layout = _find_text_layout(iomap.content)
@@ -294,6 +296,7 @@ end
 # each move of the drag goes to the view wherever the pointer is. The drag names
 # the view as a whole, which each projection above maps back to its input.
 function read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::MouseDown; answer = nothing)
+    answer === nothing || return nothing
     evt.button === :left || return nothing
     (evt.modifiers.alt || evt.modifiers.ctrl || evt.modifiers.meta) && return nothing
     selection = _read_pointer_selection(iomap, evt.x, evt.y, evt.modifiers.shift)
@@ -305,7 +308,7 @@ end
 # the selection goes to the character nearest to the point, and the anchor stays
 # where the press put it.
 read_gesture(p::TextViewToGraphicsCanvas, iomap::TextViewToGraphicsCanvasIoMap, evt::Union{DragMove,DragEnd}; answer = nothing) =
-    _read_pointer_selection(iomap, evt.x, evt.y, true)
+    answer === nothing ? (_read_pointer_selection(iomap, evt.x, evt.y, true)) : nothing
 
 # The selection of the view that a pointer at `(x, y)` makes: the caret there, or
 # with `extend` the range from the anchor of the selection of the view to the caret

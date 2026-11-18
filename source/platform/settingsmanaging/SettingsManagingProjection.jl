@@ -44,35 +44,16 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
+# The content reads a change first, and the commands of the settings answer what the
+# content declines (`read_gesture` below). `wrap_setting_writes` marks each answer
+# that writes a setting.
 function read_intent(p::SettingsManagingProjection, recursion, change::Intent,
                      iomap::SettingsManagingIoMap)
-    child = iomap.child_iomap
-    settings = iomap.input.settings
-    # A collection takes every answer: the keys of the content, rerooted, then
-    # the commands of the settings.
-    if change.gesture isa CollectIntents
-        inner = read_intent(p.inner, recursion, change, child)
-        inner_operation = reroot_operation(inner isa Intent ? inner.operation : inner,
-                                           _CONTENT_STEPS)
-        own = read_gesture(iomap.input, change.gesture)
-        return Intent(change.gesture,
-                      merge_collected_intents(_get_collected_intents(inner_operation),
-                                              _get_collected_intents(own)))
-    end
-    # An operation with a route goes to the content.
-    if change.route !== nothing
-        routed = follow_intent_route(change, _CONTENT_STEPS...)
-        routed === nothing && return Intent(change.gesture, nothing)
-        answer = read_routed_intent(p.inner, recursion, routed, child)
-        operation = reroot_operation(answer isa Intent ? answer.operation : answer,
-                                     _CONTENT_STEPS)
-        return Intent(change.gesture, wrap_setting_writes(settings, operation))
-    end
-    answer = read_intent(p.inner, recursion, change, child)
-    operation = reroot_operation(answer isa Intent ? answer.operation : answer, _CONTENT_STEPS)
-    operation isa Operation ||
-        (operation = read_gesture(iomap.input, _get_device_event(change.gesture)))
-    Intent(change.gesture, wrap_setting_writes(settings, operation))
+    answer = read_child_intent(p, recursion, change, iomap, iomap.child_iomap, _CONTENT_STEPS;
+                               read_child = (_, r, c, child) -> read_routed_intent(p.inner, r, c, child))
+    change.gesture isa CollectIntents && return answer
+    Intent(answer.gesture, wrap_setting_writes(iomap.input.settings, answer.operation),
+           answer.description, answer.domain)
 end
 
 read_intent(p::SettingsManagingProjection, iomap::SettingsManagingIoMap, payload) =
@@ -83,8 +64,10 @@ read_intent(p::SettingsManagingProjection, iomap::SettingsManagingIoMap, payload
 _get_device_event(gesture::WindowInput) = gesture.event
 _get_device_event(gesture) = gesture
 
-_get_collected_intents(operation::CollectedIntentsOperation) = operation
-_get_collected_intents(_) = nothing
+# The table of the settings reads the event of the device, whatever window holds the
+# focus.
+read_gesture(p::SettingsManagingProjection, iomap::SettingsManagingIoMap, gesture; answer = nothing) =
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, _get_device_event(gesture); answer)
 
 """
     wrap_setting_writes(settings, operation) -> operation

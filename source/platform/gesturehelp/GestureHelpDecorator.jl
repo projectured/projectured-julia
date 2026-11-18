@@ -125,7 +125,7 @@ end
 function read_intent(p::GestureHelpDecoratorProjection, recursion, change::Intent, iomap::GestureHelpDecoratorIoMap)
     # The wrapped editor has priority: if it produced an operation, that wins and
     # the help gesture (if any) is reconsidered next event.
-    child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    child = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap)
     # A command that asks for the help comes up from the content as an answer.
     child.operation isa ToggleGestureHelpOperation &&
         return Intent(change.gesture, _toggle!(p, recursion, iomap))

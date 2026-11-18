@@ -187,7 +187,8 @@ _is_fault_bottom(anchor::Symbol) = anchor === :bottom_right || anchor === :botto
 
 read_intent(p::FaultLogOverlayProjection, recursion, change::Intent,
             iomap::FaultLogOverlayIoMap) =
-    read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    read_child_intent(p, recursion, change, iomap, iomap.inner_iomap;
+                      read_child = (_, r, c, inner) -> read_routed_intent(p.inner, r, c, inner))
 
 read_intent(p::FaultLogOverlayProjection, iomap::FaultLogOverlayIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

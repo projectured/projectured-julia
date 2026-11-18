@@ -351,6 +351,7 @@ end
 # `SyntaxCompoundToText`'s KeyDown reader and is what gives every domain the selection-mode
 # toggle for free through the backward selection map.
 function read_gesture(p::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     op = read_gesture(iomap.input, evt)
     op === nothing ? evt : op
 end
@@ -1319,7 +1320,7 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     is_text_element_write(op) && return Intent(gesture, nothing)
     if op isa ReplaceSelectionOperation && gesture isa MouseClick
         resolved = _resolve_click(p, iomap, gesture, op.path)
-        resolved !== nothing && return Intent(gesture, resolved)
+        resolved !== nothing && return Intent(gesture, resolved, change.description, change.domain)
     end
     # Everything else (keyboard, plain clicks, other operations) falls through to
     # the operation-typed readers below.
@@ -1328,9 +1329,11 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     result === nothing && op isa ReplacePathOperation && (is_whole_selection_press(gesture) || gesture isa MouseMove) &&
         (result = _read_character_place(p, iomap, op))
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
-        return Intent(gesture, _lift_blank_delimiter(iomap.input, convert_to_whole_selection(result, iomap.input)))
+        return Intent(gesture, _lift_blank_delimiter(iomap.input, convert_to_whole_selection(result, iomap.input)),
+                      change.description, change.domain)
     result isa ReplaceMouseTargetOperation &&
-        return Intent(gesture, _lift_blank_delimiter(iomap.input, _find_whole_target(result, iomap.input)))
+        return Intent(gesture, _lift_blank_delimiter(iomap.input, _find_whole_target(result, iomap.input)),
+                      change.description, change.domain)
 
     # Console fallback. In the SDL pipeline `TextToGraphics` (downstream) has
     # already filled the operation slot via its own `read_gesture` delegation, so
@@ -1346,10 +1349,10 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # to the enclosing syntax leaf.
     if result === nothing && op === nothing
         text_op = read_gesture(iomap.output, gesture)
-        text_op === nothing || return Intent(gesture, read_intent(p, iomap, text_op))
+        text_op === nothing || return Intent(gesture, read_intent(p, iomap, text_op), change.description, change.domain)
     end
 
-    return Intent(gesture, result)
+    return Intent(gesture, result, change.description, change.domain)
 end
 
 # The answer to `op`, whose path is the character under the pointer that an
@@ -1433,6 +1436,7 @@ end
 # domain by the rest of the chain, exactly as before. The mouse hit-testing for
 # collapse glyphs / Alt+double click stays in the 4-arg `Intent` reader above (geometry).
 function read_gesture(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, evt::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     return read_gesture(iomap.input, evt)
 end
 

@@ -75,18 +75,18 @@ function map_reference_backward(::BackgroundWorkLogToWidget, iomap::SimpleIoMap,
     rest === nothing ? EmptyReference() : ConcreteReference(_TABLE_STEP, rest)
 end
 
-# The generic bridge maps the answer of the grid back. The removal of the last
+# The default map maps the answer of the grid back. The removal of the last
 # entry of the arrangement of the table answers the roster in the place of the
 # arrangement; the page keeps the arrangement with no entry instead, so the next
 # filter or sort of the table has an arrangement to go to. The page opens the
 # record of a row at its place in the log, `rows[j]`.
-function read_intent(p::BackgroundWorkLogToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
+function map_operation_backward(p::BackgroundWorkLogToWidget, iomap::SimpleIoMap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation && return mapped
     log = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(log, :table)[], _TABLE_STEP)
-    operation = retarget_held_row_open(operation, log, _TABLE_STEP)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+    mapped = keep_held_arrangement(mapped, getfield(log, :table)[], _TABLE_STEP)
+    retarget_held_row_open(mapped, log, _TABLE_STEP)
 end
 
 # The log draws as its page inside any document that a renderer draws; the table

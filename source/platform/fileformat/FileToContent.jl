@@ -112,42 +112,18 @@ function read_intent(p::FileToContent, recursion, change::Intent, iomap::Repeate
     read_intent(get_iomap_projection(card), recursion, change, card)
 end
 
+# The content reads a change first, through the recursion of the content, and the
+# table of the file answers what the content declines. The answer of the content
+# comes back rooted at `content`.
 function read_intent(p::FileToContent, recursion, change::Intent, iomap::ContentIoMap)
     child = iomap.inner_iomap
-    file = iomap.input
-    recursion = _get_content_recursion(p, recursion, child.input)
-    if change.gesture isa CollectIntents
-        inner = reroot_operation(read_intent(get_iomap_projection(child), recursion, change, child).operation,
-                                 _CONTENT_STEPS)
-        own = read_gesture(file, change.gesture)
-        return Intent(change.gesture,
-                      merge_collected_intents(_get_collected_intents(inner),
-                                              _get_collected_intents(own)))
-    end
-    if change.route !== nothing
-        routed = follow_intent_route(change, _CONTENT_STEPS...)
-        routed === nothing && return Intent(change.gesture, nothing)
-        answer = reroot_operation(read_routed_intent(get_iomap_projection(child), recursion,
-                                                     routed, child).operation,
-                                  _CONTENT_STEPS)
-        return Intent(change.gesture, answer isa Operation ? answer : nothing)
-    end
-    inner = read_intent(get_iomap_projection(child), recursion, change, child)
-    answer = reroot_operation(inner.operation, _CONTENT_STEPS)
-    answer isa Operation && return Intent(change.gesture, answer)
-    own = change.operation === nothing ? read_gesture(file, change.gesture) : nothing
-    own === nothing || return Intent(change.gesture, own)
-    # Neither answered: hand back what the content answered, so a layer above
-    # still sees the gesture it declined.
-    Intent(change.gesture, answer)
+    content_recursion = _get_content_recursion(p, recursion, child.input)
+    read_child_intent(p, recursion, change, iomap, child, _CONTENT_STEPS;
+                      read_child = (projection, _, c, ch) -> read_routed_intent(projection, content_recursion, c, ch))
 end
 
 read_intent(p::FileToContent, iomap::Union{ContentIoMap, RepeatedFileIoMap}, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
-
-# Only a real collection merges; anything else a reader answered is not one.
-_get_collected_intents(operation::CollectedIntentsOperation) = operation
-_get_collected_intents(::Any) = nothing
 
 # The paths of the file are not mapped into a repeat, so a selection does not go into it.
 map_reference_forward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing

@@ -66,6 +66,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
 import ..DomainModule: get_document_decoration, accepts_pasted_document
+import ..GestureBindingModule: read_gesture
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..StyleModule: get_theme_place
 import ..TreeModule: get_tree_children_steps

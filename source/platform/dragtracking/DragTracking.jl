@@ -87,9 +87,8 @@ read_intent(p::DragTrackingProjection, iomap::DragTrackingIoMap, payload) =
 # The answer of the content to `change`, as an operation from the state.
 function _read_content(p::DragTrackingProjection, recursion, change::Intent,
                        iomap::DragTrackingIoMap)
-    answer = read_intent(p.inner, recursion, change, iomap.child_iomap)
-    operation = answer isa Intent ? answer.operation : answer
-    reroot_operation(operation, (FieldReferenceStep("content"),))
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap, (FieldReferenceStep("content"),);
+                      read_child = (_, r, c, child) -> read_routed_intent(p.inner, r, c, child)).operation
 end
 
 # The answer of the part at `path` of the content to `gesture`, a part of its

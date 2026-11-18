@@ -83,7 +83,7 @@ map_operation_backward(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = o
 # this stage declines, such as the edit beside an inline image. Read it against the
 # input and lower it there, as `WordWrapping` does.
 read_gesture(::TextFirstLine, iomap::TextFirstLineIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
-    _read_lowered_gesture(iomap.input, evt)
+    answer === nothing ? (_read_lowered_gesture(iomap.input, evt)) : nothing
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the

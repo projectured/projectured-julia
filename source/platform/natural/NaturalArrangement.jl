@@ -53,9 +53,8 @@ function read_intent(p::ArrangementChipsToGraphics, recursion, change::Intent,
         route === nothing && return Intent(change.gesture, nothing)
         change = Intent(change.gesture, change.operation, change.description, change.domain, route)
     end
-    answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
-    operation = answer isa Intent ? answer.operation : answer
-    Intent(change.gesture, _read_chips_operation(iomap, operation))
+    answer = read_child_intent(p, recursion, change, iomap, inner)
+    Intent(change.gesture, _read_chips_operation(iomap, answer.operation))
 end
 
 read_intent(p::ArrangementChipsToGraphics, iomap::ArrangementChipsToGraphicsIoMap, payload) =

@@ -159,18 +159,17 @@ function map_reference_backward(p::HelpGroupToWidget, iomap, reference)
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
-# The generic bridge maps the answer of the table back, so a press on a row
-# selects its node, `children[k]`. A double press also opens the page of the
-# node, and Ctrl+press opens it in a new tab.
-function read_intent(p::HelpGroupToWidget, recursion, change::Intent, iomap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
-    place = _find_pressed_help_node(change.gesture, answer.operation)
-    place === nothing && return answer
-    page_place = change.gesture.modifiers.ctrl ? :new_tab : :here
-    (page_place === :here && change.gesture.count < 2) && return answer
-    Intent(answer.gesture, CompoundOperation(Any[answer.operation, OpenPageOperation(nothing, place, page_place)]),
-           answer.description, answer.domain)
+# The default map maps the answer of the table back, so a press on a row selects
+# its node, `children[k]`. A rule of the group builds on that answer: a double press
+# also opens the page of the node, and Ctrl+press opens it in a new tab.
+function read_gesture(p::HelpGroupToWidget, iomap, gesture::MouseClick; answer = nothing)
+    selected = answer === nothing ?
+        invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer) : answer
+    place = _find_pressed_help_node(gesture, selected)
+    page_place = gesture.modifiers.ctrl ? :new_tab : :here
+    (place === nothing || page_place === :here && gesture.count < 2) &&
+        return answer === nothing ? selected : nothing
+    CompoundOperation(Any[selected, OpenPageOperation(nothing, place, page_place)])
 end
 
 # The node that a left press selects, `children[k]`, or `nothing`.

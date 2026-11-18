@@ -37,15 +37,19 @@ function print_document(p::EscapeQuittingProjection, recursion, input, ctx)
     EscapeQuittingIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
-function read_intent(p::EscapeQuittingProjection, recursion, change::Intent,
-                     iomap::EscapeQuittingIoMap)
-    child = iomap.child_iomap
-    answer = read_intent(child.projection, recursion, change, child)
-    gesture = change.gesture
-    _is_bare_escape(gesture isa WindowInput ? gesture.event : gesture) || return answer
-    operation = answer isa Intent ? answer.operation : answer
-    operation isa Operation && return answer
-    Intent(change.gesture, QuitEditorOperation())
+# The content reads a change first, and the rule of the wrapper reads its answer
+# (`read_projection_gesture` below).
+read_intent(p::EscapeQuittingProjection, recursion, change::Intent, iomap::EscapeQuittingIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap)
+
+# The rule of the wrapper: a bare Escape that the content declined quits the editor.
+# The content shares the input of the wrapper, so the passing reads this rule with
+# `read_projection_gesture`.
+function read_projection_gesture(p::EscapeQuittingProjection, iomap::EscapeQuittingIoMap, gesture;
+                                 answer = nothing)
+    answer === nothing && _is_bare_escape(gesture isa WindowInput ? gesture.event : gesture) &&
+        return QuitEditorOperation()
+    invoke(read_projection_gesture, Tuple{Any, Any, Any}, p, iomap, gesture; answer)
 end
 
 read_intent(p::EscapeQuittingProjection, iomap::EscapeQuittingIoMap, payload) =

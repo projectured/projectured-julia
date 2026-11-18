@@ -512,7 +512,7 @@ end
 
 # A key that the table and the bar do not take: the gestures of the pivot answer it.
 read_gesture(::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, event::KeyDown; answer = nothing) =
-    read_gesture(iomap.input, event)
+    answer === nothing ? (read_gesture(iomap.input, event)) : nothing
 
 # Where a drop of the dragged item lands with the pointer on `target`, the mouse
 # target of the pivot: before the item that it names, at the end of the zone that

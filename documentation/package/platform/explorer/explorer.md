@@ -67,7 +67,7 @@ A visit of the navigator to a page below the root section, such as a link on a p
 | Return (in the field of the filter) | a search for its text below the node of the page |
 | "New section" | a command with no key: a new section after the selected entry |
 
-The tree moves its selection with Up and Down whatever the modifiers, so the two keys that move an entry are `override` rules, and the reader gives a key that the tree answered to the table of the explorer with that answer, which only an `override` rule replaces. Escape in the field of the filter empties the filter; the reader reads it, as the navigator reads Escape in its address. Return in the field starts a search ([the search below a node](#the-search-below-a-node)).
+The tree moves its selection with Up and Down whatever the modifiers, so the two keys that move an entry are `override` rules. The explorer is a level of the walk, and the tree is its child: the tree reads a key first, and then the table of the explorer reads the answer of the tree, which only an `override` rule replaces. The default reader of a stage does this. Escape in the field of the filter empties the filter; the reader reads it, as the navigator reads Escape in its address. Return in the field starts a search ([the search below a node](#the-search-below-a-node)).
 
 ### The kinds that a person adds
 

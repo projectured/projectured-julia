@@ -141,6 +141,11 @@ ProjectionModule.get_projection_gesture_bindings(::JobProbeTableProjection, ioma
                    description = "Dwell from the projection", domain = "test"),
 ]
 
+# A stage with no reader of its own, which maps a text edit back as it is.
+struct JobProbeStageProjection <: Projection end
+ProjectionModule.print_document(p::JobProbeStageProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
+ProjectionModule.map_operation_backward(::JobProbeStageProjection, iomap, operation::JobProbeText) = operation
+
 # A box that prints its leaf two steps down, and passes each change to it.
 struct JobProbeBoxProjection <: Projection
     inner::Projection
@@ -316,6 +321,21 @@ function test_reader_jobs()
         # The document's rows come once, then the wrapper's.
         @test _job_names(_job_read(iomap, CollectIntents()).operation) ==
               ["Answer from the document", "Dwell from the wrapper"]
+    end
+
+    @testset "a stage reads the answer of a stage nearer the screen by the rule of a level" begin
+        p = JobProbeStageProjection()
+        iomap = print_document(p, p, JobProbeBox(mid = JobProbeMid(leaf = JobProbeLeaf(name = "leaf"))),
+                               PrinterContext())
+        carried(char) = read_intent(p, p, Intent(_job_key(char), JobProbeText(string(char))), iomap).operation
+        # A plain rule of the input of the stage keeps the answer.
+        @test carried('>') == JobProbeText(">")
+        # A rule whose condition holds replaces it, and can build its operation from it.
+        @test carried('<') == JobProbeOperation("insert in box")
+        @test carried('!') == JobProbeOperation("box saw !")
+        # A collection only maps back: the chain collects the rows of each stage itself.
+        rows = CollectedIntentsOperation([Intent(_job_key('x'), nothing, "row", "test")])
+        @test _job_names(read_intent(p, p, Intent(CollectIntents(), rows), iomap).operation) == ["row"]
     end
 end
 end

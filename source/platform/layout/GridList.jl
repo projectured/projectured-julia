@@ -430,24 +430,43 @@ map_reference_backward(::GridLayoutToGraphicsCanvas, ::GridLayoutListIoMap, refe
 
 # ── Reading ──────────────────────────────────────────────────────────────────
 
-# A pointer event goes to the cell under the pointer, and a key to the cell that
-# the selection of the grid names. The answer is rooted at `children[k][c]`.
-function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, evt)
-    found = _read_grid_list_cell(iomap, evt)
-    found === nothing && return read_container_gesture(nothing, evt, iomap.input)
-    read_container_gesture(found[1], evt, iomap.input; steps = found[2])
+# A gesture with a point goes to the cell that drew at the point, and a key and an
+# operation to the cell that the selection of the grid names. The answer is rooted
+# at `children[k][c]`. A gesture with a point that is no event of the pointer, such
+# as the move of a drag, reaches no cell. The IoMap names no children, so a change
+# follows no route, as by default: an operation with a route answers nothing.
+function read_intent(p::GridLayoutToGraphicsCanvas, recursion, change::Intent,
+                     iomap::GridLayoutListIoMap)
+    change.route isa ConcreteReference && change.operation !== nothing &&
+        return Intent(change.gesture, nothing)
+    change = Intent(change.gesture, change.operation, change.description, change.domain)
+    gesture = change.gesture
+    point = change.operation === nothing && !(gesture isa Operation) &&
+            hasproperty(gesture, :x) && hasproperty(gesture, :y)
+    found = _find_grid_list_cell(iomap, gesture, point)
+    found === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    entry, steps = found
+    answer = point ? read_entry_child(p, recursion, change, iomap, entry, steps) :
+                     read_child_intent(p, recursion, change, iomap, entry[3], steps)
+    Intent(answer.gesture, _annotate_operation(iomap.input, answer.operation),
+           answer.description, answer.domain)
 end
 
-# The answer of the cell that `evt` reaches, rooted at `children[k][c]`, with the
-# steps to that cell; `nothing` when it reaches no cell.
-function _read_grid_list_cell(iomap::GridLayoutListIoMap, evt)
+read_intent(p::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# The cell that `gesture` reaches, with the steps `children[k][c]` to it: at the
+# point of the gesture when `point`, else the cell that the selection names. The
+# entry of a cell at a point has its place in the frame of the grid, the row
+# added, so the gesture goes into the frame of the cell. `nothing` when the gesture
+# reaches no cell, or when the cell drew nothing at the point.
+function _find_grid_list_cell(iomap::GridLayoutListIoMap, gesture, point::Bool)
     state = iomap.state
-    pointer = hasproperty(evt, :x) && hasproperty(evt, :y)
-    k, c = if pointer
-        row = _find_grid_list_row_at(state, Int(evt.y))
+    k, c = if point
+        row = _find_grid_list_row_at(state, Int(gesture.y))
         column = state.column_head === nothing ?
-            _find_grid_list_column_at(iomap.col_x, iomap.col_w, Int(evt.x)) :
-            _find_grid_list_column_node_at(state, Int(evt.x))
+            _find_grid_list_column_at(iomap.col_x, iomap.col_w, Int(gesture.x)) :
+            _find_grid_list_column_node_at(state, Int(gesture.x))
         (row, column)
     else
         named = _split_grid_list_reference(getfield(iomap.input, :selection)[])
@@ -456,22 +475,14 @@ function _read_grid_list_cell(iomap::GridLayoutListIoMap, evt)
     (k === nothing || c === nothing) && return nothing
     found = _find_grid_list_row(state, k)
     found === nothing && return nothing
-    canvas = found[1]
     entry = find_grid_list_cell(iomap, k, c)
     (entry === nothing || entry[3] === nothing) && return nothing
-    answer = if pointer
-        row_y = Int(canvas.y)
-        point = _find_child_point(entry, Int(evt.x), Int(evt.y) - row_y; bounded = true)
-        point === nothing && return nothing
-        local_event = _translate_layout_list_event(evt, point...)
-        local_event === nothing && return nothing
-        shift_operation_position(read_child_event(entry[3], local_event),
-                                 Int(evt.x) - point[1], Int(evt.y) - point[2])
-    else
-        read_intent(entry[3].projection, entry[3], evt)
-    end
     steps = (FieldReferenceStep("children"), RangeReferenceStep(k - 1, k),
              RangeReferenceStep(c - 1, c))
-    answer isa Operation || return (nothing, steps)
-    (_annotate_operation(iomap.input, reroot_operation(answer, steps)), steps)
+    point || return (entry, steps)
+    _is_point_gesture(gesture) || return nothing
+    row_y = Int(found[1].y)
+    _find_child_point(entry, Int(gesture.x), Int(gesture.y) - row_y; bounded = true) === nothing &&
+        return nothing
+    ((Int(entry[1][]), Int(entry[2][]) + row_y, entry[3]), steps)
 end

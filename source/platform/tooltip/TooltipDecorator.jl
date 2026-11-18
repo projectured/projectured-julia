@@ -68,9 +68,12 @@ end
 
 # ── Reader ────────────────────────────────────────────────────────────────
 
+# The decorator keeps the state of the tooltip over time and acts on the answer of the
+# child, so it keeps its own reader. The child reads the change through
+# `read_child_intent`.
 function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, iomap::TooltipDecoratorIoMap)
     event = change.gesture
-    child_op = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap).operation
+    child_op = read_child_intent(p, recursion, change, iomap, iomap.child_iomap).operation
 
     source = iomap.input::TooltipSource
     fired = p.trigger(source, event)::Bool

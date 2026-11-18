@@ -324,48 +324,36 @@ map_reference_backward(::_LinearLayoutToGraphicsCanvas, ::LayoutListIoMap, refer
 
 # ── Reading ──────────────────────────────────────────────────────────────────
 
-# A pointer event goes to the child under the pointer, and a key to the child
-# that the selection of the layout names. The answer is rooted at `children[k]`.
-function read_intent(::_LinearLayoutToGraphicsCanvas, iomap::LayoutListIoMap, evt)
+# A gesture with a point goes to the child that drew at the point, and a key and an
+# operation to the child that the selection of the layout names. The answer is
+# rooted at `children[k]`. A gesture with a point that is no event of the pointer,
+# such as the move of a drag, reaches no child. The IoMap names no children, so a
+# change follows no route, as by default: an operation with a route answers nothing.
+function read_intent(p::_LinearLayoutToGraphicsCanvas, recursion, change::Intent,
+                     iomap::LayoutListIoMap)
+    change.route isa ConcreteReference && change.operation !== nothing &&
+        return Intent(change.gesture, nothing)
+    change = Intent(change.gesture, change.operation, change.description, change.domain)
+    gesture = change.gesture
     state = iomap.state
-    k = if hasproperty(evt, :x) && hasproperty(evt, :y)
-        _find_layout_list_index_at(state, Int(evt.x), Int(evt.y))
-    else
-        _find_selected_layout_list_index(iomap.input)
-    end
-    k === nothing && return read_container_gesture(nothing, evt, iomap.input)
-    entry = _find_layout_list_child(state, k)
-    entry === nothing && return read_container_gesture(nothing, evt, iomap.input)
-    answer = hasproperty(evt, :x) && hasproperty(evt, :y) ?
-        _read_layout_list_pointer(entry, evt) :
-        read_intent(entry[3].projection, entry[3], evt)
-    answer = answer isa Operation ? _reroot_into_child(iomap.input, answer, k) : nothing
-    read_container_gesture(answer, evt, iomap.input; steps = _get_layout_child_steps(k))
+    point = change.operation === nothing && !(gesture isa Operation) &&
+            hasproperty(gesture, :x) && hasproperty(gesture, :y)
+    k = point ? _find_layout_list_index_at(state, Int(gesture.x), Int(gesture.y)) :
+                _find_selected_layout_list_index(iomap.input)
+    entry = k === nothing ? nothing : _find_layout_list_child(state, k)
+    point && entry !== nothing && (!_is_point_gesture(gesture) ||
+        _find_child_point(entry, Int(gesture.x), Int(gesture.y); bounded = true) === nothing) &&
+        (entry = nothing)
+    entry === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    steps = _get_layout_child_steps(k)
+    answer = point ? read_entry_child(p, recursion, change, iomap, entry, steps) :
+                     read_child_intent(p, recursion, change, iomap, entry[3], steps)
+    Intent(answer.gesture, _annotate_operation(iomap.input, answer.operation),
+           answer.description, answer.domain)
 end
 
-# The pointer event in the frame of the child, read by the child, with a
-# position in the answer shifted back into the frame of the layout.
-function _read_layout_list_pointer(entry, evt)
-    point = _find_child_point(entry, Int(evt.x), Int(evt.y); bounded = true)
-    point === nothing && return nothing
-    local_event = _translate_layout_list_event(evt, point...)
-    local_event === nothing && return nothing
-    shift_operation_position(read_child_event(last(entry), local_event),
-                             Int(evt.x) - point[1], Int(evt.y) - point[2])
-end
-
-_translate_layout_list_event(evt::MouseClick, x, y) =
-    MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time)
-_translate_layout_list_event(evt::MouseScroll, x, y) = shift_event_position(evt, x - evt.x, y - evt.y)
-_translate_layout_list_event(evt::MouseMove, x, y) =
-    MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time)
-_translate_layout_list_event(evt::MouseDown, x, y) =
-    MouseDown(evt.button, x, y, evt.modifiers; time = evt.time)
-_translate_layout_list_event(evt::MouseUp, x, y) =
-    MouseUp(evt.button, x, y, evt.modifiers; time = evt.time)
-_translate_layout_list_event(evt::MouseDwell, x, y) =
-    shift_event_position(evt, x - evt.x, y - evt.y)
-_translate_layout_list_event(evt, x, y) = nothing
+read_intent(p::_LinearLayoutToGraphicsCanvas, iomap::LayoutListIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The child that the selection names as `children[k]`, or `nothing`.
 function _find_selected_layout_list_index(doc)

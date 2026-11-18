@@ -34,10 +34,7 @@ get_child_iomaps(iomap::RosterToGraphicsIoMap) = Any[iomap.inner_iomap]
 # so its path is a path of the roster.
 function read_intent(p::RosterToGraphics, recursion, change::Intent, iomap::RosterToGraphicsIoMap)
     change.route === nothing || return read_routed_child(recursion, change, iomap)
-    inner = iomap.inner_iomap
-    answer = read_intent(get_iomap_projection(inner), recursion, change, inner)
-    operation = reroot_operation(answer isa Intent ? answer.operation : answer, (FieldReferenceStep("rows"),))
-    Intent(change.gesture, operation)
+    read_child_intent(p, recursion, change, iomap, iomap.inner_iomap, (FieldReferenceStep("rows"),))
 end
 
 read_intent(p::RosterToGraphics, iomap::RosterToGraphicsIoMap, payload) =

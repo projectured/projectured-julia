@@ -43,7 +43,8 @@ using ..SelectionModule
 using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           read_projection_gesture
 import ..ReferenceModule: get_reference_step_kind, evaluate_reference_step
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 

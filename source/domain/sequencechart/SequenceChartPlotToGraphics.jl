@@ -1273,17 +1273,39 @@ end
 
 # The gestures of the plot, in the order of what is drawn on top: the buttons and
 # the bars first, in their frame, then the gestures of the view and the selection.
-function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap::SequenceChartPlotToGraphicsCanvasIoMap, event)
+# A pointer gesture on a part, a button or a bar, goes to the part in its frame by
+# the one passing of a child, and the answer comes back rooted at the field of the
+# part. Every other change is read as the default reader reads it: the rules of the
+# plot are methods of `read_gesture` below. A change with a route goes to the part
+# that it names, as by default.
+function read_intent(p::SequenceChartPlotToGraphicsCanvas, recursion, change::Intent, iomap::SequenceChartPlotToGraphicsCanvasIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    gesture = change.gesture
+    if change.operation === nothing && gesture isa Union{MouseDown, MouseUp, MouseClick, MouseDwell} &&
+       iomap.geometry !== nothing
+        part = find_drawn_child_at(_find_shown_sequence_chart_parts(iomap), gesture.x, gesture.y)
+        part === nothing || return _read_sequence_chart_part_event(p, recursion, change, iomap, part)
+    end
+    invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+end
+
+# An operation of the output has no image in the input of the plot.
+map_operation_backward(::SequenceChartPlotToGraphicsCanvas, ::SequenceChartPlotToGraphicsCanvasIoMap, operation) = nothing
+
+function read_gesture(p::SequenceChartPlotToGraphicsCanvas, iomap::SequenceChartPlotToGraphicsCanvasIoMap, event; answer = nothing)
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input
     # The buttons and the bars are on top: a press, a release, a click, a dwell and
     # a right click on them go to them, in their frame.
     parts = _find_shown_sequence_chart_parts(iomap)
-    if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell}
-        part = find_drawn_child_at(parts, event.x, event.y)
-        part === nothing || return _read_sequence_chart_part_event(g, plot, part, event)
+    # A pointer gesture on a part is the part's (`read_intent` above); the plot
+    # reads only its menu and its dwell over a part.
+    if event isa Union{MouseDown, MouseUp, MouseClick, MouseDwell} &&
+       find_drawn_child_at(parts, event.x, event.y) !== nothing
+        return invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, event; answer)
     end
+    answer === nothing || return nothing
 
     if event isa MouseScroll
         return _read_scroll(g, plot, event)
@@ -1479,12 +1501,19 @@ end
 # The answer of a button or a bar to a pointer gesture on it. A press on the thumb
 # of a bar starts a drag that the plot keeps, and a write of the value of a bar
 # moves the view.
-function _read_sequence_chart_part_event(g, plot::SequenceChartPlot, part, event)
-    answer = read_drawn_child_event(plot, part, event)
+function _read_sequence_chart_part_event(p::SequenceChartPlotToGraphicsCanvas, recursion, change::Intent,
+                                         iomap::SequenceChartPlotToGraphicsCanvasIoMap, part)
+    plot = iomap.input
+    answer = read_child_in_frame(p, recursion, change, iomap, part.iomap, part.steps;
+                                 move_in = (x, y) -> (x - part.x, y - part.y),
+                                 move_out = (x, y) -> (x + part.x, y + part.y))
+    event = change.gesture
     (is_outward_gesture(event) || part.field == "toolbar") && return answer
+    operation = answer.operation
     bar = getproperty(plot, Symbol(part.field))
-    event isa MouseDown && (answer = keep_owned_scroll_bar_drag(answer, bar, event))
-    _convert_scroll_bar_answer(g, plot, answer)
+    event isa MouseDown && (operation = keep_owned_scroll_bar_drag(operation, bar, event))
+    Intent(answer.gesture, _convert_scroll_bar_answer(iomap.geometry, plot, operation), answer.description,
+           answer.domain)
 end
 
 # The answer of a bar whose thumb the plot drags to a part of that drag, with the

@@ -51,6 +51,7 @@ using ..TooltipModule
 using ..TreeModule
 using ..WidgetModule
 
+import ..GestureBindingModule: read_gesture
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
                        make_wrapper_argument

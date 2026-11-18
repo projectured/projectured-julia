@@ -60,10 +60,13 @@ end
 
 # ── Reader ─────────────────────────────────────────────────────────────────
 
+# The inner projection reads a change first. The log records the answer, so this
+# reader keeps its own code and passes the change only through `read_child_intent`.
 function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent,
                      iomap::GestureLogRecordingIoMap)
-    child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
-    operation = child isa Intent ? child.operation : child
+    child = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap;
+                              read_child = (_, r, c, inner) -> read_routed_intent(p.inner, r, c, inner))
+    operation = child.operation
     if operation isa Operation && p.filter(change.gesture, operation)
         # Code that acts with no gesture says in the description what it did.
         record_gesture!(p.log, change.gesture === nothing ? change.description : change.gesture,

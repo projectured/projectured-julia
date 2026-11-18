@@ -33,18 +33,23 @@ function print_document(p::SelectionWalkingProjection, recursion, input, ctx)
     SelectionWalkingIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
-function read_intent(p::SelectionWalkingProjection, recursion, change::Intent,
-                     iomap::SelectionWalkingIoMap)
-    child = iomap.child_iomap
-    answer = read_intent(child.projection, recursion, change, child)
-    direction = get_selection_walk_direction(change.gesture)
-    direction === nothing && return answer
-    operation = answer isa Intent ? answer.operation : answer
-    operation === nothing || return answer
+# The content reads a change first, and the rule of the wrapper reads its answer
+# (`read_projection_gesture` below).
+read_intent(p::SelectionWalkingProjection, recursion, change::Intent, iomap::SelectionWalkingIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap)
+
+# The rule of the wrapper: an Alt + arrow key that the content declined walks the
+# selection over the structure of the document. The content shares the input of the
+# wrapper, so the passing reads this rule with `read_projection_gesture`.
+function read_projection_gesture(p::SelectionWalkingProjection, iomap::SelectionWalkingIoMap, gesture;
+                                 answer = nothing)
+    direction = answer === nothing ? get_selection_walk_direction(gesture) : nothing
+    direction === nothing &&
+        return invoke(read_projection_gesture, Tuple{Any, Any, Any}, p, iomap, gesture; answer)
     document = iomap.input
     selection = hasproperty(document, :selection) ? document.selection : nothing
     path = compute_selection_walk(document, selection, direction)
-    Intent(change.gesture, path === nothing ? nothing : ReplaceSelectionOperation(path))
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 read_intent(p::SelectionWalkingProjection, iomap::SelectionWalkingIoMap, payload) =

@@ -42,7 +42,8 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, get_document_decoration, insertable, acquire_document!
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 import ..SerializationModule: pred_arguments
 import ..TreeModule: get_tree_children_steps, has_tree_children
 import ..WidgetModule: make_graphics_projection

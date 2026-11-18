@@ -66,15 +66,15 @@ function map_reference_backward(::OpenFileListToWidget, iomap::SimpleIoMap, refe
                       get_reference_tail(get_reference_tail(reference)))
 end
 
-# The generic bridge maps the answer of the grid back. The page keeps the
+# The default map maps the answer of the grid back. The page keeps the
 # arrangement of its table when the last entry goes, so the next filter or sort of
 # the table has an arrangement to go to, and opens the file of a row at its place
 # in the list, `files[j]`, so the address names the file and not the row.
-function read_intent(p::OpenFileListToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
+function map_operation_backward(p::OpenFileListToWidget, iomap::SimpleIoMap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation && return mapped
     list = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(list, :table)[], _OPEN_FILE_TABLE_STEP)
-    operation = retarget_held_row_open(operation, list, _OPEN_FILE_TABLE_STEP)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+    mapped = keep_held_arrangement(mapped, getfield(list, :table)[], _OPEN_FILE_TABLE_STEP)
+    retarget_held_row_open(mapped, list, _OPEN_FILE_TABLE_STEP)
 end

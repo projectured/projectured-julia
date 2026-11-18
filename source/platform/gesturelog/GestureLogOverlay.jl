@@ -179,7 +179,8 @@ _is_bottom(anchor::Symbol) = anchor === :bottom_right || anchor === :bottom_left
 
 read_intent(p::GestureLogOverlayProjection, recursion, change::Intent,
             iomap::GestureLogOverlayIoMap) =
-    read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    read_child_intent(p, recursion, change, iomap, iomap.inner_iomap;
+                      read_child = (_, r, c, inner) -> read_routed_intent(p.inner, r, c, inner))
 
 read_intent(p::GestureLogOverlayProjection, iomap::GestureLogOverlayIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

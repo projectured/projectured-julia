@@ -152,7 +152,7 @@ map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference) = r
 # this stage declines, such as the edit beside an inline image. Read it against the
 # input and lower it there: in a pure-text pipeline no stage below lowers it.
 read_gesture(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
-    _read_lowered_gesture(iomap.input, evt)
+    answer === nothing ? (_read_lowered_gesture(iomap.input, evt)) : nothing
 
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
 # MouseClick) is handled above — otherwise a wildcard here would echo the raw

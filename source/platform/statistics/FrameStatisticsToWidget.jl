@@ -577,21 +577,21 @@ end
 # keep the drag of the thumb of its bar: the start of the drag names the
 # statistics, and the press is kept in their frame, the frame of the parts of
 # the drag that come to them.
-function read_intent(p::FrameStatisticsToWidget, recursion, change::Intent,
-                     iomap::FrameStatisticsToWidgetIoMap)
-    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    change.gesture isa MouseDown || return answer
-    Intent(answer.gesture, make_owned_scroll_bar_drag(answer.operation, iomap.bar, change.gesture),
-           answer.description, answer.domain)
+function read_gesture(p::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap, press::MouseDown;
+                      answer = nothing)
+    answer === nothing && return make_owned_scroll_bar_drag(
+        invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, press; answer), iomap.bar, press)
+    make_owned_scroll_bar_drag(answer, iomap.bar, press)
 end
 
 # A part of the drag of the thumb: a move is a jump to the row at the value of
 # the bar, and the end lets the thumb go.
 function read_gesture(::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap,
                       event::Union{DragMove,DragEnd,DragCancel}; answer = nothing)
-    answer = read_scroll_bar_drag(iomap.bar, event)
-    answer isa CompoundOperation || return something(_convert_widget_write(iomap.input, answer), Some(answer))
-    CompoundOperation(Any[something(_convert_widget_write(iomap.input, o), Some(o)) for o in answer.operations])
+    answer === nothing || return nothing
+    drag = read_scroll_bar_drag(iomap.bar, event)
+    drag isa CompoundOperation || return something(_convert_widget_write(iomap.input, drag), Some(drag))
+    CompoundOperation(Any[something(_convert_widget_write(iomap.input, o), Some(o)) for o in drag.operations])
 end
 
 # The answer to a press on the thumb of the bar, whose start of the drag names

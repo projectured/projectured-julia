@@ -1,8 +1,9 @@
 # Fragment of `GraphicsModule` — the children that a view draws at a place of its
 # own canvas. A child is the print of a part of the input of the view, drawn in a
-# rectangle over the canvas: the view finds the child under a point, gives it the
-# pointer gestures in its own frame, and takes its answer back into the frame and
-# the paths of the view.
+# rectangle over the canvas: the view finds the child under a point, and gives it a
+# pointer gesture in its own frame by the passing of the layout slice
+# (`read_child_in_frame`), which takes its answer back into the frame and the paths
+# of the view.
 #
 # A child is a named tuple `(; x, y, w, h, iomap, steps)`: the rectangle where the
 # view draws the output of `iomap`, in the frame of the view, and the steps from
@@ -20,25 +21,6 @@ function find_drawn_child_at(children, x::Integer, y::Integer)
         (child.x <= x < child.x + child.w && child.y <= y < child.y + child.h) && return child
     end
     nothing
-end
-
-"""
-    read_drawn_child_event(document, child, event) -> operation or nothing
-
-The answer of `child` to `event`, a pointer gesture on it. The child reads the
-gesture in its own frame, each position of its answer comes back into the frame of
-the view, and each path gets the steps of the child. A dwell and a right click that
-the child does not answer go to the part under the point in the child, and then out
-over `document`, the input of the view, by the rule of `read_container_gesture`.
-"""
-function read_drawn_child_event(document, child, event)
-    moved = shift_event_position(event, -child.x, -child.y)
-    iomap = child.iomap
-    answer = read_intent(get_iomap_projection(iomap), iomap, moved)
-    answer isa Operation || (answer = nothing)
-    is_outward_gesture(event) && answer === nothing && (answer = read_child_part_gesture(iomap, moved))
-    answer = reroot_operation(shift_operation_position(answer, child.x, child.y), child.steps)
-    is_outward_gesture(event) ? read_container_gesture(answer, event, document; steps = child.steps) : answer
 end
 
 """

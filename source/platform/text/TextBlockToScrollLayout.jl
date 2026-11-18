@@ -283,57 +283,76 @@ end
 # A pointer event goes to the part at its point.
 const _TextPointerEvent = Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell}
 
-function read_intent(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, evt::_TextPointerEvent)
+# A pointer gesture goes to the part at its point: the lines, in their own frame, or
+# the gutter of the line at the point. A click that the gutter does not take selects
+# the mark at the point, so the stage that made the mark can answer it. A key goes to
+# the gutter that the selection is in, and else to the lines. An answer of the
+# gutter comes back rooted at the gutter of its line, with the types that its path
+# needs; an answer of the lines comes back as it is. An operation in the output maps
+# back (`map_operation_backward` below), and the answer of a stage nearer the
+# screen is read as the default reader reads it. The IoMap names no children, so a
+# change follows no route, as by default.
+function read_intent(p::TextBlockToScrollLayout, recursion, change::Intent, iomap::TextBlockToScrollLayoutIoMap)
+    change.operation === nothing ||
+        return invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    gesture = change.gesture
+    gesture isa Operation && return Intent(nothing, map_operation_backward(p, iomap, gesture))
+    change = Intent(gesture, nothing, change.description, change.domain)
     lines = iomap.lines_iomap
-    found = _find_text_part_at(iomap, Int(evt.x), Int(evt.y))
-    found === nothing && return nothing
-    part, x, y = found
-    dx, dy = Int(evt.x) - x, Int(evt.y) - y
-    if part === :center
-        answer = read_intent(lines.projection, lines, shift_event_position(evt, -dx, -dy))
-        return answer isa Operation ? shift_operation_position(answer, dx, dy) : answer
+    if gesture isa _TextPointerEvent
+        found = _find_text_part_at(iomap, Int(gesture.x), Int(gesture.y))
+        found === nothing && return Intent(gesture, nothing)
+        part, x, y = found
+        dx, dy = Int(gesture.x) - x, Int(gesture.y) - y
+        part === :center &&
+            return read_child_intent(p, recursion, change, iomap, lines; read_child = (_, r, c, child) ->
+                read_routed_child_in_frame(r, c, child; move_in = (x, y) -> (x - dx, y - dy),
+                                           move_out = (x, y) -> (x + dx, y + dy)))
+        part === :left || return Intent(gesture, nothing)
+        row = _find_gutter_row_at(iomap, x, y)
+        row === nothing && return Intent(gesture, nothing)
+        entry, local_y = row
+        gutter_dy = dy + y - local_y
+        answer = _annotate_block_answer(iomap,
+            read_child_in_frame(p, recursion, change, iomap, entry.iomap, _get_gutter_steps(entry.line);
+                                move_in = (x, y) -> (x - dx, y - gutter_dy),
+                                move_out = (x, y) -> (x + dx, y + gutter_dy)))
+        (answer.operation === nothing && gesture isa MouseClick) || return answer
+        inside = map_reference_backward(entry.iomap.projection, entry.iomap, PointReferenceStep(x, local_y))
+        inside isa Reference || return answer
+        return Intent(gesture, ReplaceSelectionOperation(_make_gutter_path(iomap.input, entry.line, inside)),
+                      answer.description, answer.domain)
     end
-    part === :left || return nothing
-    row = _find_gutter_row_at(iomap, x, y)
-    row === nothing && return nothing
-    entry, local_y = row
-    gutter = entry.iomap
-    dy += y - local_y
-    answer = read_child_event(gutter, shift_event_position(evt, -dx, -dy))
-    if answer isa Operation
-        rerooted = reroot_operation(shift_operation_position(answer, dx, dy), _get_gutter_steps(entry.line))
-        rerooted isa ReplacePathOperation || return rerooted
-        return make_path_operation(rerooted, annotate_reference_types(iomap.input, get_operation_path(rerooted)))
-    end
-    # A click that the gutter does not take selects the mark at the point, so the
-    # stage that made the mark can answer it.
-    evt isa MouseClick || return nothing
-    inside = map_reference_backward(gutter.projection, gutter, PointReferenceStep(x, local_y))
-    inside isa Reference || return nothing
-    ReplaceSelectionOperation(_make_gutter_path(iomap.input, entry.line, inside))
-end
-
-# An operation in the output maps back as a path does; a key goes to the gutter
-# that the selection is in, and else to the lines.
-function read_intent(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, get_operation_path(op))
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
-function read_intent(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, payload)
     selection = get_selection(iomap.input)
     split = selection isa Reference ? _split_gutter_reference(strip_reference_types(selection)) : nothing
-    if split !== nothing && !(payload isa Operation)
-        found = _find_gutter_row(iomap, split[1])
-        found === nothing && return nothing
-        entry = found[2]
-        gutter = entry.iomap
-        answer = read_intent(gutter.projection, gutter, payload)
-        answer isa Operation || return nothing
-        rerooted = reroot_operation(answer, _get_gutter_steps(entry.line))
-        rerooted isa ReplacePathOperation || return rerooted
-        return make_path_operation(rerooted, annotate_reference_types(iomap.input, get_operation_path(rerooted)))
-    end
+    split === nothing && return read_child_intent(p, recursion, change, iomap, lines)
+    found = _find_gutter_row(iomap, split[1])
+    found === nothing && return Intent(gesture, nothing)
+    entry = found[2]
+    _annotate_block_answer(iomap,
+        read_child_intent(p, recursion, change, iomap, entry.iomap, _get_gutter_steps(entry.line)))
+end
+
+read_intent(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# An answer rooted at the gutter of a line, with the types that its path needs.
+function _annotate_block_answer(iomap::TextBlockToScrollLayoutIoMap, answer::Intent)
+    operation = answer.operation
+    operation isa ReplacePathOperation &&
+        (operation = make_path_operation(operation, annotate_reference_types(iomap.input, get_operation_path(operation))))
+    Intent(answer.gesture, operation, answer.description, answer.domain)
+end
+
+# An operation in the output maps back as a path does; any other operation maps
+# back through the lines.
+function map_operation_backward(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap,
+                                operation::ReplacePathOperation)
+    path = map_reference_backward(p, iomap, get_operation_path(operation))
+    path === nothing ? nothing : make_path_operation(operation, path)
+end
+
+function map_operation_backward(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, operation)
     lines = iomap.lines_iomap
-    read_intent(lines.projection, lines, payload)
+    read_intent(lines.projection, lines, operation)
 end

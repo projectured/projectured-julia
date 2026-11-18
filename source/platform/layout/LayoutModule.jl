@@ -35,6 +35,7 @@ using ..StyleModule
 import ..DocumentModule: has_document_duplicate
 import ..SerializationModule: is_pred_constructible
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 import ..OperationModule: evaluate_operation, get_wrapped_operation, rewrap_operation, operation_reference,
                           retarget_operation
 
@@ -57,7 +58,8 @@ export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,
        with_visible_size, get_visible_width, get_visible_height
-export read_child_event, read_entry_child, make_layout_selection_ring
+export read_child_event, read_entry_child, read_child_in_frame, read_child_event_in_frame,
+       make_layout_selection_ring
 export PlaceBlocks, get_block_total, get_total_before, find_place_at
 export KeepPointOperation, RevealPartOperation
 

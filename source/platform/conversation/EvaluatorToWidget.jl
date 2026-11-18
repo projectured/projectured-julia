@@ -159,6 +159,7 @@ end
 # click on a form is the way back to typing in it. A form whose code is a
 # document selects the code whole instead.
 function read_gesture(::EvaluatorFormToVerticalLayout, iomap, event::MouseClick; answer = nothing)
+    answer === nothing || return nothing
     _is_plain_left_press(event) || return nothing
     code = iomap.input.form
     _is_text_form(code) ||
@@ -235,26 +236,18 @@ end
 
 # A key that a layer inside the toplevel already answered, as the hole of a
 # structured form answers Enter, is offered to the table of the toplevel with that
-# answer, so only an `override` rule can replace it. The reader that
-# `@projection_template` emits does the same for a template node.
+# answer, so only an `override` rule can replace it: the default reader of a stage
+# does this.
 #
 # A plain left press that nothing inside answered, on the empty space of the
 # toplevel, puts the caret at the end of the bottom form, where the next key
 # goes, as a click on the empty space of a terminal goes to its prompt.
-#
-# Anything else goes to the generic bridge.
-function read_intent(projection::EvaluatorToplevelToWidgetComposite, recursion,
-                     change::Intent, iomap)
-    if change.operation !== nothing && change.gesture isa Union{KeyPress, KeyDown}
-        own = read_gesture(iomap.input, change.gesture; answer = change.operation)
-        own === nothing || return Intent(change.gesture, own)
+function read_gesture(projection::EvaluatorToplevelToWidgetComposite, iomap, gesture; answer = nothing)
+    if answer === nothing && _is_plain_left_press(gesture)
+        toplevel = iomap.input
+        return ReplaceSelectionOperation(_make_form_end_reference(toplevel, length(toplevel.elements)))
     end
-    if change.operation === nothing && _is_plain_left_press(change.gesture)
-        t = iomap.input
-        return Intent(change.gesture,
-                      ReplaceSelectionOperation(_make_form_end_reference(t, length(t.elements))))
-    end
-    invoke(read_intent, Tuple{Projection, Any, Intent, Any}, projection, recursion, change, iomap)
+    invoke(read_gesture, Tuple{Projection, Any, Any}, projection, iomap, gesture; answer)
 end
 
 # `elements[i].<rest>` ↔ `children[2].content.children[i].<rest>`. The rest

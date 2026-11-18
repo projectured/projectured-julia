@@ -149,12 +149,15 @@ end
 _is_plain_escape(event) =
     event isa KeyDown && event.key === :escape && event.modifiers == ModifierKeys()
 
-# The answer of the content to `change`, as an operation from the state.
+# The answer of the content to `change`, as an operation from the state. The reader
+# reads the table of the state itself, while the tooltip shows, so the level of the
+# state has no rules of its own for the passing.
+read_gesture(::TooltipWindowProjection, ::TooltipWindowIoMap, gesture; answer = nothing) = nothing
+
 function _read_content(p::TooltipWindowProjection, recursion, change::Intent,
                        iomap::TooltipWindowIoMap)
-    answer = read_intent(p.inner, recursion, change, iomap.child_iomap)
-    operation = answer isa Intent ? answer.operation : answer
-    reroot_operation(operation, (FieldReferenceStep("content"),))
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap, (FieldReferenceStep("content"),);
+                      read_child = (_, r, c, child) -> read_routed_intent(p.inner, r, c, child)).operation
 end
 
 # A write of one field of the state, which a history does not record.

@@ -24,6 +24,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..GestureBindingModule: read_gesture
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

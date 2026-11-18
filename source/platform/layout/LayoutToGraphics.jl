@@ -308,18 +308,44 @@ chose the child at the point of the gesture.
 """
 function read_entry_child(projection, recursion, change::Intent, iomap, entry, steps::Tuple)
     dx, dy = get_child_frame_offset(entry)
-    read_child_intent(projection, recursion, change, iomap, last(entry), steps;
-                      read_child = (_, r, c, child) -> _read_child_in_frame(r, c, child, dx, dy))
+    read_child_in_frame(projection, recursion, change, iomap, last(entry), steps;
+                        move_in = (x, y) -> (x - dx, y - dy), move_out = (x, y) -> (x + dx, y + dy))
 end
 
-function _read_child_in_frame(recursion, change::Intent, child, dx::Int, dy::Int)
+"""
+    read_child_in_frame(projection, recursion, change, iomap, child, steps; move_in, move_out) -> Intent
+
+The passing of `change` from a container to `child`, which the container draws in a
+frame of its own, and back, as [`read_entry_child`](@ref) passes it: the point of a
+pointer gesture goes into the frame of the child by `move_in(x, y)`, the child reads
+it by the rules of [`read_child_event`](@ref), and each position of the answer comes
+back by `move_out(x, y)` ([`read_child_event_in_frame`](@ref)). Then the answer goes up
+by `steps` level by level ([`read_child_intent`](@ref)). Use it for a frame that is not
+at an offset only, such as the frame of a pane that scrolls or zooms its content.
+"""
+read_child_in_frame(projection, recursion, change::Intent, iomap, child, steps::Tuple; move_in, move_out) =
+    read_child_intent(projection, recursion, change, iomap, child, steps;
+                      read_child = (_, r, c, ch) -> read_child_event_in_frame(r, c, ch; move_in, move_out))
+
+"""
+    read_child_event_in_frame(recursion, change, child; move_in, move_out) -> Intent
+
+The answer of `child` to `change` in the frame of the child: the point of a pointer
+gesture goes in by `move_in(x, y)`, the child reads it by the rules of
+[`read_child_event`](@ref), and each position of the answer comes back by
+`move_out(x, y)`. A change that carries an operation, or a gesture with no point,
+goes to the child as it is. The answer is not lifted: a container that maps the
+answer of its child in a way of its own gives this to `read_child_intent` as part of
+its `read_child`.
+"""
+function read_child_event_in_frame(recursion, change::Intent, child; move_in, move_out)
     gesture = change.gesture
     (change.operation === nothing && gesture isa Union{Event, Gesture}) ||
         return read_routed_intent(get_iomap_projection(child), recursion, change, child)
-    moved = Intent(shift_event_position(gesture, -dx, -dy), nothing, change.description,
+    moved = Intent(map_event_position(gesture, move_in), nothing, change.description,
                    change.domain, change.route)
     inner = read_child_event(recursion, moved, child)
-    Intent(gesture, shift_operation_position(inner.operation, dx, dy), inner.description,
+    Intent(gesture, map_operation_position(inner.operation, move_out), inner.description,
            inner.domain)
 end
 
@@ -349,12 +375,10 @@ function _find_whole_selected_child_box(layout, entries)
     (Int(x isa Cell ? x[] : x) + x0, Int(y isa Cell ? y[] : y) + y0, _child_w(cim), _child_h(cim))
 end
 
-"""
-Hit-test a coordinate event against each child wrapper canvas; returns
-`(op, i)` for the first child that produced a non-`nothing` result.
-`child_entries` is a vector of `(x_cell, y_cell, cim)` triples — the
-same shape this module stores on `ChildrenIoMap`.
-"""
+# The answer `(op, i)` of the first child of `child_entries`, the `(x, y, cim)`
+# triples of a layout, that holds the point `(x, y)` in its box and answers the
+# event that `make_evt` makes at the point in its frame; `nothing` when none does.
+# A move of the pointer reads its children so (`_route_move`).
 function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
     for (i, entry) in enumerate(child_entries)
         entry === nothing && continue
@@ -410,44 +434,10 @@ function _read_layout_move(document, entries::Vector, evt::MouseMove, route;
     join_move_answers(reroot(document, old_answer, old), new_answer)
 end
 
-_route_scroll(entries, evt::MouseScroll) =
-    _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-
-_route_click(entries, evt::MouseClick) =
-    _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
-
-# A dwell goes to the child at its point, as a click does.
-_route_dwell(entries, evt::MouseDwell) =
-    _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-
-# A pointer motion carries coordinates, so it hit-tests the laid-out children like
-# a click: it goes to the child under the pointer, not to the selected one.
+# A move of the pointer goes to the child under the pointer, not to the selected one.
 _route_move(entries, evt::MouseMove) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
-
-# A raw press-down / release also hit-tests by coordinate, so a button laid out in a
-# layout flips its `pressed` cell (the depress feedback). The composed MouseClick
-# click is routed separately by `_route_click`.
-_route_downup(entries, evt) =
-    _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
-                                                time = evt.time) :
-                                      MouseUp(evt.button, x, y, evt.modifiers;
-                                              time = evt.time))
-
-# Forward a coordless event to the single child the layout's selection points at.
-function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
-    (1 <= slot <= length(entries)) || return nothing
-    entry = entries[slot]
-    entry === nothing && return nothing
-    (_, _, cim) = entry::Tuple{Cell,Cell,Any}
-    result = read_intent(cim.projection, cim, evt)
-    result isa Operation ? (result, slot) : nothing
-end
 
 # Which child slot the layout's `selection` points at (a leading `children[i]`
 # step), or 0 if none — mirror of `_selected_composite_slot` for the `children`
@@ -497,28 +487,96 @@ function _annotate_operation(document, op::ReplaceReferencedValueOperation)
         annotate_reference_types(document, op.reference), op.value)
 end
 
-# Edit-transparent routing shared by every *LayoutToGraphicsCanvas reader:
-# mouse clicks/scrolls hit-test the laid-out children; coordless events go to
-# the selected child (or are tried against each). The child's op is re-rooted by
-# prepending `children[i]`, matching `_children_forward`'s convention so forward
-# mapping and reads agree. Identity-bearing ops pass through unchanged.
-# Tab traversal for a layout container (Stage 2), mirroring the composite reader:
-# delegate Tab to the selected child; on decline advance my selection to the next
-# focusable sibling (entering its first leaf); decline if none so the parent
-# advances. A Tab with no child slot selected (∅ on me) bootstraps into my first
-# (last) leaf. Selection move is relative to me; the parent's prepend re-roots it.
-function _layout_tab(w, entries::Vector, evt)
-    n = length(entries)
+# A layout keeps only its own rules, and a change goes to one child and back by the
+# one passing of a child (`read_child_intent`, and `read_entry_child` for a child at
+# a point):
+#
+# - a pointer gesture goes to the child that drew at its point
+#   (`_find_layout_slot_at`); the children of a stack overlap, so a stack takes the
+#   topmost child that holds the point in its box (`reverse`);
+# - a move goes to the child that the pointer leaves as well (`_read_layout_move`);
+# - a key, a gesture with no point and an operation go to the child that the
+#   selection of the layout names (`children[i].<rest>`), and to no child when the
+#   selection is not inside the layout;
+# - Tab moves the selection to the next focusable child when the selected child
+#   declines it (`read_gesture` below).
+#
+# A change with a route goes to the child that the route names, as by default.
+function _read_layout_children(p, recursion, change::Intent, iomap::_LayoutChildrenIoMap;
+                               reverse::Bool = false)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    gesture = change.gesture
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    document = iomap.input
+    pointer = change.operation === nothing && _is_point_gesture(gesture)
+    pointer && gesture isa MouseMove &&
+        return Intent(gesture, _read_layout_move(document, entries, gesture,
+                                                 reverse ? _route_move_reverse : _route_move))
+    slot = pointer ? _find_layout_slot_at(entries, gesture.x, gesture.y; reverse) :
+                     _selected_layout_slot(document, length(entries))
+    _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_layout_child_steps, pointer)
+end
+
+# The gestures that a layout gives to the child at their point.
+_is_point_gesture(gesture) =
+    gesture isa Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell}
+
+# The slot of the child of `entries` that drew at the point `(x, y)`, the first in
+# order, or 0. A layout gives each child exactly its laid-out box, also where an
+# element of the child draws past it. With `reverse`, the last child is the first,
+# and a child holds the point anywhere in its box, as the children of a stack lie
+# on top of each other.
+function _find_layout_slot_at(entries::Vector, x::Int, y::Int; reverse::Bool = false)
+    for slot in (reverse ? (length(entries):-1:1) : (1:length(entries)))
+        entry = entries[slot]
+        entry === nothing && continue
+        _find_child_point(entry, x, y; bounded = !reverse) === nothing || return slot
+    end
+    0
+end
+
+# The answer of the child of `entries` at `slot` to `change`, which `get_steps(slot)`
+# reach: at its point when `pointer`, else as it is. With no child at `slot`, only
+# the rules of the layout answer. The answer comes back with the types that its path
+# needs (`_annotate_operation`).
+function _read_layout_entry(p, recursion, change::Intent, iomap, entries::Vector, slot::Int,
+                            get_steps, pointer::Bool)
+    entry = 1 <= slot <= length(entries) ? entries[slot] : nothing
+    entry === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    steps = get_steps(slot)
+    answer = pointer ? read_entry_child(p, recursion, change, iomap, entry, steps) :
+                       read_child_intent(p, recursion, change, iomap, last(entry), steps)
+    Intent(answer.gesture, _annotate_operation(iomap.input, answer.operation),
+           answer.description, answer.domain)
+end
+
+# The layouts that read their children with `_read_layout_children`, but for the
+# anchored layout, which has its own method below.
+const _ChildrenLayoutToGraphicsCanvas = Union{HorizontalLayoutToGraphicsCanvas,
+    VerticalLayoutToGraphicsCanvas, GridLayoutToGraphicsCanvas, FlowLayoutToGraphicsCanvas,
+    StackLayoutToGraphicsCanvas, ConstraintLayoutToGraphicsCanvas}
+
+# Tab is a rule of the level of a layout. When the selected child declines it, the
+# selection moves to the next focusable child, into its first leaf, or into the last
+# leaf of the one before with Shift. With no child selected, the selection goes
+# into the first (last) leaf of the layout. With no such child, the layout declines,
+# so its parent moves on. The move is relative to the layout; the passing of the
+# parent roots it.
+read_gesture(p::_ChildrenLayoutToGraphicsCanvas, iomap::_LayoutChildrenIoMap, evt::KeyPress;
+             answer = nothing) = _read_layout_key(p, iomap, evt, answer)
+
+function _read_layout_key(p, iomap, evt::KeyPress, answer)
+    answer === nothing && evt.char == '\t' &&
+        return _advance_layout_tab(iomap.input, length(getfield(iomap, :child_iomaps)[]::Vector), evt)
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, evt; answer)
+end
+
+function _advance_layout_tab(w, n::Int, evt)
     reverse = evt.modifiers.shift
     i = _selected_layout_slot(w, n)
     if i == 0
         sub = reverse ? get_last_focusable_path(w) : get_first_focusable_path(w)
         return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
-    end
-    deleg = _forward_layout_event_slot(entries, evt, i)
-    if deleg !== nothing
-        op, slot = deleg
-        return _reroot_into_child(w, op, slot)
     end
     j = get_next_focusable_index(w.children, i, reverse)
     j == 0 && return nothing
@@ -527,47 +585,6 @@ function _layout_tab(w, entries::Vector, evt)
     _annotate_operation(w, ReplaceSelectionOperation(
         ConcreteReference(FieldReferenceStep("children"),
             ConcreteReference(RangeReferenceStep(j - 1, j), sub))))
-end
-
-function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
-    entries = getfield(iomap, :child_iomaps)[]::Vector
-    # Tab traversal: distributed focus advance — but only for a Tab nothing
-    # wanted. Selection is authoritative for every other coordless event, and a
-    # field the caret is in may mean something by Tab: a composer opens its kind
-    # chooser with one. Offering it to the selected child first costs a declined
-    # read and is what lets a Tab reach a field at all; a child that declines
-    # leaves the traversal exactly as it was.
-    if evt isa KeyPress && evt.char == '\t'
-        slot = _selected_layout_slot(iomap.input, length(entries))
-        if slot != 0
-            taken = _forward_layout_event_slot(entries, evt, slot)
-            if taken !== nothing
-                op, i = taken
-                return _reroot_into_child(iomap.input, op, i)
-            end
-        end
-        return _layout_tab(iomap.input, entries, evt)
-    end
-    evt isa MouseMove && return _read_layout_move(iomap.input, entries, evt, _route_move)
-    res = @gesture_case evt begin
-        MouseClick  => _route_click(entries, evt)
-        MouseDwell  => _route_dwell(entries, evt)
-        MouseScroll => _route_scroll(entries, evt)
-        MouseDown   => _route_downup(entries, evt)
-        MouseUp     => _route_downup(entries, evt)
-        _ => begin
-            # Selection-only: route the coordless event to the child the
-            # selection points at, or nowhere (no broadcast fallback) — selection
-            # is authoritative. See package/visual/doc/widget.md.
-            slot = _selected_layout_slot(iomap.input, length(entries))
-            slot == 0 ? nothing :
-                        _forward_layout_event_slot(entries, evt, slot)
-        end
-    end
-    res === nothing && return read_container_gesture(nothing, evt, iomap.input)
-    op, i = res
-    read_container_gesture(_reroot_into_child(iomap.input, op, i), evt, iomap.input;
-                           steps = _get_layout_child_steps(i))
 end
 
 _get_layout_child_steps(i::Integer) =
@@ -787,12 +804,20 @@ end
 
 # A path that the child answers continues past the `child` step, as the backward
 # map says, with the types that the constraint gives it.
-function read_intent(::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, evt)
-    inner = iomap.inner_iomap
-    inner === nothing && return nothing
-    answer = read_intent(inner.projection, inner, evt)
-    _annotate_operation(iomap.input, reroot_operation(answer, (FieldReferenceStep("child"),)))
+# The child of a constraint is drawn in the frame of the constraint, so a change goes
+# to it as it is, and the answer comes back rooted at `child`, with the types that
+# its path needs. A change with a route goes to the child, as by default.
+function read_intent(p::LayoutConstraintToGraphicsCanvas, recursion, change::Intent,
+                     iomap::ContentIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    answer = read_child_intent(p, recursion, change, iomap, iomap.inner_iomap,
+                               (FieldReferenceStep("child"),))
+    Intent(answer.gesture, _annotate_operation(iomap.input, answer.operation),
+           answer.description, answer.domain)
 end
+
+read_intent(p::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 """
     make_slot_reference(canvas, entries, index, inner; drawn) -> Reference | Nothing
@@ -1259,9 +1284,11 @@ end
 map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference; ordered = true)
 
-function read_intent(::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap, evt)
-end
+read_intent(p::HorizontalLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
+    _read_layout_children(p, recursion, change, iomap)
+
+read_intent(p::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── VerticalLayout ─────────────────────────────────────────────────────────
 
@@ -1570,9 +1597,11 @@ end
 map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference; ordered = true)
 
-function read_intent(::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_layout_event(iomap, evt)
-end
+read_intent(p::VerticalLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
+    _read_layout_children(p, recursion, change, iomap)
+
+read_intent(p::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
 
@@ -2143,9 +2172,11 @@ ProjectionModule.get_child_iomaps(iomap::Union{GridLayoutIoMap, FlowLayoutIoMap}
     Any[last(entry) for entry in iomap.child_iomaps
         if entry isa Tuple && !isempty(entry) && last(entry) isa IoMap]
 
-function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
-    _route_layout_event(iomap, evt)
-end
+read_intent(p::GridLayoutToGraphicsCanvas, recursion, change::Intent, iomap::GridLayoutIoMap) =
+    _read_layout_children(p, recursion, change, iomap)
+
+read_intent(p::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── FlowLayout ─────────────────────────────────────────────────────────────
 
@@ -2408,9 +2439,11 @@ map_reference_backward(::FlowLayoutToGraphicsCanvas, iomap, reference) =
 find_first_baseline(iomap::FlowLayoutIoMap) =
     find_first_baseline_in_entries(unwrap_cell(iomap.child_iomaps))
 
-function read_intent(::FlowLayoutToGraphicsCanvas, iomap::FlowLayoutIoMap, evt)
-    _route_layout_event(iomap, evt)
-end
+read_intent(p::FlowLayoutToGraphicsCanvas, recursion, change::Intent, iomap::FlowLayoutIoMap) =
+    _read_layout_children(p, recursion, change, iomap)
+
+read_intent(p::FlowLayoutToGraphicsCanvas, iomap::FlowLayoutIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── StackLayout ───────────────────────────────────────────────────────────
 
@@ -2438,7 +2471,8 @@ function _sl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, valign::C
     end))
 end
 
-"""Reverse-order hit-test: iterate children from last (top) to first (bottom)."""
+# A move of the pointer in a stack goes to the topmost child that answers it, the
+# last child first.
 function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_evt)
     for i in length(child_entries):-1:1
         entry = child_entries[i]
@@ -2454,43 +2488,9 @@ function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_
     nothing
 end
 
-_route_scroll_reverse(entries, evt::MouseScroll) =
-    _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-
-_route_click_reverse(entries, evt::MouseClick) =
-    _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
-
 _route_move_reverse(entries, evt::MouseMove) =
     _route_to_children_reverse(entries, evt.x, evt.y,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
-
-function _route_stack_event(iomap::ChildrenIoMap, evt)
-    entries = getfield(iomap, :child_iomaps)[]::Vector
-    # Tab traversal: distributed focus advance, handled before the selection-only
-    # coordless routing (same as the other layout readers).
-    if evt isa KeyPress && evt.char == '\t'
-        return _layout_tab(iomap.input, entries, evt)
-    end
-    evt isa MouseMove &&
-        return _read_layout_move(iomap.input, entries, evt, _route_move_reverse)
-    res = @gesture_case evt begin
-        MouseClick  => _route_click_reverse(entries, evt)
-        MouseScroll => _route_scroll_reverse(entries, evt)
-        _ => begin
-            # Selection-only: route the coordless event to the child the
-            # selection points at, or nowhere (no broadcast fallback) — selection
-            # is authoritative. See package/visual/doc/widget.md.
-            slot = _selected_layout_slot(iomap.input, length(entries))
-            slot == 0 ? nothing :
-                        _forward_layout_event_slot(entries, evt, slot)
-        end
-    end
-    res === nothing && return nothing
-    op, i = res
-    _reroot_into_child(iomap.input, op, i)
-end
 
 function print_document(p::StackLayoutToGraphicsCanvas,
                           recursion, doc::StackLayout, ctx)
@@ -2585,9 +2585,11 @@ map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference, output -> output isa GraphicsCanvas;
                        topmost_first = true)
 
-function read_intent(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_stack_event(iomap, evt)
-end
+read_intent(p::StackLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
+    _read_layout_children(p, recursion, change, iomap; reverse = true)
+
+read_intent(p::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── ConstraintLayout ───────────────────────────────────────────────────────
 
@@ -2768,9 +2770,11 @@ map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference) =
 
 # Children can overlap (the solver places them freely), so route like a stack:
 # scan topmost-first so the last-drawn child wins a click.
-function read_intent(::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _route_stack_event(iomap, evt)
-end
+read_intent(p::ConstraintLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
+    _read_layout_children(p, recursion, change, iomap; reverse = true)
+
+read_intent(p::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── AnchoredLayoutToGraphicsCanvas ─────────────────────────────────────────
 #
@@ -2929,8 +2933,15 @@ end
 
 # Anchored children are drawn over the content, so a click must reach them
 # first — the same topmost-first rule the stack and constraint layouts follow.
-read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
-    _route_stack_event(iomap, evt)
+# The anchored children are drawn after the content, so they are on top of it.
+read_intent(p::AnchoredLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
+    _read_layout_children(p, recursion, change, iomap; reverse = true)
+
+read_intent(p::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+read_gesture(p::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt::KeyPress;
+             answer = nothing) = _read_layout_key(p, iomap, evt, answer)
 
 # ── ScrollLayout ───────────────────────────────────────────────────────────
 #
@@ -3070,32 +3081,29 @@ function map_reference_backward(::ScrollLayoutToGraphicsCanvas, iomap, reference
                       steps_of = _get_scroll_part_steps)
 end
 
-# A pointer event goes to the part at its point, and an event with no point to
-# the part that the selection of the layout names. The answer is re-rooted into
-# the field of the part.
-function read_intent(::ScrollLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
+# A pointer gesture goes to the part at its point, a move to the part that the
+# pointer leaves as well, and a key, a gesture with no point and an operation to the
+# part that the selection of the layout names. The answer comes back rooted at the
+# field of the part. A change with a route goes to the part that the route names, as
+# by default.
+function read_intent(p::ScrollLayoutToGraphicsCanvas, recursion, change::Intent,
+                     iomap::ChildrenIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    gesture = change.gesture
     entries = getfield(iomap, :child_iomaps)[]::Vector
     document = iomap.input
-    evt isa MouseMove &&
-        return _read_layout_move(document, entries, evt, _route_move;
-                                 reroot = _reroot_into_scroll_part,
-                                 old = _get_scroll_part_slot(get_mouse_target(document)))
-    result = @gesture_case evt begin
-        MouseClick  => _route_click(entries, evt)
-        MouseDwell  => _route_dwell(entries, evt)
-        MouseScroll => _route_scroll(entries, evt)
-        MouseDown   => _route_downup(entries, evt)
-        MouseUp     => _route_downup(entries, evt)
-        _ => begin
-            slot = _get_scroll_part_slot(getfield(document, :selection)[])
-            slot == 0 ? nothing : _forward_layout_event_slot(entries, evt, slot)
-        end
-    end
-    result === nothing && return read_container_gesture(nothing, evt, document)
-    op, index = result
-    read_container_gesture(_reroot_into_scroll_part(document, op, index), evt, document;
-                           steps = _get_scroll_part_steps(index))
+    pointer = change.operation === nothing && _is_point_gesture(gesture)
+    pointer && gesture isa MouseMove &&
+        return Intent(gesture, _read_layout_move(document, entries, gesture, _route_move;
+                                                 reroot = _reroot_into_scroll_part,
+                                                 old = _get_scroll_part_slot(get_mouse_target(document))))
+    slot = pointer ? _find_layout_slot_at(entries, gesture.x, gesture.y) :
+                     _get_scroll_part_slot(getfield(document, :selection)[])
+    _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_scroll_part_steps, pointer)
 end
+
+read_intent(p::ScrollLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Factory ────────────────────────────────────────────────────────────────
 

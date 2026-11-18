@@ -59,7 +59,7 @@ using ..WidgetModule
 import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..RosterModule: get_item_facets, compute_item_facet
 import ..ProjectionModule: print_document, read_intent, map_reference_forward,
-                           map_reference_backward, get_child_iomaps
+                           map_reference_backward, get_child_iomaps, map_operation_backward
 import ..GraphicsModule: find_first_baseline
 
 export write_document_file!, read_document_file, make_document_for,

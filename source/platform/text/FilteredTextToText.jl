@@ -123,7 +123,7 @@ _backward_map_kept(kept, in_block, out_block, reference) =
     _map_selection_over_runs(_reverse_flat_runs(_make_filter_runs(kept, in_block, out_block)),
                              out_block, reference)
 
-function read_intent(p::FilteredTextToText, iomap::FilteredTextToTextIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::FilteredTextToText, iomap::FilteredTextToTextIoMap, op::ReplacePathOperation)
     inner = _backward_map_kept(iomap.kept, iomap.text_iomap.output, iomap.output,
                                get_operation_path(op))
     inner === nothing && return nothing
@@ -133,7 +133,7 @@ end
 # Translate a `ReplaceStringRangeOperation` from the filtered output back to the
 # block of the text: remap the line index via the kept table, keep the run and
 # the character range unchanged, and then read it through the IO map of the text.
-function read_intent(p::FilteredTextToText, iomap::FilteredTextToTextIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::FilteredTextToText, iomap::FilteredTextToTextIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_line_span_path(op.reference)
     (parsed === nothing || parsed[3] === nothing) && return nothing
     j, k, (char_start, char_stop) = parsed
@@ -153,8 +153,9 @@ map_operation_backward(::FilteredTextToText, ::FilteredTextToTextIoMap, op::Oper
 # this stage declines, such as the edit beside an inline image. Read it against the
 # block of the text and lower it there, as `WordWrapping` does, and then through
 # the IO map of the text.
-read_intent(::FilteredTextToText, iomap::FilteredTextToTextIoMap, evt::Union{KeyPress, KeyDown}) =
-    _read_text_operation(iomap.text_iomap, _read_lowered_gesture(iomap.text_iomap.output, evt))
+read_gesture(::FilteredTextToText, iomap::FilteredTextToTextIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing) =
+    answer === nothing ? _read_text_operation(iomap.text_iomap, _read_lowered_gesture(iomap.text_iomap.output, evt)) :
+                         nothing
 
 # An element write of the output (the edit beside an inline image) names output
 # element indices, which this stage changes. Decline it: the chain then reads the

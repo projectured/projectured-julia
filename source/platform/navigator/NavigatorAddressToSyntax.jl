@@ -65,11 +65,13 @@ function map_operation_backward(p::ReferenceStepToSyntaxLeaf, iomap, operation::
 end
 
 function read_gesture(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyPress; answer = nothing)
+    answer === nothing || return nothing
     isprint(key.char) || return nothing
     _make_step_insertion_operation(_get_step_text(iomap.input) * key.text)
 end
 
 function read_gesture(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyDown; answer = nothing)
+    answer === nothing || return nothing
     key.key === :backspace && !(key.modifiers.ctrl || key.modifiers.alt || key.modifiers.meta) ||
         return nothing
     _make_step_insertion_operation(chop(_get_step_text(iomap.input)))

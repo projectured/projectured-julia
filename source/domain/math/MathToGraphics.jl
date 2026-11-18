@@ -1862,6 +1862,8 @@ there, the moves of the drag reach the leaf that holds the selection, and a key
 moves the caret or the range in it, read-only.
 """
 function read_gesture(p::MathProjection, iomap::MathIoMap, event; answer = nothing)
+    (event isa KeyDown || event isa KeyPress) && return _read_key(iomap, event, answer)
+    answer === nothing || return nothing
     event isa MouseMove && return _read_math_move(iomap, event)
     event isa Union{DragMove, DragEnd} && return _read_selected_leaf(iomap, event, _read_leaf_pointer)
     event isa MouseDown && event.button === :left && return _read_point_leaf(iomap, event, _read_leaf_pointer)
@@ -1869,9 +1871,23 @@ function read_gesture(p::MathProjection, iomap::MathIoMap, event; answer = nothi
         event.modifiers == ModifierKeys(shift = true) && return _read_point_leaf(iomap, event, _read_leaf_click)
         return _select_at(iomap, Int(event.x), Int(event.y))
     end
-    (event isa KeyDown || event isa KeyPress) || return nothing
-    _read_key(iomap, event)
+    nothing
 end
+
+# A key goes to the child that holds the selection first, and the rules of the box
+# read its answer (`_read_key`). Any other change is read as the default reader reads
+# it.
+function read_intent(p::MathProjection, recursion, change::Intent, iomap::MathIoMap)
+    gesture = change.gesture
+    (change.operation === nothing && change.route === nothing && gesture isa Union{KeyDown, KeyPress}) ||
+        return invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    child, _ = _selected_child(iomap)
+    child === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    read_child_intent(p, recursion, change, iomap, child.iomap, Tuple(child.steps))
+end
+
+read_intent(p::MathProjection, iomap::MathIoMap, event::Union{KeyDown, KeyPress}) =
+    read_intent(p, nothing, Intent(event), iomap).operation
 
 # An operation of the output has no image in the input of a formula.
 map_operation_backward(p::MathProjection, iomap::MathIoMap, operation) = nothing
@@ -1948,7 +1964,7 @@ _select_child(iomap::MathIoMap, child::MathChild) =
     ReplaceSelectionOperation(annotate_reference_types(iomap.input,
                                                        _prepend(child.steps, EmptyReference())))
 
-function _read_key(iomap::MathIoMap, event)
+function _read_key(iomap::MathIoMap, event, answer)
     # A key moves the caret or the range in the text of a leaf, read-only.
     text = read_drawn_text_key(iomap.drawn, iomap.input, event, iomap.projection.config.measure)
     text === nothing || return text
@@ -1961,14 +1977,11 @@ function _read_key(iomap::MathIoMap, event)
         return ReplaceSelectionOperation(
             annotate_reference_types(iomap.input, _edge_path(iomap, event.key === :home)))
     end
+    # The child that holds the selection read the key first (`read_intent` above), and
+    # the box moves only when the child declined.
     child, index = _selected_child(iomap)
-    if child !== nothing
-        # Offer it to the child first, and re-root what the child answers so the
-        # path stays rooted here.
-        answer = read_intent(child.iomap.projection, child.iomap, event)
-        answer === nothing || return reroot_operation(answer, child.steps)
-        return _move_from(iomap, index, event)
-    end
+    child === nothing || return answer === nothing ? _move_from(iomap, index, event) : nothing
+    answer === nothing || return nothing
     if !_is_selected(iomap.input)
         # Nothing here is selected: a parent is offering the box a selection —
         # a table cell asks its content to take one on Return. Take the whole

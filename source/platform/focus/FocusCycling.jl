@@ -34,18 +34,22 @@ function print_document(p::FocusCyclingProjection, recursion, input, ctx)
     FocusCyclingIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
-function read_intent(p::FocusCyclingProjection, recursion, change::Intent,
-                     iomap::FocusCyclingIoMap)
-    child = iomap.child_iomap
-    answer = read_intent(child.projection, recursion, change, child)
-    event = change.gesture
-    (event isa KeyPress && event.char == '\t') || return answer
-    operation = answer isa Intent ? answer.operation : answer
-    operation === nothing || return answer
+# The content reads a change first, and the rule of the wrapper reads its answer
+# (`read_projection_gesture` below).
+read_intent(p::FocusCyclingProjection, recursion, change::Intent, iomap::FocusCyclingIoMap) =
+    read_child_intent(p, recursion, change, iomap, iomap.child_iomap)
+
+# The rule of the wrapper: a Tab that the content declined selects the first stop of
+# the document, and a Shift+Tab the last stop. The content shares the input of the
+# wrapper, so the passing reads this rule with `read_projection_gesture`.
+function read_projection_gesture(p::FocusCyclingProjection, iomap::FocusCyclingIoMap, event::KeyPress;
+                                 answer = nothing)
+    answer === nothing && event.char == '\t' ||
+        return invoke(read_projection_gesture, Tuple{Any, Any, Any}, p, iomap, event; answer)
     document = iomap.input
     path = event.modifiers.shift ? get_last_focusable_path(document) :
                                    get_first_focusable_path(document)
-    Intent(event, path === nothing ? nothing : ReplaceSelectionOperation(path))
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 read_intent(p::FocusCyclingProjection, iomap::FocusCyclingIoMap, payload) =

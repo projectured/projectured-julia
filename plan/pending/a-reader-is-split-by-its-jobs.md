@@ -770,3 +770,130 @@ Step 4 is on main `6de377ef2`; nothing is pushed.
   chart 645, the data frames 622, as on main; the graph 630 passed, 6 failed and 2 errors, as on
   main. The failed tests are the same tests at the same lines, and the text of the layering
   failures is the same.
+
+**2026-11-18, R4: the owner approves the pattern.** "Yes, I approve the pattern": the
+`read_child` keyword and the child of `nothing` of the kernel helper, `read_entry_child` in the
+layout slice, Tab as a rule of the level of the composite, and the topmost child only, for the
+other containers and wrappers.
+
+**2026-11-18, step 5 after R4: the decisions as built (for R5).**
+
+- **An operation in the place of the gesture.** The 3-to-4 wrappers give an operation as
+  `Intent(payload)`, so the operation stands where the gesture stands. `read_child_intent` passes
+  such a change as that operation, so no container repeats the check. It goes with the older form
+  in step 6.
+- **A stage reads the answer of the stage nearer the screen by the rule of a level (O4 for the
+  stages).** The default 4-argument reader maps a carried answer back, and then the rules of the
+  stage read the mapped answer: `read_gesture(p, iomap, gesture; answer)` through the rule of a
+  level. Before, a stage with no reader of its own only mapped the answer, and only the template
+  and six readers by hand read it with their rules. So a stage that builds on the answer of a
+  later stage writes a method of `read_gesture` or of `map_operation_backward` and needs no reader:
+  the help group (a double press opens the page of the node), the frame statistics (the drag of
+  the thumb), and the pages of the background work, the record table and the open files (the
+  held arrangement, the open of a held row), which are maps.
+- **A wrapper that shares the input of its child writes its rules as a method of
+  `read_projection_gesture`.** The passing reads only `read_projection_gesture` for a level whose
+  input is the input of its child, because the child reads the table of that input. So focus
+  cycling, the selection walk and the quit on Escape have one `read_child_intent` call and a
+  method of `read_projection_gesture`; a container and a wrapper whose child stands at steps write
+  a method of `read_gesture`.
+- **The layouts.** The eight layouts with children (`children[i]`) read with one reader of the
+  layout slice, `_read_layout_children`; a stack, a constraint layout and an anchored layout take
+  the topmost child that holds the point in its box. The scroll layout, the constraint of one
+  child, the list layout and the grid list read with the same parts. Tab is a rule of the level of
+  a layout, as of the composite. An answer comes back with the types that its path needs, as
+  before (`_annotate_operation`).
+- **The steps of a child of a widget container come from the container (P2), not from a search.**
+  The tooltip and the title pane (`content`), the menu and the toolbar (the widget element at the
+  slot, `elements[i]`), the dialog (`buttons[i]`, `content`), the menu item (`action.label`), the
+  context menu (`child`) and the shell (the field of the band) give the steps of the child at a
+  slot. The move of the pointer still finds the steps by identity (`_read_children_move`), as R4
+  says.
+- **The controls that read only their own drawn text** (the button, the link, the item of a
+  toolbar, the toggle group) read no child, so they are methods of `read_gesture`, and a method of
+  `map_operation_backward` answers nothing, as their old reader did for an operation.
+- **A child that maps its answer by the backward map of the container, not by steps.** The text
+  field, the text area and the two pages of the appearance give `read_child_intent` a `read_child`
+  that moves the point and translates the answer (`_read_text_content_change`, `_read_tab_child`),
+  with no steps: a plain value has a text view of its own, and a tab maps its commands, writes,
+  edits and folds.
+- **The gesture help and the command palette keep a reader of their own,** because they read their
+  content a second time, for its rows; they pass the change with the helper.
+- **Changes of behavior so far:**
+  - a stack, a constraint layout and an anchored layout give a press, a release and a dwell to the
+    child at the point too, as the other layouts do; before, only a click, a turn of the wheel and a
+    move;
+  - the answer of a child of a tooltip, a menu, a title pane, a toolbar, a dialog and a menu item to
+    a click or a turn of the wheel comes back rooted at the steps of the child; before, it came back
+    as the child answered it;
+  - the answer of a band of a shell comes back rooted at the field of the band (`menu_bar`,
+    `toolbar`, `status_bar`, `overlay`); before, at `content`, but for the Alt+double click;
+  - the overlay of a shell takes a pointer gesture before the content under it, as the topmost child;
+  - a press and a release reach the child of a context menu in the frame of the child; before, at
+    the point of the menu;
+  - a click on a button of a dialog that the button declines does not go on to the content;
+  - every level reads the tables of its documents for every gesture; no widget and no layout has a
+    table, so no answer changes today.
+- **A plain rule of code answers only with no answer.** The walk of a stage gives the answer
+  of a later stage to `read_gesture` of each earlier stage, and a container gives the answer of
+  its child to its own `read_gesture`; the methods of `read_gesture` that step 4 made never
+  got an answer, and did not read it, so each acted as an unconditional `override`. 54 of them
+  now begin with `answer === nothing || return nothing` (O4: a plain rule never replaces an
+  answer); a method that builds on the answer reads it.
+- **A carried `CollectIntents` list only maps back.** The chain collects the rows of each
+  stage itself (`_collect_intents`), so the walk of a stage reads no rules for it.
+- **The six readers of a claim by hand.** The explorer, the evaluator, the navigator and the
+  find bar drop their hand reading of the table with the answer of the later stage, because the
+  walk of a stage does it; the navigator and the find bar keep the join of the rows of the
+  gesture help. The rule of the Git line reads the mapped answer and maps its path forward
+  again, to find the caret in the output. The formula keeps its reader: its rule reads the table
+  of the formula in edit mode, a document inside the input of the stage, which the walk of a
+  stage does not read. The guides of the navigator, the explorer and the conversation say O4.
+- **An operation goes to a child without the gesture.** A container passes a carried
+  operation down to its selected child to map it back. With the gesture, the default reader of
+  a leaf read its rules on it as on the answer of a later stage, so a carried dwell got the
+  tooltip layer of the selected widget again. `read_child_intent` gives the child the operation
+  alone, as the older form did; the shell does the same in its loop over the bands.
+- **The tabbed pane roots the answer of a page by fixed steps,**
+  `selector_element_pairs[i].element` for a `WidgetTabPage` (`_get_tab_page_steps`), the path
+  that its own comment named correct. The decoder of the pane, `PaneToWidget`, reads a path with
+  and without the step (`_after_element_step`), so it needs no change. The move uses the same
+  steps, and `_prefix_tab_operation` and `_descends_into_page` go. The strip of the tabs, the
+  name of a tab and the close buttons are rules of the pane.
+- **The two charts give a pointer gesture on a part to the part by the one passing**
+  (`read_child_in_frame`); their hit test, their move and the point map of a part keep the
+  list of parts of the graphics slice, and `read_drawn_child_event` goes. Their other rules
+  are methods of `read_gesture`.
+- **The math projection** gives a key to the child that holds the selection with a 4-argument
+  reader for a key; its rules on the answer stay in `read_gesture`. **The readers that the
+  `@eval` loops of `ConversationToWidget` write** are methods of `map_operation_backward` and
+  `read_gesture`. **The text block, the text gutter, the image, the URL view, the object field,
+  the YAML sequence, the accordion, the fact group, the card, the table and the table parts**
+  pass with the helper.
+- **The moves of a position:** 44 calls of `shift_event_position` on main, 15 now; 45 calls of
+  `read_container_gesture`, 11 now.
+- **Kept for now, with a reason each (for R5):** the stages whose rules read the raw gesture
+  with the answer before the map, or keep state (the syntax stages, the choice list, the pane
+  tree, the conversation, the roster rows, the pivot table, the terminal, the task pages, the
+  file system trees, the formula); the screen and the window manager, which have the
+  4-argument form and pass with their own code; the graph, which gives a key to each vertex and
+  label in turn and roots each answer with its own helpers; the copying projection, whose route
+  of an operation reads the child by the path of the operation.
+- **Fixed after the runs of snapshot 3:** a container passes a carried operation to its child
+  with its gesture again, because the undo buffer joins a typing run by the gesture and the
+  override walk of a template needs it; instead the walk of a stage reads no rules for an answer
+  that collects, so a leaf adds no layer of a dwell, and the navigator keeps its hand join of
+  such an answer. A container of widgets lists no row of its own for the gesture help, as the
+  old level reader (`read_container_gesture`) read the tables only for a dwell and a right
+  click. A right click on the header of an accordion is the item's, not the toggle. A key whose
+  selection is in the name of a tab reaches the rules of the tabbed pane. The Git line keeps its
+  projection table, which a cut had taken away.
+- **The runs of snapshot 4** (e7cd5c3c6, the tree before the fix of the tab name), in the base
+  worktree with its own precompile, against main `6de377ef2` for the kernel and the platform
+  and the step-4 runs for the domain suites: the kernel 5232 passed and 2 broken (4 new tests);
+  the platform 236429 passed, 19 failed and 21 broken: the 15 failures of main, with the same
+  text of the layering failures, and 4 of the rename of a tab (`PaneConstructTest.jl`), which
+  the fix of the tab name answers; the 23 domain suites give the counts and the failures of the
+  base, but the time guard of the formula (`FormulaFrameGuardTest.jl:67`), which fails on main
+  as well (two runs alone on main `ef8023369`: 3.86 and 3.06 for a limit of 3.0; on the branch:
+  3.38 and 3.28), and one more passing test of the pivot table, which main added after the base.

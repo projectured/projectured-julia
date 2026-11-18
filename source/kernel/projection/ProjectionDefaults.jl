@@ -231,6 +231,19 @@ so it needs no code of its own for a route. Where `iomap` holds no children, a
 gesture is read as every gesture is, with the rest of the route as the part. The
 3-arg reader follows no route, so an operation whose route names a place below
 the input answers no operation.
+
+**A stage reads the answer of the stage nearer the screen by the rule of a level.**
+A change that holds a gesture and an operation is the answer of a stage nearer the
+screen, which a chain carries back. The operation maps back first, and then the
+rules of this stage read the mapped answer as the answer of its child
+(`read_gesture(p, iomap, gesture; answer)`): a rule replaces it only when its
+`override` condition holds for it, and an answer that collects joins the answer of
+the rules ([`read_child_intent`](@ref)). So a stage writes its rules on the answer as
+methods of `read_gesture` and its map as methods of `map_operation_backward`, and
+needs no reader of its own. A plain rule answers only when `answer` is `nothing`. A
+chain collects the rows of the gesture help of each stage itself, so a carried
+`CollectIntents` list only maps back, and so does an answer that collects: a stage
+that joins its layer to it does so in a reader of its own.
 """
 function read_intent(p::Projection, recursion, change::Intent, iomap)
     change.route === nothing || get_child_iomaps(iomap) === nothing ||
@@ -239,7 +252,18 @@ function read_intent(p::Projection, recursion, change::Intent, iomap)
         return Intent(change.gesture, nothing)
     payload = change.operation === nothing ? change.gesture : change.operation
     op = read_intent(p, iomap, payload)
-    return Intent(change.gesture, op, change.description, change.domain)
+    gesture = change.gesture
+    # A chain collects the rows of each stage by itself (`CollectIntents`), so a
+    # carried collection only maps back, and so does an answer that collects, such
+    # as the layers of a dwell, which a container also passes down to the child that
+    # its selection names, to map it back.
+    if change.operation !== nothing && gesture !== nothing && !(gesture isa CollectIntents) &&
+       op isa Operation && !is_collecting_operation(op)
+        op = _read_level(op, gesture) do given
+            read_gesture(p, iomap, gesture; answer = given)
+        end
+    end
+    return Intent(gesture, op, change.description, change.domain)
 end
 
 """
@@ -423,6 +447,8 @@ and `steps` lead from the input of the container to the input of the child.
   does not reach the child, and the answer is no operation.
 - With `child === nothing`, no child reads, and the container is the part: only the
   rules of the container answer.
+- A change that holds an operation as its gesture, as the 3-argument form of a
+  reader gives it (`Intent(payload)`), passes as that operation.
 - The answer of the child comes back rerooted by `steps`, with the description and
   the domain of the answer, or of `change` when the answer has none.
 - For a gesture, the answer then goes up level by level: through the documents on
@@ -453,6 +479,8 @@ rules of each level answer with.
 """
 function read_child_intent(projection, recursion, change::Intent, iomap, child, steps::Tuple = ();
                            read_child = read_routed_intent)
+    change.operation === nothing && change.gesture isa Operation &&
+        (change = Intent(nothing, change.gesture, change.description, change.domain, change.route))
     routed = change.route === nothing ? change : follow_intent_route(change, steps...)
     routed === nothing && return Intent(change.gesture, nothing, change.description, change.domain)
     inner = child === nothing ? Intent(change.gesture, nothing) :
