@@ -246,7 +246,7 @@ They are approved with this plan.
 
 ## Steps
 
-- [ ] **1. The row of the general renderer for a view.** Proposed decision 8.
+- [x] **1. The row of the general renderer for a view.** Proposed decision 8.
   Tests, new, in the tests of the syntax slice: a `JsonArrayView` in a layout
   prints through the general renderer, with the same pixels as an equal array
   as content; a typed character and a key of a view act through it; a
@@ -254,6 +254,15 @@ They are approved with this plan.
   print of one node costs that node only. One test records the picture of a
   closed fold through views beside the picture of a closed fold of a tab of
   today.
+  **Done on 2026-11-18.** The new test is `test_json_view_natural_row`, with 47
+  of 47. It is in the JSON tests, because it needs a domain that has views
+  (found fact 1). A view draws the same texts at the same places as an equal
+  content, and a click at four places gives the same caret on the two. A fault
+  in a value of one node costs that node, and the node prints again after the
+  next operation. The fold of a view shows as `[…]` on one line. A JSON content
+  has no fold (found fact 3). The 26 narrow tests keep the counts of the base
+  commit, and the layering guard of the platform has its two failures of
+  `main`, with the same text.
 - [ ] **2. The view of the undo buffer.** Proposed decisions 2, 3 and 4.
   Tests, new, in a function `test_undo_buffer_view`: the view has the child
   field `content` and no field for the lists of steps; the child field gives
@@ -317,6 +326,34 @@ They are approved with this plan.
   and of JSON. Section 13.3 of the order document takes the cut of plan 4b. The
   plan moves to `plan/done/`. Then the session asks for the landing, and for
   the push apart.
+
+## Found during the work
+
+1. **The test of a row needs a domain with views.** The test modules of the
+   platform load JSON only in the modules of the fault tests and of two other
+   groups. The JSON test package binds each exported name of the platform and
+   of JSON. So the tests of this plan that use a JSON view are in the JSON
+   tests, with names that start with `test_json_`.
+2. **The barrier of a fault stands inside the step of a view.** The step is
+   around the barrier, and the barrier is around the stage of the fabric. So
+   the content print of each view has its barrier, as each node of a content
+   has one, and a part with no view prints as the fabric prints it. The barrier
+   gives an IO map of its own around the IO map of the print. The step of a
+   view now reads the children and the state of the print through
+   `get_content_iomap`, which the printers of the syntax use for the same
+   reason. The other order, with the barrier around the step, hides the IO map
+   of the step from the recursion of the view above.
+3. **A JSON content has no fold.** No JSON content type has a field for it, so
+   a tab of today shows each node open. A fold is new with the views: a closed
+   node shows as `[…]` on one line. So risk 3 has no case: no picture of a fold
+   of today exists to compare.
+4. **The views of a syntax tree get rows of their own.** `SyntaxNodeView`,
+   `SyntaxLeafView` and `SyntaxDelimitationView` start at the stage from syntax
+   to text, as a syntax tree with no view does. The row for `ContentView` comes
+   after them.
+5. **A print of a document by reflection is no fault.** The general renderer
+   prints a document of any type, so the test has no document that fails in
+   the print itself. The test makes its fault in a value that a frame reads.
 
 ## After this plan
 

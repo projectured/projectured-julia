@@ -103,6 +103,30 @@ _make_natural_syntax_stages(appearance::Appearance) = (
         inner = SyntaxToText(; theme = get_scaled_theme!(appearance, SyntaxTheme)),
         substitute = FaultToText())))
 
+# The stages of the fabric for a view. Each of the two recursive stages is the step
+# of a view around the stage of the fabric. The barrier of the stage is inside the
+# step, around the print of the content of one view, so a fault costs one node, as
+# with no view, and a part that has no view prints as the fabric prints it. The stage
+# from syntax to text gives the folds of the views as folds of the text, and the fold
+# stage hides their lines. The last stage draws the view of the text over its lines,
+# at the line spacing of code.
+function _make_natural_view_stages(measure::TextMeasure, appearance::Appearance)
+    syntax_theme = get_scaled_theme!(appearance, SyntaxTheme)
+    text_theme = get_scaled_theme!(appearance, TextTheme)
+    line_spacing = make_style_field(TextTheme, text_theme, LineSpacing; name = :code_line_spacing)
+    (RecursiveProjection(ViewingProjection(FaultCatchingProjection(
+         inner = make_arranged_dispatch(TypeDispatchingProjection(make_natural_to_syntax_dispatch(; appearance = appearance))),
+         substitute = FaultToSyntax()))),
+     RecursiveProjection(ViewingProjection(FaultCatchingProjection(
+         inner = SyntaxToText(; theme = syntax_theme, text_folds = true),
+         substitute = FaultToText()))),
+     TextFolding(; theme = text_theme),
+     RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+         TextView  => TextViewToGraphicsCanvas(; theme = text_theme),
+         TextBlock => TextBlockToGraphicsCanvas(; measure, theme = text_theme, line_spacing),
+     ])))
+end
+
 # The rows this package fills the natural renderer's fallback with. The four
 # editing states are here and not in the renderer because only these leaves can
 # draw a placeholder or a name buffer; `Any` is the reflection tail.
@@ -115,6 +139,11 @@ _make_natural_syntax_stages(appearance::Appearance) = (
 # A syntax tree that a view puts among its parts, such as the path view of a
 # navigator in its bar, is syntax already: it starts at the stage from syntax to
 # text, and is not reflected as a struct.
+#
+# A view of a content prints through the stages of a view, so each view below it
+# keeps its caret and its fold. The view of a syntax tree starts at the stage from
+# syntax to text, as the tree does. The view of a text has the row of the widgets,
+# which comes before these rows.
 function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearance)
     stages = _make_natural_syntax_stages(appearance)
     fabric = ChainingProjection(
@@ -125,12 +154,18 @@ function _fallback_rows(; measure::TextMeasure, font, wrap, appearance::Appearan
         _make_natural_syntax_stages(appearance)[2],
         _make_spaced_text(measure, appearance, :code_line_spacing),
     )
+    view_fabric = ChainingProjection(_make_natural_view_stages(measure, appearance)...)
+    view_syntax = ChainingProjection(_make_natural_view_stages(measure, appearance)[2:end]...)
     Pair{Type,Any}[
         TextNothing       => fabric,
         TextInsertion     => fabric,
         DocumentNothing   => fabric,
         DocumentInsertion => fabric,
         SyntaxDocument    => syntax,
+        SyntaxNodeView    => view_syntax,
+        SyntaxLeafView    => view_syntax,
+        SyntaxDelimitationView => view_syntax,
+        ContentView       => view_fabric,
         Any               => fabric,
     ]
 end

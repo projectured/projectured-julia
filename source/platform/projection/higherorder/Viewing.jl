@@ -324,7 +324,7 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
     set_output_path_computations!(output, input,
                                   path -> map_reference_forward(content.projection, content, get_content_path(input, path));
                                   context = ctx)
-    map_view_state!(output, input, content)
+    map_view_state!(output, input, get_content_iomap(content))
     ViewingIoMap(p, input, output, content)
 end
 
@@ -418,10 +418,12 @@ end
 # The output views of the children of a viewing step, in the order of the children
 # that the content print holds: the output view of the step of each child view, and
 # `nothing` for a child that printed as content. A print that a child no longer has
-# leaves the table.
+# leaves the table. The content print can stand behind a wrapper that adds nothing
+# to it, such as the barrier of a fault, so the children are those of the print
+# itself (`get_content_iomap`).
 function _make_output_children(r::ViewRecursion, content)
     CellVector(Computation(function ()
-        child_iomaps = something(get_child_iomaps(content), Any[])
+        child_iomaps = something(get_child_iomaps(get_content_iomap(content)), Any[])
         present = IdDict{Any,Nothing}(child => nothing for child in child_iomaps)
         for child in collect(keys(r.prints))
             haskey(present, child) || delete!(r.prints, child)
@@ -472,7 +474,7 @@ function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::Vie
         return Intent(change.gesture, make_content_edit(view, operation), change.description, change.domain)
     end
     if change.operation !== nothing
-        operation = read_view_operation(view, iomap.content, change.operation)
+        operation = read_view_operation(view, get_content_iomap(iomap.content), change.operation)
         operation === nothing ||
             return Intent(change.gesture, operation, change.description, change.domain)
         change = Intent(change.gesture, _make_printed_edit(iomap.output, change.operation),
