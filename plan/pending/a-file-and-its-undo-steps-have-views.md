@@ -359,9 +359,15 @@ They are approved with this plan.
   The typed names of the test are `json` and `text`, the names that the
   packages of the JSON tests know. The narrow tests keep the counts of the base
   commit.
-- [ ] **7. The example.** One example: a JSON file with undo steps in two file
+- [x] **7. The example.** One example: a JSON file with undo steps in two file
   views side by side, with a caret in each, a fold in one, and one part that
   has no view. It is registered as the examples of plan 4a are.
+  **Done on 2026-11-18.** The example is `json_file_view`. The test of its
+  printer has 10952 passes and no failure. Its picture shows the two places:
+  the first with the closed fold `[…]` and the live caret, the second with the
+  open list and a dormant caret in the part that has no view. A file view takes
+  all the space of its place, so each of the two is in a `LayoutConstraint` that
+  gives it a half of the width (found fact 13).
 - [ ] **8. The wide check and the guides.** `test_platform()`, the suites of the
   JSON and the Markdown domains, and the examples, against the same runs at the
   base commit. The six guard scripts. The recorded precompile calls, if a list
@@ -450,6 +456,11 @@ They are approved with this plan.
     a struct with its fields, and a second meeting of the same file shows as a
     mark of a cycle. That is the same in a tab of today and through views. So
     risk 4 has no case in a JSON file.
+
+13. **A file view takes all the space of its place.** Two file views in one
+    layout, with no size of their own, show the first view only: the second is
+    outside the window. The first picture of the example showed that. A tab
+    gives a file view its whole place, so the editor has no such case.
 
 ## After this plan
 

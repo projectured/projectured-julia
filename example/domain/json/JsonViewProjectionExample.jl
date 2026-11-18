@@ -52,3 +52,8 @@ function make_json_object_view_projection_example(; measure = FontFileMeasure())
         JsonObjectView => stages,
     ]))
 end
+
+# The general renderer draws each place: the row of a file view gives the band and
+# the scroll pane, the row of the view of an undo buffer records each edit, and the
+# rows of a view print the JSON views in the stages of a view.
+make_json_file_view_projection_example(; measure = FontFileMeasure()) = NaturalToGraphics(; measure)

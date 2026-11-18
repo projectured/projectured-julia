@@ -59,3 +59,32 @@ function make_json_object_view_document_example()
                                                  @reference(view_b, entries[2].value.entries[1].key{2})))
     layout
 end
+
+# One JSON file in two file views, side by side. Each file view shows the file
+# through views: the view of the undo buffer of the file, and the views of the JSON
+# document. So each place keeps a caret and a scroll of its own, and the two places
+# share the undo steps of the file. View A, on the left, folds the array of the
+# entry `list`. View B has its caret in the last element of that array, which is a
+# document of a type that has no view: the caret is in that part, below the step
+# `viewed` of the view of the list. The file, the undo buffer and the JSON document
+# hold no fold and no caret.
+function make_json_file_view_document_example()
+    list = JsonArray([JsonNumber(1), JsonNumber(2), PrimitiveString("a part with no view")])
+    object = JsonObject("name" => JsonString("one file, two places"), "list" => list)
+    file = JsonFile("people.json", UndoBuffer(object))
+    view_a = make_file_view(file; views = true)
+    view_b = make_file_view(file; views = true)
+    view_a.content.content.entries[2].value.collapsed = true
+    # A file view takes all the space of its place, so each one gets a half of the
+    # width.
+    layout = HorizontalLayout([LayoutConstraint(view_a; width = Fill), LayoutConstraint(view_b; width = Fill)];
+                              gap = 20)
+    # The caret of view B first, so it stays when the focus goes to view A.
+    replace_selection!(layout, concat_references(
+        @reference(layout, children[2].child),
+        @reference(view_b, content.content.entries[2].value.elements.viewed[3].value{2})))
+    replace_selection!(layout, concat_references(
+        @reference(layout, children[1].child),
+        @reference(view_a, content.content.entries[1].value.value{3})))
+    layout
+end

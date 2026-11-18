@@ -248,11 +248,12 @@ function test_position_navigations()
                              # `syntax_node_view`, `json_string_view`,
                              # `json_array_view`, `json_view_places`,
                              # `json_object_view` and `markdown_json_view` are
-                             # vertical layouts of places, here for the reason
-                             # of `layout`.
+                             # vertical layouts of places, and `json_file_view`
+                             # is a horizontal layout of two file views, here
+                             # for the reason of `layout`.
                              "text_view_places", "syntax_leaf_view", "syntax_node_view",
                              "json_string_view", "json_array_view", "json_view_places",
-                             "json_object_view", "markdown_json_view",
+                             "json_object_view", "json_file_view", "markdown_json_view",
                              # `chart` is a WidgetTable of charts and
                              # `chart_inspector` a WidgetSplitPane, so both are
                              # here for the widget-container reason, not a chart
