@@ -25,7 +25,7 @@ iomap = print_document(projection, nothing, tree,
 
 # One gesture, read through the standing iomap and applied.
 function press!(event)
-    operation = read_intent(projection, iomap, event)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
     operation === nothing || evaluate_operation(editor, operation)
     operation
 end
@@ -239,7 +239,7 @@ end
     x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
     target = nothing
     for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
-        op = read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         if op isa ReplaceSelectionOperation && op.path == wanted
             target = (x, y)
             break

@@ -33,15 +33,15 @@ function _ttg_measure_gesture_bytes(size::Int)
     for place in (third, fourth, third)
         set_selection!(block, place)
         _ttg_read_caret(caret)
-        read_intent(projection, iomap, down)
-        read_intent(projection, iomap, typed)
-        read_intent(projection, iomap, click)
+        read_intent(projection, nothing, Intent(down), iomap).operation
+        read_intent(projection, nothing, Intent(typed), iomap).operation
+        read_intent(projection, nothing, Intent(click), iomap).operation
     end
     set_selection!(block, fourth)
     caret_bytes = @allocated _ttg_read_caret(caret)
-    key_bytes = @allocated read_intent(projection, iomap, down)
-    type_bytes = @allocated read_intent(projection, iomap, typed)
-    click_bytes = @allocated read_intent(projection, iomap, click)
+    key_bytes = @allocated read_intent(projection, nothing, Intent(down), iomap).operation
+    type_bytes = @allocated read_intent(projection, nothing, Intent(typed), iomap).operation
+    click_bytes = @allocated read_intent(projection, nothing, Intent(click), iomap).operation
     (caret = caret_bytes, key = key_bytes, type = type_bytes, click = click_bytes)
 end
 
@@ -244,7 +244,7 @@ iomap = print_document(p, IdentityProjection(), block, PrinterContext())
 printed = computed[]
 @test printed <= 1
 for key in (:up, :down, :home, :end, :return)
-    @test read_intent(p, iomap, _ttg_key_event(key, ModifierKeys())) === nothing
+    @test read_intent(p, nothing, Intent(_ttg_key_event(key, ModifierKeys())), iomap).operation === nothing
 end
 @test computed[] == printed
 
@@ -297,8 +297,8 @@ iomap = print_document(p, st)
 click(rx) = ReplaceSelectionOperation(
     ConcreteReference(RangeReferenceStep(2, 3),
         ConcreteReference(PointReferenceStep(rx, 0), EmptyReference())))
-left  = read_intent(p, iomap, click(10))
-right = read_intent(p, iomap, click(50))
+left  = read_intent(p, nothing, Intent(click(10)), iomap).operation
+right = read_intent(p, nothing, Intent(click(50)), iomap).operation
 @test left isa ReplaceSelectionOperation
 @test right isa ReplaceSelectionOperation
 # Left half → the caret before the image (flat 2, the end of "ab"); right half →
@@ -326,7 +326,7 @@ caret = map_reference_backward(p, iomap, at(12))
 @test is_reference_equal(map_reference_backward(p, iomap, ConcreteReference(at(28))),
                          TextModule.make_flat_caret_reference(3))
 # The reader of a click reads the same map.
-click = read_intent(p, iomap, MouseClick(:left, segment.x + 12, segment.y + 5; time = 0.0))
+click = read_intent(p, nothing, Intent(MouseClick(:left, segment.x + 12, segment.y + 5; time = 0.0)), iomap).operation
 @test is_reference_equal(click.path, caret)
 # A reference that names neither a point nor an element maps to nothing.
 @test map_reference_backward(p, iomap, EmptyReference()) === nothing
@@ -346,14 +346,14 @@ move(dx) = MouseMove(segment.x + dx, segment.y + 5; time = 0.0)
 # after "a", and the character under the point is "a".
 @test is_reference_equal(map_reference_backward(p, iomap, PointReferenceStep(segment.x + 8, segment.y + 5)),
                          TextModule.make_flat_caret_reference(1))
-@test is_reference_equal(read_intent(p, iomap, alt_double(8)).path, TextModule.make_flat_range_reference(0, 1))
-target = read_intent(p, iomap, move(8))
+@test is_reference_equal(read_intent(p, nothing, Intent(alt_double(8)), iomap).operation.path, TextModule.make_flat_range_reference(0, 1))
+target = read_intent(p, nothing, Intent(move(8)), iomap).operation
 @test target isa ReplaceMouseTargetOperation
 @test is_reference_equal(target.path, TextModule.make_flat_range_reference(0, 1))
 # Past the end of the text no character is under the point: an Alt+double click
 # is the caret there, and a move names nothing here.
-@test is_reference_equal(read_intent(p, iomap, alt_double(45)).path, TextModule.make_flat_caret_reference(3))
-@test read_intent(p, iomap, move(45)) === nothing
+@test is_reference_equal(read_intent(p, nothing, Intent(alt_double(45)), iomap).operation.path, TextModule.make_flat_caret_reference(3))
+@test read_intent(p, nothing, Intent(move(45)), iomap).operation === nothing
 
 end # @testset "TextToGraphics names the character under the point to an Alt+double click and a move"
 
@@ -473,11 +473,11 @@ caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output)
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
 iomap = print_document(p, set_selection!(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
-click = read_intent(p, iomap, MouseClick(:left, 31, 20; time = 0.0))
+click = read_intent(p, nothing, Intent(MouseClick(:left, 31, 20; time = 0.0)), iomap).operation
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
-@test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys(); time = 0.0)))[1] == [2, 1]
-@test coord(read_intent(p, iomap, KeyDown(:end, ModifierKeys(); time = 0.0))) == ([1, 1], 5)
+@test coord(read_intent(p, nothing, Intent(KeyDown(:down, ModifierKeys(); time = 0.0)), iomap).operation)[1] == [2, 1]
+@test coord(read_intent(p, nothing, Intent(KeyDown(:end, ModifierKeys(); time = 0.0)), iomap).operation) == ([1, 1], 5)
 
 # A blank line keeps its row. It has neither a glyph nor a
 # run to take a height from, so the block's prevailing font sizes it.
@@ -598,7 +598,7 @@ p = TextToGraphics(measure=m)
 block(text, k) = set_selection!(make_text_block(text, StyleText(StyleFont("Ubuntu Mono", 20), color_red)),
                                 TextModule.make_flat_caret_reference(k))
 flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
-press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys(); time = 0.0));
+press(text, k, key) = (op = read_intent(p, nothing, Intent(KeyDown(key, ModifierKeys(); time = 0.0)), print_document(p, block(text, k))).operation;
                        op === nothing ? nothing : flat(op))
 # "a", an empty line, then "b": Up goes from "b" onto the empty line, then onto
 # "a", and Down comes back the same way.
@@ -620,7 +620,7 @@ press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), Ke
 text_run(text) = TextString(text, StyleFont("Ubuntu Mono", 20), color_red)
 spans_block(k) = set_selection!(TextBlock(TextLine(text_run("a")), TextLine(text_run("")), TextLine(text_run(""), text_run("b"))),
                                 TextModule.make_flat_caret_reference(k))
-press_spans(k, key) = (op = read_intent(p, print_document(p, spans_block(k)), KeyDown(key, ModifierKeys(); time = 0.0));
+press_spans(k, key) = (op = read_intent(p, nothing, Intent(KeyDown(key, ModifierKeys(); time = 0.0)), print_document(p, spans_block(k))).operation;
                        op === nothing ? nothing : flat(op))
 @test TextModule.get_flat_cursor_coordinate(spans_block(3)) == (span = [3, 1], char = 0)
 @test press_spans(3, :up) == 2
@@ -647,7 +647,7 @@ carets(canvas) = [(r.x, r.y) for r in _rects(canvas) if r.w == 2]
 # "ab", a break, then "cd": "c" is at 3 and the end is 5.
 ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
 press(selection, key, modifiers) =
-    (op = read_intent(p, print_document(p, block("ab\ncd", selection)), KeyDown(key, modifiers; time = 0.0));
+    (op = read_intent(p, nothing, Intent(KeyDown(key, modifiers; time = 0.0)), print_document(p, block("ab\ncd", selection))).operation;
      op === nothing ? nothing : ends(op))
 shift = ModifierKeys(; shift = true)
 # Shift moves the moving end and keeps the anchor.
@@ -672,7 +672,7 @@ caret(k) = TextModule.make_flat_caret_reference(k)
 backward(s, e) = TextModule.make_flat_range_reference(s, e; direction = :backward)
 ends(op) = (h = strip_reference_types(op.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
 press(text, selection, modifiers = ModifierKeys()) =
-    ends(read_intent(p, print_document(p, block(text, selection)), KeyDown(:home, modifiers; time = 0.0)))
+    ends(read_intent(p, nothing, Intent(KeyDown(:home, modifiers; time = 0.0)), print_document(p, block(text, selection))).operation)
 shift = ModifierKeys(; shift = true)
 # The first press skips the spaces at the start of the line, and a press there goes
 # to the start of the row.
@@ -689,8 +689,7 @@ shift = ModifierKeys(; shift = true)
 # On a later row of a wrapped line, Home goes to the start of the row.
 wrapped = ChainingProjection(WordWrapping(measure = m, max_width = 80), TextToGraphics(measure = m))
 press_wrapped(k) = (text = block("  aaaa bbbb", caret(k));
-                    get_flat_range(text, read_intent(wrapped, print_document(wrapped, text),
-                                                     KeyDown(:home, ModifierKeys(); time = 0.0)).path))
+                    get_flat_range(text, read_intent(wrapped, nothing, Intent(KeyDown(:home, ModifierKeys(); time = 0.0)), print_document(wrapped, text)).operation.path))
 @test press_wrapped(4) == (2, 2)
 @test press_wrapped(9) == (7, 7)
 
@@ -707,7 +706,7 @@ block(selection) = set_selection!(make_text_block(join(("a$k" for k in 0:9), "\n
 caret(k) = TextModule.make_flat_caret_reference(k)
 three_lines = with_visible_size(PrinterContext(); height = Cell(54))
 press(selection, key, modifiers = ModifierKeys(); context = three_lines) =
-    read_intent(p, print_document(p, nothing, block(selection), context), KeyDown(key, modifiers; time = 0.0))
+    read_intent(p, nothing, Intent(KeyDown(key, modifiers; time = 0.0)), print_document(p, nothing, block(selection), context)).operation
 ends(op) = (h = strip_reference_types(op.operation.path).head::TextRangeReferenceStep; (h.start, h.stop, h.direction))
 # The caret goes three lines down at its x, and the answer asks a scroll pane to
 # scroll as far, so the caret keeps its row on the screen.
@@ -857,7 +856,7 @@ caret(block) = [(r.x, r.y) for r in _rects(print_document(p, block).output) if r
 
 # A click on the second row puts the caret in that row.
 iomap = print_document(p, make_block())
-click = read_intent(p, iomap, MouseClick(:left, 41, 20; time = 0.0))
+click = read_intent(p, nothing, Intent(MouseClick(:left, 41, 20; time = 0.0)), iomap).operation
 @test click isa ReplaceSelectionOperation
 @test is_reference_equal(click.path, TextModule.make_flat_caret_reference(10))
 

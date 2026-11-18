@@ -182,22 +182,29 @@ function print_child_pure end
 Turn what a person did on what they see into an edit of what the document
 holds: the half of a projection that comes back.
 
-Use it to say what a key press, a click or a drag means for the input of a
-projection. It takes the gesture or the edit that the output domain received,
-and answers the edit for the input domain, or nothing when this projection has
-nothing to say about it. Most projections need no method of their own: the
-default moves the cursor by mapping its place back.
+It passes a change from stage to stage, and from a container to its child. It takes
+the gesture or the edit that the output domain received, and answers the edit for
+the input domain, or nothing when this projection has nothing to say about it. The
+default reads the change with the two functions of one stage, which call no child:
+
+- [`read_gesture`](@ref) gives the operation that the rules of the stage make of a
+  gesture;
+- [`map_operation_backward`](@ref) maps an operation of the output back to the input.
+
+So a projection writes its rules as methods of `read_gesture` and its maps as methods
+of `map_operation_backward`, and needs no method of this function. Only a container
+that chooses the child of a change in its own way, and a wrapper that acts on the
+passing itself, write a method. Each passes the change to the child with
+[`read_child_intent`](@ref).
 
 # Example
 
-    # A click on the right edge of the drawn box makes the box narrower. Only the
-    # drawing says where that edge is, so the projection answers the click.
-    function read_intent(p::BoxToGraphics, recursion, change::Intent, iomap)
-        click = change.gesture
-        on_edge = click isa MouseClick && click.x >= iomap.input.width - 4
-        on_edge || return @invoke read_intent(p::Projection, recursion,
-                                              change::Intent, iomap)
-        Intent(click, ShrinkBoxOperation(iomap.input))
+    # A list gives a key to the child that its selection is in, and the rules of the
+    # list read the answer of the child. With no such child, the list is the part.
+    function read_intent(p::ListToGraphics, recursion, change::Intent, iomap)
+        child = find_focused_child(iomap)
+        child === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+        read_child_intent(p, recursion, change, iomap, child.iomap, Tuple(child.steps))
     end
 
 See also `print_document`, which goes the other way, `map_reference_backward`,
@@ -211,13 +218,10 @@ input-domain one, returning a `Intent` whose `operation` is filled in / re-mappe
 and whose `gesture` is preserved, or a nothing-change (`operation === nothing`) if
 this projection has nothing to say about it.
 
-Most projections need no `read_intent` method at all: the generic bridge in
-`ProjectionModule` unwraps the `Intent` and dispatches the 3-arg
-`read_intent(projection, iomap, event_or_op)` on the gesture (when no
-operation has been produced yet) or the operation, then re-wraps the result with
-the gesture, the description and the domain preserved. The 3-arg methods that
-exist are reached through this bridge. A new reader is a 4-arg method that returns
-an `Intent`; do not write a 3-arg method in new code.
+The default gives the operation of the change, when it has one, to
+`map_operation_backward`, and otherwise the gesture to `read_gesture`, and keeps the
+gesture, the description and the domain in its answer. A change with a route goes to
+the child that the route names ([`read_routed_child`](@ref)).
 
 The editor hands the raw device event (key press, mouse click) to the
 **top-level** projection's `read_intent`; from there, routing is entirely
@@ -231,34 +235,33 @@ parent handed this projection the bare event, or an `Operation` another
 projection already produced — and the reader returns an `Intent` whose operation
 is in *this* projection's input domain, or is `nothing`.
 
-The default method (in `ProjectionModule`) handles every `ReplacePathOperation`
+The default of `map_operation_backward` handles every `ReplacePathOperation`
 (the selection, the part under the pointer) by mapping its path with
 `map_reference_backward` and making the same kind with `make_path_operation`, so
-a projection that only moves the cursor needs **no** `read_intent` method. When
-you do write one, these are the moves available — from the lightest touch to the
-most involved:
+a projection that only moves the cursor needs no method of its own. These are the
+moves of a map and of a reader, from the lightest touch to the most involved:
 
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from the output domain to the input
   domain with `map_reference_backward` — rewrite the `.reference` of a
   text- or number-range replace operation, or the path of a
-  `ReplacePathOperation` (what the default does), then rebuild the op. A reader
+  `ReplacePathOperation` (what the default does), then rebuild the op. A map
   for a path takes `ReplacePathOperation` and answers
   `make_path_operation(op, path)`, so it maps every kind of path.
-- **Convert to a different operation.** It is perfectly valid to turn the
-  incoming operation into a *completely different* one — retype it (e.g. a
+- **Convert to a different operation.** A method of `map_operation_backward` can
+  turn the incoming operation into a *completely different* one — retype it (e.g. a
   projection over a numeric leaf turns an incoming text-range replace
   into a number-range replace so the evaluator re-parses the edited text
   as a number), or replace it outright with whatever operation expresses the same
   intent in this projection's input domain.
 - **Recurse, then extend.** When `print_document` descended into children, the
-  reader mirrors it: forward the event/operation to the matching child's
-  `read_intent`, take the operation it returns, and extend that operation to
-  *this* projection's context — typically by prepending the reference steps that
-  reach the child (reuse `map_reference_backward`).
-- **Probe a child to decide.** A reader may *speculatively* recurse into a
-  document part's reader just to see what operation it would return, and use that
-  answer to decide its own final operation — e.g. to choose among alternatives,
+  reader of the container mirrors it: [`read_child_intent`](@ref) gives the event or
+  the operation to the chosen child's `read_intent`, takes the operation it returns,
+  and extends that operation to *this* projection's context by prepending the
+  reference steps that reach the child.
+- **Probe a child to decide.** A reader of a container may *speculatively* recurse
+  into a document part's reader just to see what operation it would return, and use
+  that answer to decide its own final operation — e.g. to choose among alternatives,
   or to act only when the child declines by returning `nothing`.
 
 For a gesture, these moves are one process, the rule of a level: the reader asks
@@ -269,7 +272,7 @@ a rule can build its operation from it. So the answer goes up level by level,
 innermost first. A container that chose its child calls
 [`read_child_intent`](@ref), which does the three moves.
 
-Whichever moves it makes, a 4-arg reader returns an `Intent` whose operation is in
+Whichever moves it makes, a reader returns an `Intent` whose operation is in
 its own input domain, or is `nothing`; the operation the **top-level** projection
 ultimately returns is the final answer the editor applies to the document.
 """

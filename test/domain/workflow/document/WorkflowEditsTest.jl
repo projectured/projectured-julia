@@ -64,8 +64,7 @@ function test_workflow_edits()
             projection = UndoBufferToAnyProjection()
             iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
             editor = _WorkflowTestEditor(buffer)
-            operation = read_intent(projection, iomap,
-                                    make_workflow_state_operation(step, :active; time = _WORKFLOW_TEST_TIME))
+            operation = read_intent(projection, nothing, Intent(make_workflow_state_operation(step, :active; time = _WORKFLOW_TEST_TIME)), iomap).operation
             @test operation isa RecordUndoOperation
             evaluate_operation(editor, operation)
             @test step.state === :active

@@ -166,7 +166,7 @@ function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidget
                      op::ReplaceViewStateOperation)
     inner = get_wrapped_operation(op)
     inner isa ReplaceReferencedValueOperation || return op
-    disclosure = read_intent(p, iomap, inner)
+    disclosure = map_operation_backward(p, iomap, inner)
     disclosure === inner ? op :
     disclosure === nothing ? nothing : rewrap_operation(op, disclosure)
 end
@@ -186,11 +186,11 @@ end
 # answers the open rows with the rows of its view; each part goes back alone too.
 function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap, op::CompoundOperation)
     if any(member -> _is_disclosure_write(iomap, member), op.operations)
-        parts = Any[read_intent(p, iomap, member) for member in op.operations]
+        parts = Any[map_operation_backward(p, iomap, member) for member in op.operations]
         return CompoundOperation(Any[part for part in parts if part !== nothing])
     end
     has_mouse_target(op) || return op
-    join_move_answers((read_intent(p, iomap, member) for member in op.operations)...)
+    join_move_answers((map_operation_backward(p, iomap, member) for member in op.operations)...)
 end
 
 # Whether `op` writes the open rows of the widget of this view, as view state.

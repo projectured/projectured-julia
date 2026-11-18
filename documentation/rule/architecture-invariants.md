@@ -578,7 +578,12 @@ search `editor.document` when you intend to select.
 implements exactly `print_document`, `read_intent`, `map_reference_forward`,
 and `map_reference_backward` (declared in `ProjectionInterface.jl`, dispatched on the
 concrete struct). Nothing else is universal across projections. Do not add a
-fifth generic function that projections are expected to implement. (Ordinary
+fifth generic function that projections are expected to implement.
+`read_gesture(projection, iomap, gesture; answer)` and
+`map_operation_backward(projection, iomap, operation)` are the two jobs of
+`read_intent` for one stage, as `print_child` is a helper of the printer: they call
+no child, and only `read_intent` passes a change to the `read_intent` of a child.
+(Ordinary
 local recursion is fine — a projection may use a private helper that walks a
 *data structure*, like `SearchingProjection`'s pre-order DFS or
 `CopyingProjection`'s `ListNode` traversal; what the contract forbids is a new
@@ -677,19 +682,22 @@ wired the output selection — the cursor mis-maps.
 
 ### PAR-PREFER-REFERENCE-RETARGET
 
-**Write a `read_intent` method only when re-targeting a reference is not
-enough.** The default `read_intent` re-targets any reference-carrying operation
-via `map_reference_backward`, so a projection that only moves the cursor or
-edits a value through a structure-preserving map needs *only* the two mappers.
-Add the 4-arg `read_intent(p, recursion, change::Intent, iomap)` method
-(returning an `Intent`) only to do more — retype an operation, recurse then
-lift, probe a child, or route by selection. Do not write the obsolete 3-arg
-shim in new code.
+**Write a method of a job only when re-targeting a reference is not enough.**
+The default `read_intent` gives an operation to `map_operation_backward`, whose
+default re-targets any reference-carrying operation via `map_reference_backward`,
+so a projection that only moves the cursor or edits a value through a
+structure-preserving map needs *only* the two mappers. A projection that retypes
+an operation adds a method of `map_operation_backward`, and a projection that makes
+an operation of a gesture adds a method of `read_gesture`. Add the 4-arg
+`read_intent(p, recursion, change::Intent, iomap)` method (returning an `Intent`)
+only for a container that recurses then lifts, probes a child, or routes by
+selection in its own way, or for a wrapper that acts on the passing; it passes the
+change to the child with `read_child_intent`.
 
-A reader that only maps the path of an operation takes `ReplacePathOperation`
+A map that only maps the path of an operation takes `ReplacePathOperation`
 and answers `make_path_operation(operation, path)`. So one method maps every kind
 of path: the selection, the part under the pointer, and a kind that comes later.
-A reader that must treat one kind in a different way adds a method for that kind.
+A map that must treat one kind in a different way adds a method for that kind.
 A case that belongs to a press, such as the whole selection of an Alt+double click,
 names `ReplaceSelectionOperation`, because a move of the pointer must not do it.
 

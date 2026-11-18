@@ -16,7 +16,7 @@ function test_workspace_to_filesystem()
         iomap = print_document(projection, workspace)
         tree = iomap.output
         shown(path) = repr(strip_reference_types(path))
-        read_back(path) = read_intent(projection, iomap, ReplaceSelectionOperation(path))
+        read_back(path) = read_intent(projection, nothing, Intent(ReplaceSelectionOperation(path)), iomap).operation
 
         # `sub/c.jl` is the first entry of the third entry of the root.
         operation = read_back(@reference(tree, roots[1].children[3].children[1]))
@@ -42,7 +42,7 @@ function test_workspace_to_filesystem()
         # The part under the pointer takes the same way: the pointer on the row of
         # `sub/c.jl` maps back to the folder, and the tree holds that row.
         row = @reference(tree, roots[1].children[3].children[1])
-        target = read_intent(projection, iomap, ReplaceMouseTargetOperation(row))
+        target = read_intent(projection, nothing, Intent(ReplaceMouseTargetOperation(row)), iomap).operation
         @test target isa ReplaceMouseTargetOperation
         @test shown(target.path) == shown(operation.path)
         replace_mouse_target!(workspace, target.path)

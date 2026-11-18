@@ -131,9 +131,6 @@ function read_intent(p::TooltipWindowProjection, recursion, change::Intent,
     Intent(input, _join_operations(rest, own))
 end
 
-read_intent(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A change with a route, such as a command that runs a binding on a part with no
 # pointer: a tooltip in the answer opens the window, as the answer to a dwell does.
 function _read_routed(p::TooltipWindowProjection, recursion, change::Intent,

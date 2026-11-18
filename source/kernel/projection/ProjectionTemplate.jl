@@ -1521,15 +1521,10 @@ function find_template_value_retype(iomap::TemplateIoMap, reference)
         Symbol(reference.head.name) === w.bound_field ? w.retype : nothing
 end
 
-# Innermost-first, bubbling to the nearest enclosing structural node: the focused
-# child reads a key first, and the rules of this node answer by the order of an
-# override (`read_child_intent`). A caller of the older form reads with no recursion.
-read_intent(p::Projection, iomap::TemplateIoMap, evt::Union{KeyPress, KeyDown}) =
-    _read_template_key(p, nothing, Intent(evt), iomap).operation
-
-# A key goes to the child that the selection of the node is in, with the `recursion`
-# that printed it, and the answer comes back through the rules of the node; with no
-# such child, the node reads the key itself.
+# Innermost-first, bubbling to the nearest enclosing structural node: a key goes to
+# the child that the selection of the node is in, with the `recursion` that printed
+# it, and the answer comes back through the rules of the node by the order of an
+# override (`read_child_intent`); with no such child, the node reads the key itself.
 function _read_template_key(p, recursion, change::Intent, iomap::TemplateIoMap)
     input = iomap.input
     answer(operation) = Intent(change.gesture, operation, change.description, change.domain)
@@ -1675,11 +1670,12 @@ goes first up through the parts on its way, innermost first: a key along the
 selection, a click along the path of the part that the click selected. The rules of
 each part read the answer so far and replace it only when their `override`
 condition holds for it, and a replaced answer is the answer. Otherwise an operation maps back
-through the reader of the older form, a key goes to the focused child with
+through [`map_operation_backward`](@ref), a key goes to the focused child with
 `recursion` through [`read_child_intent`](@ref), so the rules of the node answer by
-the order of an override, and any other gesture is read by the node. The answer
-keeps the description and the domain of `change`. A change with a route goes on to
-the child that the route names, as it does through the generic bridge. Where the
+the order of an override, and any other gesture is read by the rules of the node
+([`read_gesture`](@ref)). The answer keeps the description and the domain of
+`change`. A change with a route goes on to the child that the route names, as it
+does through the default reader of a stage. Where the
 rule holds no children, this reader follows no route, so an operation whose route
 names a place below the input answers no operation.
 
@@ -1701,10 +1697,10 @@ function read_template_intent(p, recursion, change::Intent, iomap)
         override = _read_template_override(p, iomap, change.gesture, change.operation)
         override === nothing || return answer(override)
     end
-    change.operation === nothing || return answer(read_intent(p, iomap, change.operation))
+    change.operation === nothing || return answer(map_operation_backward(p, iomap, change.operation))
     template && change.gesture isa Union{KeyPress, KeyDown} &&
         return _read_template_key(p, recursion, change, iomap)
-    answer(read_intent(p, iomap, change.gesture))
+    answer(read_gesture(p, iomap, change.gesture))
 end
 
 # ── Sugar ─────────────────────────────────────────────────────────────────────
@@ -1732,9 +1728,9 @@ macro projection_template(projname, intype, builder)
             $(print_template_document)(p, recursion, doc, ctx, $(esc(builder)))
         end
 
-        # Without this the projection falls to the generic bridge, which collapses the
-        # `Intent` to a single payload and so can only ever translate the answer of
-        # a stage — the input domain never sees the key that caused it.
+        # Without this the projection falls to the default reader of a stage, which
+        # reads only the rules of the node: the key would not reach the focused child,
+        # and the answer of a stage nearer the output would not go up through the parts.
         function ProjectionModule.read_intent(p::$(esc(projname)), recursion,
                                               change::Intent, iomap)
             $(read_template_intent)(p, recursion, change, iomap)

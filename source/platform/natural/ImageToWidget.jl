@@ -56,5 +56,3 @@ function read_intent(p::ImageToWidget, recursion, change::Intent, iomap::Content
     read_child_intent(p, recursion, change, iomap, iomap.inner_iomap)
 end
 
-read_intent(p::ImageToWidget, iomap::ContentIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

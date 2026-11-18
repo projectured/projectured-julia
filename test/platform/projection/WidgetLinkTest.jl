@@ -66,7 +66,7 @@ function collect_elements(canvas)
 end
 
 click(projection, iomap, button; ctrl = false, x = 5) =
-    read_intent(projection, iomap, MouseClick(button, x, 5, 1, ModifierKeys(ctrl = ctrl); time = 0.0))
+    read_intent(projection, nothing, Intent(MouseClick(button, x, 5, 1, ModifierKeys(ctrl = ctrl); time = 0.0)), iomap).operation
 
 @testset "a click and Return open the target here, Ctrl and a click and a middle click in a new tab" begin
     target = WidgetLabel("the page")
@@ -79,11 +79,11 @@ click(projection, iomap, button; ctrl = false, x = 5) =
           here.place === :here
     @test click(projection, iomap, :left; ctrl = true).place === :new_tab
     @test click(projection, iomap, :middle).place === :new_tab
-    @test read_intent(projection, iomap, KeyPress('\n'; time = 0.0)).place === :here
+    @test read_intent(projection, nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation.place === :here
     @test click(projection, iomap, :right) === nothing
     @test click(projection, iomap, :left; x = 500) === nothing
     # The press before the click is the link's own, so it selects nothing.
-    @test read_intent(projection, iomap, MouseDown(:left, 5, 5, ModifierKeys(); time = 0.0)) isa DoNothingOperation
+    @test read_intent(projection, nothing, Intent(MouseDown(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation isa DoNothingOperation
 end
 
 @testset "a link with a path opens the part that the path names from the link" begin
@@ -165,7 +165,7 @@ end
     @test click(projection, iomap, :left).place === :here
     @test click(projection, iomap, :left; ctrl = true).place === :new_tab
     @test click(projection, iomap, :middle).place === :new_tab
-    pressed = read_intent(projection, iomap, KeyPress('\n'; time = 0.0))
+    pressed = read_intent(projection, nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation
     @test pressed isa OpenPageOperation && pressed.document === target && pressed.place === :here
 end
 
@@ -195,7 +195,7 @@ end
     @test !is_color_equal(text.color, link_color)
     @test !any(element -> element isa GraphicsPointerShape, elements)
     @test click(projection, iomap, :left) === nothing
-    @test read_intent(projection, iomap, KeyPress('\n'; time = 0.0)) === nothing
+    @test read_intent(projection, nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation === nothing
     @test get_first_focusable_path(link) === nothing
     open[] = true
     @test click(projection, iomap, :left) isa OpenPageOperation
@@ -211,7 +211,7 @@ end
     @test Int(underline().w) == 0
     _mtt_move!(driver, 5, 5, 1.0)
     @test Int(underline().w) > 0
-    opened = read_intent(driver.projection, driver.iomap, MouseClick(:left, 5, 5, 1, ModifierKeys(); time = 0.0))
+    opened = read_intent(driver.projection, nothing, Intent(MouseClick(:left, 5, 5, 1, ModifierKeys(); time = 0.0)), driver.iomap).operation
     @test opened isa OpenPageOperation && opened.place === :here
 end
 

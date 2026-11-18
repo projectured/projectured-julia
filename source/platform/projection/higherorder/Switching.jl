@@ -70,9 +70,6 @@ Delegate to the same branch that was active when the IoMap was produced.
 read_intent(ap::SwitchingProjection, recursion, change::Intent, iomap::SwitchingIoMap) =
     read_intent(ap.projections[iomap.index], recursion, change, iomap.inner_iomap)
 
-read_intent(ap::SwitchingProjection, iomap::SwitchingIoMap, payload) =
-    read_intent(ap, nothing, Intent(payload), iomap).operation
-
 # A reference maps forward and back through the active branch, whose IoMap it
 # holds.
 function map_reference_forward(::SwitchingProjection, iomap, reference)

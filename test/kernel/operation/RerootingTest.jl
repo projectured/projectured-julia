@@ -144,7 +144,7 @@ function test_rerooting()
             @test operation_reference(operation) === nothing
             @test is_self_contained_operation(operation)
             # The default reader forwards it as it is, so a chain stops at it.
-            @test read_intent(RerootProbeProjection(), nothing, operation) === operation
+            @test read_intent(RerootProbeProjection(), nothing, Intent(operation), nothing).operation === operation
         end
         @test !is_self_contained_operation(ReplaceSelectionOperation(EmptyReference()))
     end

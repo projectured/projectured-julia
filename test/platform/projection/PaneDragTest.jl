@@ -25,7 +25,7 @@ function _print(tree)
 end
 
 function _feed!(editor, proj, iomap, event)
-    op = read_intent(proj, iomap, event)
+    op = read_intent(proj, nothing, Intent(event), iomap).operation
     op === nothing || evaluate_operation(editor, op)
     op
 end

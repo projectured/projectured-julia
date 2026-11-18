@@ -443,7 +443,7 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
 
     # 3. Drive the edit's event through the reader.
     op = try
-        read_intent(projection, iomap, event)
+        read_intent(projection, nothing, Intent(event), iomap).operation
     catch e
         return _typein_failed("read_intent($kind) threw: $e")
     end

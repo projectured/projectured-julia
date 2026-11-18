@@ -148,8 +148,7 @@ function test_task_group_table()
     function click_answer(group, text; count = 1, ctrl = false)
         projection, iomap = _print_task_view(group)
         row = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == text)
-        operation = read_intent(projection, iomap,
-                                MouseClick(:left, row[1] + 2, row[2] + 2, count, ModifierKeys(; ctrl); time = 0.0))
+        operation = read_intent(projection, nothing, Intent(MouseClick(:left, row[1] + 2, row[2] + 2, count, ModifierKeys(; ctrl); time = 0.0)), iomap).operation
         operation isa WrappingOperation ? get_wrapped_operation(operation) : operation
     end
 

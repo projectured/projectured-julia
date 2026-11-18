@@ -36,7 +36,7 @@ proj = make_widget_projection_example()
 @testset "Esc dismisses the dialog" begin
     dlg = WidgetMessageBox("Title", "A message")
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa CloseWindowOperation
     @test op.id === :widget_dialog
 end
@@ -45,7 +45,7 @@ end
     dlg = WidgetMessageBox("Title", "A message")
     iomap = print_document(proj, dlg)
     # (2, 2) is the top-left scrim; the card is centered, so it is outside it.
-    op = read_intent(proj, iomap, MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa CloseWindowOperation
     @test op.id === :widget_dialog
 end
@@ -57,7 +57,7 @@ end
     iomap = print_document(proj, dlg)
     xy = _dialog_text_xy(iomap.output, "OK")
     @test xy !== nothing
-    op = read_intent(proj, iomap, MouseClick(:left, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa CompoundOperation
     @test op.operations[1] isa InvokeActionOperation
     @test op.operations[2] isa CloseWindowOperation
@@ -69,7 +69,7 @@ end
 @testset "a custom popup_id is the id that closes" begin
     dlg = WidgetMessageBox("T", "m"; popup_id = :my_dialog)
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa CloseWindowOperation
     @test op.id === :my_dialog
 end

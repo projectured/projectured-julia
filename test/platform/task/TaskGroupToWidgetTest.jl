@@ -294,8 +294,7 @@ function test_task_views()
             @test "Stop" in words && "Run again" in words && "Note" in words
 
             note = only(t for t in texts if t[3] == "Note")
-            operation = read_intent(projection, iomap,
-                MouseClick(:left, note[1] + 2, note[2] + 2, ModifierKeys(); time = 0.0))
+            operation = read_intent(projection, nothing, Intent(MouseClick(:left, note[1] + 2, note[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test operation isa InvokeActionOperation
             empty!(_TASK_VIEW_PRESSES)
             operation.action.callback(nothing)
@@ -772,8 +771,7 @@ function test_task_views()
             select_task_document!(document, 2)
             projection, iomap = _print_task_view(document; height = 1200)
             texts = _collect_task_view_texts(iomap.output)
-            press(view, map, t; count = 1, ctrl = false) = read_intent(view, map,
-                MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0))
+            press(view, map, t; count = 1, ctrl = false) = read_intent(view, nothing, Intent(MouseClick(:left, t[1] + 2, t[2] + 2, count, ModifierKeys(ctrl = ctrl); time = 0.0)), map).operation
             task(k) = getfield(document, :tasks)[][k]
             # The detail opens the page of the task that it shows.
             opened = press(projection, iomap, only(t for t in texts if t[3] == "Open the task page"))

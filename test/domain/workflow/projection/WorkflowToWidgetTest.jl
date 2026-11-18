@@ -12,7 +12,7 @@ end
 # a view that does not follow its document fails here.
 function _find_workflow_click(editor, accept)
     for y in 0:6:1500, x in 0:6:1100
-        operation = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+        operation = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), editor.iomap).operation
         operation === nothing || accept(operation) && return (x, y, operation)
     end
     nothing
@@ -61,7 +61,7 @@ function _find_workflow_menu(editor, accept; button::Symbol = :left)
     opens(operation) = operation isa ReplaceViewStateOperation && operation.operation isa OpenContextMenuOperation &&
                        accept(operation.operation.layers[1][2])
     for y in 0:6:1500, x in 0:6:1100
-        operation = read_intent(editor.projection, editor.iomap, MouseClick(button, x, y, 1, ModifierKeys(); time = 0.0))
+        operation = read_intent(editor.projection, nothing, Intent(MouseClick(button, x, y, 1, ModifierKeys(); time = 0.0)), editor.iomap).operation
         operation !== nothing && opens(operation) && return (x, y, operation.operation.layers[1][2])
     end
     nothing
@@ -165,7 +165,7 @@ function test_workflow_to_widget()
             hit = _find_workflow_click(editor, operation -> _is_workflow_selection(operation, ".children[4].title.value{3}"))
             @test hit !== nothing
             _apply_workflow_operation!(editor, hit[3])
-            operation = read_intent(editor.projection, editor.iomap, KeyPress('X', ModifierKeys(); time = 0.0))
+            operation = read_intent(editor.projection, nothing, Intent(KeyPress('X', ModifierKeys(); time = 0.0)), editor.iomap).operation
             @test operation !== nothing
             _apply_workflow_operation!(editor, operation)
             @test workflow.children[4].title.value == "AssXistant tools"
@@ -269,15 +269,14 @@ function test_workflow_to_widget()
             hit = _find_workflow_click(editor, operation -> _is_workflow_selection(operation, ".first_text.value{0}"))
             @test hit !== nothing
             _apply_workflow_operation!(editor, hit[3])
-            typed = read_intent(editor.projection, editor.iomap, KeyPress('S', ModifierKeys(); time = 0.0))
+            typed = read_intent(editor.projection, nothing, Intent(KeyPress('S', ModifierKeys(); time = 0.0)), editor.iomap).operation
             @test typed !== nothing
             _apply_workflow_operation!(editor, typed)
             @test length(workflow.children) == 1
             @test workflow.children[1].title.value == "S"
             @test isempty(workflow.first_text.value)
             @test string(strip_reference_types(get_selection(workflow))) == ".children[1].title.value{1}"
-            _apply_workflow_operation!(editor, read_intent(editor.projection, editor.iomap,
-                                                           KeyPress('u', ModifierKeys(); time = 0.0)))
+            _apply_workflow_operation!(editor, read_intent(editor.projection, nothing, Intent(KeyPress('u', ModifierKeys(); time = 0.0)), editor.iomap).operation)
             @test workflow.children[1].title.value == "Su"
         end
 
@@ -289,13 +288,13 @@ function test_workflow_to_widget()
             at_title_end(index, node) = caret(FieldReferenceStep("children"), RangeReferenceStep(index - 1, index),
                                               FieldReferenceStep("title"), FieldReferenceStep("value"),
                                               RangeReferenceStep(length(node.title.value), length(node.title.value)))
-            press(key) = _apply_workflow_operation!(editor, read_intent(editor.projection, editor.iomap, key))
+            press(key) = _apply_workflow_operation!(editor, read_intent(editor.projection, nothing, Intent(key), editor.iomap).operation)
             selected() = string(strip_reference_types(get_selection(workflow)))
 
             # Return at the end of a title adds a step after it, with the caret in it.
             replace_selection!(workflow, at_title_end(1, survey))
             _apply_workflow_operation!(editor, DoNothingOperation())
-            @test read_intent(editor.projection, editor.iomap, KeyPress('\n'; time = 0.0)) isa CompoundOperation
+            @test read_intent(editor.projection, nothing, Intent(KeyPress('\n'; time = 0.0)), editor.iomap).operation isa CompoundOperation
             press(KeyPress('\n'; time = 0.0))
             @test length(workflow.children) == 5
             added = workflow.children[2]

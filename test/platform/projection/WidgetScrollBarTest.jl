@@ -60,7 +60,7 @@ function test_widget_scroll_bar()
         @test (Int(shape.w), Int(shape.h)) == (10, 300)
     end
 
-    read(event) = read_intent(projection, iomap, event)
+    read(event) = read_intent(projection, nothing, Intent(event), iomap).operation
     plain = ModifierKeys()
     shift = ModifierKeys(shift = true)
     # The writes of an answer, each without its mark of view state.

@@ -59,19 +59,19 @@ function test_widget_menu_keys()
         menu = make_menu()
         lit(operation) = operation isa ReplaceViewStateOperation ? operation.operation.value : nothing
         iomap = print_document(projection, nothing, menu, PrinterContext())
-        @test lit(read_intent(projection, iomap, key(:down))) == 1
+        @test lit(read_intent(projection, nothing, Intent(key(:down)), iomap).operation) == 1
         menu.highlighted = 1
         # The disabled item and the separator are passed over.
-        @test lit(read_intent(projection, iomap, key(:down))) == 4
-        @test lit(read_intent(projection, iomap, key(:up))) == 1
-        @test lit(read_intent(projection, iomap, key(:end))) == 4
-        @test lit(read_intent(projection, iomap, key(:home))) == 1
-        chosen = read_intent(projection, iomap, key(:return))
+        @test lit(read_intent(projection, nothing, Intent(key(:down)), iomap).operation) == 4
+        @test lit(read_intent(projection, nothing, Intent(key(:up)), iomap).operation) == 1
+        @test lit(read_intent(projection, nothing, Intent(key(:end)), iomap).operation) == 4
+        @test lit(read_intent(projection, nothing, Intent(key(:home)), iomap).operation) == 1
+        chosen = read_intent(projection, nothing, Intent(key(:return)), iomap).operation
         @test chosen isa CompoundOperation
         @test chosen.operations[1] isa EditMenuPartOperation
         @test chosen.operations[1].description == "Accept"
         # A key with a modifier is not a key of the list.
-        @test read_intent(projection, iomap, KeyDown(:down, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+        @test read_intent(projection, nothing, Intent(KeyDown(:down, ModifierKeys(ctrl = true); time = 0.0)), iomap).operation === nothing
     end
 
     @testset "the lit item draws the selection band, and a menu with none draws no band" begin
@@ -107,7 +107,7 @@ function test_widget_menu_keys()
             Pair{Type,Any}[WidgetChoiceList => ChainingProjection(WidgetChoiceListToWidget(), GridLayoutToGraphicsCanvas())],
             LayoutToGraphics().dispatch, WidgetToGraphics(; measure).dispatch,
             Pair{Type,Any}[TextBlock => TextToGraphics(measure = measure)])))
-        read(gesture) = read_intent(list_projection, print_document(list_projection, list), gesture)
+        read(gesture) = read_intent(list_projection, nothing, Intent(gesture), print_document(list_projection, list)).operation
         press!(gesture) = evaluate_operation((document = list,), read(gesture))
         press!(KeyPress('c'; time = 0.0))
         @test list.query == "c"
@@ -125,7 +125,7 @@ function test_widget_menu_keys()
         @test list.query == "c"
         # A list that edits a part leaves a key of the text to that part.
         edited = WidgetChoiceList(; find = query -> WidgetChoice[], edit = query -> DoNothingOperation())
-        @test read_intent(list_projection, print_document(list_projection, edited), KeyPress('a'; time = 0.0)) === nothing
+        @test read_intent(list_projection, nothing, Intent(KeyPress('a'; time = 0.0)), print_document(list_projection, edited)).operation === nothing
         returned = read(KeyPress('\n'; time = 0.0))
         @test returned isa CompoundOperation
         @test returned.operations[1] isa EditMenuPartOperation
@@ -218,7 +218,7 @@ function test_widget_menu_keys()
         button = WidgetToolbarItem("More"; icon = :ellipsis,
                                    gestures = GestureBinding[make_menu_button_binding(_ -> menu)])
         iomap = print_document(projection, nothing, button, PrinterContext())
-        answer = read_intent(projection, iomap, MouseClick(:left, 2, 2, 1, ModifierKeys(); time = 0.0))
+        answer = read_intent(projection, nothing, Intent(MouseClick(:left, 2, 2, 1, ModifierKeys(); time = 0.0)), iomap).operation
         @test answer isa ReplaceViewStateOperation
         opened = answer.operation
         @test opened isa OpenContextMenuOperation

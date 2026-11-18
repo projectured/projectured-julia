@@ -59,9 +59,6 @@ function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Inte
     Intent(change.gesture, inner.operation, inner.description, inner.domain)
 end
 
-read_intent(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 map_reference_forward(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, reference) =
     map_reference_forward(p.inner, iomap.inner_iomap, reference)
 

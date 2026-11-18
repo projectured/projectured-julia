@@ -135,8 +135,8 @@ what was evaluated on it.
 
 # Example
 
-    change = read_intent(projection, iomap, event)
-    change === nothing || evaluate_operation(editor, change)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
+    operation === nothing || evaluate_operation(editor, operation)
 
 See also `Operation`, `read_intent`, and `invalidate_projection!`.
 

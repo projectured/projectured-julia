@@ -44,7 +44,7 @@ function explore_table_selections(document, projection; onstate=nothing)
     end
 
     op = try
-        read_intent(projection, iomap, KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time = 0.0))
+        read_intent(projection, nothing, Intent(KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time = 0.0)), iomap).operation
     catch e
         return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"])
     end
@@ -74,7 +74,7 @@ function explore_table_selections(document, projection; onstate=nothing)
 
         for key in nav_keys
             op = try
-                read_intent(projection, iomap, key)
+                read_intent(projection, nothing, Intent(key), iomap).operation
             catch e
                 push!(errors, "reader error at [$path_str] with $key: $e")
                 nothing
@@ -152,7 +152,7 @@ function _table_nav(document, projection, gesture, sel)
     clear_selection!(document)
     sel === nothing || set_selection!(document, sel)
     iomap = print_document(projection, document)
-    op = read_intent(projection, iomap, gesture)
+    op = read_intent(projection, nothing, Intent(gesture), iomap).operation
     op isa ReplaceSelectionOperation ? string(op.path) : (op === nothing ? "nothing" : string(typeof(op)))
 end
 
@@ -193,7 +193,7 @@ end
     incell = let
         clear_selection!(doc)
         set_selection!(doc, _wt_cell(2, 2))
-        op = read_intent(proj, print_document(proj, doc), KeyPress('\n'; time = 0.0))
+        op = read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), print_document(proj, doc)).operation
         op.path
     end
     # Alt+arrow promotes an in-cell cursor to the whole cell, then moves.
@@ -233,8 +233,8 @@ end
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
 
-    alt_op   = read_intent(proj, io, MouseClick(:left, cx, cy, 2, ModifierKeys(alt=true); time = 0.0))
-    plain_op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
+    alt_op   = read_intent(proj, nothing, Intent(MouseClick(:left, cx, cy, 2, ModifierKeys(alt=true); time = 0.0)), io).operation
+    plain_op = read_intent(proj, nothing, Intent(MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)), io).operation
 
     @test alt_op isa ReplaceSelectionOperation
     @test string(alt_op.path) == ".cells[2][2]"
@@ -259,14 +259,13 @@ end
     # Alt+double click there selects the header. An Alt+double click on the one
     # character of the text, 10 pixels wide in the measure of the test, selects the
     # value of the header, the innermost part.
-    col_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
+    col_op = read_intent(proj, nothing, Intent(MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0)), io).operation
     @test col_op isa ReplaceSelectionOperation
     steps = get_reference_steps(strip_reference_types(col_op.path))
     @test steps[1:2] == [FieldReferenceStep("column_headers"), RangeReferenceStep(2, 3)] && length(steps) > 2
-    alt_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), 2, ModifierKeys(alt = true); time = 0.0))
+    alt_op = read_intent(proj, nothing, Intent(MouseClick(:left, cx, div(geom.row_y[2], 2), 2, ModifierKeys(alt = true); time = 0.0)), io).operation
     @test string(strip_reference_types(alt_op.path)) == ".column_headers[3]"
-    selects_value(x) = string(strip_reference_types(read_intent(proj, io,
-        MouseClick(:left, x, div(geom.row_y[2], 2), 2, ModifierKeys(alt = true); time = 0.0)).path)) ==
+    selects_value(x) = string(strip_reference_types(read_intent(proj, nothing, Intent(MouseClick(:left, x, div(geom.row_y[2], 2), 2, ModifierKeys(alt = true); time = 0.0)), io).operation.path)) ==
         ".column_headers[3].value"
     on_text = filter(selects_value, geom.col_x[gc]:cx)
     @test length(on_text) == 10 && last(on_text) - first(on_text) == 9
@@ -277,15 +276,15 @@ end
     # (`test_widget_table_part_selection`).
     gr = 2 + geom.row_offset
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
-    row_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0))
+    row_op = read_intent(proj, nothing, Intent(MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0)), io).operation
     @test row_op isa ReplaceSelectionOperation
     steps = get_reference_steps(strip_reference_types(row_op.path))
     @test steps[1:2] == [FieldReferenceStep("row_headers"), RangeReferenceStep(1, 2)] && length(steps) > 2
-    alt_row = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, 2, ModifierKeys(alt = true); time = 0.0))
+    alt_row = read_intent(proj, nothing, Intent(MouseClick(:left, div(geom.col_x[2], 2), cy, 2, ModifierKeys(alt = true); time = 0.0)), io).operation
     @test string(strip_reference_types(alt_row.path)) == ".row_headers[2].value"
 
     # Top-left corner (header intersection) selects the whole table.
-    corner_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
+    corner_op = read_intent(proj, nothing, Intent(MouseClick(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0)), io).operation
     @test corner_op isa ReplaceSelectionOperation
     @test corner_op.path isa EmptyReference
 end

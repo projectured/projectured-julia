@@ -149,7 +149,7 @@ end
     function after(block, k, event)
         clear_selection!(block)
         set_selection!(block, TextModule.make_flat_caret_reference(k))
-        op = read_intent(projection, print_document(projection, block), event)
+        op = read_intent(projection, nothing, Intent(event), print_document(projection, block)).operation
         op isa ReplaceSelectionOperation ? offset(op) : nothing
     end
 
@@ -192,8 +192,7 @@ end
     @test after(lines, 4, key(:up)) == 0        # x 0: before the image
 
     # A click on the left half of an image is before it, on the right half after it.
-    click(block, x) = (op = read_intent(projection, print_document(projection, block),
-                                        MouseClick(:left, x, 5; time = 0.0));
+    click(block, x) = (op = read_intent(projection, nothing, Intent(MouseClick(:left, x, 5; time = 0.0)), print_document(projection, block)).operation;
                        op isa ReplaceSelectionOperation ? offset(op) : nothing)
     @test click(images, 5) == 0
     @test click(images, 20) == 1
@@ -213,7 +212,7 @@ end
         document = editor.document
         clear_selection!(document)
         set_selection!(document, _ii_wrap_caret(document, selection))
-        op = read_intent(projection, print_document(projection, document), event)
+        op = read_intent(projection, nothing, Intent(event), print_document(projection, document)).operation
         op === nothing && return (nothing, nothing)
         (op, ProjecturedKernel.OperationModule.evaluate_invertible_operation!(editor, op))
     end
@@ -358,7 +357,7 @@ end
         function after(k, event)
             clear_selection!(document)
             set_selection!(document, _ii_wrap_caret(document, TextModule.make_flat_caret_reference(k)))
-            op = read_intent(projection, print_document(projection, document), event)
+            op = read_intent(projection, nothing, Intent(event), print_document(projection, document)).operation
             op isa ReplaceSelectionOperation ? offset(op) : nothing
         end
         function drawn(k)
@@ -420,8 +419,7 @@ end
                                           TextLine(_image())))
     clear_selection!(editor.document)
     set_selection!(editor.document, TextModule.make_flat_caret_reference(3))
-    evaluate_operation(editor, read_intent(projection, print_document(projection, editor.document),
-                                           KeyPress('y'; time = 0.0)))
+    evaluate_operation(editor, read_intent(projection, nothing, Intent(KeyPress('y'; time = 0.0)), print_document(projection, editor.document)).operation)
     @test get_flat_string(editor.document) == "x\n\uFFFCy"
     @test editor.document.elements[2].elements[2].font == large
     @test editor.document.elements[2].elements[2].font_color == color_red

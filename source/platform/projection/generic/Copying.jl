@@ -246,14 +246,26 @@ end
 # object its field names. That conversion happens only if the operation reaches
 # that child's reader. Without the route a form of copied nodes types into the
 # rendering and never into the document behind it.
-function read_intent(p::CopyingProjection, iomap::CopyingIoMap, payload)
+#
+# The answer of the child stands only when it needs no step of this node before it.
+# The answer of a stage nearer the screen that the child answered goes through the
+# default, so the rules of this level read it. Any other change reads as in every
+# stage.
+function read_intent(p::CopyingProjection, recursion, change::Intent, iomap::CopyingIoMap)
+    change.route isa ConcreteReference && change.operation !== nothing &&
+        return Intent(change.gesture, nothing)
+    payload = change.operation === nothing ? change.gesture : change.operation
     routed = _route_to_child(iomap, payload)
     if routed !== nothing
         (child_im, inner) = routed
-        answer = read_intent(child_im.projection, child_im, inner)
-        (answer !== nothing && _needs_no_prefix(answer)) && return answer
+        answer = read_intent(child_im.projection, nothing, Intent(inner), child_im).operation
+        if answer !== nothing && _needs_no_prefix(answer)
+            change.operation === nothing &&
+                return Intent(change.gesture, answer, change.description, change.domain)
+            change = Intent(change.gesture, answer, change.description, change.domain, change.route)
+        end
     end
-    invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, payload)
+    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
 end
 
 # The child a payload belongs to, and the payload as that child sees it.

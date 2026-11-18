@@ -37,7 +37,7 @@ function test_table_cell_editing()
             table = make_table()
             editor = _TableCellMockEditor(table)
             iomap = print_document(projection, table)
-            read_key(event) = read_intent(projection, iomap, event)
+            read_key(event) = read_intent(projection, nothing, Intent(event), iomap).operation
             g = iomap.geometry
             # The left edge of the first body cell: the caret is before the
             # opening quote, or before the `<`, and an arrow moves it past.

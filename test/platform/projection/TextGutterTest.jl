@@ -145,7 +145,7 @@ function test_text_gutter()
         lines = iomap.lines_iomap
         second = lines.line_cells(rows[2].group)
         y2 = Int(second.y[]) + 5
-        click(x, y) = read_intent(iomap.projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        click(x, y) = read_intent(iomap.projection, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
 
         # On the lines: a caret in the second line, past "alpha" and its break.
         op = click(gutter_w + 1, y2)

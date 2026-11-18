@@ -240,9 +240,6 @@ function read_intent(p::YamlSequenceToBlockSyntaxNode, recursion, change::Intent
     read_child_intent(p, recursion, change, iomap, child, steps)
 end
 
-read_intent(p::YamlSequenceToBlockSyntaxNode, iomap::ChildrenIoMap, evt::Union{KeyPress, KeyDown}) =
-    read_intent(p, nothing, Intent(evt), iomap).operation
-
 # ── Compound convenience constructor ────────────────────────────────────────
 
 """

@@ -2731,9 +2731,6 @@ function read_intent(p::WidgetTextToGraphicsCanvas, recursion, change::Intent,
                           left - scroll.offset[1], top - scroll.offset[2], finish))
 end
 
-read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A text widget has no rules of its own on the answer of its content.
 read_gesture(::WidgetTextToGraphicsCanvas, ::WidgetTextToGraphicsCanvasIoMap, evt; answer = nothing) = nothing
 
@@ -3354,9 +3351,6 @@ function read_intent(p::WidgetTooltipToGraphicsCanvas, recursion, change::Intent
                           _get_content_steps)
 end
 
-read_intent(p::WidgetTooltipToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── WidgetContextMenu ─────────────────────────────────────────────────────────
 
 @projection UntrackedCell struct WidgetContextMenuToGraphicsCanvas
@@ -3476,9 +3470,6 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, recursion, change::In
     child === nothing && return Intent(gesture, nothing)
     read_child_intent(p, recursion, change, iomap, child, steps)
 end
-
-read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 function _read_context_menu_move(p::WidgetContextMenuToGraphicsCanvas,
                                  iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt::MouseMove)
@@ -3716,9 +3707,6 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, recursion, change::Intent,
     read_entry_child(p, recursion, change, iomap, entry, (FieldReferenceStep("content"),))
 end
 
-read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The rules of a dialog: Escape and a left click on the backdrop, outside the card,
 # close its window.
 function read_gesture(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap,
@@ -3925,9 +3913,6 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, recursion, change::Inten
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           _ -> (FieldReferenceStep("action"), FieldReferenceStep("label")))
 end
-
-read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The rules of a menu item. The gestures of the item win over the answer of its
 # label and over the click of the item, for an enabled item only. A left click on an
@@ -4255,9 +4240,6 @@ function read_intent(p::WidgetMenuToGraphicsCanvas, recursion, change::Intent,
                           slot -> _get_widget_element_steps(iomap.input.elements, slot))
 end
 
-read_intent(p::WidgetMenuToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The keys of a menu move its highlight and choose its item.
 read_gesture(::WidgetMenuToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt::KeyDown;
              answer = nothing) = answer === nothing ? _read_menu_key(iomap.input, evt) : nothing
@@ -4451,9 +4433,6 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, recursion, change::Inte
     entry === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
     read_child_intent(p, recursion, change, iomap, last(entry), _get_composite_slot_steps(slot))
 end
-
-read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # Tab, when the selected child declines it or no child is selected: the selection
 # goes to the next focusable child (Shift: the previous one), or from no selected
@@ -4809,9 +4788,6 @@ function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
     read_child_intent(p, recursion, change, iomap, nothing)
 end
 
-read_intent(p::WidgetShellToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The rule of a shell: a key down that matches the shortcut of an enabled command of
 # its menu bar or toolbar fires the command, over the answer of the focused child, so
 # Ctrl+S works whatever widget is selected.
@@ -4993,9 +4969,6 @@ function read_intent(p::WidgetTitlePaneToGraphicsCanvas, recursion, change::Inte
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           _get_content_steps)
 end
-
-read_intent(p::WidgetTitlePaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── WidgetSplitPane ─────────────────────────────────────────────────────────
 
@@ -5730,9 +5703,6 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, recursion, change::Inte
     entry === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
     read_child_intent(p, recursion, change, iomap, last(entry), _get_split_slot_steps(w, slot))
 end
-
-read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The rules of a split pane. The drag of a divider wins over the answer of a slot: a
 # press on a divider starts it, and its moves, its end and its cancel follow it. Tab
@@ -6845,9 +6815,6 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, recursion, change::Int
     read_child_intent(p, recursion, change, iomap, last(entry), _get_tab_page_steps(w, index))
 end
 
-read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The answer of the open page to `change`, a pointer gesture, in the frame of the page.
 # A press, a release and a move are not hit-tested: a splitter drag inside the open
 # page must keep receiving motion even when the cursor strays off the content.
@@ -6977,7 +6944,7 @@ function _read_tab_name_key(iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, key)
     view = iomap.name_view
     view === nothing && return nothing
     part = _make_tab_name_part(w.selector_element_pairs[found.index].selector, found.index)
-    _map_tab_name_operation(view.input.viewed, part, read_intent(view.projection, view, key))
+    _map_tab_name_operation(view.input.viewed, part, read_intent(view.projection, nothing, Intent(key), view).operation)
 end
 
 # The answer of the text view `view` of the name `part` of a tab, as an answer of
@@ -8139,9 +8106,6 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, recursion, change::Int
     end)
 end
 
-read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The rules of a scroll pane on what the content declines. A press, a click and a
 # dwell on a bar are the bar's. Ctrl+1 and Ctrl+0 choose the size of the content
 # (`_read_pane_size_choice`). The wheel scrolls the pane (`_self_scroll`): the wheel
@@ -8418,7 +8382,7 @@ function _read_pane_bar_event(p::WidgetScrollPaneToGraphicsCanvas,
                               iomap::WidgetScrollPaneToGraphicsCanvasIoMap, bar, evt)
     dx, dy = Int(bar.place.x), Int(bar.place.y)
     inner = evt isa DragCancel ? evt : shift_event_position(evt, -dx, -dy)
-    answer = read_intent(get_iomap_projection(bar.iomap), bar.iomap, inner)
+    answer = read_intent(get_iomap_projection(bar.iomap), nothing, Intent(inner), bar.iomap).operation
     answer isa Operation || return nothing
     answer = shift_operation_position(answer, dx, dy)
     getfield(iomap.input, Symbol(bar.field))[] isa WidgetScrollBar && return answer
@@ -8674,9 +8638,6 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, recursion, change::
     read_child_in_frame(p, recursion, change, iomap, content, steps; move_in, move_out)
 end
 
-read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The rules of a transform pane on what the content declines.
 function read_gesture(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap,
                       gesture; answer = nothing)
@@ -8803,9 +8764,6 @@ function read_intent(p::WidgetToolbarToGraphicsCanvas, recursion, change::Intent
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           slot -> _get_widget_element_steps(iomap.input.elements, slot))
 end
-
-read_intent(p::WidgetToolbarToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── WidgetStatusBar (Stage 4) ─────────────────────────────────────────────────
 # A non-interactive bottom band: stringified `segments` laid left-to-right on a
@@ -10003,9 +9961,6 @@ function read_intent(p::WidgetCardToGraphicsCanvas, recursion, change::Intent,
     slot === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
     read_child_intent(p, recursion, change, iomap, last(entries[slot]), (FieldReferenceStep("content"),))
 end
-
-read_intent(p::WidgetCardToGraphicsCanvas, iomap::WidgetCardToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The rules of a card. A click on the chevron of a collapsible card folds it, an
 # Alt+double click on the title selects the title as a whole, a press on the text of
@@ -12382,8 +12337,6 @@ read_gesture(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = 
 map_operation_backward(::WidgetListToGraphicsCanvas, iomap::WidgetBoxIoMap, operation) = nothing
 read_intent(p::WidgetListToGraphicsCanvas, recursion, change::Intent, iomap::WidgetRowsPaneIoMap) =
     _read_rows_pane(p, recursion, change, iomap)
-read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 read_gesture(::WidgetListToGraphicsCanvas, ::WidgetRowsPaneIoMap, evt; answer = nothing) = nothing
 map_reference_backward(::WidgetListToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, reference) =
     _map_rows_pane_backward(iomap, reference)
@@ -12572,9 +12525,6 @@ function read_intent(p::WidgetTextareaToGraphicsCanvas, recursion, change::Inten
                           left - scroll.offset[1], top - scroll.offset[2],
                           operation -> _keep_text_scroll(iomap.input, scroll, operation, evt)))
 end
-
-read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # A text area has no rules of its own on the answer of its content.
 read_gesture(::WidgetTextareaToGraphicsCanvas, ::WidgetTextareaToGraphicsCanvasIoMap, evt; answer = nothing) =
@@ -12890,9 +12840,6 @@ function read_intent(p::WidgetAccordionToGraphicsCanvas, recursion, change::Inte
     _is_accordion_body_selected(iomap.input, index) || return read_child_intent(p, recursion, change, iomap, nothing)
     read_child_intent(p, recursion, change, iomap, body, steps)
 end
-
-read_intent(p::WidgetAccordionToGraphicsCanvas, iomap::WidgetAccordionToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # A left click on a header, and a dwell or a right click on it, are the header's.
 _is_accordion_header_gesture(iomap, gesture) =
@@ -13234,10 +13181,6 @@ function read_intent(p::WidgetFactGroupToGraphicsCanvas, recursion, change::Inte
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           slot -> _get_fact_value_steps(w, slot))
 end
-
-read_intent(p::WidgetFactGroupToGraphicsCanvas,
-            iomap::Union{WidgetChildrenIoMap, WidgetFactGroupToGraphicsCanvasIoMap}, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The steps `facts[i].value` to the child at `slot`: the group draws a value that is a
 # document as a child, so its child at `slot` is the value of its fact at `slot` of
@@ -14188,8 +14131,8 @@ function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header:
     cell === nothing && return declined
     cim, left, top = cell
     op = _find_control_answer(get_iomap_input(cim),
-                             read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                         g.modifiers; time = g.time)), g)
+                             read_intent(cim.projection, nothing, Intent(MouseClick(g.button, x - left, y - top, g.count,
+                                                                         g.modifiers; time = g.time)), cim).operation, g)
     op === nothing ? declined : reroot_operation(op, steps)
 end
 
@@ -14302,8 +14245,8 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c
     found === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
     cim, left, top = found
     op = _find_control_answer(get_iomap_input(cim),
-                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                          g.modifiers; time = g.time)), g)
+                              read_intent(cim.projection, nothing, Intent(MouseClick(g.button, x - left, y - top, g.count,
+                                                                                     g.modifiers; time = g.time)), cim).operation, g)
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
     reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
@@ -14516,14 +14459,11 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int,
     found = _wt_find_part_cell(iomap, parts.cells_pane, (r - 1) * parts.columns + c)
     found === nothing && return nothing
     cim = found[1]
-    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
-                                                  time = time()))
+    op = read_intent(cim.projection, nothing, Intent(KeyDown(:home, ModifierKeys(ctrl=true);
+                                                  time = time())), cim).operation
     op isa ReplacePathOperation || return nothing
     reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
-
-read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # A change that is not a gesture of the table's own goes to a cell. One with a
 # position goes to the cell under it. One with no position, such as a key or a
@@ -15634,8 +15574,6 @@ _find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCan
 
 read_intent(p::WidgetTreeToGraphicsCanvas, recursion, change::Intent, iomap::WidgetRowsPaneIoMap) =
     _read_rows_pane(p, recursion, change, iomap; finish = answer -> _add_wtree_scroll_writes(iomap, answer))
-read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 read_gesture(::WidgetTreeToGraphicsCanvas, ::WidgetRowsPaneIoMap, evt; answer = nothing) = nothing
 
 # How far from the head the row at the top may be before a tree moves the head of
@@ -15681,11 +15619,10 @@ map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, 
     _map_rows_pane_forward(iomap, reference)
 
 # Gesture reader: a left click on a parent's chevron opens or closes it, otherwise
-# selects the node under the cursor; ↑/↓ walk the flattened rows. Handled in the
-# 3-arg form (like the other widgets) so a container routing an event into the tree via
-# `read_intent(cim.projection, cim, evt)` reaches it — the default 4-arg
-# `read_intent` bridges the editor's top-level `Intent` to this. Non-gestures
-# return nothing: the tree is a leaf (no child ops bubble up to re-target).
+# selects the node under the cursor; ↑/↓ walk the flattened rows. The rules of the
+# tree answer only when no part answered, and the default reader of a stage gives
+# the gesture to them. Non-gestures return nothing: the tree is a leaf (no child ops
+# bubble up to re-target).
 #
 # Per-instance gestures are consulted first — tree-level, then per-node — so a
 # binding can add / override (shadow) / suppress; the built-in select / collapse /

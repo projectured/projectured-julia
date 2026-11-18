@@ -88,7 +88,7 @@ const _JT_RET = KeyPress('\n'; time = 0.0)
 # Feed one event through `proj`; returns the (possibly root-swapped) document.
 function _jt_feed(proj, doc, ev)
     iom = print_document(proj, doc)
-    op  = read_intent(proj, iom, ev)
+    op  = read_intent(proj, nothing, Intent(ev), iom).operation
     op === nothing && return doc
     ed = _JtEditor(doc, iom)
     evaluate_operation(ed, op)

@@ -151,9 +151,6 @@ function _toggle!(p::GestureHelpDecoratorProjection, recursion, iomap::GestureHe
                         style = :normal, content = gm)
 end
 
-read_intent(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── Reference mapping (transparent — output is the inner's output) ──────────
 
 map_reference_forward(p::GestureHelpDecoratorProjection, iomap::GestureHelpDecoratorIoMap, reference) =

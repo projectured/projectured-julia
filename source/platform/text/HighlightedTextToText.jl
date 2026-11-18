@@ -237,7 +237,7 @@ end
 # step `text` in front of what it names.
 function _read_text_operation(text_iomap, operation)
     operation === nothing && return nothing
-    answer = read_intent(text_iomap.projection, text_iomap, operation)
+    answer = read_intent(text_iomap.projection, nothing, Intent(operation), text_iomap).operation
     answer === nothing ? nothing : reroot_operation(answer, (FieldReferenceStep("text"),))
 end
 

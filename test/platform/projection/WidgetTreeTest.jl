@@ -387,7 +387,7 @@ _print_tree_pane(w; width = 300, height = 200) =
     head_path() = rows.geometry.head.value.row.path
     replace_selection!(w, _node([1, 1, 2]))
     # The wheel turns down, a notch at a time, until the head moves.
-    turn!(notches, time) = (op = read_intent(_treeproj, io, MouseScroll(0, notches, 20, 60; time));
+    turn!(notches, time) = (op = read_intent(_treeproj, nothing, Intent(MouseScroll(0, notches, 20, 60; time)), io).operation;
                             op === nothing || evaluate_operation(nothing, op))
     time = 0.0
     while w.anchor === nothing && time < 2000
@@ -404,7 +404,7 @@ _print_tree_pane(w; width = 300, height = 200) =
     @test WidgetModule._wtree_ref_path(w.selection) == [1, 1, 2]
     # A click at the top names the row of the head.
     time += 1.0
-    click = read_intent(_treeproj, io, MouseClick(:left, 100, 5, _mods; time))
+    click = read_intent(_treeproj, nothing, Intent(MouseClick(:left, 100, 5, _mods; time)), io).operation
     @test click isa ReplaceSelectionOperation && WidgetModule._wtree_ref_path(click.path) == first_move
     # Down again: the head moves on, each time by about the distance.
     while head_path() == first_move && time < 4000
@@ -440,8 +440,8 @@ end
     @test rows.geometry.head.value.row.path == [2, 100]
     chevron = WidgetModule._wtree_row_at(rows.geometry, -101 * 20)
     @test chevron.path == [1]
-    open = read_intent(_treeproj, io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 5, _mods;
-                                                 time = 0.0))
+    open = read_intent(_treeproj, nothing, Intent(MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 5, _mods;
+                                                 time = 0.0)), io).operation
     evaluate_operation(nothing, open)
     # Logs is the head now, at the top of the view, and its logs follow it.
     @test [1] in w.expanded && rows.geometry.head.value.row.path == [1]
@@ -453,8 +453,8 @@ end
     item = WidgetModule._find_wtree_list_row_at(rows.geometry, (50 + 1 + 4 + 1) * 20)
     @test item.row.path == [2, 5]
     getfield(w, :scroll_position)[] = Point2D(0, item.row.y0)
-    close = read_intent(_treeproj, io, MouseClick(:left, (item.row.chevron_x0 + item.row.chevron_x1) ÷ 2, 5,
-                                                  _mods; time = 1.0))
+    close = read_intent(_treeproj, nothing, Intent(MouseClick(:left, (item.row.chevron_x0 + item.row.chevron_x1) ÷ 2, 5,
+                                                  _mods; time = 1.0)), io).operation
     evaluate_operation(nothing, close)
     @test !([2, 5] in w.expanded) && rows.geometry.head.value.row.path == [2, 5]
     @test Int(w.scroll_position.y[]) == 0
@@ -486,12 +486,12 @@ end
     # the project, Sweep, and the runs below Sweep down to the bottom of the view.
     chevron = WidgetModule._wtree_row_at(rows.geometry, 20)
     @test chevron.path == [1, 1]
-    open = read_intent(_treeproj, io, MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 25,
-                                                 _mods; time = 0.0))
+    open = read_intent(_treeproj, nothing, Intent(MouseClick(:left, (chevron.chevron_x0 + chevron.chevron_x1) ÷ 2, 25,
+                                                 _mods; time = 0.0)), io).operation
     evaluate_operation(nothing, open)
     @test w.shown == Set([[1], [1, 1], ([1, 1, k] for k in 1:8)...])
     # A wheel turn down writes the rows of the view at the new offset.
-    turn = read_intent(_treeproj, io, MouseScroll(0, -3, 20, 60; time = 1.0))
+    turn = read_intent(_treeproj, nothing, Intent(MouseScroll(0, -3, 20, 60; time = 1.0)), io).operation
     evaluate_operation(nothing, turn)
     top = Int(w.scroll_position.y[])
     @test top > 0
@@ -501,7 +501,7 @@ end
     files = WidgetTree(Any[WidgetTreeNode("", "folder", Any[WidgetTreeNode("", "f$k", Any[]) for k in 1:500])];
                        expanded = Set([[1]]))
     files_io = _print_tree_pane(files)
-    evaluate_operation(nothing, read_intent(_treeproj, files_io, MouseScroll(0, -3, 20, 60; time = 2.0)))
+    evaluate_operation(nothing, read_intent(_treeproj, nothing, Intent(MouseScroll(0, -3, 20, 60; time = 2.0)), files_io).operation)
     files_top = Int(files.scroll_position.y[])
     first_row = fld(files_top, 20) + 1
     @test [1, first_row - 1] in files.shown && length(files.shown) in 10:11
@@ -520,7 +520,7 @@ end
     time = 10.0
     while deep.anchor === nothing && time < 1000
         time += 1.0
-        op = read_intent(barrier, deep_io, MouseScroll(0, -3, 20, 60; time))
+        op = read_intent(barrier, nothing, Intent(MouseScroll(0, -3, 20, 60; time)), deep_io).operation
         op === nothing || evaluate_operation(nothing, op)
     end
     @test deep.anchor isa WidgetModule.WTreeListRow

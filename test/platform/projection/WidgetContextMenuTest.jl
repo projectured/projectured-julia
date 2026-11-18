@@ -41,7 +41,7 @@ end
     wrap  = WidgetContextMenu(child, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MouseClick(:right, 12, 7, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:right, 12, 7, ModifierKeys(); time = 0.0)), iomap).operation
     # To open a menu is not an edit, so the menu comes marked as view state.
     @test op isa ReplaceViewStateOperation
     opened = get_wrapped_operation(op)
@@ -61,7 +61,7 @@ end
     wrap  = WidgetContextMenu(btn, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa InvokeActionOperation
     @test op.action === btn.action
     evaluate_operation(_CtxMenuMockEditor(btn), op)
@@ -72,13 +72,13 @@ end
     menu  = WidgetMenu([WidgetMenuItem("X")])
     wrap  = WidgetContextMenu(WidgetLabel("x"), menu; enabled = false)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 end
 
 @testset "a wrapper with no menu is inert on right click" begin
     wrap  = WidgetContextMenu(WidgetLabel("x"), nothing)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 end
 
 @testset "a layout moves the menu of a wrapper into its own frame" begin
@@ -91,7 +91,7 @@ end
     (x_cell, y_cell, _) = getfield(_context_iomap_of(iomap, layout), :child_iomaps)[][2]
     ox, oy = Int(x_cell[]), Int(y_cell[])
     press = MouseClick(:right, ox + 20, oy + 9, ModifierKeys(); time = 0.0)
-    op = get_wrapped_operation(read_intent(proj, iomap, press))
+    op = get_wrapped_operation(read_intent(proj, nothing, Intent(press), iomap).operation)
     @test op isa OpenContextMenuOperation
     @test only(op.layers)[2] === menu
     @test oy > 0
@@ -108,7 +108,7 @@ end
     wrap = WidgetContextMenu(WidgetContextMenu(WidgetLabel("target"), inner), outer)
     iomap = print_document(proj, wrap)
     press = MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)
-    op = get_wrapped_operation(read_intent(proj, iomap, press))
+    op = get_wrapped_operation(read_intent(proj, nothing, Intent(press), iomap).operation)
     @test op isa OpenContextMenuOperation
     @test length(op.layers) == 2
     @test op.layers[1][2] === inner && op.layers[2][2] === outer

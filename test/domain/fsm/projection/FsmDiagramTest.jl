@@ -112,7 +112,7 @@ end
     count = length(state.transitions)
     replace_selection!(machine, @reference(machine, states[1]))
     iomap = print_document(projection, machine)
-    operation = read_intent(projection, iomap, KeyPress(','; time = 0.0))
+    operation = read_intent(projection, nothing, Intent(KeyPress(','; time = 0.0)), iomap).operation
     @test operation isa CompoundOperation
     evaluate_operation(_FsmDiagramTestEditor(machine), operation)
     @test length(state.transitions) == count + 1

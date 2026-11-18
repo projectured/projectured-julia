@@ -874,9 +874,6 @@ function _read_tab_child(iomap, projection, recursion, change::Intent, child)
     Intent(inner.gesture, operation, inner.description, inner.domain)
 end
 
-read_intent(p::AppearanceToWidget, iomap::AppearanceToWidgetIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 _translate_tab_operation(iomap, operation::InvokeActionOperation) =
     get(iomap.commands, operation.action, operation)
 function _translate_tab_operation(iomap, operation::ReplaceReferencedValueOperation)

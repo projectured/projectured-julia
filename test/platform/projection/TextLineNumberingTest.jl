@@ -29,7 +29,7 @@ end
     set_selection!(input, _caret(5))
     @test strip_reference_types(iomap.output.selection) == _caret(5)
 
-    op = read_intent(proj, iomap, ReplaceSelectionOperation(_caret(5)))
+    op = read_intent(proj, nothing, Intent(ReplaceSelectionOperation(_caret(5))), iomap).operation
     @test op isa ReplaceSelectionOperation && op.path == _caret(5)
 end
 
@@ -51,27 +51,27 @@ end
     set_selection!(input, _caret(5))
     # A key with a rule of the text is an edit at the caret of the input, lowered
     # to the run that holds it: "def", character 0.
-    op = read_intent(proj, iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(KeyDown(:backspace, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa ReplaceStringRangeOperation
     @test op isa ReplaceStringRangeOperation && op.replacement == "" &&
           is_reference_equal(strip_reference_types(op.reference), TextModule._text_replace_path(Int[2, 1], 0, 1))
     # A key with no rule gets no operation, and the gesture is never the answer.
-    @test read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), iomap).operation === nothing
     # In a chain, the stage before the numbering then gets the key.
     measure = FixedMeasure(10, 18, 6, 0)
     chain = ChainingProjection(TextLineNumbering(), TextToGraphics(measure = measure))
     chain_iomap = print_document(chain, input)
-    @test read_intent(chain, chain_iomap, KeyDown(:escape, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(chain, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), chain_iomap).operation === nothing
     # Tab is an edit of the lines of the input, which stays flat: spaces from
     # column 1 of "def" up to the stop at column 4.
-    tab = read_intent(chain, chain_iomap, KeyPress('\t'; time = 0.0))
+    tab = read_intent(chain, nothing, Intent(KeyPress('\t'; time = 0.0)), chain_iomap).operation
     @test tab isa ReplaceTextRangeOperation && tab.changes_indentation && tab.replacement == "   "
     # A line break is an edit of the lines of the input, which stays flat.
-    enter = read_intent(chain, chain_iomap, KeyPress('\n'; time = 0.0))
+    enter = read_intent(chain, nothing, Intent(KeyPress('\n'; time = 0.0)), chain_iomap).operation
     @test enter isa ReplaceTextRangeOperation && enter.replacement == "\n"
     # A typed key: the string edit of the numbered output is declined, and the key
     # is read again against the input, so it types into "def" at character 1.
-    op = read_intent(chain, chain_iomap, KeyPress('x'; time = 0.0))
+    op = read_intent(chain, nothing, Intent(KeyPress('x'; time = 0.0)), chain_iomap).operation
     @test op isa ReplaceStringRangeOperation &&
           is_reference_equal(strip_reference_types(op.reference), TextModule._text_replace_path(Int[2, 1], 1, 1))
 end

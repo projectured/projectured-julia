@@ -575,7 +575,7 @@ function test_widget_table_cell_editing()
             table = make_table()
             editor = _WidgetTextMockEditor(table)
             iomap = print_document(projection, nothing, table, context)
-            read_key(event) = read_intent(projection, iomap, event)
+            read_key(event) = read_intent(projection, nothing, Intent(event), iomap).operation
             x, y = get_cell_point(iomap, c)
             click = read_key(MouseClick(:left, x, y, mods; time = 0.0))
             @test click isa ReplaceSelectionOperation

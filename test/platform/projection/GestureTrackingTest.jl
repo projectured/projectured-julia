@@ -84,7 +84,7 @@ _gt_apply!(driver::GtDriver, ::Nothing) = nothing
 _gt_apply!(driver::GtDriver, operation) = (evaluate_operation(nothing, operation); nothing)
 
 _gt_read!(driver::GtDriver, input) =
-    _gt_apply!(driver, read_intent(driver.projection, driver.iomap, input))
+    _gt_apply!(driver, read_intent(driver.projection, nothing, Intent(input), driver.iomap).operation)
 
 # Read one input, then every waiting gesture, as the editor reads a due timer
 # before the next input. The dwell timer stays, for a test to fire.
@@ -193,8 +193,7 @@ function test_gesture_tracking()
         @test _gt_read_events(driver) == events
         # A key that no chord waits for writes no state, so the content's answer
         # is the whole answer, as the editor needs for its own keys.
-        @test read_intent(driver.projection, driver.iomap,
-                          WindowInput(:win, KeyDown(:escape, ModifierKeys(); time = 1.0))) ===
+        @test read_intent(driver.projection, nothing, Intent(WindowInput(:win, KeyDown(:escape, ModifierKeys(); time = 1.0))), driver.iomap).operation ===
               nothing
     end
 
@@ -339,8 +338,7 @@ function test_gesture_tracking()
         driver = GtDriver()
         _gt_play!(driver, _gt_move(30, 40, 1.0))
         states = driver.state.states
-        @test read_intent(driver.projection, driver.iomap,
-                          WindowInput(:win, KeyDown(:a, ModifierKeys(); time = 1.1))) === nothing
+        @test read_intent(driver.projection, nothing, Intent(WindowInput(:win, KeyDown(:a, ModifierKeys(); time = 1.1))), driver.iomap).operation === nothing
         @test driver.state.states === states
     end
 end

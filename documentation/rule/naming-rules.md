@@ -335,7 +335,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   `get_property` / `with_property` / `set_property!`.
 - **Protocol functions are verb + the unit that flows in**, dispatch
   supplying the subject: `print_document(projection, recursion, input,
-  context)`, `read_intent(projection, iomap, intent)`,
+  context)`, `read_intent(projection, recursion, intent, iomap)`,
   `read_gesture(document, gesture)`, `print_child(recursion, input,
   context)`, `evaluate_operation(operation, …)`. The verbs read, evaluate and print are
   intentional — they mirror the editor's read-evaluate-print loop, and each
@@ -344,14 +344,16 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   readers.
 - **Protocol functions come in two kinds, and both name their input.**
   A *rung-transformer* moves the unit up the ladder — `read_gesture`
-  (gesture in, operation out), `evaluate_operation` (operation in, document
+  (gesture in, operation out, of a document or of one stage of a projection),
+  `evaluate_operation` (operation in, document
   state out); input and output are different kinds, which is where reading
   and evaluating visibly convert form into meaning. A *domain-translator*
   keeps the kind and moves it across one projection — `print_document`
   (document in, document out inside the returned IoMap), `read_intent`
   (intent in, intent out, translated one domain inward),
   `map_reference_forward` / `map_reference_backward` (reference in,
-  reference out). The full reading of a gesture into an operation is
+  reference out), `map_operation_backward` (operation in, operation out, mapped
+  back across one stage). The full reading of a gesture into an operation is
   distributed across the pipeline: each `read_intent` step advances it by
   one domain, and the composition of the steps is the reader.
 - **Factories are `make_*`**: `make_agent_server`,

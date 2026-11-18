@@ -88,8 +88,8 @@ function test_every_kind_of_path()
     chain = ChainingProjection(to_syntax, RecursiveProjection(SyntaxToText()))
     iomap = print_document(chain, document)
     caret(k) = ConcreteReference(RangeReferenceStep(k, k), EmptyReference())
-    select(k) = read_intent(chain, iomap, ReplaceSelectionOperation(caret(k)))
-    point(k) = read_intent(chain, iomap, ReplaceMouseTargetOperation(caret(k)))
+    select(k) = read_intent(chain, nothing, Intent(ReplaceSelectionOperation(caret(k))), iomap).operation
+    point(k) = read_intent(chain, nothing, Intent(ReplaceMouseTargetOperation(caret(k))), iomap).operation
 
     compared = 0
     for k in 0:200
@@ -139,7 +139,7 @@ function test_output_paths()
     chain = ChainingProjection(to_syntax, RecursiveProjection(SyntaxToText()))
     iomap = print_document(chain, document)
     caret(k) = ConcreteReference(RangeReferenceStep(k, k), EmptyReference())
-    select(k) = read_intent(chain, iomap, ReplaceSelectionOperation(caret(k)))
+    select(k) = read_intent(chain, nothing, Intent(ReplaceSelectionOperation(caret(k))), iomap).operation
     is_inner_bracket(path) = begin
         path = _ip_strip(path)
         path isa ConcreteReference && path.head == ElementReferenceStep(2) &&
@@ -149,7 +149,7 @@ function test_output_paths()
     @test k !== nothing
     k === nothing && return
     evaluate_operation((document = document,),
-                       read_intent(chain, iomap, ReplaceMouseTargetOperation(caret(k - 1))))
+                       read_intent(chain, nothing, Intent(ReplaceMouseTargetOperation(caret(k - 1))), iomap).operation)
 
     syntax = print_document(to_syntax, document).output
     outer = strip_reference_types(getfield(syntax, :mouse_target)[])

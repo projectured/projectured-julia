@@ -160,8 +160,8 @@ end
                    (PrimitiveNumberToText(), PrimitiveNumber(12)),
                    (PrimitiveInsertionToText(), PrimitiveInsertion(; value = "ab")))
         iomap = print_document(p, nothing, d, nothing)
-        @test read_intent(p, iomap, ReplaceTextRangeOperation(caret, "\n")) === nothing
-        typed = read_intent(p, iomap, ReplaceTextRangeOperation(caret, "x"))
+        @test read_intent(p, nothing, Intent(ReplaceTextRangeOperation(caret, "\n")), iomap).operation === nothing
+        typed = read_intent(p, nothing, Intent(ReplaceTextRangeOperation(caret, "x")), iomap).operation
         @test typed !== nothing
     end
 end
@@ -174,7 +174,7 @@ function _press_string_text(value, caret, key)
     chain = ChainingProjection(PrimitiveStringToTextBlock(), TextToGraphics(measure = FontFileMeasure()))
     s = PrimitiveString(value)
     set_selection!(s, _value_range(caret, caret))
-    op = read_intent(chain, print_document(chain, s), key)
+    op = read_intent(chain, nothing, Intent(key), print_document(chain, s)).operation
     op === nothing || evaluate_operation((document = s,), op)
     (op, s)
 end

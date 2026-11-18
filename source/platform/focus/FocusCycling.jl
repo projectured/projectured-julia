@@ -52,9 +52,6 @@ function read_projection_gesture(p::FocusCyclingProjection, iomap::FocusCyclingI
     path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
-read_intent(p::FocusCyclingProjection, iomap::FocusCyclingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 map_reference_forward(::FocusCyclingProjection, iomap::FocusCyclingIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::FocusCyclingProjection, iomap::FocusCyclingIoMap, reference) =

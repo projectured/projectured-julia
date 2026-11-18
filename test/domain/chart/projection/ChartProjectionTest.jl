@@ -436,7 +436,7 @@ function test_chart_projection()
             at(x, y) = map_reference_backward(stage.projection, stage, PointReferenceStep(x, y))
             pts = _line_points_of(g, 1)
             sx, sy = pts[3][1] + g.plot_x, pts[3][2] + g.plot_y
-            click = read_intent(stage.projection, stage, MouseClick(:left, sx, sy; time = 0.0))
+            click = read_intent(stage.projection, nothing, Intent(MouseClick(:left, sx, sy; time = 0.0)), stage).operation
             @test click isa ReplaceSelectionOperation
             @test is_reference_equal(at(sx, sy), click.path)
             # The swatch of a legend item maps to its series; its label is a text.
@@ -455,7 +455,7 @@ function test_chart_projection()
             iomap = _chart_iomap(chart)
             stage = iomap.step_iomaps[2][]
             p, plot = stage.projection, stage.input
-            read(event) = read_intent(p, stage, event)
+            read(event) = read_intent(p, nothing, Intent(event), stage).operation
             path_of(op) = strip_reference_types(op.path)
             texts() = [e for e in collect(stage.output.elements) if e isa GraphicsText]
             # A point a quarter into the character `k` of the drawn text `label`, so
@@ -779,10 +779,9 @@ function test_chart_projection()
             iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             gg = iomap.step_iomaps[2][].geometry
             band2 = ChartModule._strip_band(gg, 1)
-            op = read_intent(proj, iomap,
-                             MouseClick(:left,
+            op = read_intent(proj, nothing, Intent(MouseClick(:left,
                                         round(Int, ChartModule.to_pixel(gg.xs, 2.5)),
-                                        (band2[1] + band2[2]) ÷ 2; time = 0.0))
+                                        (band2[1] + band2[2]) ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) == (1, 3)
@@ -888,8 +887,7 @@ function test_chart_projection()
             series_row = first(r for r in rects if r[1] != 0)
             value_row = first(r for r in rects if r[1] == 0)
 
-            op = read_intent(proj, iomap,
-                             MouseClick(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.legend::ChartLegend))
@@ -900,17 +898,15 @@ function test_chart_projection()
             # that point maps to and checks that it names no series.
             plot = iomap.step_iomaps[1][].output
             stage = iomap.step_iomaps[2][]
-            hover = read_intent(proj, iomap,
-                                MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
-                                          MouseButtons(), ModifierKeys(); time = 0.0))
+            hover = read_intent(proj, nothing, Intent(MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
+                                          MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation
             hover === nothing || evaluate_operation(nothing, hover)
             target = map_reference_backward(stage.projection, stage,
                 PointReferenceStep(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2))
             getfield(plot, :mouse_target)[] = target
             @test ChartModule._reference_series_index(chart, get_mouse_target(plot)) == 0
 
-            op = read_intent(proj, iomap,
-                             MouseClick(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceReferencedValueOperation
             @test op.value == false
 
@@ -1036,9 +1032,8 @@ function test_chart_projection()
             proj = _chart_projection()
             iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             gg = iomap.step_iomaps[2][].geometry
-            op = read_intent(proj, iomap,
-                             MouseClick(:left, round(Int, ChartModule.to_pixel(gg.xs, 3.0)),
-                                        round(Int, ChartModule.to_pixel(gg.ys, 2.0)); time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, round(Int, ChartModule.to_pixel(gg.xs, 3.0)),
+                                        round(Int, ChartModule.to_pixel(gg.ys, 2.0)); time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) == (1, 8)
@@ -1094,7 +1089,7 @@ function test_chart_projection()
             iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             at(k) = (round(Int, ChartModule.to_pixel(g.xs, x[k])), round(Int, ChartModule.to_pixel(g.ys, y[k])))
-            click(k, modifiers) = read_intent(proj, iomap, MouseClick(:left, at(k)..., modifiers; time = 0.0))
+            click(k, modifiers) = read_intent(proj, nothing, Intent(MouseClick(:left, at(k)..., modifiers; time = 0.0)), iomap).operation
             op = click(1, ModifierKeys(; ctrl = true))
             @test op isa OpenPageOperation
             @test (op.document, op.target, op.place) == (nothing, "file:///tmp/one.pred", :here)
@@ -1109,7 +1104,7 @@ function test_chart_projection()
             gm = miomap.step_iomaps[2][].geometry
             cell(column, row) = (round(Int, ChartModule.to_pixel(gm.xs, Float64(column))),
                                  round(Int, ChartModule.to_pixel(gm.ys, Float64(3 - row))))
-            mop = read_intent(mproj, miomap, MouseClick(:left, cell(2, 2)..., ModifierKeys(; ctrl = true); time = 0.0))
+            mop = read_intent(mproj, nothing, Intent(MouseClick(:left, cell(2, 2)..., ModifierKeys(; ctrl = true); time = 0.0)), miomap).operation
             @test mop isa OpenPageOperation && mop.target == "file:///b"
             @test occursin("link: file:///b", ChartModule._format_matrix_readout(gm, cell(2, 2)...))
             # A strip names the link of the segment under the pointer.
@@ -1223,7 +1218,7 @@ function test_chart_projection()
             index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
 
             # Clicking a legend item hides the series it stands for.
-            op = read_intent(proj, iomap, MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceReferencedValueOperation
             @test op.document === chart.series[index]
             @test op.value == false
@@ -1232,7 +1227,7 @@ function test_chart_projection()
             # that drives the veil is written by the editor at its root, so this
             # sets it directly to the series the item stands for and checks that
             # the frame veils the others.
-            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.cursor !== nothing
@@ -1242,7 +1237,7 @@ function test_chart_projection()
 
             # A move off the plot, as the move to (-1, -1) that the pointer
             # leaving gives, clears the cursor.
-            op = read_intent(proj, iomap, MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.cursor === nothing
@@ -1349,13 +1344,12 @@ function test_chart_projection()
             # A click on the title strip selects the title, on an axis strip the
             # axis — and the reference that comes back is in the chart's own
             # domain, not the plot's, because stage 1 peels its step off.
-            op = read_intent(proj, iomap, MouseClick(:left, g.plot_x + 10, 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, g.plot_x + 10, 2; time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.title::String))
 
-            op = read_intent(proj, iomap,
-                             MouseClick(:left, 4, g.plot_y + g.plot_h ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, 4, g.plot_y + g.plot_h ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.y_axis::ChartAxis))
@@ -1364,8 +1358,7 @@ function test_chart_projection()
             pts = _line_points_of(g, 1)
             @test !isempty(pts)
             px, py = pts[length(pts) ÷ 2]
-            op = read_intent(proj, iomap,
-                             MouseClick(:left, px + g.plot_x, py + g.plot_y; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, px + g.plot_x, py + g.plot_y; time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) !== nothing
@@ -1378,7 +1371,7 @@ function test_chart_projection()
             # the whole series instead.
             far = _series_hit_away_from_samples(g, pts)
             if far !== nothing
-                op = read_intent(proj, iomap, MouseClick(:left, far[1], far[2]; time = 0.0))
+                op = read_intent(proj, nothing, Intent(MouseClick(:left, far[1], far[2]; time = 0.0)), iomap).operation
                 @test op isa ReplaceSelectionOperation
                 @test is_reference_equal(strip_reference_types(op.path),
                     strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
@@ -1419,9 +1412,8 @@ function test_chart_projection()
             iomap = print_document(proj, _chart_widgets(), big, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             target = PlotModule.to_pixel(g.xs, 500.0)
-            elapsed = @elapsed op = read_intent(proj, iomap,
-                MouseClick(:left, round(Int, target),
-                           round(Int, PlotModule.to_pixel(g.ys, sin(500.0))); time = 0.0))
+            elapsed = @elapsed op = read_intent(proj, nothing, Intent(MouseClick(:left, round(Int, target),
+                           round(Int, PlotModule.to_pixel(g.ys, sin(500.0))); time = 0.0)), iomap).operation
             @test op isa ReplaceSelectionOperation
             @test elapsed < 0.5
             big.selection = op.path
@@ -1436,8 +1428,7 @@ function test_chart_projection()
             proj = _chart_projection()
             iomap = print_document(proj, _chart_widgets(), cloud, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
-            op = read_intent(proj, iomap,
-                MouseClick(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0)), iomap).operation
             cloud.selection = op === nothing ? nothing : op.path
             @test get_selected_sample(cloud) === nothing
         end
@@ -1493,7 +1484,7 @@ function test_chart_projection()
             # Ctrl and the wheel zoom about the cursor: the window narrows, and the
             # data point that was under the pointer is still under it.
             under = PlotModule.to_data(g.xs, mid_x)
-            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation
             @test op !== nothing
             evaluate_operation(nothing, op)
             after = resolve_view(plot)
@@ -1507,22 +1498,20 @@ function test_chart_projection()
             @test PlotModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
 
             # Wheeling out again widens it back.
-            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation
             evaluate_operation(nothing, op)
             back = resolve_view(plot)
             @test (back.x_max - back.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
 
             # Over the x-axis strip only x zooms; over the y strip only y.
-            op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ctrl; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ctrl; time = 0.0)), iomap).operation
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) < (before.x_max - before.x_min)
             @test (v.y_max - v.y_min) ≈ (before.y_max - before.y_min) atol=1e-6
 
             plot.view = nothing
-            op = read_intent(proj, iomap,
-                MouseScroll(0, 1, g.plot_x - 4, mid_y, ctrl; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, g.plot_x - 4, mid_y, ctrl; time = 0.0)), iomap).operation
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
@@ -1531,34 +1520,31 @@ function test_chart_projection()
             # A chart that shows all its data has nothing to scroll to, so a turn
             # with no Ctrl is not the chart's, and the page around it scrolls.
             plot.view = nothing
-            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
-            @test read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)), iomap).operation === nothing
 
             # After a zoom, the wheel scrolls up and down, and Shift and the wheel
             # across, by a tenth of the window, with no change of its size. A turn
             # away shows what is above, and what is to the left.
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation)
             zoomed = resolve_view(plot)
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation)
             v = resolve_view(plot)
             @test v.y_min ≈ zoomed.y_min + 0.1 * (zoomed.y_max - zoomed.y_min)
             @test (v.y_max - v.y_min) ≈ (zoomed.y_max - zoomed.y_min)
             @test v.x_min == zoomed.x_min
             plot.view = zoomed
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)), iomap).operation)
             v = resolve_view(plot)
             @test v.x_min ≈ zoomed.x_min - 0.1 * (zoomed.x_max - zoomed.x_min)
             @test v.y_min == zoomed.y_min
             # A turn across, as the backend gives Shift and the wheel, and the
             # fraction of a notch from a touchpad.
             plot.view = zoomed
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(-1, 0, mid_x, mid_y, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(-1, 0, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation)
             @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
             plot.view = zoomed
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseScroll(0, 0, mid_x, mid_y, ModifierKeys(); time = 0.0, precise_dy = 0.5)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 0, mid_x, mid_y, ModifierKeys(); time = 0.0, precise_dy = 0.5)), iomap).operation)
             @test resolve_view(plot).y_min ≈ zoomed.y_min + 0.05 * (zoomed.y_max - zoomed.y_min)
 
             # The scroll stops at the edge of the data, and the next turn is not
@@ -1567,32 +1553,32 @@ function test_chart_projection()
             fit = resolve_view(plot)
             plot.view = zoomed
             for _ in 1:20
-                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
+                op = read_intent(proj, nothing, Intent(MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation
                 op === nothing && break
                 evaluate_operation(nothing, op)
             end
             @test resolve_view(plot).y_min ≈ fit.y_min
-            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
-            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)) !== nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation !== nothing
 
             # A wheel outside the plot and its axis strips is not ours.
-            @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 
             # Keyboard: pan, zoom, and reset to auto-fit.
             # Shift+arrow pans; the bare arrows belong to selection navigation. A
             # chart that shows all its data has nowhere to pan to.
             plot.view = nothing
-            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)), iomap).operation === nothing
             plot.view = zoomed
-            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0))
+            op = read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)), iomap).operation
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test resolve_view(plot).x_min ≈ zoomed.x_min + 0.1 * (zoomed.x_max - zoomed.x_min)
             # A bare arrow falls past the view reader to the chart's own
             # navigation, which is what moves the selection.
-            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
+            @test read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(); time = 0.0)), iomap).operation isa ReplaceSelectionOperation
             # '0' drops back to auto-fit, whatever the window had become.
-            op = read_intent(proj, iomap, KeyPress('0'; time = 0.0))
+            op = read_intent(proj, nothing, Intent(KeyPress('0'; time = 0.0)), iomap).operation
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.view === nothing
@@ -1608,15 +1594,15 @@ function test_chart_projection()
             x0, y0 = g.plot_x + 30, g.plot_y + 30
             x1, y1 = g.plot_x + 160, g.plot_y + 140
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)), iomap).operation)
             @test plot.drag_anchor !== nothing
 
-            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1, y1; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragMove(x1, y1; time = 0.0)), iomap).operation)
             @test plot.drag_rect !== nothing
             # While the band is up it is drawn over the series.
             @test _count_kind(_series_elements(iomap.output), GraphicsRect) >= 1
 
-            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1, y1; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragEnd(x1, y1; time = 0.0)), iomap).operation)
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             v = resolve_view(plot)
             # The committed window is what the band enclosed.
@@ -1625,40 +1611,38 @@ function test_chart_projection()
 
             # A band that never grew is a click, not a zoom.
             plot.view = nothing
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x0 + 2, y0 + 2; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragEnd(x0 + 2, y0 + 2; time = 0.0)), iomap).operation)
             @test plot.view === nothing
 
             # A move with no button held mid-drag, as after a release that was
             # lost, abandons it rather than committing halfway.
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1, y1; time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragCancel(; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragMove(x1, y1; time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragCancel(; time = 0.0)), iomap).operation)
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
             # Shift-dragging pans instead of banding, in a window that has room to move.
             plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragMove(x1 - 40, y1; time = 0.0)), iomap).operation)
             @test plot.drag_rect === nothing
             @test plot.view.x_min > 20.0
             # A move to the point of the last move writes no cell, though the pan
             # changed the geometry that the first move read.
-            @test read_intent(proj, iomap, DragMove(x1 - 40, y1; time = 0.0)) === nothing
-            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x1 - 40, y1; time = 0.0)))
+            @test read_intent(proj, nothing, Intent(DragMove(x1 - 40, y1; time = 0.0)), iomap).operation === nothing
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragEnd(x1 - 40, y1; time = 0.0)), iomap).operation)
 
             # A pan stops at the edge of the data.
             plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
             fit = (plot.view = nothing; resolve_view(plot))
             plot.view = ChartView(20.0, 60.0, -0.5, 0.5)
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseDown(:left, x0, y0, ModifierKeys(; shift=true); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(x0 + 2000, y0; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, x0, y0, ModifierKeys(; shift=true); time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragMove(x0 + 2000, y0; time = 0.0)), iomap).operation)
             @test plot.view.x_min == fit.x_min
             @test plot.view.x_max - plot.view.x_min ≈ 40.0
-            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(x0 + 2000, y0; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragEnd(x0 + 2000, y0; time = 0.0)), iomap).operation)
         end
 
         @testset "the limits of the window" begin
@@ -1673,20 +1657,20 @@ function test_chart_projection()
             ctrl = ModifierKeys(; ctrl=true)
             # A zoom out stops at all the data: the view goes back to the fit, and
             # the next notch is not the chart's.
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 2, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation)
             @test plot.view isa ChartView
             for _ in 1:10
-                op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0))
+                op = read_intent(proj, nothing, Intent(MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation
                 op === nothing && break
                 evaluate_operation(nothing, op)
             end
             @test plot.view === nothing
-            @test read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)) === nothing
-            @test read_intent(proj, iomap, KeyPress('-'; time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, -1, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('-'; time = 0.0)), iomap).operation === nothing
             # A zoom in stops before two ticks get the same label.
             notches = 0
             while notches < 1000
-                op = read_intent(proj, iomap, MouseScroll(0, 10, mid_x, mid_y, ctrl; time = 0.0))
+                op = read_intent(proj, nothing, Intent(MouseScroll(0, 10, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation
                 op === nothing && break
                 evaluate_operation(nothing, op)
                 notches += 1
@@ -1710,7 +1694,7 @@ function test_chart_projection()
             mid_y = g.plot_y + g.plot_h ÷ 2
             ctrl = ModifierKeys(; ctrl=true)
             for _ in 1:4
-                evaluate_operation(nothing, read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0)))
+                evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ctrl; time = 0.0)), iomap).operation)
             end
             zoomed = resolve_view(plot)
             g = iomap.step_iomaps[2][].geometry
@@ -1718,24 +1702,22 @@ function test_chart_projection()
             # no bound reaches zero.
             press_x = mid_x + 50
             under = PlotModule.to_data(g.xs, press_x)
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseDown(:left, press_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
-            evaluate_operation(nothing, read_intent(proj, iomap, DragMove(press_x - 100, mid_y; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseDown(:left, press_x, mid_y, ModifierKeys(; shift=true); time = 0.0)), iomap).operation)
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragMove(press_x - 100, mid_y; time = 0.0)), iomap).operation)
             v = resolve_view(plot)
             @test v.x_min > zoomed.x_min > 0
             g2 = iomap.step_iomaps[2][].geometry
             @test PlotModule.to_data(g2.xs, press_x - 100) ≈ under rtol = 0.02
-            evaluate_operation(nothing, read_intent(proj, iomap, DragEnd(press_x - 100, mid_y; time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(DragEnd(press_x - 100, mid_y; time = 0.0)), iomap).operation)
             # A turn across keeps the decades that the window spans.
             plot.view = zoomed
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0)), iomap).operation)
             v = resolve_view(plot)
             @test log10(v.x_max / v.x_min) ≈ log10(zoomed.x_max / zoomed.x_min)
             @test v.x_min < zoomed.x_min
             # The pan stops at the first decade of the data.
             for _ in 1:40
-                op = read_intent(proj, iomap, KeyDown(:left, ModifierKeys(; shift=true); time = 0.0))
+                op = read_intent(proj, nothing, Intent(KeyDown(:left, ModifierKeys(; shift=true); time = 0.0)), iomap).operation
                 op === nothing && break
                 evaluate_operation(nothing, op)
             end
@@ -1752,10 +1734,10 @@ function test_chart_projection()
             g = iomap.step_iomaps[2][].geometry
             mid_x = g.plot_x + g.plot_w ÷ 2
             mid_y = g.plot_y + g.plot_h ÷ 2
-            @test read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; ctrl=true); time = 0.0)) === nothing
-            @test read_intent(proj, iomap, KeyPress('+'; time = 0.0)) === nothing
-            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) === nothing
-            @test read_intent(proj, iomap, MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; ctrl=true); time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('+'; time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(MouseDown(:left, mid_x, mid_y, ModifierKeys(); time = 0.0)), iomap).operation === nothing
             @test plot.view === nothing && plot.drag_anchor === nothing
         end
 
@@ -1772,7 +1754,7 @@ function test_chart_projection()
             left = g.plot_x - 4
             fit = resolve_view(plot)
             zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
-            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            send(event) = (op = read_intent(proj, nothing, Intent(event), iomap).operation; op === nothing || evaluate_operation(nothing, op); op)
             unwrap(o) = o isa ReplaceViewStateOperation ? get_wrapped_operation(o) : o
             shape(op) = only(unwrap(o).shape for o in op.operations if unwrap(o) isa ChangeScreenPointerShapeOperation)
 
@@ -1837,7 +1819,7 @@ function test_chart_projection()
             @test 1.0 < plot.view.y_max < 1.1
             # A double click on an axis at its fit selects the axis, as a click does.
             plot.view = nothing
-            @test read_intent(proj, iomap, MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0)) isa
+            @test read_intent(proj, nothing, Intent(MouseClick(:left, mid_x, below, 2, ModifierKeys(); time = 0.0)), iomap).operation isa
                   ReplaceSelectionOperation
         end
 
@@ -1849,7 +1831,7 @@ function test_chart_projection()
             plot = iomap.step_iomaps[1][].output
             fit = resolve_view(plot)
             zoomed = ChartView(20.0, 60.0, -0.5, 0.5)
-            send(event) = (op = read_intent(proj, iomap, event); op === nothing || evaluate_operation(nothing, op); op)
+            send(event) = (op = read_intent(proj, nothing, Intent(event), iomap).operation; op === nothing || evaluate_operation(nothing, op); op)
             ctrl = ModifierKeys(; ctrl = true)
 
             # Ctrl+= and Ctrl+- zoom about the middle, and Ctrl+0 shows all the data.
@@ -1861,14 +1843,14 @@ function test_chart_projection()
             @test plot.view === nothing
             # At a limit the key is not the chart's: Ctrl+- and Ctrl+0 at the fit
             # go on to the zoom of the interface.
-            @test read_intent(proj, iomap, KeyDown(:minus, ctrl; time = 0.0)) === nothing
-            @test read_intent(proj, iomap, KeyDown(:zero, ctrl; time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:minus, ctrl; time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:zero, ctrl; time = 0.0)), iomap).operation === nothing
             plot.view = zoomed
             send(KeyDown(:zero, ctrl; time = 0.0))
             @test plot.view === nothing
             # A typed character with Ctrl is not a second zoom.
-            @test read_intent(proj, iomap, KeyPress('=', ctrl; time = 0.0)) === nothing
-            @test read_intent(proj, iomap, KeyPress('+', ModifierKeys(; shift = true); time = 0.0)) !== nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('=', ctrl; time = 0.0)), iomap).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('+', ModifierKeys(; shift = true); time = 0.0)), iomap).operation !== nothing
 
             # Page Up and Page Down scroll a page up and down, Alt and the page keys
             # a page across, and each stops at the edge of the data.
@@ -1882,7 +1864,7 @@ function test_chart_projection()
             send(KeyDown(:page_up, ModifierKeys(; alt = true); time = 0.0))
             @test (plot.view.x_min, plot.view.x_max) == (20.0, 60.0)
             plot.view = nothing
-            @test read_intent(proj, iomap, KeyDown(:page_down, ModifierKeys(); time = 0.0)) === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:page_down, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 
             # Ctrl+Shift and an arrow is the move of a series, not a pan.
             plot.view = zoomed
@@ -1901,7 +1883,7 @@ function test_chart_projection()
             apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
                          op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
                          evaluate_operation(nothing, op)
-            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            send(event) = (op = read_intent(view, nothing, Intent(event), iomap).operation; op === nothing || apply!(op); op)
             viewports() = [e for e in canvas_iomap.output.elements if e isa GraphicsViewport]
 
             # The menu holds the view actions, and an action that changes nothing is
@@ -1918,7 +1900,7 @@ function test_chart_projection()
             @test plot.view === nothing
             # A right click on the plot opens that menu.
             g = canvas_iomap.geometry
-            op = read_intent(view, iomap, MouseClick(:right, g.plot_x + 20, g.plot_y + 20, 1, ModifierKeys(); time = 0.0))
+            op = read_intent(view, nothing, Intent(MouseClick(:right, g.plot_x + 20, g.plot_y + 20, 1, ModifierKeys(); time = 0.0)), iomap).operation
             @test op !== nothing
             @test compute_context_menu(ChartPlot(Chart("pie", Any[ChartPieSeries("p", ["a"], [1.0])]))) === nothing
 
@@ -1974,7 +1956,7 @@ function test_chart_projection()
             apply!(op) = op isa CompoundOperation ? foreach(apply!, op.operations) :
                          op isa ReplaceMouseTargetOperation ? replace_mouse_target!(chart, op.path) :
                          evaluate_operation(nothing, op)
-            send(event) = (op = read_intent(view, iomap, event); op === nothing || apply!(op); op)
+            send(event) = (op = read_intent(view, nothing, Intent(event), iomap).operation; op === nothing || apply!(op); op)
             bars() = Dict(part.field => part for part in ChartModule._find_shown_chart_parts(canvas_iomap))
             fit = resolve_view(plot)
             h, v = plot.horizontal_scroll_bar, plot.vertical_scroll_bar
@@ -2042,8 +2024,7 @@ function test_chart_projection()
             g = iomap.step_iomaps[2][].geometry
 
             plain = length(_series_elements(iomap.output))
-            evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation)
             @test plot.cursor !== nothing
             els = _series_elements(iomap.output)
             @test length(els) > plain
@@ -2070,7 +2051,7 @@ function test_chart_projection()
             # The pointer on the third point reads its name and its value.
             x = round(Int, ChartModule.to_pixel(g.xs, 3.0))
             y = round(Int, ChartModule.to_pixel(g.ys, 60.0))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, nothing, Intent(MouseMove(x, y, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation)
             @test plot.cursor !== nothing
             @test any(e -> e isa GraphicsText && occursin("timeouts  step 7, ", String(e.text)),
                       _series_elements(iomap.output))
@@ -2180,12 +2161,10 @@ function test_chart_projection()
             # The view gestures do not take the arrows away from navigation.
             proj = _chart_projection()
             iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
-            @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
-                              KeyDown(:right, no_modifier; time = 0.0)) === nothing
+            @test read_intent(proj.projections[2], nothing, Intent(KeyDown(:right, no_modifier; time = 0.0)), iomap.step_iomaps[2][]).operation === nothing
             # Shift and an arrow pan a window that has room to move.
             iomap.step_iomaps[1][].output.view = ChartView(2.0, 4.0, 0.0, 1.0)
-            @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
-                              KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) !== nothing
+            @test read_intent(proj.projections[2], nothing, Intent(KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)), iomap.step_iomaps[2][]).operation !== nothing
         end
 
         @testset "selection is drawn" begin
@@ -2243,8 +2222,7 @@ function test_chart_projection()
             # the number that it holds.
             field = form.controls[2][1].content
             value = print_document(ObjectFieldToValue(), field)
-            op = read_intent(ObjectFieldToValue(), value,
-                             ReplaceReferencedValueOperation(nothing, EmptyReference(), "4"))
+            op = read_intent(ObjectFieldToValue(), nothing, Intent(ReplaceReferencedValueOperation(nothing, EmptyReference(), "4")), value).operation
             @test op isa ReplaceReferencedValueOperation
             @test String(op.reference.head.name) == "line_width"
             evaluate_operation(nothing, op)

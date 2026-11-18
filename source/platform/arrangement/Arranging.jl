@@ -140,9 +140,6 @@ keep_held_arrangement(operation, ::ArrangementDocument, ::FieldReferenceStep) = 
 
 keep_held_arrangement(operation, ::Nothing, ::FieldReferenceStep) = operation
 
-read_intent(p::ArrangingProjection, iomap::ArrangingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A key that the document does not answer goes to the gesture table of the
 # arrangement, as the keys of find do. Any other gesture has no rule here.
 read_gesture(p::ArrangingProjection, iomap::ArrangingIoMap, gesture; answer = nothing) = nothing

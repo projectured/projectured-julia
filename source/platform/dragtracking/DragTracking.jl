@@ -114,9 +114,6 @@ function read_intent(p::DragTrackingProjection, recursion, change::Intent,
                                    _read_start_over(p, recursion, iomap, input, start)))
 end
 
-read_intent(p::DragTrackingProjection, iomap::DragTrackingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The answer of the content to `change`, as an operation from the state.
 function _read_content(p::DragTrackingProjection, recursion, change::Intent,
                        iomap::DragTrackingIoMap)

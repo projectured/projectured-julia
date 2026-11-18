@@ -114,7 +114,7 @@ end
     iomap = print_document(MarkdownRootToVerticalLayout(), nothing, page, PrinterContext())
     card = collect(iomap.output.children)[3]
     fold = ToggleCollapseOperation(card)
-    @test read_intent(iomap.projection, iomap, fold) === fold
+    @test read_intent(iomap.projection, nothing, Intent(fold), iomap).operation === fold
 end
 
 end

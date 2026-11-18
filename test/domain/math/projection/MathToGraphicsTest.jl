@@ -203,8 +203,7 @@ end
     # denominator the denominator, and one on the rule the fraction itself.
     fraction = _print(MathFraction(PrimitiveNumber(1), MathVariable("x")))
     canvas = fraction.output
-    _press(x, y) = read_intent(fraction.projection, fraction,
-                               MouseClick(:left, Int(x), Int(y); time = 0.0))
+    _press(x, y) = read_intent(fraction.projection, nothing, Intent(MouseClick(:left, Int(x), Int(y); time = 0.0)), fraction).operation
 
     # A press on the text of a leaf puts the caret in its value, as on the text of
     # a label.
@@ -231,7 +230,7 @@ end
     place(a, b = a; direction = :forward) = ConcreteReference(FieldReferenceStep("left"),
         ConcreteReference(FieldReferenceStep("name"),
             ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference())))
-    read(event) = read_intent(iomap.projection, iomap, event)
+    read(event) = read_intent(iomap.projection, nothing, Intent(event), iomap).operation
     lx, ly = _at(iomap.output, 1)
     text = _first_text(iomap.output)
     offsets = compute_caret_offsets(FontFileMeasure(), "alpha", unwrap_cell(getfield(text, :font)))
@@ -286,7 +285,7 @@ end
     iomap = _print(document)
     getfield(document, :selection)[] =
         ConcreteReference(FieldReferenceStep("left"), EmptyReference())
-    _key(k) = read_intent(iomap.projection, iomap, KeyDown(k, ModifierKeys(); time = 0.0))
+    _key(k) = read_intent(iomap.projection, nothing, Intent(KeyDown(k, ModifierKeys(); time = 0.0)), iomap).operation
 
     # Right moves to the sibling, left comes back, and left again declines.
     operation = _key(:right)
@@ -310,7 +309,7 @@ end
     document = MathVariable("x")
     iomap = _print(document)
     getfield(document, :selection)[] = EmptyReference()
-    operation = read_intent(iomap.projection, iomap, KeyPress('/'; time = 0.0))
+    operation = read_intent(iomap.projection, nothing, Intent(KeyPress('/'; time = 0.0)), iomap).operation
     # A compound: write the new node, then move the selection into its hole.
     @test operation isa CompoundOperation
     fraction = operation.operations[1].value
@@ -320,18 +319,18 @@ end
     @test operation.operations[2].path.head.name == "denominator"
 
     # The same shape for a superscript and for a parenthesis.
-    @test read_intent(iomap.projection, iomap, KeyPress('^'; time = 0.0)).operations[1].value isa MathScript
-    @test read_intent(iomap.projection, iomap, KeyPress('('; time = 0.0)).operations[1].value isa MathParenthesized
+    @test read_intent(iomap.projection, nothing, Intent(KeyPress('^'; time = 0.0)), iomap).operation.operations[1].value isa MathScript
+    @test read_intent(iomap.projection, nothing, Intent(KeyPress('('; time = 0.0)), iomap).operation.operations[1].value isa MathParenthesized
     # A key that builds nothing is declined, not swallowed.
-    @test read_intent(iomap.projection, iomap, KeyPress('%'; time = 0.0)) === nothing
+    @test read_intent(iomap.projection, nothing, Intent(KeyPress('%'; time = 0.0)), iomap).operation === nothing
 end
 
 @testset "a letter fills an empty slot" begin
     slot = MathInsertion()
     iomap = _print(slot)
     getfield(slot, :selection)[] = EmptyReference()
-    @test read_intent(iomap.projection, iomap, KeyPress('y'; time = 0.0)).operations[1].value isa MathVariable
-    @test read_intent(iomap.projection, iomap, KeyPress('7'; time = 0.0)).operations[1].value isa PrimitiveNumber
+    @test read_intent(iomap.projection, nothing, Intent(KeyPress('y'; time = 0.0)), iomap).operation.operations[1].value isa MathVariable
+    @test read_intent(iomap.projection, nothing, Intent(KeyPress('7'; time = 0.0)), iomap).operation.operations[1].value isa PrimitiveNumber
 end
 
 @testset "every example formula prints and answers a selection" begin

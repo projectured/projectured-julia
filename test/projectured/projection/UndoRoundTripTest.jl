@@ -73,7 +73,7 @@ function test_undo_round_trip()
         before = _undo_snapshot(buffer, snapshot_projection)
 
         operation = try
-            read_intent(projection, iomap, event)
+            read_intent(projection, nothing, Intent(event), iomap).operation
         catch exception
             @test false
             @warn "read_intent threw for $event at $place: $exception"

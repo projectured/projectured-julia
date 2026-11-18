@@ -451,7 +451,7 @@ function read_intent(p::NavigatorToWidget, recursion, change::Intent, iomap::Nav
             return Intent(gesture, something(make_navigator_address_reset_operation(navigator), DoNothingOperation()))
     end
     # An answer of the path view is read by the projection of the address, as an
-    # edit of the address copy; the rest of the answer by the generic bridge.
+    # edit of the address copy; the rest of the answer by the default reader.
     address, rest = _split_address_answer(iomap, change.operation)
     if address !== nothing
         rest === nothing && return Intent(gesture, address, change.description, change.domain)

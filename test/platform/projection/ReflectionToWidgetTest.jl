@@ -51,7 +51,7 @@ is_marked_disclosure(op) =
 # Click a chevron the way the editor would: read the intent, then evaluate what
 # it returns. Returns the operation so a test can assert on it.
 function apply_chevron!(projection, iomap, path::Vector{Int})
-    op = read_intent(projection, iomap, chevron(iomap.output, path))
+    op = read_intent(projection, nothing, Intent(chevron(iomap.output, path)), iomap).operation
     op === nothing || evaluate_operation(nothing, op)
     op
 end

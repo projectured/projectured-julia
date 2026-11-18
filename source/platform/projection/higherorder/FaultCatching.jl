@@ -422,9 +422,6 @@ function read_intent(p::FaultCatchingProjection, recursion, change::Intent,
                       end)
 end
 
-read_intent(p::FaultCatchingProjection, barrier::FaultCatchingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), barrier).operation
-
 # ── Reference mapping ────────────────────────────────────────────────────────
 
 # `nothing` is the existing answer for "this reference has no image", which is

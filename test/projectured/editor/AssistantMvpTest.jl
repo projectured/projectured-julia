@@ -109,7 +109,7 @@ function _mvp_enter!(a::Assistant)
     chain = make_assistant_projection_example()
     set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
     iomap = print_document(chain, a)
-    op = read_intent(chain, iomap, KeyPress('\n'; time = 0.0))
+    op = read_intent(chain, nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation
     op === nothing && return nothing
     evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op
@@ -284,16 +284,14 @@ function _mvp_test_stop_turn()
         @test timedwait(() -> count("word", format_conversation(a.conversation)) >= 3, 10.0;
                         pollint = 0.01) === :ok
         # The composer's Escape stops the turn while it runs.
-        @test read_intent(AssistantToWidgetSplitPane(), (input = a,),
-                          ComposerRevertOperation(a.draft)) isa CancelAssistantTurnOperation
+        @test read_intent(AssistantToWidgetSplitPane(), nothing, Intent(ComposerRevertOperation(a.draft)), (input = a,)).operation isa CancelAssistantTurnOperation
         evaluate_operation(editor, InvokeActionOperation(button.action))
         @test _mvp_wait_idle!(a) === :idle
         @test collect(a.conversation.turns)[end].stop_reason === :cancelled
         @test 3 <= count("word", format_conversation(a.conversation)) < 200
         @test a.turn_control === nothing && !button.enabled
         # With no turn that runs, Escape reverts the draft, and a submit starts a turn.
-        @test read_intent(AssistantToWidgetSplitPane(), (input = a,),
-                          ComposerRevertOperation(a.draft)) isa ComposerRevertOperation
+        @test read_intent(AssistantToWidgetSplitPane(), nothing, Intent(ComposerRevertOperation(a.draft)), (input = a,)).operation isa ComposerRevertOperation
         a.llm = FakeLlm("Again.")
         a.input.value = "Once more"
         evaluate_operation(editor, SubmitProseOperation(a))
@@ -998,7 +996,7 @@ end
 function _find_toggle(proj, io, pred)
     for y in 2:3:820, x in 16:4:200
         op = try
-            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), io).operation
         catch
             nothing
         end

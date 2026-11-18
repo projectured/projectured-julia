@@ -78,8 +78,7 @@ function _make_task_page_group()
     document
 end
 
-_press_task_page(projection, iomap, t; ctrl = false) = read_intent(projection, iomap,
-    MouseClick(:left, t[1] + 2, t[2] + 2, 1, ModifierKeys(ctrl = ctrl); time = 0.0))
+_press_task_page(projection, iomap, t; ctrl = false) = read_intent(projection, nothing, Intent(MouseClick(:left, t[1] + 2, t[2] + 2, 1, ModifierKeys(ctrl = ctrl); time = 0.0)), iomap).operation
 
 _find_task_page_text(iomap, text) = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == text)
 
@@ -129,7 +128,7 @@ function test_task_pages()
             @test Set(card.title for card in cards if card.title isa AbstractString) == Set(["Links", "Process", "Executions"])
             executions = only(card for card in cards if card.title == "Executions")
             @test executions.collapsible && !executions.collapsed
-            evaluate_operation(nothing, read_intent(projection, iomap, ToggleCollapseOperation(executions)))
+            evaluate_operation(nothing, read_intent(projection, nothing, Intent(ToggleCollapseOperation(executions)), iomap).operation)
             @test executions.collapsed
         end
 
@@ -244,15 +243,15 @@ function test_task_pages()
             stream = only(getfield(document, :executions)[]).stdout_page
             projection, iomap = _print_task_view(stream; height = 600)
             point = _find_task_page_text(iomap, "302")
-            answer = read_intent(projection, iomap, MouseScroll(0, -1, point[1], point[2], ModifierKeys(), 0.0))
+            answer = read_intent(projection, nothing, Intent(MouseScroll(0, -1, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation
             @test answer isa Operation
             _nav_apply!(holder, answer)
             @test lines.follow
-            _nav_apply!(holder, read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(), 0.0)))
+            _nav_apply!(holder, read_intent(projection, nothing, Intent(MouseScroll(0, 5, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation)
             @test !lines.follow && lines.top_row < 298
             # Ctrl and the wheel zoom, and move no line.
             top = lines.top_row
-            answer = read_intent(projection, iomap, MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0))
+            answer = read_intent(projection, nothing, Intent(MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0)), iomap).operation
             answer === nothing || _nav_apply!(holder, answer)
             @test lines.top_row == top
         end

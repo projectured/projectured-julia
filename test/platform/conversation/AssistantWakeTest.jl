@@ -257,7 +257,7 @@ function test_assistant_wake()
                 @test box.value == 2
                 a.wakes_left -= 1
                 @test box.value == 1
-                write(value) = read_intent(projection, iomap, ReplaceReferencedValueOperation(box, "value", value))
+                write(value) = read_intent(projection, nothing, Intent(ReplaceReferencedValueOperation(box, "value", value)), iomap).operation
                 operation = write(70)
                 @test operation isa SetAssistantWakesOperation && operation.count == 70
                 evaluate_operation((document = a,), operation)

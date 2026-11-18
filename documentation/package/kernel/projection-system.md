@@ -240,14 +240,22 @@ operation that comes back up through each earlier step; a routing projection
 instead dispatches it to the sub-projection of the relevant document part.
 
 **Most projections need no `read_intent` method.** The default in
-`ProjectionModule` re-targets any reference-carrying operation —
+`ProjectionModule` reads the change with the two functions of one stage, which call
+no child: the operation of the change goes to
+`map_operation_backward(projection, iomap, operation)`, and otherwise the gesture
+goes to `read_gesture(projection, iomap, gesture; answer)`. The default of
+`map_operation_backward` re-targets any reference-carrying operation —
 `ReplaceSelectionOperation`, `ReplaceStringRangeOperation`,
 `ReplaceNumberRangeOperation` — by mapping its reference with
 `map_reference_backward`. So a projection that only moves the cursor or edits a
 value through a structure-preserving map needs **only** the two reference-mapping
-functions. Write a `read_intent` method (the 4-arg `Intent` form above) only
-when you must do more than re-target a reference. The moves available, from the
-lightest touch to the most involved:
+functions. A projection writes its rules as methods of `read_gesture` and its
+maps as methods of `map_operation_backward`. Only a container that chooses the
+child of a change in its own way, and a wrapper that acts on the passing, write a
+`read_intent` method (the 4-arg `Intent` form above), and each passes the change
+to the child with `read_child_intent`. The moves available, from the lightest
+touch to the most involved: the first two are moves of a map, the others moves of
+the reader of a container.
 
 - **Re-target the references.** Most often the incoming operation is the right
   *kind* and only its references need moving from output to input coordinates
@@ -326,10 +334,11 @@ handle the gesture as a syntax gesture, that reader falls back to
 result backward. In SDL the operation slot is already filled by `TextToGraphics`,
 so that fallback is a no-op and SDL behaviour is unchanged.
 
-> **The 3-arg reader form.** Many projections implement their reader as a 3-arg
-> `read_intent(projection, iomap, event_or_op)` returning a bare operation, which
-> the generic bridge adapts to the 4-arg `Intent` interface. Reach for the 4-arg
-> `Intent` form when a reader must do more than return an operation.
+> **The two functions of a stage.** `read_gesture(projection, iomap, gesture;
+> answer)` gives the operation that the rules of a stage make of a gesture, and
+> `map_operation_backward(projection, iomap, operation)` maps an operation of the
+> output back to the input. Each returns a bare operation or `nothing`, and calls no
+> child. Only `read_intent` passes a change to the `read_intent` of a child.
 
 #### Recursive gesture reading: ask the child, lift its answer, apply the rules
 
@@ -727,10 +736,13 @@ domain (via `map_reference_backward`).
    handles selection by calling `map_reference_backward`. Write the pair once
    and both directions work.
 4. If your projection needs to do more than re-target a reference (e.g. mouse
-   scroll, type-to-edit, retyping an operation), add a 4-arg
-   `read_intent(p, recursion, change::Intent, iomap)` method that returns a
-   `Intent` carrying the corresponding domain operation. Selection moves and
-   structure-preserving edits need no method — the default handles them.
+   scroll, type-to-edit, retyping an operation), add a method of
+   `read_gesture(p, iomap, gesture; answer)` for the gesture that it reads, or of
+   `map_operation_backward(p, iomap, operation)` for the operation that it
+   retypes. Selection moves and structure-preserving edits need no method — the
+   default handles them. A container that chooses the child of a change in its own
+   way adds a 4-arg `read_intent(p, recursion, change::Intent, iomap)` method that
+   passes the change with `read_child_intent`.
 
 ```julia
 struct MyProjection <: Projection end

@@ -352,9 +352,6 @@ function read_intent(p::_LinearLayoutToGraphicsCanvas, recursion, change::Intent
            answer.description, answer.domain)
 end
 
-read_intent(p::_LinearLayoutToGraphicsCanvas, iomap::LayoutListIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The child that the selection names as `children[k]`, or `nothing`.
 function _find_selected_layout_list_index(doc)
     selection = getfield(doc, :selection)[]

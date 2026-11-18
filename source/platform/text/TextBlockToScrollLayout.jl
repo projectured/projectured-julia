@@ -333,9 +333,6 @@ function read_intent(p::TextBlockToScrollLayout, recursion, change::Intent, ioma
         read_child_intent(p, recursion, change, iomap, entry.iomap, _get_gutter_steps(entry.line)))
 end
 
-read_intent(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # An answer rooted at the gutter of a line, with the types that its path needs.
 function _annotate_block_answer(iomap::TextBlockToScrollLayoutIoMap, answer::Intent)
     operation = answer.operation
@@ -354,5 +351,5 @@ end
 
 function map_operation_backward(p::TextBlockToScrollLayout, iomap::TextBlockToScrollLayoutIoMap, operation)
     lines = iomap.lines_iomap
-    read_intent(lines.projection, lines, operation)
+    read_intent(lines.projection, nothing, Intent(operation), lines).operation
 end

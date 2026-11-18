@@ -57,9 +57,6 @@ function read_intent(p::ArrangementChipsToGraphics, recursion, change::Intent,
     Intent(change.gesture, _read_chips_operation(iomap, answer.operation))
 end
 
-read_intent(p::ArrangementChipsToGraphics, iomap::ArrangementChipsToGraphicsIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 function _read_chips_operation(iomap::ArrangementChipsToGraphicsIoMap, operation)
     if operation isa InvokeActionOperation
         edit = get(iomap.edits, operation.action, nothing)

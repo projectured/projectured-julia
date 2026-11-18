@@ -153,8 +153,7 @@ function test_assistant_list()
             # Show gives the opener the assistant of its row.
             texts = _collect_assistant_list_texts(iomap.output)
             show = first(sort([t for t in texts if t[3] == "Show"]; by = t -> t[2]))
-            operation = read_intent(projection, iomap,
-                MouseClick(:left, show[1] + 2, show[2] + 2, ModifierKeys(); time = 0.0))
+            operation = read_intent(projection, nothing, Intent(MouseClick(:left, show[1] + 2, show[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test operation isa InvokeActionOperation
             operation.action.callback(nothing)
             @test length(shown) == 1 && only(shown) === first_assistant
@@ -181,8 +180,7 @@ function test_assistant_list()
             # The › of the first row picks its assistant, and the detail shows it.
             texts = _collect_assistant_list_texts(iomap.output)
             pick = first(sort([t for t in texts if t[3] == "›"]; by = t -> t[2]))
-            operation = read_intent(projection, iomap,
-                MouseClick(:left, pick[1] + 2, pick[2] + 2, ModifierKeys(); time = 0.0))
+            operation = read_intent(projection, nothing, Intent(MouseClick(:left, pick[1] + 2, pick[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test operation isa InvokeActionOperation
             operation.action.callback(nothing)
             @test list.selected === first_assistant
@@ -192,8 +190,7 @@ function test_assistant_list()
             # A press on a toggle writes the state of the work.
             texts = _collect_assistant_list_texts(iomap.output)
             complete = only(t for t in texts if t[3] == "complete")
-            operation = read_intent(projection, iomap,
-                MouseClick(:left, complete[1] + 2, complete[2] + 2, ModifierKeys(); time = 0.0))
+            operation = read_intent(projection, nothing, Intent(MouseClick(:left, complete[1] + 2, complete[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             evaluate_operation(nothing, operation)
             @test first_assistant.work_state === :complete
             # A path into the description of the shown row goes to its card in the

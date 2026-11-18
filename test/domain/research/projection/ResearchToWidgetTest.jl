@@ -12,7 +12,7 @@ end
 # a view that does not follow its document fails here.
 function _find_research_click(editor, accept)
     for y in 0:6:1500, x in 0:6:1300
-        operation = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+        operation = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), editor.iomap).operation
         operation === nothing || accept(operation) && return (x, y, operation)
     end
     nothing
@@ -145,7 +145,7 @@ function test_research_to_widget()
             hit = _find_research_click(editor, operation -> _is_research_selection(operation, ".hypotheses[1].statement.value{3}"))
             @test hit !== nothing
             _apply_research_operation!(editor, hit[3])
-            operation = read_intent(editor.projection, editor.iomap, KeyPress('X', ModifierKeys(); time = 0.0))
+            operation = read_intent(editor.projection, nothing, Intent(KeyPress('X', ModifierKeys(); time = 0.0)), editor.iomap).operation
             @test operation !== nothing
             _apply_research_operation!(editor, operation)
             @test study.hypotheses[1].statement.value == "ThiXrteen."
@@ -286,7 +286,7 @@ function test_research_to_widget()
             _apply_research_operation!(editor, _find_research_menu_item(found[3], "Add an element"))
             @test only(hypothesis.elements) isa DocumentInsertion
             @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1].elements[1].value{0}"
-            escape = read_intent(editor.projection, editor.iomap, KeyDown(:escape, ModifierKeys(); time = 0.0))
+            escape = read_intent(editor.projection, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), editor.iomap).operation
             _apply_research_operation!(editor, escape)
             @test isempty(hypothesis.elements)
             @test string(strip_reference_types(get_selection(study))) == ".hypotheses[1]"
@@ -319,8 +319,7 @@ function test_research_to_widget()
                                                        RangeReferenceStep(0, 1), FieldReferenceStep("statement"),
                                                        FieldReferenceStep("value"), RangeReferenceStep(count, count)))
             _apply_research_operation!(editor, DoNothingOperation())
-            press_key(char) = _apply_research_operation!(editor, read_intent(editor.projection, editor.iomap,
-                                                                             KeyPress(char; time = 0.0)))
+            press_key(char) = _apply_research_operation!(editor, read_intent(editor.projection, nothing, Intent(KeyPress(char; time = 0.0)), editor.iomap).operation)
             press_key('!')
             @test hypothesis.statement.value == "Thirteen.!"
             press_key('\n')
@@ -365,7 +364,7 @@ function test_research_to_widget()
             hit = _find_research_click(editor, operation -> _is_research_selection(operation, ".first_text.value{0}"))
             @test hit !== nothing
             _apply_research_operation!(editor, hit[3])
-            typed = read_intent(editor.projection, editor.iomap, KeyPress('W', ModifierKeys(); time = 0.0))
+            typed = read_intent(editor.projection, nothing, Intent(KeyPress('W', ModifierKeys(); time = 0.0)), editor.iomap).operation
             @test typed !== nothing
             _apply_research_operation!(editor, typed)
             @test length(study.questions) == 1
@@ -373,8 +372,7 @@ function test_research_to_widget()
             @test isempty(study.first_text.value)
             @test string(strip_reference_types(get_selection(study))) == ".questions[1].statement.value{1}"
             # The next key types into the question.
-            _apply_research_operation!(editor, read_intent(editor.projection, editor.iomap,
-                                                           KeyPress('h', ModifierKeys(); time = 0.0)))
+            _apply_research_operation!(editor, read_intent(editor.projection, nothing, Intent(KeyPress('h', ModifierKeys(); time = 0.0)), editor.iomap).operation)
             @test study.questions[1].statement.value == "Wh"
         end
 
@@ -387,7 +385,7 @@ function test_research_to_widget()
                                                        RangeReferenceStep(0, 1), FieldReferenceStep("statement"),
                                                        FieldReferenceStep("value"), RangeReferenceStep(count, count)))
             _apply_research_operation!(editor, DoNothingOperation())
-            press(key) = _apply_research_operation!(editor, read_intent(editor.projection, editor.iomap, key))
+            press(key) = _apply_research_operation!(editor, read_intent(editor.projection, nothing, Intent(key), editor.iomap).operation)
             press(KeyPress('\n'; time = 0.0))
             @test length(study.questions) == 2
             @test study.questions[2].id == "Q2"
@@ -451,11 +449,10 @@ function test_research_to_widget()
             editor = _make_research_view_editor(study)
             hit = _find_research_click(editor, operation -> _is_research_selection(operation, ".hypotheses[1].statement.value{3}"))
             _apply_research_operation!(editor, hit[3])
-            opened = read_intent(editor.projection, editor.iomap, KeyDown(:f10, ModifierKeys(shift = true); time = 0.0))
+            opened = read_intent(editor.projection, nothing, Intent(KeyDown(:f10, ModifierKeys(shift = true); time = 0.0)), editor.iomap).operation
             @test opened isa ReplaceViewStateOperation && opened.operation isa OpenContextMenuOperation
             @test opened.operation.layers[1][1] == "H1"
-            right = read_intent(editor.projection, editor.iomap,
-                                MouseClick(:right, hit[1], hit[2], 1, ModifierKeys(); time = 0.0))
+            right = read_intent(editor.projection, nothing, Intent(MouseClick(:right, hit[1], hit[2], 1, ModifierKeys(); time = 0.0)), editor.iomap).operation
             @test right isa ReplaceViewStateOperation && right.operation isa OpenContextMenuOperation
         end
 

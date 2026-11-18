@@ -27,7 +27,7 @@ projection = RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
 iomap = print_document(projection, root)
 editor = (; document = root)
 press!(event) = begin
-    operation = read_intent(projection, iomap, event)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
     operation === nothing || evaluate_operation(editor, operation)
     operation
 end

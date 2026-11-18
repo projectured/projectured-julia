@@ -152,7 +152,7 @@ end
     gr = 1 + geom.row_offset
     cx = geom.col_x[gc] + geom.bw + geom.pad_x + 1
     cy = geom.row_y[gr] + geom.bw + geom.pad_y + 1
-    op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)), io).operation
     @test op isa ReplaceSelectionOperation
     @test startswith(string(op.path), ".cells[1][1]")
 end

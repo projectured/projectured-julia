@@ -93,7 +93,7 @@ end
 # reports; nothing here compensates for a broken reader.
 function _feed_event!(ed, projection, event)
     op = try
-        read_intent(projection, ed.iomap, event)
+        read_intent(projection, nothing, Intent(event), ed.iomap).operation
     catch
         return false
     end

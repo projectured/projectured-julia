@@ -31,6 +31,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..GestureBindingModule
 using ..GestureModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..OperationModule

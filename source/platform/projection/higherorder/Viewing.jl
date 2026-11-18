@@ -800,5 +800,3 @@ function _find_caret_view_steps(view::ContentView)
     steps
 end
 
-read_intent(p::ViewingProjection, iomap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

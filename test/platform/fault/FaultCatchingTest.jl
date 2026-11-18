@@ -178,7 +178,7 @@ function test_fault_catching()
         # The report is no child of the node that failed, so the path is a
         # drawn-object step from it.
         press = MouseClick(:left, 0, 0, 2, ModifierKeys(alt = true); time = 0.0)
-        operation = read_intent(barrier, iomap, press)
+        operation = read_intent(barrier, nothing, Intent(press), iomap).operation
         @test operation isa ReplaceSelectionOperation
         report = evaluate_reference(leaf, operation.path)
         @test report isa FaultReport
@@ -186,7 +186,7 @@ function test_fault_catching()
 
         # The same path, twice: a selection that named a new report on every
         # frame would be lost on the next one.
-        again = read_intent(barrier, iomap, press)
+        again = read_intent(barrier, nothing, Intent(press), iomap).operation
         @test evaluate_reference(leaf, again.path) === report
 
         # The mark is the whole image of the node, so the container rings it.
@@ -195,8 +195,8 @@ function test_fault_catching()
         # Everything else about a node that failed stays inert: a key is
         # declined, and a path into the node has no image, so no edit can
         # address one. A plain click tries the part again (`test_fault_part`).
-        @test read_intent(barrier, iomap, nothing) === nothing
-        @test read_intent(barrier, iomap, KeyPress('x'; time = 0.0)) === nothing
+        @test read_intent(barrier, nothing, Intent(nothing), iomap).operation === nothing
+        @test read_intent(barrier, nothing, Intent(KeyPress('x'; time = 0.0)), iomap).operation === nothing
         @test map_reference_forward(barrier, iomap, EmptyReference()) === nothing
     end
 
@@ -300,7 +300,7 @@ function test_fault_catching()
         reader = FaultCatchingProjection(inner = InterruptingProjection(when = :read),
                                          substitute = FaultToSyntax())
         iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
-        @test_throws InterruptException read_intent(reader, iomap, KeyPress('x'; time = 0.0))
+        @test_throws InterruptException read_intent(reader, nothing, Intent(KeyPress('x'; time = 0.0)), iomap).operation
         @test_throws InterruptException map_reference_forward(reader, iomap, EmptyReference())
     end
 
@@ -320,7 +320,7 @@ function test_fault_catching()
         reader = FaultCatchingProjection(inner = InterruptingProjection(when = :failing_read),
                                          substitute = FaultToSyntax())
         iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
-        @test_throws ErrorException read_intent(reader, iomap, KeyPress('x'; time = 0.0))
+        @test_throws ErrorException read_intent(reader, nothing, Intent(KeyPress('x'; time = 0.0)), iomap).operation
     end
 
     @testset "an editor hands its policy to the barrier" begin

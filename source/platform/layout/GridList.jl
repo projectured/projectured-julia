@@ -452,9 +452,6 @@ function read_intent(p::GridLayoutToGraphicsCanvas, recursion, change::Intent,
            answer.description, answer.domain)
 end
 
-read_intent(p::GridLayoutToGraphicsCanvas, iomap::GridLayoutListIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The cell that `gesture` reaches, with the steps `children[k][c]` to it: at the
 # point of the gesture when `point`, else the cell that the selection names. The
 # entry of a cell at a point has its place in the frame of the grid, the row

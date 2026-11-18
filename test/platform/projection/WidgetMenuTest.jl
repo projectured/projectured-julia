@@ -38,7 +38,7 @@ function _click_first_item(menu, button=:left)
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     xy === nothing && return (nothing, nothing)
-    op = read_intent(proj, iomap, MouseClick(button, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(button, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
     (op, iomap)
 end
 
@@ -167,7 +167,7 @@ end
     item = WidgetMenuItem("File"; submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa ReplaceViewStateOperation
     popup = _menu_popup(op)
     @test popup isa OpenPopupOperation
@@ -186,7 +186,7 @@ end
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation
     @test _menu_popup(op) isa OpenPopupOperation   # opened the submenu, did not run the action
     @test !(op isa CompoundOperation)
 end
@@ -195,7 +195,7 @@ end
     submenu = WidgetMenu([WidgetMenuItem("New")])
     item = WidgetMenuItem("File"; submenu = submenu, enabled = false)
     iomap = print_document(proj, item)
-    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 end
 
 @testset "a menu bar moves the popup of an item into its own frame" begin
@@ -206,7 +206,7 @@ end
     # The press lands on the second item, and the popup opens below that item,
     # in the frame of the bar: its position is where the bar placed the item.
     (ox, oy, cim) = getfield(_menu_iomap_of(iomap, bar), :child_iomaps)[][2]
-    popup = _menu_popup(read_intent(proj, iomap, MouseClick(:left, ox + 3, oy + 3, ModifierKeys(); time = 0.0)))
+    popup = _menu_popup(read_intent(proj, nothing, Intent(MouseClick(:left, ox + 3, oy + 3, ModifierKeys(); time = 0.0)), iomap).operation)
     @test popup isa OpenPopupOperation
     @test ox > 0
     @test (popup.x, popup.y) == (ox, oy)

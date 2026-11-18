@@ -14,7 +14,7 @@ function _glz_print()
     drawing = _gvd_find_drawing(iomap)
     editor = _GraphVertexDragTestEditor(graph)
     apply!(operation) = operation === nothing || evaluate_operation(editor, operation)
-    read!(event) = apply!(read_intent(projection, iomap, event))
+    read!(event) = apply!(read_intent(projection, nothing, Intent(event), iomap).operation)
     (graph, drawing, read!)
 end
 
@@ -85,12 +85,12 @@ function test_graph_layout_zoom()
         read!(_glz_notch(1, 1, -1))
     end
     @test layout.zoom.scale == 0.25
-    @test read_intent(drawing.projection, drawing, _glz_notch(1, 1, -1)) === nothing
+    @test read_intent(drawing.projection, nothing, Intent(_glz_notch(1, 1, -1)), drawing).operation === nothing
     for _ in 1:40
         read!(_glz_notch(1, 1))
     end
     @test layout.zoom.scale == 4.0
-    @test read_intent(drawing.projection, drawing, _glz_notch(1, 1)) === nothing
+    @test read_intent(drawing.projection, nothing, Intent(_glz_notch(1, 1)), drawing).operation === nothing
 end
 
 @testset "a zoomed edge ends at the rim of its target box" begin
@@ -175,7 +175,7 @@ end
     projection = _gsp_make_projection(; scrolling = false)
     iomap = print_document(projection, graph)
     drawing = _gvd_find_drawing(iomap)
-    answer = read_intent(projection, iomap, _glz_notch(1, 1))
+    answer = read_intent(projection, nothing, Intent(_glz_notch(1, 1)), iomap).operation
     @test answer isa KeepPointOperation
     evaluate_operation(_GraphVertexDragTestEditor(graph), answer)
     @test drawing.input.zoom.scale == 1.15

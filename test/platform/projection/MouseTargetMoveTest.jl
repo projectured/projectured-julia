@@ -34,7 +34,7 @@ function _mtm_screen(windows...)
     screen = ScreenDocument(collect(windows))
     projection = make_widget_popup_projection_example(measure = _mtm_measure())
     iomap = print_document(projection, screen)
-    play!(input) = _mtm_apply!(screen, read_intent(projection, iomap, input))
+    play!(input) = _mtm_apply!(screen, read_intent(projection, nothing, Intent(input), iomap).operation)
     (screen, play!)
 end
 
@@ -140,7 +140,7 @@ function ProjectionModule.map_reference_backward(p::MtmHeldObjectView, iomap::Si
     invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
 end
 
-ProjectionModule.read_intent(p::MtmHeldObjectView, iomap::SimpleIoMap, op::CompoundOperation) =
+ProjectionModule.map_operation_backward(p::MtmHeldObjectView, iomap::SimpleIoMap, op::CompoundOperation) =
     has_mouse_target(op) ? read_move_answer(p, iomap, op) : op
 
 # The widget stage, where a reflected object goes through `ReflectionToWidget`.

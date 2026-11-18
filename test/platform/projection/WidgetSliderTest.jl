@@ -14,7 +14,7 @@ end
 
 # Read `event` and evaluate what the slider answers; the answer is returned.
 function _read_slider_event!(slider, projection, iomap, event)
-    operation = read_intent(projection, iomap, event)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
     operation === nothing || evaluate_operation(_WidgetSliderMockEditor(slider), operation)
     operation
 end
@@ -39,7 +39,7 @@ function test_widget_slider_drag()
     _read_slider_event!(slider, projection, iomap, DragEnd(160, y; time = 0.0))
     @test slider.dragging === false
     # With the knob let go, a move is only a move.
-    @test read_intent(projection, iomap, MouseMove(200, y, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(projection, nothing, Intent(MouseMove(200, y, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test slider.value ≈ start + 0.5
 end
 
@@ -54,7 +54,7 @@ end
     press = _read_slider_event!(slider, projection, iomap, MouseClick(:left, 100, y, ModifierKeys(); time = 0.0))
     @test press isa ReplaceViewStateOperation
     @test slider.dragging === false
-    @test read_intent(projection, iomap, MouseMove(200, y, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(projection, nothing, Intent(MouseMove(200, y, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test slider.value == clicked
 end
 

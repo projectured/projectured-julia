@@ -21,7 +21,7 @@ end
 function _sweep(proj, iomap, event_of)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, event_of(x, y))
+        op = read_intent(proj, nothing, Intent(event_of(x, y)), iomap).operation
         # A tab click is a ReplaceSelectionOperation, so the sweep keeps one.
         op isa Union{ReplaceSelectionOperation, CloseTabOperation,
                      OpenTabOperation, DragTabOperation} || continue
@@ -110,9 +110,9 @@ end
     grab2 = _first_x(found, op -> op isa DragTabOperation && op.tab_index == 2)
     @test grab1 < grab2
     on_button = [(x, y) for y in 0:2:40, x in 0:2:400
-                 if read_intent(proj, iomap, _press(x, y)) isa CloseTabOperation]
+                 if read_intent(proj, nothing, Intent(_press(x, y)), iomap).operation isa CloseTabOperation]
     @test !isempty(on_button)
-    @test !any(read_intent(proj, iomap, _down(x, y)) isa DragTabOperation for (x, y) in on_button)
+    @test !any(read_intent(proj, nothing, Intent(_down(x, y)), iomap).operation isa DragTabOperation for (x, y) in on_button)
 end
 
 @testset "the reports are inert when nobody claims them" begin
@@ -127,7 +127,7 @@ end
 function _sweep_points(proj, iomap, event_of)
     found = Tuple{Int,Int,Any}[]
     for y in 0:1:40, x in 0:1:400
-        op = read_intent(proj, iomap, event_of(x, y))
+        op = read_intent(proj, nothing, Intent(event_of(x, y)), iomap).operation
         op isa Union{ReplaceSelectionOperation, CloseTabOperation, DragTabOperation} || continue
         push!(found, (x, y, op))
     end
@@ -185,7 +185,7 @@ end
     @test font.weight > 400
     @test width - measure_string(measure, name, regular).width > get_theme_defaults(WidgetTheme).label_gap
     close = [px for py in 0:2:40, px in x:(x + ceil(Int, width) + 200)
-             if read_intent(proj, iomap, _press(px, py)) isa CloseTabOperation]
+             if read_intent(proj, nothing, Intent(_press(px, py)), iomap).operation isa CloseTabOperation]
     @test !isempty(close)
     @test x + width <= minimum(close)
 end
@@ -298,7 +298,7 @@ end
     @test get_mouse_target(button) !== nothing
     @test layers() == [hovered]
     # A down on the button is the button's, and it holds the button down.
-    _mtt_apply!(driver, read_intent(proj, iomap, _down(bx, by)))
+    _mtt_apply!(driver, read_intent(proj, nothing, Intent(_down(bx, by)), iomap).operation)
     @test button.pressed === true
     @test layers() == [held]
     # A move off the button ends the press, and the surface goes.
@@ -320,8 +320,8 @@ _middle(x, y) = MouseClick(:middle, x, y, ModifierKeys(); time = 0.0)
     on_tab = Tuple{Int,Any}[]
     elsewhere = Any[]
     for y in rows, x in 0:1:400
-        press = read_intent(proj, iomap, _press(x, y))
-        middle = read_intent(proj, iomap, _middle(x, y))
+        press = read_intent(proj, nothing, Intent(_press(x, y)), iomap).operation
+        middle = read_intent(proj, nothing, Intent(_middle(x, y)), iomap).operation
         index = press isa CloseTabOperation ? press.tab_index :
                 _select_tab(press, 1) ? 1 : _select_tab(press, 2) ? 2 : 0
         index > 0 ? push!(on_tab, (index, middle)) : push!(elsewhere, middle)
@@ -334,7 +334,7 @@ _middle(x, y) = MouseClick(:middle, x, y, ModifierKeys(); time = 0.0)
     # A strip that does not close tabs gives nothing to a middle click.
     plain = _pane()
     plain_iomap = print_document(proj, plain)
-    @test all(isnothing(read_intent(proj, plain_iomap, _middle(x, y))) for y in rows, x in 0:2:400)
+    @test all(isnothing(read_intent(proj, nothing, Intent(_middle(x, y)), plain_iomap).operation) for y in rows, x in 0:2:400)
 end
 
 # The first viewport in `node`, the view of the strip, as `(x, y, width, height)` in
@@ -390,15 +390,15 @@ end
     view_x, view_y, _, view_h = _strip_view(iomap.output)
     for second in 1:200
         _shown_tab(iomap, "t1")[2] && break
-        evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
-                                                                         time = Float64(second))))
+        evaluate_operation(editor, read_intent(proj, nothing, Intent(MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
+                                                                         time = Float64(second))), iomap).operation)
         iomap = print_pane()
     end
     @test _shown_tab(iomap, "t1")[2]
     @test !_shown_tab(iomap, "t9")[2]
     # A click on a tab in view opens it, and the strip does not move.
     x, _ = _shown_tab(iomap, "t2")
-    evaluate_operation(editor, read_intent(proj, iomap, _press(x + 2, view_y + view_h ÷ 2)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(_press(x + 2, view_y + view_h ÷ 2)), iomap).operation)
     iomap = print_pane()
     @test _shown_tab(iomap, "t2")[1] == x
     # A tab that opens in another way shows.
@@ -447,7 +447,7 @@ end
     view_x, view_y, view_w, view_h = _strip_view(iomap.output)
     found = nothing
     for x in (view_x + view_w):2:200
-        answer = read_intent(proj, iomap, _press(x, view_y + view_h ÷ 2))
+        answer = read_intent(proj, nothing, Intent(_press(x, view_y + view_h ÷ 2)), iomap).operation
         answer isa WrappingOperation && (answer = get_wrapped_operation(answer))
         answer isa OpenContextMenuOperation && (found = answer; break)
     end
@@ -467,8 +467,8 @@ end
     # After a turn of the wheel hides the open tab, its item shows it again.
     for second in 1:100
         _shown_tab(iomap, "1 t…")[2] && break
-        evaluate_operation((document = pane,), read_intent(proj, iomap, MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
-                                                                                    time = Float64(second))))
+        evaluate_operation((document = pane,), read_intent(proj, nothing, Intent(MouseScroll(0, 1, view_x + 5, view_y + view_h ÷ 2;
+                                                                                    time = Float64(second))), iomap).operation)
         iomap = print_document(proj, nothing, pane, context)
     end
     @test !_shown_tab(iomap, "7 t…")[2]

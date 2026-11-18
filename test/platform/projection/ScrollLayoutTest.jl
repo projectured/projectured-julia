@@ -7,7 +7,8 @@ the clicks that reach a part.
 using Test
 using ProjecturedKernel.GestureModule: MouseClick
 using ProjecturedKernel.ProjectionModule: with_exact_size, Projection
-import ProjecturedKernel.ProjectionModule: print_document, read_intent
+import ProjecturedKernel.ProjectionModule: print_document, read_intent, map_operation_backward
+import ProjecturedKernel.GestureBindingModule: read_gesture
 using ProjecturedKernel.IoMapModule: SimpleIoMap
 using ProjecturedPlatform.LayoutModule: ScrollLayout, SCROLL_LAYOUT_PARTS,
     compute_scroll_layout_extents, get_scroll_layout_place, find_scroll_layout_part_at,
@@ -35,11 +36,11 @@ function print_document(p::_SlProbe, recursion, input::GraphicsCanvas, ctx)
     SimpleIoMap(p, input, input)
 end
 
-function read_intent(p::_SlProbe, iomap, evt::MouseClick)
+function read_gesture(p::_SlProbe, iomap, evt::MouseClick; answer = nothing)
     push!(p.clicks, (iomap.input, evt.x, evt.y))
     ReplaceSelectionOperation(EmptyReference())
 end
-read_intent(::_SlProbe, iomap, payload) = nothing
+map_operation_backward(::_SlProbe, iomap, operation) = nothing
 
 # A part that fills the width of its range, as a text that wraps does: a rectangle
 # prints as a canvas as wide as the maximum of the range.
@@ -167,7 +168,7 @@ function test_scroll_layout()
         layout = ScrollLayout(; center, left)
         renderer = _sl_renderer(probe)
         iomap = print_document(renderer, layout)
-        click(x, y) = read_intent(renderer, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        click(x, y) = read_intent(renderer, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
 
         op = click(40, 50)
         @test probe.clicks[end] == (center, 10, 50)

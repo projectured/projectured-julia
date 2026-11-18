@@ -118,8 +118,7 @@ end
 
 @testset "an edit of lines is an edit of the string at the same offsets" begin
     iomap = _mt_print(MarkedText(text = _MT_SOURCE, marks = _mt_marks()))
-    op = read_intent(MarkedTextToText(), iomap,
-                     ReplaceTextRangeOperation(make_flat_range_reference(2, 30), "x\ny"))
+    op = read_intent(MarkedTextToText(), nothing, Intent(ReplaceTextRangeOperation(make_flat_range_reference(2, 30), "x\ny")), iomap).operation
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x\ny"
     @test last(get_reference_steps(strip_reference_types(op.reference))) == RangeReferenceStep(2, 30)

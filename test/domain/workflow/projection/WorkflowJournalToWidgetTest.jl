@@ -55,7 +55,7 @@ function test_workflow_journal_to_widget()
             picks() = begin
                 seen = Set{Symbol}()
                 for y in 0:6:60, x in 0:6:600
-                    operation = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+                    operation = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), editor.iomap).operation
                     _is_workflow_write(operation, journal, ".kind") && push!(seen, operation.value)
                 end
                 seen

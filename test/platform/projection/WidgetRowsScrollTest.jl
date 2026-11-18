@@ -69,14 +69,14 @@ function test_widget_rows_scroll()
         rows = _get_rows_test_pane(iomap).content_iomap
         step = Int(rows.row_height)
         row_of(op) = WidgetModule._widget_element_selected(strip_reference_types(op.path), "items")
-        before = read_intent(projection, iomap, MouseClick(:left, 20, 60; time = 0.0))
+        before = read_intent(projection, nothing, Intent(MouseClick(:left, 20, 60; time = 0.0)), iomap).operation
         @test before isa ReplaceSelectionOperation
-        wheel = read_intent(projection, iomap, MouseScroll(0, -3, 20, 60; time = 0.0))
+        wheel = read_intent(projection, nothing, Intent(MouseScroll(0, -3, 20, 60; time = 0.0)), iomap).operation
         @test wheel !== nothing
         evaluate_operation(nothing, wheel)
         offset = Int(list.scroll_position.y[])
         @test offset > 0
-        after = read_intent(projection, iomap, MouseClick(:left, 20, 60; time = 0.0))
+        after = read_intent(projection, nothing, Intent(MouseClick(:left, 20, 60; time = 0.0)), iomap).operation
         top = WidgetModule._get_content_offset(WidgetModule._get_box_geometry(iomap))[2]
         @test row_of(before) == 1 + (60 - top) ÷ step
         @test row_of(after) == 1 + (60 - top + offset) ÷ step
@@ -88,7 +88,7 @@ function test_widget_rows_scroll()
         y() = Int(list.scroll_position.y[])
         function turn!(time)
             before = y()
-            evaluate_operation(nothing, read_intent(projection, iomap, MouseScroll(0, -1, 20, 60; time)))
+            evaluate_operation(nothing, read_intent(projection, nothing, Intent(MouseScroll(0, -1, 20, 60; time)), iomap).operation)
             y() - before
         end
         step = turn!(1.0)
@@ -113,14 +113,14 @@ function test_widget_rows_scroll()
         list = _make_rows_test_list()
         iomap = print_document(projection, nothing, list, _make_rows_test_offer())
         ((x, y), bar) = _find_rows_test_bar(iomap, 2)
-        press = read_intent(projection, iomap, MouseDown(:left, x, y, plain; time = 0.0))
+        press = read_intent(projection, nothing, Intent(MouseDown(:left, x, y, plain; time = 0.0)), iomap).operation
         start = only(o for o in _bar_test_writes(press) if o isa StartDragOperation)
         @test strip_reference_types(start.path) isa EmptyReference
         _bar_test_apply!(press)
         @test bar.document.thumb_drag !== nothing
-        _bar_test_apply!(read_intent(projection, iomap, DragMove(x, y + 40, plain; time = 0.0)))
+        _bar_test_apply!(read_intent(projection, nothing, Intent(DragMove(x, y + 40, plain; time = 0.0)), iomap).operation)
         @test Int(list.scroll_position.y[]) > 0
-        _bar_test_apply!(read_intent(projection, iomap, DragEnd(x, y + 40, plain; time = 0.0)))
+        _bar_test_apply!(read_intent(projection, nothing, Intent(DragEnd(x, y + 40, plain; time = 0.0)), iomap).operation)
         @test bar.document.thumb_drag === nothing
     end
 
@@ -133,16 +133,16 @@ function test_widget_rows_scroll()
         free = print_document(projection, nothing, tree, PrinterContext())
         @test free isa WidgetModule.WidgetTreeToGraphicsCanvasIoMap
         @test Int(free.output.h) > 150
-        evaluate_operation(nothing, read_intent(projection, iomap, MouseScroll(0, -3, 80, 60; time = 0.0)))
+        evaluate_operation(nothing, read_intent(projection, nothing, Intent(MouseScroll(0, -3, 80, 60; time = 0.0)), iomap).operation)
         @test Int(tree.scroll_position.y[]) > 0
         # A click on a row selects its node, a root of the tree.
-        click = read_intent(projection, iomap, MouseClick(:left, 120, 60; time = 0.0))
+        click = read_intent(projection, nothing, Intent(MouseClick(:left, 120, 60; time = 0.0)), iomap).operation
         @test click isa ReplaceSelectionOperation
         @test strip_reference_types(click.path).head == FieldReferenceStep("roots")
         # A click on the chevron of a row opens its node. The chevron stands the side
         # padding of the rows inside the row.
         left = Int(get_theme_defaults(WidgetTheme).tree_row_padding.left[])
-        toggle = read_intent(projection, iomap, MouseClick(:left, iomap.place[1] + left + 3, 60; time = 0.0))
+        toggle = read_intent(projection, nothing, Intent(MouseClick(:left, iomap.place[1] + left + 3, 60; time = 0.0)), iomap).operation
         evaluate_operation(nothing, toggle)
         @test length(tree.expanded) == 1
     end

@@ -25,14 +25,14 @@ function test_json_placeholder_navigation()
     @testset "Ctrl+Space toggles text ⇄ structural" begin
         doc = make_json_document_example()
         clear_selection!(doc); io = print_document(proj, doc)
-        seed = read_intent(proj, io, _JPN_CTRL_END)
+        seed = read_intent(proj, nothing, Intent(_JPN_CTRL_END), io).operation
         @test seed isa ReplaceSelectionOperation                       # a text cursor
         set_selection!(doc, seed.path); io = print_document(proj, doc)
-        s = read_intent(proj, io, _JPN_CS)                             # → structural
+        s = read_intent(proj, nothing, Intent(_JPN_CS), io).operation                             # → structural
         @test s isa ReplaceSelectionOperation
         @test strip_reference_types(s.path) isa EmptyReference     # ∅ (whole root)
         set_selection!(doc, s.path); io = print_document(proj, doc)
-        t = read_intent(proj, io, _JPN_CS)                             # → text
+        t = read_intent(proj, nothing, Intent(_JPN_CS), io).operation                             # → text
         @test t isa ReplaceSelectionOperation
         @test !(strip_reference_types(t.path) isa EmptyReference)  # a cursor again
     end
@@ -46,14 +46,14 @@ function test_json_placeholder_navigation()
         # included — it is the case the editor most needs the toggle for.
         for doc in (JsonNull(), JsonString("hi"), JsonNumber(5), JsonNothing())
             clear_selection!(doc); io = print_document(proj, doc)
-            seed = read_intent(proj, io, _JPN_CTRL_END)
+            seed = read_intent(proj, nothing, Intent(_JPN_CTRL_END), io).operation
             @test seed isa ReplaceSelectionOperation                       # a text cursor
             set_selection!(doc, seed.path); io = print_document(proj, doc)
-            s = read_intent(proj, io, _JPN_CS)                             # → structural
+            s = read_intent(proj, nothing, Intent(_JPN_CS), io).operation                             # → structural
             @test s isa ReplaceSelectionOperation
             @test strip_reference_types(s.path) isa EmptyReference     # ∅ (whole leaf)
             set_selection!(doc, s.path); io = print_document(proj, doc)
-            t = read_intent(proj, io, _JPN_CS)                             # → text again
+            t = read_intent(proj, nothing, Intent(_JPN_CS), io).operation                             # → text again
             @test t isa ReplaceSelectionOperation
             @test !(strip_reference_types(t.path) isa EmptyReference)  # a cursor again
         end
@@ -70,9 +70,9 @@ function test_json_placeholder_navigation()
                              (make_json_document_example(), nested),
                              (JsonString("hi"), nothing))
             clear_selection!(doc); io = print_document(proj, doc)
-            caret === nothing && (caret = read_intent(proj, io, _JPN_CTRL_END).path)
+            caret === nothing && (caret = read_intent(proj, nothing, Intent(_JPN_CTRL_END), io).operation.path)
             set_selection!(doc, caret); io = print_document(proj, doc)
-            selected = read_intent(proj, io, ctrl_a)
+            selected = read_intent(proj, nothing, Intent(ctrl_a), io).operation
             @test selected isa ReplaceSelectionOperation
             @test strip_reference_types(selected.path) isa EmptyReference
         end
@@ -86,11 +86,11 @@ function test_json_placeholder_navigation()
         @test _jpn_str(buf) in explore_position_selections(doc, proj).visited
         # Ctrl+Space on it selects the whole JsonInsertion, and toggles back to it.
         clear_selection!(doc); set_selection!(doc, buf); io = print_document(proj, doc)
-        sel = read_intent(proj, io, _JPN_CS)
+        sel = read_intent(proj, nothing, Intent(_JPN_CS), io).operation
         @test sel isa ReplaceSelectionOperation
         @test _jpn_str(sel.path) == ".entries[8].value"
         set_selection!(doc, sel.path); io = print_document(proj, doc)
-        back = read_intent(proj, io, _JPN_CS)
+        back = read_intent(proj, nothing, Intent(_JPN_CS), io).operation
         @test back isa ReplaceSelectionOperation
         @test _jpn_str(back.path) == ".entries[8].value.value{0}"
     end
@@ -127,13 +127,13 @@ function test_json_placeholder_navigation()
         for seed in (:text, :struct)
             doc = JsonNothing(); clear_selection!(doc); io = print_document(proj, doc)
             if seed === :text
-                s = read_intent(proj, io, _JPN_CTRL_END)   # a cursor on the label
+                s = read_intent(proj, nothing, Intent(_JPN_CTRL_END), io).operation   # a cursor on the label
                 set_selection!(doc, s.path)
             else
                 set_selection!(doc, EmptyReference())
             end
             io = print_document(proj, doc)
-            op = read_intent(proj, io, KeyPress('{', "{", ModifierKeys(); time = 0.0))
+            op = read_intent(proj, nothing, Intent(KeyPress('{', "{", ModifierKeys(); time = 0.0)), io).operation
             @test op isa CompoundOperation      # a create op, not a dead label edit / nothing
         end
     end
@@ -147,8 +147,8 @@ function test_json_placeholder_navigation()
                     ConcreteReference(RangeReferenceStep(6, 6), EmptyReference()))
         ins = JsonInsertion("object"); clear_selection!(ins); set_selection!(ins, vpath)
         io = print_document(proj, ins)
-        @test read_intent(proj, io, KeyPress('\n'; time = 0.0)) isa CompoundOperation
-        @test read_intent(proj, io, KeyDown(:escape, ModifierKeys(); time = 0.0)) isa CompoundOperation
+        @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), io).operation isa CompoundOperation
+        @test read_intent(proj, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), io).operation isa CompoundOperation
     end
 end
 end

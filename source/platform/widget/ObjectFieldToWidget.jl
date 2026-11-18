@@ -193,5 +193,3 @@ function read_intent(p::ObjectFieldToWidget, recursion, change::Intent, iomap::O
     end)
 end
 
-read_intent(p::ObjectFieldToWidget, iomap::ObjectFieldToWidgetIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

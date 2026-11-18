@@ -185,7 +185,7 @@ end
     circle = GraphicsCircle(10, 10, 10)
     @test print_natural(circle) === circle
     iomap = print_document(GraphicsToGraphics(), nothing, circle, nothing)
-    @test read_intent(GraphicsToGraphics(), iomap, KeyPress('x'; time = 0.0)) === nothing
+    @test read_intent(GraphicsToGraphics(), nothing, Intent(KeyPress('x'; time = 0.0)), iomap).operation === nothing
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "GraphicsCircle(10, 10, 10)"
     evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))

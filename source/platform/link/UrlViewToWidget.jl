@@ -87,7 +87,7 @@ function map_operation_backward(p::UrlViewToWidget, iomap::UrlViewToWidgetIoMap,
     rest = _get_url_view_rest(operation.reference, _URL_LINE_STEPS)
     rest === nothing && return nothing
     line_iomap = iomap.line_iomap
-    answer = read_intent(get_iomap_projection(line_iomap), line_iomap, ReplaceStringRangeOperation(rest, operation.replacement))
+    answer = read_intent(get_iomap_projection(line_iomap), nothing, Intent(ReplaceStringRangeOperation(rest, operation.replacement)), line_iomap).operation
     reroot_operation(answer, (_URL_VIEW_STEP,))
 end
 

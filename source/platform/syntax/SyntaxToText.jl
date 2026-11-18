@@ -199,7 +199,7 @@ end
 # compound or a container: a tab that holds one placeholder, a scalar example,
 # any projection of one leaf.
 #
-# Everything else falls through exactly as the generic 4-arg bridge does, so
+# Everything else falls through exactly as the default reader of a stage does, so
 # keyboard navigation that lands on the same glyph still places the cursor.
 function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::SimpleIoMap)
     op = change.operation
@@ -207,8 +207,7 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     # The edit beside an inline image writes the element list of the output, which
     # has no pre-image in the syntax: decline it.
     is_text_element_write(op) && return Intent(gesture, nothing)
-    payload = op === nothing ? gesture : op
-    answer = read_intent(p, iomap, payload)
+    answer = op === nothing ? read_gesture(p, iomap, gesture) : map_operation_backward(p, iomap, op)
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
         (answer = _lift_blank_delimiter(iomap.input, convert_to_whole_selection(answer, iomap.input)))
     answer isa ReplaceMouseTargetOperation &&
@@ -1323,9 +1322,8 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
         resolved !== nothing && return Intent(gesture, resolved, change.description, change.domain)
     end
     # Everything else (keyboard, plain clicks, other operations) falls through to
-    # the operation-typed readers below.
-    payload = op === nothing ? gesture : op
-    result = read_intent(p, iomap, payload)
+    # the rules of the node and the operation-typed maps below.
+    result = op === nothing ? read_gesture(p, iomap, gesture) : map_operation_backward(p, iomap, op)
     result === nothing && op isa ReplacePathOperation && (is_whole_selection_press(gesture) || gesture isa MouseMove) &&
         (result = _read_character_place(p, iomap, op))
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
@@ -1340,16 +1338,16 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # `op !== nothing` and we never reach here for a gesture. In the console
     # pipeline (`… → SyntaxToText → WindowInputUnwrapping`) there is no
     # `TextToGraphics`, so the operation slot is still empty: `payload` is the raw
-    # gesture and `read_intent(p, iomap, gesture)` only handled the syntax
+    # gesture and `read_gesture(p, iomap, gesture)` only handled the syntax
     # (tree-navigation) subset. When that yields nothing, the gesture may still be
     # a geometry-free Text-domain edit/navigation (character insert/delete,
     # left/right cursor, …). Ask the *output* TextBlock's `read_gesture` for a
     # text-domain operation and route it back through this projection's existing
-    # operation-typed readers, which map the `.elements[i].content[…]` reference
+    # operation-typed maps, which map the `.elements[i].content[…]` reference
     # to the enclosing syntax leaf.
     if result === nothing && op === nothing
         text_op = read_gesture(iomap.output, gesture)
-        text_op === nothing || return Intent(gesture, read_intent(p, iomap, text_op), change.description, change.domain)
+        text_op === nothing || return Intent(gesture, map_operation_backward(p, iomap, text_op), change.description, change.domain)
     end
 
     return Intent(gesture, result, change.description, change.domain)
@@ -1363,7 +1361,7 @@ end
 function _read_character_place(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplacePathOperation)
     range = _find_output_flat_range(iomap.output, op.path)
     range === nothing && return nothing
-    read_intent(p, iomap, make_path_operation(op, _flat_text_path(first(range))))
+    map_operation_backward(p, iomap, make_path_operation(op, _flat_text_path(first(range))))
 end
 
 # Resolve a click (given as an output reference `path`) to a tree Operation, or
@@ -1447,7 +1445,7 @@ end
 # leaf `.value{s:e}` rewrite lives in `SyntaxLeafToText`) and prepends
 # `.children[i]`; own chrome is not editable. The zero-width input-selection
 # disambiguation is preserved.
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_span_range(op.reference)
     parsed === nothing && return nothing
     span_path, char_start, char_stop = parsed
@@ -1488,7 +1486,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
             child_path === nothing && return nothing
             child_op = ReplaceStringRangeOperation(
                 _make_span_range_path(child_path, char_start, char_stop), op.replacement)
-            result = read_intent(cim.projection, cim, child_op)
+            result = read_intent(cim.projection, nothing, Intent(child_op), cim).operation
             (result isa ReplaceStringRangeOperation) || return nothing
             return ReplaceStringRangeOperation(_prepend_child(iomap.input, i, result.reference), result.replacement)
         end
@@ -1523,7 +1521,7 @@ end
 # span the range lands in). In the SDL pipeline `TextToGraphics` lowers it first, so
 # this method is reached only by the console path. A change of the indentation of
 # the lines is no edit, because the lines of a syntax view belong to the syntax.
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
+function map_operation_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
     op.changes_indentation && return nothing
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
@@ -1531,7 +1529,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
     # An edit with no break lowers to one run.
     if !occursin('\n', op.replacement)
         lowered = _lower_text_range(iomap.output, op)
-        lowered !== nothing && return is_text_element_write(lowered) ? nothing : read_intent(p, iomap, lowered)
+        lowered !== nothing && return is_text_element_write(lowered) ? nothing : map_operation_backward(p, iomap, lowered)
     end
     # An edit of a break goes to the child that holds its whole range, in the flat
     # offsets of the output of the child. Chrome takes no edit.
@@ -1540,8 +1538,7 @@ function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, 
         stop = _find_child_flat(iomap, i, r.head.stop::Int)
         (start === nothing || stop === nothing) && continue
         cim = iomap.child_iomaps[i]
-        result = read_intent(cim.projection, cim,
-                             ReplaceTextRangeOperation(make_flat_range_reference(start, stop), op.replacement))
+        result = read_intent(cim.projection, nothing, Intent(ReplaceTextRangeOperation(make_flat_range_reference(start, stop), op.replacement)), cim).operation
         result isa Union{ReplaceStringRangeOperation, ReplaceTextRangeOperation} || return nothing
         return retarget_operation(result, _prepend_child(iomap.input, i, operation_reference(result)))
     end

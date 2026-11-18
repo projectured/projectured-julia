@@ -10,13 +10,13 @@ function test_identity()
 
     @testset "an operation passes through unchanged" begin
         operation = ReplaceSelectionOperation(EmptyReference())
-        @test read_intent(IdentityProjection(), iomap, operation) === operation
+        @test read_intent(IdentityProjection(), nothing, Intent(operation), iomap).operation === operation
     end
 
     @testset "a gesture that the input does not answer gives no operation" begin
-        @test read_intent(IdentityProjection(), iomap, MouseClick(:left, 1, 1, ModifierKeys(); time = 0.0)) === nothing
-        @test read_intent(IdentityProjection(), iomap, MouseClick(:right, 1, 1, ModifierKeys(); time = 0.0)) === nothing
-        @test read_intent(IdentityProjection(), iomap, MouseMove(1, 1; time = 0.0)) === nothing
+        @test read_intent(IdentityProjection(), nothing, Intent(MouseClick(:left, 1, 1, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+        @test read_intent(IdentityProjection(), nothing, Intent(MouseClick(:right, 1, 1, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+        @test read_intent(IdentityProjection(), nothing, Intent(MouseMove(1, 1; time = 0.0)), iomap).operation === nothing
     end
 
     @testset "a chain with an identity stage answers nothing to an unclaimed press" begin

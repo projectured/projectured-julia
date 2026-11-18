@@ -205,7 +205,7 @@ end
 function _read_from_layout(layout, operation)
     for stage in Iterators.reverse(layout.before)
         operation isa Operation || return nothing
-        operation = read_intent(stage.projection, stage, operation)
+        operation = read_intent(stage.projection, nothing, Intent(operation), stage).operation
     end
     operation
 end

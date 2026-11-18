@@ -49,7 +49,7 @@ end
 struct NestMarkingProjection <: Projection end
 ProjecturedKernel.ProjectionModule.print_document(p::NestMarkingProjection, recursion, input, ctx) =
     SimpleIoMap(p, input, input)
-ProjecturedKernel.ProjectionModule.read_intent(::NestMarkingProjection, iomap::SimpleIoMap, payload) =
+ProjecturedKernel.ProjectionModule.map_operation_backward(::NestMarkingProjection, iomap::SimpleIoMap, operation) =
     ReplaceSelectionOperation(Reference(FieldReferenceStep("marked")))
 
 function test_empty_nesting()
@@ -67,7 +67,7 @@ function test_empty_nesting()
 
     # A payload reaches the reader of the IO map that the print made, also with no
     # recursion at the read.
-    answer = read_intent(empty, iomap, ReplaceSelectionOperation(EmptyReference()))
+    answer = read_intent(empty, nothing, Intent(ReplaceSelectionOperation(EmptyReference())), iomap).operation
     @test answer isa ReplaceSelectionOperation
     @test get_reference_head(answer.path) == FieldReferenceStep("marked")
 

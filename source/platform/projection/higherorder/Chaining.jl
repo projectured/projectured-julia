@@ -260,11 +260,6 @@ function _read_routed_gesture(seq::ChainingProjection, recursion, change::Intent
     out
 end
 
-# 3-arg payload form: callers (tests, hit-test recursion) that pass a
-# bare event/operation get it wrapped into a Intent and the operation back.
-read_intent(seq::ChainingProjection, iomap::ChainingIoMap, payload) =
-    read_intent(seq, nothing, Intent(payload), iomap).operation
-
 # Where threading one gesture stops at the first stage that answers, a collection
 # takes every stage's answer. This is the one place the two differ: a stage
 # returns its own commands merged with the ones its child produced, rather than

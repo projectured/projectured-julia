@@ -27,7 +27,7 @@ end
 # Feed an event through the pipeline, evaluate any resulting operation, and
 # answer it without its mark.
 function _feed(proj, iomap, evt)
-    op = read_intent(proj, iomap, evt)
+    op = read_intent(proj, nothing, Intent(evt), iomap).operation
     op isa Operation && evaluate_operation(nothing, op)
     _unmark(op)
 end
@@ -41,7 +41,7 @@ end
     # The lone splitter sits in the ~1px gap before the second child (x≈300).
     # A drag is view state: a history records none of its three operations.
     @test !is_undo_step(nothing,
-                        read_intent(proj, iomap, MouseDown(:left, 300, y, ModifierKeys(); time = 0.0)))
+                        read_intent(proj, nothing, Intent(MouseDown(:left, 300, y, ModifierKeys(); time = 0.0)), iomap).operation)
     down = _feed(proj, iomap, MouseDown(:left, 300, y, ModifierKeys(); time = 0.0))
     @test down isa StartSplitterDragOperation
     @test down.split === doc
@@ -81,7 +81,7 @@ end
     iomap = print_document(proj, doc)
     y     = _get_split_middle_y(iomap)
     # Well inside the left slot, far from the x≈300 splitter band.
-    op = _unmark(read_intent(proj, iomap, MouseDown(:left, 100, y, ModifierKeys(); time = 0.0)))
+    op = _unmark(read_intent(proj, nothing, Intent(MouseDown(:left, 100, y, ModifierKeys(); time = 0.0)), iomap).operation)
     @test !(op isa StartSplitterDragOperation)
     @test doc.active_splitter == 0
 end
@@ -91,7 +91,7 @@ end
     proj  = _proj()
     iomap = print_document(proj, doc)
     y     = _get_split_middle_y(iomap)
-    op = _unmark(read_intent(proj, iomap, MouseMove(350, y, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+    op = _unmark(read_intent(proj, nothing, Intent(MouseMove(350, y, MouseButtons(:left), ModifierKeys(); time = 0.0)), iomap).operation)
     @test !(op isa ResizeSplitPaneOperation)
     @test _szs(doc) == [300, 300]
 end
@@ -172,7 +172,7 @@ end
     # The splitter is drawn at slot1 (150px) plus the tab strip offset, i.e.
     # well below screen-y 150. Find where a MouseDown actually starts the drag.
     starts = [y for y in 0:400
-              if _unmark(read_intent(proj, iomap, MouseDown(:left, 40, y, ModifierKeys(); time = 0.0))) isa
+              if _unmark(read_intent(proj, nothing, Intent(MouseDown(:left, 40, y, ModifierKeys(); time = 0.0)), iomap).operation) isa
                  StartSplitterDragOperation]
     # @broken: no y in 0:400 starts a drag — the tabbed-pane reader does not
     # translate drag coordinates into the active tab's frame yet (exactly the
@@ -231,7 +231,7 @@ end
     @test rectangles() == open_rectangles - 2
     # A press where a splitter stood starts no drag.
     old_band = 200
-    @test !(_unmark(read_intent(proj, iomap, MouseDown(:left, old_band, 50, ModifierKeys(); time = 0.0)))
+    @test !(_unmark(read_intent(proj, nothing, Intent(MouseDown(:left, old_band, 50, ModifierKeys(); time = 0.0)), iomap).operation)
             isa StartSplitterDragOperation)
     # No child printed again.
     @test all(children() .=== before)

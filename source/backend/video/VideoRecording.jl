@@ -154,7 +154,7 @@ function record_video(document, projection; gestures::AbstractVector,
             if haskey(entry, :operation)
                 op = entry.operation isa Function ? entry.operation(document) : entry.operation
             else
-                op = read_intent(projection, iomap, entry.event)
+                op = read_intent(projection, nothing, Intent(entry.event), iomap).operation
             end
             if op !== nothing
                 ed = _VideoEditor(document, iomap)

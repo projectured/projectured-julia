@@ -108,30 +108,30 @@ function test_conversation_editor()
             # text typein. The text keys are the text layer's, Tab among them,
             # which this projection alone does not hold; the composer answers its
             # own keys, and a line break is an edit of the draft's value.
-            @test read_intent(proj, iom, KeyPress('a'; time = 0.0)) === nothing
-            @test read_intent(proj, iom, KeyDown(:backspace, ModifierKeys(); time = 0.0)) === nothing
-            @test read_intent(proj, iom, KeyPress('\t'; time = 0.0)) === nothing
-            @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa ComposerSubmitOperation
-            newline = read_intent(proj, iom, KeyPress('\n', ModifierKeys(shift=true); time = 0.0))
+            @test read_intent(proj, nothing, Intent(KeyPress('a'; time = 0.0)), iom).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyDown(:backspace, ModifierKeys(); time = 0.0)), iom).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('\t'; time = 0.0)), iom).operation === nothing
+            @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), iom).operation isa ComposerSubmitOperation
+            newline = read_intent(proj, nothing, Intent(KeyPress('\n', ModifierKeys(shift=true); time = 0.0)), iom).operation
             @test newline isa ReplaceStringRangeOperation
             @test newline.replacement == "\n"
             @test get_reference_steps(newline.reference) ==
                   Any[FieldReferenceStep("parts"), RangeReferenceStep(0, 1), FieldReferenceStep("content"),
                       FieldReferenceStep("value"), RangeReferenceStep(0, 0)]
-            @test read_intent(proj, iom, KeyDown(:insert, ModifierKeys(); time = 0.0)) isa ComposerInsertPartOperation
+            @test read_intent(proj, nothing, Intent(KeyDown(:insert, ModifierKeys(); time = 0.0)), iom).operation isa ComposerInsertPartOperation
 
             # kind chooser
             _ce_apply!(ComposerInsertPartOperation(turn))
-            @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa ComposerCommitChooserOperation
-            @test read_intent(proj, iom, KeyDown(:escape, ModifierKeys(); time = 0.0)) isa ComposerRevertOperation
+            @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), iom).operation isa ComposerCommitChooserOperation
+            @test read_intent(proj, nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), iom).operation isa ComposerRevertOperation
 
             # julia source
             _ce_type!(turn, "julia")
             _ce_apply!(ComposerCommitChooserOperation(turn))
             @test turn.parts[length(turn.parts)].content isa JuliaInsertion
-            @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa ComposerCommitSourceOperation
-            @test read_intent(proj, iom, KeyPress('\n', ModifierKeys(alt=true); time = 0.0)) isa ComposerEvaluateOperation
-            @test read_intent(proj, iom, KeyPress('\n', ModifierKeys(shift=true); time = 0.0)) isa ReplaceStringRangeOperation
+            @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), iom).operation isa ComposerCommitSourceOperation
+            @test read_intent(proj, nothing, Intent(KeyPress('\n', ModifierKeys(alt=true); time = 0.0)), iom).operation isa ComposerEvaluateOperation
+            @test read_intent(proj, nothing, Intent(KeyPress('\n', ModifierKeys(shift=true); time = 0.0)), iom).operation isa ReplaceStringRangeOperation
         end
 
         @testset "show: get_projection_gesture_bindings mirrors what the reader fires (fire == show)" begin

@@ -41,11 +41,12 @@ end
 evaluate_operation(::Editor, operation::TimerProbeRecordOperation) =
     (push!(operation.log, operation.input); nothing)
 
-function ProjectionModule.read_intent(p::TimerProbeProjection, iomap, input)
+function ProjectionModule.read_intent(p::TimerProbeProjection, recursion, change::Intent, iomap)
+    input = change.gesture
     input isa WindowInput && input.event isa KeyDown &&
-        return SetTimerOperation(input.event.key, input.event.time + p.delay)
-    input isa TimerExpire && return TimerProbeRecordOperation(p.log, input)
-    nothing
+        return Intent(input, SetTimerOperation(input.event.key, input.event.time + p.delay))
+    input isa TimerExpire && return Intent(input, TimerProbeRecordOperation(p.log, input))
+    Intent(input, nothing)
 end
 
 # A backend that hands out the inputs of a list, and whose wait sleeps while the

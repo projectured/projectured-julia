@@ -697,7 +697,7 @@ function read_intent(p::GraphLayoutToGraphicsCanvas, recursion, change::Intent,
     (route === nothing || isempty(get_reference_steps(strip_reference_types(route)))) ||
         return read_routed_child(recursion, change, iomap)
     payload = change.operation === nothing ? change.gesture : change.operation
-    Intent(change.gesture, read_intent(p, iomap, payload), change.description, change.domain)
+    Intent(change.gesture, _read_graph_payload(iomap, payload), change.description, change.domain)
 end
 
 # The IO maps of the contents of the vertices, which a route reaches.
@@ -721,7 +721,7 @@ _collect_drawn_entries(iomap::GraphLayoutToGraphicsCanvasIoMap) =
 # translated into the content canvas's local frame (mirrors TableToGraphics). A
 # left press can start the drag of a vertex, and the parts of that drag come here
 # by the path of the graph.
-function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
+function _read_graph_payload(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     layout = iomap.input
     drag = layout.drag
     event isa Union{DragMove, DragEnd, DragCancel} && return _read_vertex_drag(iomap, drag, event)
@@ -760,7 +760,7 @@ function _read_ctrl_wheel(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseS
     hit = _find_vertex_at(iomap, event.x, event.y)
     if hit !== nothing && hit[2] !== nothing
         (i, cim, x, y) = hit
-        answer = read_intent(cim.projection, cim, shift_event_position(event, x - event.x, y - event.y))
+        answer = read_intent(cim.projection, nothing, Intent(shift_event_position(event, x - event.x, y - event.y)), cim).operation
         answer = _reroot_vertex_answer(answer, i, cim.input)
         answer === nothing || return answer
     end
@@ -1053,7 +1053,7 @@ function _route_press(iomap::GraphLayoutToGraphicsCanvasIoMap, event::MouseDown)
     hit = _find_vertex_at(iomap, event.x, event.y)
     (hit === nothing || hit[2] === nothing) && return nothing
     (i, cim, x, y) = hit
-    answer = read_intent(cim.projection, cim, shift_event_position(event, x - event.x, y - event.y))
+    answer = read_intent(cim.projection, nothing, Intent(shift_event_position(event, x - event.x, y - event.y)), cim).operation
     _reroot_vertex_answer(answer, i, cim.input)
 end
 
@@ -1164,13 +1164,13 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
         label = _find_label_at(iomap, g.x, g.y)
         label === nothing && return nothing
         (j, lim, lx, ly) = label
-        op = read_intent(lim.projection, lim, MouseClick(g.button, lx, ly, g.count, g.modifiers; time = g.time))
+        op = read_intent(lim.projection, nothing, Intent(MouseClick(g.button, lx, ly, g.count, g.modifiers; time = g.time)), lim).operation
         return op === nothing ? nothing : _reroot_label_answer(op, j, lim.input)
     end
     (i, cim, x, y) = hit
     cim === nothing && return nothing
     local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
-    op = read_intent(cim.projection, cim, local_evt)
+    op = read_intent(cim.projection, nothing, Intent(local_evt), cim).operation
     op === nothing ? nothing : _reroot_vertex_answer(op, i, cim.input)
 end
 
@@ -1201,7 +1201,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
         entry = entries[i]
         (entry === nothing || entry[3] === nothing) && continue
         cim = entry[3]
-        op = read_intent(cim.projection, cim, event)
+        op = read_intent(cim.projection, nothing, Intent(event), cim).operation
         op === nothing && continue
         answer = _reroot_vertex_answer(op, i, cim.input)
         answer === nothing || return answer
@@ -1210,7 +1210,7 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
     for j in 1:length(labels)
         lim = labels[j]
         lim === nothing && continue
-        op = read_intent(lim.projection, lim, event)
+        op = read_intent(lim.projection, nothing, Intent(event), lim).operation
         op === nothing && continue
         answer = _reroot_label_answer(op, j, lim.input)
         answer === nothing || return answer

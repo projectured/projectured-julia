@@ -24,8 +24,7 @@ function _press_task_button(document, label, spy; last_one = false)
     projection, iomap = _print_task_view(document; height = 1200)
     texts = [t for t in _collect_task_view_texts(iomap.output) if t[3] == label]
     text = last_one ? last(texts) : first(texts)
-    operation = read_intent(projection, iomap,
-        MouseClick(:left, text[1] + 2, text[2] + 2, ModifierKeys(); time = 0.0))
+    operation = read_intent(projection, nothing, Intent(MouseClick(:left, text[1] + 2, text[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
     operation.action.callback(spy)
 end
 

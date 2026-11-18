@@ -80,7 +80,7 @@ function test_part_pointer_shape()
         # height is as tall as its tallest slot.
         y = Int(iomap.output.h) ÷ 2
         shapes = [find_pointer_shape(iomap.output, x, y) for x in xs]
-        grabs = [_holds_pointer_part_operation(read_intent(widgets, iomap, down(x, y)),
+        grabs = [_holds_pointer_part_operation(read_intent(widgets, nothing, Intent(down(x, y)), iomap).operation,
                                                StartDragOperation) for x in xs]
         @test count(grabs) > 0
         @test (shapes .=== :double_arrow_horizontal) == grabs
@@ -144,7 +144,7 @@ function test_part_pointer_shape()
         inside = [0 <= x < width && 0 <= y < height for (x, y) in points]
         shapes = [find_pointer_shape(iomap.output, x, y) for (x, y) in points]
         @test (shapes .=== :ibeam) == inside
-        @test all(read_intent(projection, iomap, click(x, y)) isa ReplaceSelectionOperation
+        @test all(read_intent(projection, nothing, Intent(click(x, y)), iomap).operation isa ReplaceSelectionOperation
                   for (x, y) in points[inside])
     end
 

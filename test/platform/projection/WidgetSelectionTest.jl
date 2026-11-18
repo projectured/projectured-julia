@@ -89,7 +89,7 @@ _press_caret(x, y) = MouseClick(:left, x, y, 1, _ALT; time = 0.0)
 # reader says where the control is, so the test repeats no layout arithmetic.
 function _selection_point_of(projection, iomap, control)
     for y in 0:3:400, x in 0:3:120
-        answer = read_intent(projection, iomap, _press(x, y))
+        answer = read_intent(projection, nothing, Intent(_press(x, y)), iomap).operation
         answer isa ReplaceReferencedValueOperation && answer.document === control &&
             return (x, y)
     end
@@ -102,13 +102,13 @@ function _selection_click!(projection, iomap, root, x, y; button = :left,
                            modifiers = ModifierKeys())
     for event in (MouseDown(button, x, y, modifiers; time = 0.0), MouseUp(button, x, y, modifiers; time = 0.0),
                   MouseClick(button, x, y, modifiers; time = 0.0))
-        answer = read_intent(projection, iomap, event)
+        answer = read_intent(projection, nothing, Intent(event), iomap).operation
         answer === nothing || evaluate_operation((document = root,), answer)
     end
 end
 
 function _selection_space!(projection, iomap, root)
-    answer = read_intent(projection, iomap, KeyPress(' '; time = 0.0))
+    answer = read_intent(projection, nothing, Intent(KeyPress(' '; time = 0.0)), iomap).operation
     answer === nothing || evaluate_operation((document = root,), answer)
     answer
 end
@@ -234,7 +234,7 @@ function test_widget_selection()
         (tx, ty) = _selection_text_at(out, "Title")
 
         # A plain press on the button still answers its action.
-        @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
+        @test read_intent(projection, nothing, Intent(_press(bx + 2, by + 2)), iomap).operation isa InvokeActionOperation
 
         # An Alt+double click names the innermost part, whole, and nothing acts: in a text
         # box and in a label, the `String` that it holds, and on the text of a button the
@@ -245,12 +245,12 @@ function test_widget_selection()
                                  ((lx + 2, ly + 2), t.label.content),
                                  ((fx + 2, fy + 2), t.field.content),
                                  ((1, 1), t.card))
-            op = read_intent(projection, iomap, _press_whole(x, y))
+            op = read_intent(projection, nothing, Intent(_press_whole(x, y)), iomap).operation
             @test op isa ReplaceSelectionOperation
             @test evaluate_reference(t.root, op.path) === wanted
         end
         # The title of the card is a `String`, and a part of the card.
-        title = read_intent(projection, iomap, _press_whole(tx + 2, ty + 2))
+        title = read_intent(projection, nothing, Intent(_press_whole(tx + 2, ty + 2)), iomap).operation
         @test title isa ReplaceSelectionOperation
         @test strip_reference_types(title.path) ==
               ConcreteReference(FieldReferenceStep("elements"),
@@ -259,7 +259,7 @@ function test_widget_selection()
         @test t.count[] == 0
 
         # Outside every widget, an Alt+double click names nothing.
-        @test read_intent(projection, iomap, _press_whole(900, 900)) === nothing
+        @test read_intent(projection, nothing, Intent(_press_whole(900, 900)), iomap).operation === nothing
     end
 
     @testset "an Alt+double click selects a shape that a layout holds bare" begin
@@ -274,7 +274,7 @@ function test_widget_selection()
         _selection_walk(iomap.output) do node, x, y
             node isa GraphicsCircle && (centre = (x + Int(node.cx), y + Int(node.cy)))
         end
-        op = read_intent(projection, iomap, _press_whole(centre...))
+        op = read_intent(projection, nothing, Intent(_press_whole(centre...)), iomap).operation
         @test op isa ReplaceSelectionOperation
         @test evaluate_reference(layout, op.path) === circle
     end
@@ -294,14 +294,14 @@ function test_widget_selection()
         # A control that takes the focus draws its own focus ring when it is
         # selected, so the container adds none.
         (bx, by) = _selection_text_at(out, "Go")
-        op = read_intent(projection, iomap, _press_whole(bx + 2, by + 2))
+        op = read_intent(projection, nothing, Intent(_press_whole(bx + 2, by + 2)), iomap).operation
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
         # The text of a label, which an Alt+double click selects, draws the band of a
         # selected part behind it, so no container draws a ring.
         (lx, ly) = _selection_text_at(out, "hello")
-        op = read_intent(projection, iomap, _press_whole(lx + 2, ly + 2))
+        op = read_intent(projection, nothing, Intent(_press_whole(lx + 2, ly + 2)), iomap).operation
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
@@ -319,7 +319,7 @@ function test_widget_selection()
         # The card as a whole, by a press on its padding: the composite draws
         # the ring around it.
         (tx, ty) = _selection_text_at(out, "Title")
-        op = read_intent(projection, iomap, _press_whole(1, 1))
+        op = read_intent(projection, nothing, Intent(_press_whole(1, 1)), iomap).operation
         evaluate_operation((document = t.root,), op)
         drawn = _selection_rings(out)
         @test length(drawn) == 1
@@ -329,7 +329,7 @@ function test_widget_selection()
 
         # The title of the card is no document, so no container draws a ring
         # for it: the card draws the band of a selected part on it.
-        op = read_intent(projection, iomap, _press_whole(tx + 2, ty + 2))
+        op = read_intent(projection, nothing, Intent(_press_whole(tx + 2, ty + 2)), iomap).operation
         evaluate_operation((document = t.root,), op)
         @test isempty(_selection_rings(out))
 
@@ -342,9 +342,9 @@ function test_widget_selection()
         projection = _selection_projection()
         iomap = print_document(projection, projection, t.root, PrinterContext())
         (bx, by) = _selection_text_at(iomap.output, "Go")
-        op = read_intent(projection, iomap, _press_whole(bx + 2, by + 2))
+        op = read_intent(projection, nothing, Intent(_press_whole(bx + 2, by + 2)), iomap).operation
         evaluate_operation((document = t.root,), op)
-        @test read_intent(projection, iomap, _press(bx + 2, by + 2)) isa InvokeActionOperation
+        @test read_intent(projection, nothing, Intent(_press(bx + 2, by + 2)), iomap).operation isa InvokeActionOperation
     end
     @testset "a selection can name a widget a projection drew for a document" begin
         focus = ProjecturedPlatform.FocusModule
@@ -432,8 +432,7 @@ function test_widget_selection()
         (x, y) = _selection_point_of(projection, iomap, b.second)
         _selection_click!(projection, iomap, b.layout, x, y; button = :right)
         @test find_whole_selected_index(b.layout.selection, "children") == 1
-        @test read_intent(projection, iomap,
-                          MouseDown(:left, x, y, ModifierKeys(alt = true); time = 0.0)) === nothing
+        @test read_intent(projection, nothing, Intent(MouseDown(:left, x, y, ModifierKeys(alt = true); time = 0.0)), iomap).operation === nothing
         @test find_whole_selected_index(b.layout.selection, "children") == 1
     end
 
@@ -465,8 +464,8 @@ function test_widget_selection()
         shell = WidgetShell(b.layout; toolbar = WidgetToolbar(Any[item]))
         iomap = print_document(projection, projection, shell, PrinterContext())
         (x, y) = first((x, y) for y in 0:2:60, x in 0:2:120
-                       if read_intent(projection, iomap, _press(x, y)) isa InvokeActionOperation)
-        down = read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+                       if read_intent(projection, nothing, Intent(_press(x, y)), iomap).operation isa InvokeActionOperation)
+        down = read_intent(projection, nothing, Intent(MouseDown(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         @test down isa ReplaceViewStateOperation
         _selection_click!(projection, iomap, shell, x, y)
         @test count[] == 1

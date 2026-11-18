@@ -1886,9 +1886,6 @@ function read_intent(p::MathProjection, recursion, change::Intent, iomap::MathIo
     read_child_intent(p, recursion, change, iomap, child.iomap, Tuple(child.steps))
 end
 
-read_intent(p::MathProjection, iomap::MathIoMap, event::Union{KeyDown, KeyPress}) =
-    read_intent(p, nothing, Intent(event), iomap).operation
-
 # An operation of the output has no image in the input of a formula.
 map_operation_backward(p::MathProjection, iomap::MathIoMap, operation) = nothing
 

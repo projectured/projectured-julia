@@ -391,7 +391,7 @@ function test_sequencechart_projection()
             x = round(Int, to_pixel(g.scale, g.coordinates[row]) + g.body_x)
             y = round(Int, g.lane_of[get_event_axis(chart.events, row)] + g.body_y)
             back = map_reference_backward(projection, stage2, PointReferenceStep(x, y))
-            click = read_intent(projection, stage2, MouseClick(:left, x, y, _sc_no_modifier; time = 0.0))
+            click = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, _sc_no_modifier; time = 0.0)), stage2).operation
             @test click isa ReplaceSelectionOperation
             @test back == click.path
             # The whole chain maps the point on to the chart's own event.
@@ -414,7 +414,7 @@ function test_sequencechart_projection()
             cross = g.lane_of[get_event_axis(chart.events, row)]
             press = MouseClick(:left, round(Int, flow + g.body_x),
                                round(Int, cross + g.body_y), _sc_no_modifier; time = 0.0)
-            op = read_intent(projection, stage2, press)
+            op = read_intent(projection, nothing, Intent(press), stage2).operation
             @test op isa ReplaceSelectionOperation
 
             # The reader speaks the plot's vocabulary; stage one peels the one
@@ -438,7 +438,7 @@ function test_sequencechart_projection()
 
             press = MouseClick(:left, round(Int, g.body_x + g.body_w / 2),
                                round(Int, g.body_y + g.body_h / 2), 2, _sc_no_modifier; time = 0.0)
-            op = read_intent(stage2.projection, stage2, press)
+            op = read_intent(stage2.projection, nothing, Intent(press), stage2).operation
             @test op isa ReplaceViewStateOperation      # a zoom is view state
             _sc_apply(plot, op)
             @test plot.view === nothing
@@ -450,7 +450,7 @@ function test_sequencechart_projection()
             stage2 = _stage2_iomap(iomap)
             p, plot = stage2.projection, stage2.input
             g = _geometry_of(iomap)
-            read(event) = read_intent(p, stage2, event)
+            read(event) = read_intent(p, nothing, Intent(event), stage2).operation
             path_of(op) = strip_reference_types(op.path)
             part(steps...) = extend_reference(EmptyReference(), FieldReferenceStep("chart"), steps...)
             characters(path, a, b) = concat_references(path, ConcreteReference(RangeReferenceStep(a, b), EmptyReference()))
@@ -515,7 +515,7 @@ function test_sequencechart_projection()
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
             focus = to_data(g.scale, g.body_w / 2)
-            op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y, _sc_ctrl; time = 0.0))
+            op = read_intent(stage2.projection, nothing, Intent(MouseScroll(0, 1, x, y, _sc_ctrl; time = 0.0)), stage2).operation
             @test op isa ReplaceViewStateOperation
             _sc_apply(plot, op)
 
@@ -532,7 +532,7 @@ function test_sequencechart_projection()
             stage2 = _stage2_iomap(iomap)
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
-            read_intent(stage2.projection, stage2, MouseScroll(dx, dy, x, y, modifiers; time = 0.0))
+            read_intent(stage2.projection, nothing, Intent(MouseScroll(dx, dy, x, y, modifiers; time = 0.0)), stage2).operation
         end
 
         @testset "the wheel moves the window only while there is time to move to" begin
@@ -605,7 +605,7 @@ function test_sequencechart_projection()
             plot = _plot_of(iomap)
             stage2 = _stage2_iomap(iomap)
             g = _geometry_of(iomap)
-            send(event) = (op = read_intent(stage2.projection, stage2, event);
+            send(event) = (op = read_intent(stage2.projection, nothing, Intent(event), stage2).operation;
                            op === nothing || _sc_apply_answer!(plot.chart, op); op)
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
@@ -647,7 +647,7 @@ function test_sequencechart_projection()
             plot = _plot_of(iomap)
             stage2 = _stage2_iomap(iomap)
             g = _geometry_of(iomap)
-            send(event) = (op = read_intent(stage2.projection, stage2, event);
+            send(event) = (op = read_intent(stage2.projection, nothing, Intent(event), stage2).operation;
                            op === nothing || _sc_apply_answer!(chart, op); op)
             row = first(g.visible_events)
             x = round(Int, to_pixel(g.scale, g.coordinates[row]) + g.body_x)
@@ -657,8 +657,7 @@ function test_sequencechart_projection()
             send(DragEnd(x, y; time = 0.0))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
-            @test read_intent(stage2.projection, stage2,
-                              MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
+            @test read_intent(stage2.projection, nothing, Intent(MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0)), stage2).operation isa ReplaceSelectionOperation
         end
 
         @testset "the mouse moves the view" begin
@@ -666,7 +665,7 @@ function test_sequencechart_projection()
             plot = _plot_of(iomap)
             stage2 = _stage2_iomap(iomap)
             g = _geometry_of(iomap)
-            send(event) = (op = read_intent(stage2.projection, stage2, event);
+            send(event) = (op = read_intent(stage2.projection, nothing, Intent(event), stage2).operation;
                            op === nothing || _sc_apply_answer!(plot.chart, op); op)
             mid_x = round(Int, g.body_x + g.body_w / 2)
             mid_y = round(Int, g.body_y + g.body_h / 2)
@@ -742,7 +741,7 @@ function test_sequencechart_projection()
             plot = _plot_of(iomap)
             stage2 = _stage2_iomap(iomap)
             g = _geometry_of(iomap)
-            send(event) = (op = read_intent(stage2.projection, stage2, event);
+            send(event) = (op = read_intent(stage2.projection, nothing, Intent(event), stage2).operation;
                            op === nothing || _sc_apply_answer!(plot.chart, op); op)
             page = (g.coordinates[end] - g.coordinates[1]) / 4
             zoomed = SequenceChartView(1, 0.0, page)
@@ -798,7 +797,7 @@ function test_sequencechart_projection()
             vplot = _plot_of(vertical)
             vstage = _stage2_iomap(vertical)
             vplot.view = zoomed
-            op = read_intent(vstage.projection, vstage, KeyDown(:page_down, ModifierKeys(); time = 0.0))
+            op = read_intent(vstage.projection, nothing, Intent(KeyDown(:page_down, ModifierKeys(); time = 0.0)), vstage).operation
             _sc_apply_answer!(vplot.chart, op)
             @test _geometry_of(vertical).lo ≈ _geometry_of(vertical).coordinates[1] + page
         end
@@ -809,7 +808,7 @@ function test_sequencechart_projection()
             iomap = print_document(view, view, chart, PrinterContext())
             canvas_iomap = _find_sequence_chart_canvas_iomap(iomap)
             plot = canvas_iomap.input
-            send(event) = (op = read_intent(view, iomap, event); op === nothing || _sc_apply_answer!(chart, op); op)
+            send(event) = (op = read_intent(view, nothing, Intent(event), iomap).operation; op === nothing || _sc_apply_answer!(chart, op); op)
             viewports() = [e for e in canvas_iomap.output.elements if e isa GraphicsViewport]
 
             # The menu holds the view actions, and an action that changes nothing is
@@ -827,8 +826,8 @@ function test_sequencechart_projection()
             @test plot.view === nothing
             # A right click on the body opens that menu.
             g = canvas_iomap.geometry
-            op = read_intent(view, iomap, MouseClick(:right, round(Int, g.body_x) + 20, round(Int, g.body_y) + 20,
-                                                     1, ModifierKeys(); time = 0.0))
+            op = read_intent(view, nothing, Intent(MouseClick(:right, round(Int, g.body_x) + 20, round(Int, g.body_y) + 20,
+                                                     1, ModifierKeys(); time = 0.0)), iomap).operation
             @test op !== nothing
             @test compute_context_menu(SequenceChartPlot(nothing)) === nothing
 
@@ -886,7 +885,7 @@ function test_sequencechart_projection()
                 iomap = print_document(view, view, chart, PrinterContext())
                 canvas_iomap = _find_sequence_chart_canvas_iomap(iomap)
                 plot = canvas_iomap.input
-                send(event) = (op = read_intent(view, iomap, event); op === nothing || _sc_apply_answer!(chart, op); op)
+                send(event) = (op = read_intent(view, nothing, Intent(event), iomap).operation; op === nothing || _sc_apply_answer!(chart, op); op)
                 bars() = Dict(part.field => part for part in SCT._find_shown_sequence_chart_parts(canvas_iomap))
                 time_bar, lane_bar = plot.time_scroll_bar, plot.lane_scroll_bar
                 g = canvas_iomap.geometry
@@ -996,19 +995,19 @@ function test_sequencechart_projection()
             flow = to_pixel(g.scale, g.coordinates[row])
             cross = g.lane_of[get_event_axis(chart.events, row)]
             move = MouseMove(round(Int, flow + g.body_x), round(Int, cross + g.body_y); time = 0.0)
-            op = read_intent(stage2.projection, stage2, move)
+            op = read_intent(stage2.projection, nothing, Intent(move), stage2).operation
             @test op !== nothing
             _sc_apply(plot, op)
             @test plot.cursor !== nothing
 
             # Repeating the same move says nothing new, so it declines rather
             # than writing a value that would invalidate cells for no reason.
-            @test read_intent(stage2.projection, stage2, move) === nothing
+            @test read_intent(stage2.projection, nothing, Intent(move), stage2).operation === nothing
 
             # A move off the plot, as the move to (-1, -1) that the pointer
             # leaving gives, clears the readout, so no stale readout outlives the
             # pointer.
-            leave = read_intent(stage2.projection, stage2, MouseMove(-1, -1; time = 0.0))
+            leave = read_intent(stage2.projection, nothing, Intent(MouseMove(-1, -1; time = 0.0)), stage2).operation
             _sc_apply(plot, leave)
             @test plot.cursor === nothing
         end
@@ -1017,8 +1016,7 @@ function test_sequencechart_projection()
             iomap = _sequencechart_iomap(_sc_chart())
             stage2 = _stage2_iomap(iomap)
             # A click on the background is not a selection of anything.
-            @test read_intent(stage2.projection, stage2,
-                              MouseClick(:left, 2, 2, _sc_no_modifier; time = 0.0)) === nothing
+            @test read_intent(stage2.projection, nothing, Intent(MouseClick(:left, 2, 2, _sc_no_modifier; time = 0.0)), stage2).operation === nothing
         end
 
         @testset "long arrows split" begin

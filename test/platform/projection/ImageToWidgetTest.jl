@@ -120,8 +120,8 @@ function test_image_to_widget()
         end
         # Ctrl+0 at the fit changes nothing, so it goes on to the zoom of the window.
         iomap = _itw_print(tab_view, 200; height = 300)
-        @test read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:zero)) === nothing
-        operation = read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:one))
+        @test read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:zero)), iomap).operation === nothing
+        operation = read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:one)), iomap).operation
         @test operation isa ReplaceViewStateOperation
         _itw_evaluate!(operation)
         @test tab_view.scroll.at_natural_size && !card_view.scroll.at_natural_size
@@ -129,8 +129,8 @@ function test_image_to_widget()
         @test only(draw(card_view))[4:5] == (200, 150)
         # At the natural size Ctrl+1 changes nothing, and Ctrl+0 gives the fit back.
         iomap = _itw_print(tab_view, 200; height = 300)
-        @test read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:one)) === nothing
-        operation = read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:zero))
+        @test read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:one)), iomap).operation === nothing
+        operation = read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:zero)), iomap).operation
         @test operation isa ReplaceViewStateOperation
         _itw_evaluate!(operation)
         @test !tab_view.scroll.at_natural_size
@@ -139,8 +139,8 @@ function test_image_to_widget()
 
     @testset "a picture in a label has no scroll pane and no Ctrl+1" begin
         iomap = _itw_print(WidgetLabel(_itw_make_picture(400, 300)), 200)
-        @test read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:one)) === nothing
-        @test read_intent(_ITW_PROJECTION, iomap, _itw_ctrl(:zero)) === nothing
+        @test read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:one)), iomap).operation === nothing
+        @test read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:zero)), iomap).operation === nothing
     end
 
     @testset "Ctrl+1 takes the limit off any content: a text in a scroll pane stops wrapping" begin
@@ -148,11 +148,11 @@ function test_image_to_widget()
         pane = WidgetScrollPane(WidgetLabel(words))
         lines(document) = length(unique(element[3] for element in _itw_find(_itw_draw(document, 100; height = 200), :text)))
         @test lines(pane) > 1
-        operation = read_intent(_ITW_PROJECTION, _itw_print(pane, 100; height = 200), _itw_ctrl(:one))
+        operation = read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:one)), _itw_print(pane, 100; height = 200)).operation
         @test operation isa ReplaceViewStateOperation
         _itw_evaluate!(operation)
         @test lines(pane) == 1
-        operation = read_intent(_ITW_PROJECTION, _itw_print(pane, 100; height = 200), _itw_ctrl(:zero))
+        operation = read_intent(_ITW_PROJECTION, nothing, Intent(_itw_ctrl(:zero)), _itw_print(pane, 100; height = 200)).operation
         _itw_evaluate!(operation)
         @test lines(pane) > 1
     end

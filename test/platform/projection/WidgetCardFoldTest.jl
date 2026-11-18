@@ -104,11 +104,11 @@ function test_widget_card_fold()
         # A click on the chevron folds, and so does one at the right edge of its
         # column. A click on the title does not.
         title_x = _fold_title_x(iomap)
-        on_chevron = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 16, ModifierKeys(); time = 0.0))
+        on_chevron = read_intent(proj, nothing, Intent(MouseClick(:left, _fold_pad + 8, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, nothing, Intent(MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, nothing, Intent(MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation
         @test !(on_title isa ToggleCollapseOperation)
 
         # Folded: the mark points right, and the body is not drawn.
@@ -129,9 +129,9 @@ function test_widget_card_fold()
         # A click left of the title is a click on the padding, not a fold, and a
         # click on the title is not a fold either: a card that draws no chevron
         # does not fold from a click.
-        @test !(read_intent(proj, iomap, MouseClick(:left, 4, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, nothing, Intent(MouseClick(:left, 4, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation isa ToggleCollapseOperation)
         title_x = _fold_title_x(iomap)
-        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, nothing, Intent(MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation isa ToggleCollapseOperation)
     end
 
     # A container routes a press to a card only over something the card drew. A
@@ -144,9 +144,9 @@ function test_widget_card_fold()
         title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
         card = make_card()
         iomap = print_document(proj, proj, WidgetComposite(Any[card]), PrinterContext())
-        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, nothing, Intent(MouseClick(:left, title_x - 1, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, nothing, Intent(MouseClick(:left, title_x + 2, _fold_pad + 16, ModifierKeys(); time = 0.0)), iomap).operation
         @test !(on_title isa ToggleCollapseOperation)
     end
 
@@ -162,8 +162,8 @@ function test_widget_card_fold()
         # The test is the window: it gives the accordion a press in the frame of
         # its own canvas, the drawn place less the place of the canvas.
         press(x, y; button = :left) =
-            read_intent(proj, iomap, MouseClick(button, x - Int(iomap.output.x), y - Int(iomap.output.y),
-                                                ModifierKeys(); time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(button, x - Int(iomap.output.x), y - Int(iomap.output.y),
+                                                ModifierKeys(); time = 0.0)), iomap).operation
 
         # A press on the title of a closed item opens it, and the other one closes.
         # It is view state, so a history does not record it.
@@ -221,7 +221,7 @@ function test_widget_card_fold()
         # A press on a control in the open body reaches the control.
         toggled = nothing
         for y in at["inner body"][2]:2:(at["Plain title"][2] - 1), x in 0:2:60
-            answer = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+            answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
             if answer isa ReplaceReferencedValueOperation && answer.document === box
                 toggled = answer
                 break
@@ -230,7 +230,7 @@ function test_widget_card_fold()
         @test toggled !== nothing && toggled.value === true
         # A press on the header of the item still closes it.
         title = at["Document title"]
-        closed = read_intent(proj, iomap, MouseClick(:left, title[1] + 2, title[2] + 2, ModifierKeys(); time = 0.0))
+        closed = read_intent(proj, nothing, Intent(MouseClick(:left, title[1] + 2, title[2] + 2, ModifierKeys(); time = 0.0)), iomap).operation
         @test closed isa ReplaceViewStateOperation &&
               get_wrapped_operation(closed).document === accordion &&
               get_wrapped_operation(closed).value == 0
@@ -265,7 +265,7 @@ function test_widget_card_fold()
         proj = _fold_proj()
         iomap = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain), PrinterContext())
         click(button, x, y; modifiers = ModifierKeys()) =
-            read_intent(proj, iomap, MouseClick(button, x, y, modifiers; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(button, x, y, modifiers; time = 0.0)), iomap).operation
         @test click(:left, 4, 4) isa DoNothingOperation          # the padding
         @test !(click(:right, 4, 4) isa DoNothingOperation)
         @test !(click(:left, 4, 4; modifiers = ModifierKeys(alt = true)) isa DoNothingOperation)
@@ -282,7 +282,7 @@ function test_widget_card_fold()
                                  description = "Select the content", domain = "test")
         card = WidgetCard(; content = "abc", variant = :plain, gestures = GestureBinding[binding])
         iomap = print_document(proj, proj, card, PrinterContext())
-        click(x, y) = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        click(x, y) = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         answer = click(4, 4)                                      # the padding
         @test answer isa ReplaceSelectionOperation
         @test strip_reference_types(answer.path) ==
@@ -304,7 +304,7 @@ function test_widget_card_fold()
 
         # The chevron folds the card, as it does for a document title.
         press(x, y; modifiers = ModifierKeys(), button = :left, count = 1) =
-            read_intent(proj, iomap, MouseClick(button, x, y, count, modifiers; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(button, x, y, count, modifiers; time = 0.0)), iomap).operation
         title_x = iomap.header.title_box[1]
         on_chevron = press(_fold_pad + 8, _fold_pad + 8)
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
@@ -344,7 +344,7 @@ function test_widget_card_fold()
         caret = ConcreteReference(FieldReferenceStep("title"),
                     ConcreteReference(RangeReferenceStep(3, 3), EmptyReference()))
         # Each character of the stub measure is 10 wide, so 32 is nearest the place after "Det".
-        answer = read_intent(proj, iomap, MouseClick(:left, x0 + 32, y0 + height ÷ 2, ModifierKeys(); time = 0.0))
+        answer = read_intent(proj, nothing, Intent(MouseClick(:left, x0 + 32, y0 + height ÷ 2, ModifierKeys(); time = 0.0)), iomap).operation
         @test answer isa ReplaceSelectionOperation && strip_reference_types(answer.path) == caret
         # A point there maps back to the same caret, and the caret maps forward to its
         # place on the line, which has a box.
@@ -369,16 +369,16 @@ function test_widget_card_fold()
             ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))
         selected(answer) = answer isa ReplaceSelectionOperation ? strip_reference_types(answer.path) : answer
         # A press puts the caret and starts a drag, and a move of the drag selects a range.
-        down = read_intent(proj, iomap, MouseDown(:left, x0 + 32, y, ModifierKeys(); time = 0.0))
+        down = read_intent(proj, nothing, Intent(MouseDown(:left, x0 + 32, y, ModifierKeys(); time = 0.0)), iomap).operation
         @test down isa CompoundOperation && selected(down.operations[1]) == place(3)
         set_selection!(card, place(3))
-        @test selected(read_intent(proj, iomap, DragMove(x0 + 62, y; time = 0.0))) == place(3, 6)
+        @test selected(read_intent(proj, nothing, Intent(DragMove(x0 + 62, y; time = 0.0)), iomap).operation) == place(3, 6)
         # A key moves the caret, and with Shift makes a range.
-        @test selected(read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0))) == place(4)
-        @test selected(read_intent(proj, iomap, KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == place(3, 7)
+        @test selected(read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(); time = 0.0)), iomap).operation) == place(4)
+        @test selected(read_intent(proj, nothing, Intent(KeyDown(:end, ModifierKeys(shift = true); time = 0.0)), iomap).operation) == place(3, 7)
         # A click with Shift moves the moving end there.
-        @test selected(read_intent(proj, iomap, MouseClick(:left, x0 + 12, y, 1, ModifierKeys(shift = true);
-                                                           time = 0.0))) == place(1, 3; direction = :backward)
+        @test selected(read_intent(proj, nothing, Intent(MouseClick(:left, x0 + 12, y, 1, ModifierKeys(shift = true);
+                                                           time = 0.0)), iomap).operation) == place(1, 3; direction = :backward)
         # A paste leaves the title and takes the content.
         @test !accepts_pasted_text(card, :title) && accepts_pasted_text(card, :content)
     end
@@ -394,13 +394,13 @@ function test_widget_card_fold()
         @test _find_text_font(iomap.output, "the body") != title_font
         # The card folds from the height of the canvas of the title.
         title_x = _fold_title_x(iomap)
-        folds = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0))
+        folds = read_intent(proj, nothing, Intent(MouseClick(:left, _fold_pad + 8, _fold_pad + 8, ModifierKeys(); time = 0.0)), iomap).operation
         @test folds isa ToggleCollapseOperation
         @test iomap.header.height == Int(iomap.child_iomaps[1][3].output.h)
         # Its own printer reads a double click with Alt: the answer names the innermost
         # part, the `String` that the title holds.
-        selected = read_intent(proj, iomap, MouseClick(:left, title_x + 2, _fold_pad + 8, 2,
-                                                       ModifierKeys(alt = true); time = 0.0))
+        selected = read_intent(proj, nothing, Intent(MouseClick(:left, title_x + 2, _fold_pad + 8, 2,
+                                                       ModifierKeys(alt = true); time = 0.0)), iomap).operation
         @test selected isa ReplaceSelectionOperation
         @test evaluate_reference(card, selected.path) === text.value
     end
@@ -419,8 +419,8 @@ function test_widget_card_fold()
         card = WidgetCard(; title = text, content = "x")
         composite = WidgetComposite(Any[card])
         iomap = print_document(proj, proj, composite, PrinterContext())
-        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
-                                                     ModifierKeys(alt = true); time = 0.0))
+        answer = read_intent(proj, nothing, Intent(MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
+                                                     ModifierKeys(alt = true); time = 0.0)), iomap).operation
         @test answer isa ReplaceSelectionOperation
         @test evaluate_reference(composite, answer.path) === text.value
     end
@@ -431,8 +431,8 @@ function test_widget_card_fold()
         card = WidgetCard(; title = "Details", content = "x")
         composite = WidgetComposite(Any[card])
         iomap = print_document(proj, proj, composite, PrinterContext())
-        answer = read_intent(proj, iomap, MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
-                                                     ModifierKeys(alt = true); time = 0.0))
+        answer = read_intent(proj, nothing, Intent(MouseClick(:left, _fold_pad + 8, _fold_pad + 8, 2,
+                                                     ModifierKeys(alt = true); time = 0.0)), iomap).operation
         @test answer isa ReplaceSelectionOperation
         @test strip_reference_types(answer.path) ==
               ConcreteReference(FieldReferenceStep("elements"),

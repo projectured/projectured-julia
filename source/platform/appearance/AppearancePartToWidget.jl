@@ -130,9 +130,6 @@ read_intent(p::AppearancePartToWidget, recursion, change::Intent, iomap::Appeara
                       read_child = (_, r, c, child) ->
                           _read_tab_child(iomap, get_iomap_projection(child), r, c, child))
 
-read_intent(p::AppearancePartToWidget, iomap::AppearancePartToWidgetIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A path of the part through its view names its path in the widgets, and the
 # printer of the widgets maps it on; a widget maps back to that path.
 function map_reference_forward(p::AppearancePartToWidget, iomap::AppearancePartToWidgetIoMap, reference)

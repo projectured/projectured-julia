@@ -41,7 +41,7 @@ function _scan_folds(proj, io)
     found = Any[]
     for y in 2:2:900, x in 16:6:120
         op = try
-            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), io).operation
         catch
             nothing
         end
@@ -71,7 +71,7 @@ function _scan_selections(proj, io)
     found = Any[]
     for y in 2:2:600, x in (40, 70, 100, 130)
         op = try
-            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), io).operation
         catch
             nothing
         end
@@ -95,7 +95,7 @@ function _scan_whole_selections(proj, io)
     found = Dict{String,Any}()
     for y in 2:2:900, x in 10:10:150
         op = try
-            read_intent(proj, io, MouseClick(:left, x, y, 2, _TRANSCRIPT_ALT; time = 0.0))
+            read_intent(proj, nothing, Intent(MouseClick(:left, x, y, 2, _TRANSCRIPT_ALT; time = 0.0)), io).operation
         catch
             nothing
         end
@@ -479,7 +479,7 @@ function test_conversation_transcript()
         place = first(places)
         for op in (ReplaceReferencedValueOperation(nothing, place, "x"),
                    ReplaceStringRangeOperation(place, "x"))
-            @test read_intent(proj, io, op) === nothing
+            @test read_intent(proj, nothing, Intent(op), io).operation === nothing
         end
     end
 
@@ -491,10 +491,10 @@ function test_conversation_transcript()
         for op in (ReplaceReferencedValueOperation(nothing, path, "x"),
                    ReplaceStringRangeOperation(path, "x"),
                    ReplaceNumberRangeOperation(path, "1"))
-            @test read_intent(proj, io, op) === nothing
+            @test read_intent(proj, nothing, Intent(op), io).operation === nothing
         end
         # A selection is not an edit, and it passes.
-        @test read_intent(proj, io, ReplaceSelectionOperation(EmptyReference())) isa
+        @test read_intent(proj, nothing, Intent(ReplaceSelectionOperation(EmptyReference())), io).operation isa
               ReplaceSelectionOperation
     end
 
@@ -520,7 +520,7 @@ function test_conversation_transcript()
         end
         # A plain press on the result still names the part that holds it.
         (_, x, y) = found[string(first(p for p in paths if _is_same_path(p, _section_path(3, 1, "result"))))]
-        plain = read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
+        plain = read_intent(proj, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), io).operation
         @test plain isa ReplaceSelectionOperation
         @test _is_same_path(plain.path, _part_path(3, 1))
     end
@@ -585,7 +585,7 @@ function test_conversation_transcript()
         # The reader answers the keys from the document's selection.
         (doc, proj, io) = _transcript_render()
         replace_selection!(doc, _part_path(3, 1))
-        op = read_intent(proj, io, KeyDown(:down, _TRANSCRIPT_ALT; time = 0.0))
+        op = read_intent(proj, nothing, Intent(KeyDown(:down, _TRANSCRIPT_ALT; time = 0.0)), io).operation
         @test op isa ReplaceSelectionOperation
         @test _is_same_path(op.path, _section_path(3, 1, "form"))
     end
@@ -602,8 +602,8 @@ function test_conversation_transcript()
         content = FieldReferenceStep("content")
         for target in (EmptyReference(), _turn_path(2), _part_path(2, 2), _section_path(3, 1, "result"))
             slice.selection = ConcreteReference(content, target)
-            @test !(read_intent(projection, io, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
-            @test !(read_intent(projection, io, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
+            @test !(read_intent(projection, nothing, Intent(KeyDown(:v, ctrl; time = 0.0)), io).operation isa CompoundOperation)
+            @test !(read_intent(projection, nothing, Intent(KeyDown(:x, ctrl; time = 0.0)), io).operation isa CompoundOperation)
         end
         @test !accepts_pasted_document(conversation)
         @test !accepts_pasted_text(conversation)
@@ -634,7 +634,7 @@ function test_conversation_transcript()
             measure = _transcript_measure)
         io = print_document(projection, inner, slice, PrinterContext())
 
-        op = read_intent(projection, io, KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))
+        op = read_intent(projection, nothing, Intent(KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0)), io).operation
         @test op isa CompoundOperation
         evaluate_operation((document = slice,), op)
 

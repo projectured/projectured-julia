@@ -159,11 +159,11 @@ end
     chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = FontFileMeasure()))
     doc = PrimitiveNumber(42)
     set_selection!(doc, _value_range_ref(2, 2))
-    op = read_intent(chain, print_document(chain, doc), KeyPress('a'; time = 0.0))
+    op = read_intent(chain, nothing, Intent(KeyPress('a'; time = 0.0)), print_document(chain, doc)).operation
     op === nothing || evaluate_operation((document=doc,), op)
     @test doc.value === 42
     @test _cursor_at(doc).start == 2
-    op = read_intent(chain, print_document(chain, doc), KeyPress('5'; time = 0.0))
+    op = read_intent(chain, nothing, Intent(KeyPress('5'; time = 0.0)), print_document(chain, doc)).operation
     evaluate_operation((document=doc,), op)
     @test doc.value === 425
 end
@@ -182,7 +182,7 @@ end
     chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = FontFileMeasure()))
     doc = PrimitiveNumber(nothing)
     set_selection!(doc, _value_range_ref(0, 0))
-    evaluate_operation((document=doc,), read_intent(chain, print_document(chain, doc), KeyPress('5'; time = 0.0)))
+    evaluate_operation((document=doc,), read_intent(chain, nothing, Intent(KeyPress('5'; time = 0.0)), print_document(chain, doc)).operation)
     @test doc.value === 5
     # A cleared string, and a field that holds any value, take the text.
     doc = PrimitiveString(nothing)
@@ -203,7 +203,7 @@ function _press_string_leaf(value, caret, key)
                                TextToGraphics(measure = FontFileMeasure()))
     s = PrimitiveString(value)
     set_selection!(s, _value_range_ref(caret, caret))
-    op = read_intent(chain, print_document(chain, s), key)
+    op = read_intent(chain, nothing, Intent(key), print_document(chain, s)).operation
     op === nothing || evaluate_operation((document=s,), op)
     (op, s)
 end

@@ -179,13 +179,13 @@ end
         ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
     # The run "two" is on line 2, at offset 4 of the value.
     edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([2, 1], 1, 2), "W")
-    result = read_intent(iomap.projection, iomap, edit)
+    result = read_intent(iomap.projection, nothing, Intent(edit), iomap).operation
     @test result isa ReplaceStringRangeOperation
     @test strip_reference_types(result.reference) == value_range(5, 6)
     @test result.reference.tail.head isa RangeReferenceStep
     @test result.reference.tail.type === TextBlock
     edit = ReplaceStringRangeOperation(_S2T._make_span_range_path([2, 1], 3, 3), "!")
-    result = read_intent(iomap.projection, iomap, edit)
+    result = read_intent(iomap.projection, nothing, Intent(edit), iomap).operation
     @test strip_reference_types(result.reference) == value_range(7, 7)
 end
 
@@ -528,7 +528,7 @@ read_key(sel, key, mods=ModifierKeys()) = begin
     clear_selection!(node)
     set_selection!(node, sel)
     io = print_document(s2st, node)
-    read_intent(s2st, io, KeyDown(key, mods; time = 0.0))
+    read_intent(s2st, nothing, Intent(KeyDown(key, mods; time = 0.0)), io).operation
 end
 op_path(sel, key, mods=ModifierKeys()) = begin
     op = read_key(sel, key, mods)
@@ -563,7 +563,7 @@ end
     bare = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf(""), SyntaxLeaf("b")]; sep=",")
     clear_selection!(bare)
     set_selection!(bare, @reference(bare, children[2]))
-    op = read_intent(s2st, print_document(s2st, bare), KeyDown(:right, ModifierKeys(); time = 0.0))
+    op = read_intent(s2st, nothing, Intent(KeyDown(:right, ModifierKeys(); time = 0.0)), print_document(s2st, bare)).operation
     @test op isa ReplaceSelectionOperation
     @test is_reference_equal(op.path, @reference(bare, children[3]))
 end
@@ -615,7 +615,7 @@ end
     leaf_path(sel, key, mods=ModifierKeys()) = begin
         clear_selection!(leaf); set_selection!(leaf, sel)
         io = print_document(l2t, leaf)
-        op = read_intent(l2t, io, KeyDown(key, mods; time = 0.0))
+        op = read_intent(l2t, nothing, Intent(KeyDown(key, mods; time = 0.0)), io).operation
         op isa ReplaceSelectionOperation ? op.path : op
     end
     # text cursor → the whole leaf (∅)
@@ -715,7 +715,7 @@ end
     read_key(sel, key, mods=ModifierKeys()) = begin
         clear_selection!(node)
         set_selection!(node, sel)
-        read_intent(s2st, print_document(s2st, node), KeyDown(key, mods; time = 0.0))
+        read_intent(s2st, nothing, Intent(KeyDown(key, mods; time = 0.0)), print_document(s2st, node)).operation
     end
     op_path(sel, key, mods=ModifierKeys()) = begin
         op = read_key(sel, key, mods)
@@ -818,7 +818,7 @@ end
     op_path(sel, key) = begin
         clear_selection!(node)
         set_selection!(node, sel)
-        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, ModifierKeys(); time = 0.0))
+        op = read_intent(s2st, nothing, Intent(KeyDown(key, ModifierKeys(); time = 0.0)), print_document(s2st, node)).operation
         op isa ReplaceSelectionOperation ? op.path : op
     end
     sep_el = @reference(node, children[2])
@@ -955,7 +955,7 @@ end
     op_path(sel, key) = begin
         clear_selection!(node)
         set_selection!(node, sel)
-        op = read_intent(s2st, print_document(s2st, node), KeyDown(key, ModifierKeys(); time = 0.0))
+        op = read_intent(s2st, nothing, Intent(KeyDown(key, ModifierKeys(); time = 0.0)), print_document(s2st, node)).operation
         op isa ReplaceSelectionOperation ? op.path : op
     end
     wrapper = @reference(node, children[2])            # the delimitation

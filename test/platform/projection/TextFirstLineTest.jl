@@ -36,7 +36,7 @@ end
 
     # Backward, and the reader, map the flat caret to the same offset.
     @test map_reference_backward(proj, iomap, _caret(1)) == _caret(1)
-    op = read_intent(proj, iomap, ReplaceSelectionOperation(_caret(3)))
+    op = read_intent(proj, nothing, Intent(ReplaceSelectionOperation(_caret(3))), iomap).operation
     @test op isa ReplaceSelectionOperation && op.path == _caret(3)
 end
 

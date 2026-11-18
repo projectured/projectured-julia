@@ -24,7 +24,7 @@ function _drag_setup(content)
     (proj, state, DraggingIoMap(proj, state, nothing, _StubInner(_DraggingStub(), nothing)))
 end
 
-_feed(proj, iomap, evt) = read_intent(proj, iomap, evt)
+_feed(proj, iomap, evt) = read_intent(proj, nothing, Intent(evt), iomap).operation
 
 # The body of a test over the stub inner IO map, whose reader now asks the inner
 # IO map for its projection, which `_StubInner` has no method of.

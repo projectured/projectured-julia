@@ -129,7 +129,7 @@ function test_scroll_pane_bar()
         @test bar.document === mine
         x = _get_test_bar_place(bar)[1] + 2
         # One page is the whole room: 0.5 / (1 - 0.5).
-        click = read_intent(projection, iomap, MouseClick(:left, x, 190, 1, plain; time = 0.0))
+        click = read_intent(projection, nothing, Intent(MouseClick(:left, x, 190, 1, plain; time = 0.0)), iomap).operation
         @test _bar_test_written(click, mine, "value") == 1.0
         @test _bar_test_written(click, pane, "scroll_position") === nothing
         # A bar that its thumb fills shows nothing.
@@ -142,7 +142,7 @@ function test_scroll_pane_bar()
         iomap = print_document(projection, pane)
         room = Int(iomap.content_iomap.output.h) - 200
         x = 200 - 2
-        click(y, modifiers) = read_intent(projection, iomap, MouseClick(:left, x, y, 1, modifiers; time = 0.0))
+        click(y, modifiers) = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, 1, modifiers; time = 0.0)), iomap).operation
         page = click(190, plain)
         @test _bar_test_xy(_bar_test_written(page, pane, "scroll_position")) == (0, 200)
         # The click is the bar's: the text under it gets no caret.
@@ -152,7 +152,7 @@ function test_scroll_pane_bar()
         jump = click(199, shift)
         @test _bar_test_xy(_bar_test_written(jump, pane, "scroll_position")) == (0, room)
         # A press on the track does nothing until the click.
-        @test read_intent(projection, iomap, MouseDown(:left, x, 190, plain; time = 0.0)) === nothing
+        @test read_intent(projection, nothing, Intent(MouseDown(:left, x, 190, plain; time = 0.0)), iomap).operation === nothing
     end
 
     @testset "a drag of the thumb scrolls the pane, and Escape puts it back" begin
@@ -162,21 +162,21 @@ function test_scroll_pane_bar()
         bar = _find_test_pane_bar(iomap, "vertical_scroll_bar").document
         thumb = round(Int, bar.thumb_size * 200)
         x = 200 - 2
-        press = read_intent(projection, iomap, MouseDown(:left, x, 5, plain; time = 0.0))
+        press = read_intent(projection, nothing, Intent(MouseDown(:left, x, 5, plain; time = 0.0)), iomap).operation
         start = only(o for o in _bar_test_writes(press) if o isa StartDragOperation)
         # The drag comes back to the pane, which gives it on to its bar.
         @test start.path isa EmptyReference
         _bar_test_apply!(press)
         @test bar.thumb_drag == (along = 5, value = 0.0, travel = 200 - thumb)
-        moved = read_intent(projection, iomap, DragMove(x, 5 + 40, plain; time = 0.0))
+        moved = read_intent(projection, nothing, Intent(DragMove(x, 5 + 40, plain; time = 0.0)), iomap).operation
         expected = round(Int, 40 / (200 - thumb) * room)
         @test _bar_test_xy(_bar_test_written(moved, pane, "scroll_position")) == (0, expected)
         _bar_test_apply!(moved)
         # A move far off the pane takes the view to the end.
-        far = read_intent(projection, iomap, DragMove(900, 900, plain; time = 0.0))
+        far = read_intent(projection, nothing, Intent(DragMove(900, 900, plain; time = 0.0)), iomap).operation
         @test _bar_test_xy(_bar_test_written(far, pane, "scroll_position")) == (0, room)
         # Escape puts the view back where the drag started.
-        cancel = read_intent(projection, iomap, DragCancel(; time = 0.0))
+        cancel = read_intent(projection, nothing, Intent(DragCancel(; time = 0.0)), iomap).operation
         @test _bar_test_xy(_bar_test_written(cancel, pane, "scroll_position")) == (0, 0)
         _bar_test_apply!(cancel)
         @test bar.thumb_drag === nothing
@@ -190,12 +190,12 @@ function test_scroll_pane_bar()
         bar = _find_test_pane_bar(iomap, "vertical_scroll_bar").document
         @test bar.value == 1.0
         x = 200 - 2
-        up = read_intent(projection, iomap, MouseClick(:left, x, 0, 1, shift; time = 0.0))
+        up = read_intent(projection, nothing, Intent(MouseClick(:left, x, 0, 1, shift; time = 0.0)), iomap).operation
         @test _bar_test_xy(_bar_test_written(up, pane, "scroll_position")) == (0, 0)
         @test _bar_test_written(up, pane, "follow_end") == false
         _bar_test_apply!(up)
         @test bar.value == 0.0
-        down = read_intent(projection, iomap, MouseClick(:left, x, 199, 1, shift; time = 0.0))
+        down = read_intent(projection, nothing, Intent(MouseClick(:left, x, 199, 1, shift; time = 0.0)), iomap).operation
         @test _bar_test_xy(_bar_test_written(down, pane, "scroll_position")) == (0, room)
         @test _bar_test_written(down, pane, "follow_end") == true
     end
@@ -212,15 +212,15 @@ function test_scroll_pane_bar()
         writes_follow_end(op) = any(o -> o isa ReplaceReferencedValueOperation &&
                                          o.reference.head == FieldReferenceStep("follow_end"), writes(op))
         # Shift and a click at the end of the bar jumps to the end.
-        down = read_intent(projection, iomap, MouseClick(:left, 200 - 2, 199, 1, shift; time = 0.0))
+        down = read_intent(projection, nothing, Intent(MouseClick(:left, 200 - 2, 199, 1, shift; time = 0.0)), iomap).operation
         @test _bar_test_xy(_bar_test_written(down, pane, "scroll_position")) == (0, room)
         @test !writes_follow_end(down)
         _bar_test_apply!(down)
         # A turn of the wheel up and one back down to the end.
-        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100; time = 1.0))
+        up = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 100, 100; time = 1.0)), iomap).operation
         foreach(o -> o isa ReplaceReferencedValueOperation && evaluate_operation(nothing, o), writes(up))
         @test Int(pane.scroll_position.y[]) < room
-        back = read_intent(projection, iomap, MouseScroll(0, -1, 100, 100; time = 3.0))
+        back = read_intent(projection, nothing, Intent(MouseScroll(0, -1, 100, 100; time = 3.0)), iomap).operation
         @test Int(only(o.value for o in writes(back)
                        if o.reference.head == FieldReferenceStep("scroll_position")).y[]) == room
         @test !writes_follow_end(back)
@@ -257,11 +257,11 @@ function test_scroll_pane_bar()
         iomap = print_document(projection, pane)
         key = KeyDown(:page_down, plain; time = 0.0)
         # The text answers the move of its caret, at most the height of the view.
-        moved = read_intent(iomap.content_iomap.projection, iomap.content_iomap, key)
+        moved = read_intent(iomap.content_iomap.projection, nothing, Intent(key), iomap.content_iomap).operation
         @test moved isa KeepPointOperation
         @test 0 < moved.move[2] <= 200
         # The pane scrolls by the distance that the caret went.
-        answer = read_intent(projection, iomap, key)
+        answer = read_intent(projection, nothing, Intent(key), iomap).operation
         @test _bar_test_xy(_bar_test_written(answer, pane, "scroll_position")) == (0, moved.move[2])
     end
 
@@ -269,7 +269,7 @@ function test_scroll_pane_bar()
         pane = WidgetScrollPane(_make_bar_test_content(); size = Point2D(200, 200))
         iomap = print_document(projection, pane)
         turn(precise) = _bar_test_xy(_bar_test_written(
-            read_intent(projection, iomap, MouseScroll(0, 0, 100, 100; time = 0.0, precise_dy = precise)),
+            read_intent(projection, nothing, Intent(MouseScroll(0, 0, 100, 100; time = 0.0, precise_dy = precise)), iomap).operation,
             pane, "scroll_position"))
         whole = turn(-1.0)[2]
         @test whole > 0
@@ -283,8 +283,7 @@ function test_scroll_pane_bar()
         y() = Int(pane.scroll_position.y[])
         function turn!(notches, time; precise_dy = notches)
             before = y()
-            _bar_test_apply!(read_intent(projection, iomap,
-                                         MouseScroll(0, notches, 100, 100; time, precise_dy)))
+            _bar_test_apply!(read_intent(projection, nothing, Intent(MouseScroll(0, notches, 100, 100; time, precise_dy)), iomap).operation)
             y() - before
         end
         step = turn!(-1, 1.0)
@@ -316,8 +315,7 @@ function test_scroll_pane_bar()
             small = WidgetScrollPane(WidgetTextarea(join(("line $i" for i in 1:400), "\n"); rows = 400);
                                      size = Point2D(200, height))
             small_iomap = print_document(projection, small)
-            _bar_test_apply!(read_intent(projection, small_iomap,
-                                         MouseScroll(0, -1, 100, height ÷ 2; time = 10.0)))
+            _bar_test_apply!(read_intent(projection, nothing, Intent(MouseScroll(0, -1, 100, height ÷ 2; time = 10.0)), small_iomap).operation)
             @test Int(small.scroll_position.y[]) == max(line, height - line)
         end
     end

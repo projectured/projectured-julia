@@ -233,7 +233,7 @@ function test_frame_statistics_feed()
         @test _get_row_texts(parts.cells[1]) == ["whole frame", "20.00", "4.0"]
         # A pick of a statistic is view state, and the cells follow it.
         pick = ReplaceReferencedValueOperation(statistics, "summary_statistic", :maximum)
-        answer = read_intent(p, iomap, pick)
+        answer = read_intent(p, nothing, Intent(pick), iomap).operation
         @test answer isa ReplaceViewStateOperation && get_wrapped_operation(answer) === pick
         statistics.summary_statistic = :maximum
         @test statistic.selected == 3
@@ -257,7 +257,7 @@ function test_frame_statistics_feed()
         @test frames.row_headers.value.content == "3"
         # A pick of a measure is view state, and it builds the table of the frames again.
         pick = ReplaceReferencedValueOperation(statistics, "frame_measure", :other)
-        @test get_wrapped_operation(read_intent(p, iomap, pick)) === pick
+        @test get_wrapped_operation(read_intent(p, nothing, Intent(pick), iomap).operation) === pick
         statistics.frame_measure = :other
         frames = _get_frame_table(root)
         @test _get_title_choice(root.children[6]).selected == 3
@@ -348,14 +348,14 @@ function test_frame_statistics_feed()
         @test bar.value == (301 + 4 - 2) / 999
         # A press in the middle of the bar is a jump to the middle of the frames.
         press = ReplaceViewStateOperation(ReplaceReferencedValueOperation(bar, "value", 0.5))
-        jump = read_intent(p, iomap, press)
+        jump = read_intent(p, nothing, Intent(press), iomap).operation
         @test jump isa CompoundOperation
         anchor, offset, top = [get_wrapped_operation(o) for o in jump.operations]
         @test all(w.document === statistics for w in (anchor, offset, top))
         @test (anchor.value, top.value) == (1 + round(Int, 0.5 * 999), 1)
         @test (offset.value.x[], offset.value.y[]) == (0, 0)
         # The same write without view state, as a drag of the thumb gives it.
-        drag = read_intent(p, iomap, ReplaceReferencedValueOperation(bar, "value", 1.0))
+        drag = read_intent(p, nothing, Intent(ReplaceReferencedValueOperation(bar, "value", 1.0)), iomap).operation
         @test get_wrapped_operation(drag.operations[1]).value == 1000
         # The statistics keep the drag of the thumb: the start of the drag names
         # them, the press is kept in their frame, and a move there is a jump.
@@ -365,15 +365,15 @@ function test_frame_statistics_feed()
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(bar, "thumb_drag",
                                                                      (along = 0, value = 0.0, travel = 100))),
             StartDragOperation(EmptyReference(), nothing)])
-        kept = read_intent(p, iomap, start)
+        kept = read_intent(p, nothing, Intent(start), iomap).operation
         @test only(o for o in kept.operations if o isa StartDragOperation).path isa EmptyReference
         press = MouseDown(:left, 5, 40, ModifierKeys(); time = 0.0)
         owned = make_owned_scroll_bar_drag(kept, bar, press)
         foreach(o -> o isa ReplaceViewStateOperation && evaluate_operation(nothing, o), owned.operations)
         @test bar.thumb_drag == (along = 40, value = 0.0, travel = 100, owned = true)
-        moved = read_intent(p, iomap, DragMove(5, 90, ModifierKeys(); time = 0.0))
+        moved = read_intent(p, nothing, Intent(DragMove(5, 90, ModifierKeys(); time = 0.0)), iomap).operation
         @test get_wrapped_operation(moved.operations[1]).value == 1 + round(Int, 0.5 * 999)
-        ended = read_intent(p, iomap, DragEnd(5, 90, ModifierKeys(); time = 0.0))
+        ended = read_intent(p, nothing, Intent(DragEnd(5, 90, ModifierKeys(); time = 0.0)), iomap).operation
         foreach(o -> o isa ReplaceViewStateOperation && get_wrapped_operation(o) isa ReplaceReferencedValueOperation &&
                      evaluate_operation(nothing, o), ended.operations)
         @test bar.thumb_drag === nothing
@@ -465,7 +465,7 @@ function test_frame_statistics_feed()
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "top_row", 1)),
             ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "row_headers",
                                                                       frames.row_headers.next))])
-        answer = read_intent(p, iomap, move)
+        answer = read_intent(p, nothing, Intent(move), iomap).operation
         @test answer isa CompoundOperation
         @test length(answer.operations) == 4
         anchor = answer.operations[1]
@@ -483,7 +483,7 @@ function test_frame_statistics_feed()
         # A press on Pause writes the document, and the undo does not record it.
         toggle = root.children[1].children[2]
         press = ReplaceReferencedValueOperation(toggle, "pressed", true)
-        answer = read_intent(p, iomap, press)
+        answer = read_intent(p, nothing, Intent(press), iomap).operation
         @test answer isa ReplaceViewStateOperation
         @test get_wrapped_operation(answer) === press
         @test getfield(toggle, :pressed) === getfield(statistics, :paused)
@@ -492,7 +492,7 @@ function test_frame_statistics_feed()
         statistics.anchor = 9
         @test frames.row_headers.value.content == "1"
         move = ReplaceViewStateOperation(ReplaceReferencedValueOperation(frames, "cells", frames.cells.prev))
-        @test get_wrapped_operation(read_intent(p, iomap, move)).value == 2
+        @test get_wrapped_operation(read_intent(p, nothing, Intent(move), iomap).operation).value == 2
     end
 
     @testset "a column of the frames is as wide as its widest text, at any offered width" begin

@@ -46,7 +46,7 @@ selof(x) = getfield(x, :selection)[]
 read_key(doc, sel, evt) = begin
     set_selection!(doc, sel)
     iomap = print_document(x2s, doc)
-    read_intent(x2s, iomap, evt)
+    read_intent(x2s, nothing, Intent(evt), iomap).operation
 end
 
 # A type-to-replace gesture returns the folded `make_replace_document_operation` compound;
@@ -170,7 +170,7 @@ chain = ChainingProjection(RecursiveProjection(XmlToSyntax()),
 
 read_key(doc, sel, evt) = begin
     set_selection!(doc, sel)
-    read_intent(chain, print_document(chain, doc), evt)
+    read_intent(chain, nothing, Intent(evt), print_document(chain, doc)).operation
 end
 
 @testset "an ordinary key inside a tag name is a character edit" begin

@@ -16,7 +16,6 @@ function ProjectionModule.print_document(p::_ViewPrintRecorder, recursion, input
 end
 ProjectionModule.read_intent(p::_ViewPrintRecorder, recursion, change::Intent, iomap) =
     read_intent(p.inner, recursion, change, iomap)
-ProjectionModule.read_intent(p::_ViewPrintRecorder, iomap, payload) = read_intent(p.inner, iomap, payload)
 ProjectionModule.map_reference_forward(p::_ViewPrintRecorder, iomap, reference) =
     map_reference_forward(p.inner, iomap, reference)
 ProjectionModule.map_reference_backward(p::_ViewPrintRecorder, iomap, reference) =
@@ -48,7 +47,7 @@ projection = RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
 iomap = print_document(projection, root)
 editor = (; document = root)
 press!(event) = begin
-    operation = read_intent(projection, iomap, event)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
     operation === nothing || evaluate_operation(editor, operation)
     operation
 end
@@ -164,7 +163,7 @@ end
     folded_iomap = print_document(folding, layout)
     folded_editor = (; document = layout)
     read!(event) = begin
-        operation = read_intent(folding, folded_iomap, event)
+        operation = read_intent(folding, nothing, Intent(event), folded_iomap).operation
         operation === nothing || evaluate_operation(folded_editor, operation)
         operation
     end

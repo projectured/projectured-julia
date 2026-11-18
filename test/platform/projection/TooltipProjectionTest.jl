@@ -40,7 +40,7 @@ end
 
 @testset "open on trigger" begin
     show[] = true
-    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+    op = read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
     # The window manager applies the window operations itself, and the move
     # answers only the part under the pointer.
     @test op isa ReplaceMouseTargetOperation
@@ -57,7 +57,7 @@ end
 end
 
 @testset "no-op when already open" begin
-    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+    op = read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
     @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -65,7 +65,7 @@ end
 
 @testset "close on trigger off" begin
     show[] = false
-    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+    op = read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
     @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 1
     @test length(iomap.output.windows) == 1
@@ -74,7 +74,7 @@ end
 
 @testset "re-open after close" begin
     show[] = true
-    op = read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+    op = read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
     @test op isa ReplaceMouseTargetOperation
     @test length(screen.windows) == 2
     @test length(iomap.output.windows) == 2
@@ -108,18 +108,18 @@ projection = RecursiveProjection(
 iomap = print_document(projection, screen)
 
 # First open.
-read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 1 && screen.windows[2].width == 3
 
 # Re-open with new geometry: deco won't fire a second open (is_open=true),
 # so to verify duplicate-id update semantics, flip closed and re-open.
 show[] = false
-read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
 @test length(screen.windows) == 1
 pos[] = (50, 60, 70, 80)
 show[] = true
-read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, MouseMove(0, 0; time = 0.0))), iomap).operation
 @test length(screen.windows) == 2
 @test screen.windows[2].x == 50 && screen.windows[2].width == 70
 
@@ -166,7 +166,7 @@ iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Close the popup via its native close button.
-op = read_intent(projection, iomap, WindowInput(:popup, WindowClose(; time = 0.0)))
+op = read_intent(projection, nothing, Intent(WindowInput(:popup, WindowClose(; time = 0.0))), iomap).operation
 @test !(op isa Operation)
 @test length(screen.windows) == 1
 @test length(iomap.output.windows) == 1
@@ -174,11 +174,11 @@ op = read_intent(projection, iomap, WindowInput(:popup, WindowClose(; time = 0.0
 @test iomap.output.windows[1].id === :default
 
 # A close for an unknown id is a silent no-op.
-read_intent(projection, iomap, WindowInput(:ghost, WindowClose(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:ghost, WindowClose(; time = 0.0))), iomap).operation
 @test length(screen.windows) == 1
 
 # The default window can be closed too (e.g. quitting via the frame).
-read_intent(projection, iomap, WindowInput(:default, WindowClose(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, WindowClose(; time = 0.0))), iomap).operation
 @test length(screen.windows) == 0
 @test length(iomap.output.windows) == 0
 
@@ -205,17 +205,17 @@ iomap = print_document(projection, screen)
 @test length(screen.windows) == 2
 
 # Focus-lost on the default window: ignored (not a popup).
-read_intent(projection, iomap, WindowInput(:default, WindowDefocus(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, WindowDefocus(; time = 0.0))), iomap).operation
 @test length(screen.windows) == 2
 
 # Focus-lost on the popup: dismissed, on both input and output.
-read_intent(projection, iomap, WindowInput(:popup, WindowDefocus(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:popup, WindowDefocus(; time = 0.0))), iomap).operation
 @test length(screen.windows) == 1
 @test screen.windows[1].id === :default
 @test length(iomap.output.windows) == 1
 
 # Focus-lost for an unknown id: no-op.
-read_intent(projection, iomap, WindowInput(:ghost, WindowDefocus(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:ghost, WindowDefocus(; time = 0.0))), iomap).operation
 @test length(screen.windows) == 1
 
 end # @testset
@@ -244,16 +244,16 @@ ids(windows) = [w.id for w in windows]
 # the floating window stays.
 screen = make_screen()
 iomap = print_document(projection, screen)
-read_intent(projection, iomap, WindowInput(:default, WindowDefocus(; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, WindowDefocus(; time = 0.0))), iomap).operation
 @test ids(screen.windows) == [:default, :floating]
 @test ids(iomap.output.windows) == [:default, :floating]
 
 # A press in a popup closes none; a press in the default window closes every popup.
 screen = make_screen()
 iomap = print_document(projection, screen)
-read_intent(projection, iomap, WindowInput(:popup, MouseDown(:left, 5, 5; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:popup, MouseDown(:left, 5, 5; time = 0.0))), iomap).operation
 @test ids(screen.windows) == [:default, :popup, :floating]
-read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10; time = 0.0)))
+read_intent(projection, nothing, Intent(WindowInput(:default, MouseDown(:left, 10, 10; time = 0.0))), iomap).operation
 @test ids(screen.windows) == [:default]
 
 # A bare Escape closes every popup and answers an operation, so it goes no
@@ -261,13 +261,11 @@ read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10; ti
 # Escape closes nothing, and with no popup open a bare Escape gets no answer.
 screen = make_screen()
 iomap = print_document(projection, screen)
-@test read_intent(projection, iomap,
-                  WindowInput(:default, KeyDown(:escape, ModifierKeys(; ctrl=true); time = 0.0))) === nothing
+@test read_intent(projection, nothing, Intent(WindowInput(:default, KeyDown(:escape, ModifierKeys(; ctrl=true); time = 0.0))), iomap).operation === nothing
 @test length(screen.windows) == 3
-@test read_intent(projection, iomap,
-                  WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))) isa DoNothingOperation
+@test read_intent(projection, nothing, Intent(WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))), iomap).operation isa DoNothingOperation
 @test ids(screen.windows) == [:default]
-@test read_intent(projection, iomap, WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))) === nothing
+@test read_intent(projection, nothing, Intent(WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))), iomap).operation === nothing
 
 end # @testset
 

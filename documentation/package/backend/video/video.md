@@ -23,7 +23,7 @@ record_video(document, projection, gestures, filename;
 
 | Entry | What the recorder does |
 | --- | --- |
-| `(event = e, hold = h)` | calls `read_intent(projection, iomap, e)` and evaluates the operation that it returns |
+| `(event = e, hold = h)` | calls `read_intent(projection, nothing, Intent(e), iomap)` and evaluates the operation of the answer |
 | `(operation = op, hold = h)` | evaluates `op`, or `op(document)` when `op` is a function; for an action that no single event makes |
 | `(await = predicate, hold = h)` | emits one frame and yields, again and again, until `predicate(document)` returns `true` or `h` seconds of wall-clock time pass |
 

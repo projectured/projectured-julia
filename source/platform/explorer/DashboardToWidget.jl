@@ -393,8 +393,8 @@ end
 
 # An edit that a verb routes to `cards`, such as `insert_elements!` and
 # `delete_elements!`, goes up with the change of what the dashboard holds. The
-# generic bridge does not follow such a route into a field that no part of the page
-# draws, so the reader takes the edit here. A gesture builds its edit with the
+# default reader of a stage does not follow such a route into a field that no part of
+# the page draws, so the reader takes the edit here. A gesture builds its edit with the
 # change already (`_add_card_holds`).
 const _CARDS_STEP = FieldReferenceStep("cards")
 

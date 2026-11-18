@@ -55,9 +55,6 @@ function read_intent(pdp::PredicateDispatchingProjection, recursion, change::Int
     return Intent(change.gesture, nothing)
 end
 
-read_intent(pdp::PredicateDispatchingProjection, iomap, payload) =
-    read_intent(pdp, nothing, Intent(payload), iomap).operation
-
 # It answers the IoMap of the projection whose predicate matched the input, so a
 # reference maps forward and back through that projection, chosen again as the
 # reader chooses it.

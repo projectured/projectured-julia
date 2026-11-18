@@ -39,7 +39,7 @@ function test_gesture_help()
         expected = make_gesture_map(answer isa Intent ? answer.operation : answer)
         @test length(expected.rows) == 9          # the array's full reified set
 
-        op = read_intent(help, iomap, f1)
+        op = read_intent(help, nothing, Intent(f1), iomap).operation
         @test op isa OpenWindowOperation
         @test op.id === :gesture_help
         @test op.content isa GestureMap
@@ -54,8 +54,8 @@ function test_gesture_help()
         help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
-        @test read_intent(help, iomap, f1) isa OpenWindowOperation
-        op = read_intent(help, iomap, f1)
+        @test read_intent(help, nothing, Intent(f1), iomap).operation isa OpenWindowOperation
+        op = read_intent(help, nothing, Intent(f1), iomap).operation
         @test op isa CloseWindowOperation
         @test op.id === :gesture_help
         @test !state.open
@@ -67,8 +67,8 @@ function test_gesture_help()
         state = GestureHelpState()
         help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
-        rows = length(read_intent(help, iomap, f1).content.rows)
-        read_intent(help, iomap, f1)
+        rows = length(read_intent(help, nothing, Intent(f1), iomap).operation.content.rows)
+        read_intent(help, nothing, Intent(f1), iomap).operation
         # A command sends the operation to the first element, and it comes back up
         # to the decorator as the answer of the inner reader.
         route = extend_reference(EmptyReference(), FieldReferenceStep("elements"), ElementReferenceStep(1))
@@ -89,11 +89,11 @@ function test_gesture_help()
         help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
-        op = read_intent(help, iomap, KeyDown(:comma, none; time = 0.0))  # array insert
+        op = read_intent(help, nothing, Intent(KeyDown(:comma, none; time = 0.0)), iomap).operation  # array insert
         @test !(op isa OpenWindowOperation)
         @test !state.open
         # The decorator returns exactly what the wrapped editor returned.
-        direct = read_intent(inner, iomap.inner_iomap, KeyDown(:comma, none; time = 0.0))
+        direct = read_intent(inner, nothing, Intent(KeyDown(:comma, none; time = 0.0)), iomap.inner_iomap).operation
         @test typeof(op) === typeof(direct)
     end
 
@@ -127,7 +127,7 @@ function test_gesture_help()
         @test length(screen.windows) == 1
 
         # F1 in the focused window → a help window appears beside it.
-        op = read_intent(projection, iomap, WindowInput(:default, f1))
+        op = read_intent(projection, nothing, Intent(WindowInput(:default, f1)), iomap).operation
         @test !(op isa Operation)                       # consumed by the manager
         @test length(screen.windows) == 2
         @test length(iomap.output.windows) == 2         # output mirrors input
@@ -138,7 +138,7 @@ function test_gesture_help()
         @test state.open
 
         # F1 again → the help window closes.
-        op2 = read_intent(projection, iomap, WindowInput(:default, f1))
+        op2 = read_intent(projection, nothing, Intent(WindowInput(:default, f1)), iomap).operation
         @test !(op2 isa Operation)
         @test length(screen.windows) == 1
         @test screen.windows[1].id === :default
@@ -158,7 +158,7 @@ function test_gesture_help()
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
-        op = read_intent(composed, iomap, WindowInput(:json, f1))
+        op = read_intent(composed, nothing, Intent(WindowInput(:json, f1)), iomap).operation
         @test !(op isa Operation)
         @test length(screen.windows) == 2
         @test screen.windows[2].id === :gesture_help
@@ -184,7 +184,7 @@ function test_gesture_help()
                                                     opened_window_projections = named)
             iomap = print_document(composed, screen)
 
-            read_intent(composed, iomap, WindowInput(:json, f1))
+            read_intent(composed, nothing, Intent(WindowInput(:json, f1)), iomap).operation
             @test length(screen.windows) == 2
             @test screen.windows[2].content isa GestureMap
             texts = _gh_collect_texts(iomap.output.windows[2].content)
@@ -200,7 +200,7 @@ function test_gesture_help()
         screen = ScreenDocument([WindowDocument(; id = :json, content = arr)])
         iomap = print_document(composed, screen)
 
-        read_intent(composed, iomap, WindowInput(:json, f1))
+        read_intent(composed, nothing, Intent(WindowInput(:json, f1)), iomap).operation
         @test length(screen.windows) == 1
     end
 

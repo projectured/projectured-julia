@@ -44,8 +44,7 @@ function test_markdown_image_leaf()
             projection = projections.rendered()
             clear_selection!(document)
             set_selection!(document, place)
-            op = read_intent(projection, print_document(projection, document),
-                             KeyDown(key, ModifierKeys(); time = 0.0))
+            op = read_intent(projection, nothing, Intent(KeyDown(key, ModifierKeys(); time = 0.0)), print_document(projection, document)).operation
             @test !is_text_element_write(op)
             op isa ReplaceReferencedValueOperation && continue
             op === nothing || evaluate_operation(_MarkdownImageEditor(document), op)

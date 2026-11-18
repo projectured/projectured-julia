@@ -167,14 +167,14 @@ function test_projection_defaults()
     @testset "the default reader gives a gesture to the table of its input" begin
         projection = DefaultsProbeProjection()
         iomap = SimpleIoMap(projection, DefaultsKeyedLeaf("text", nothing), nothing)
-        @test read_intent(projection, iomap, _make_defaults_key(:x)) isa
+        @test read_intent(projection, nothing, Intent(_make_defaults_key(:x)), iomap).operation isa
               ToggleCollapseOperation
-        @test read_intent(projection, iomap, _make_defaults_key(:y)) === nothing
+        @test read_intent(projection, nothing, Intent(_make_defaults_key(:y)), iomap).operation === nothing
         # An input that is not a document, or no IoMap, has no table.
         text_iomap = SimpleIoMap(projection, "text", nothing)
-        @test read_intent(projection, text_iomap, _make_defaults_key(:x)) === nothing
-        @test read_intent(projection, nothing, _make_defaults_key(:x)) === nothing
-        collected = read_intent(projection, iomap, CollectIntents())
+        @test read_intent(projection, nothing, Intent(_make_defaults_key(:x)), text_iomap).operation === nothing
+        @test read_intent(projection, nothing, Intent(_make_defaults_key(:x)), nothing).operation === nothing
+        collected = read_intent(projection, nothing, Intent(CollectIntents()), iomap).operation
         @test collected isa CollectedIntentsOperation
         @test [intent.description for intent in collected.intents] == ["Flip the probe"]
     end
@@ -184,7 +184,7 @@ function test_projection_defaults()
         path = Reference(FieldReferenceStep("text"))
         blocked = Reference(FieldReferenceStep("blocked"))
         inner = [FieldReferenceStep("inner"), FieldReferenceStep("text")]
-        read_back(operation) = read_intent(projection, nothing, operation)
+        read_back(operation) = read_intent(projection, nothing, Intent(operation), nothing).operation
 
         selection = read_back(ReplaceSelectionOperation(path))
         @test _get_defaults_steps(selection.path) == inner
@@ -213,7 +213,7 @@ function test_projection_defaults()
         path = Reference(FieldReferenceStep("text"))
         blocked = Reference(FieldReferenceStep("blocked"))
         inner = [FieldReferenceStep("inner"), FieldReferenceStep("text")]
-        read_back(operation) = read_intent(projection, nothing, operation)
+        read_back(operation) = read_intent(projection, nothing, Intent(operation), nothing).operation
 
         compound = read_back(CompoundOperation(Any[ReplaceSelectionOperation(path),
                                               DoNothingOperation()]))

@@ -29,7 +29,7 @@ function test_scroll_pane_show()
     near = WidgetLabel("Go to row 2"; gestures = link(rows[2]))
     pane = WidgetScrollPane(VerticalLayout(Any[far, near, rows...]); size = Point2D(300, 240))
     iomap = print_document(projection, pane)
-    press(y) = read_intent(projection, iomap, MouseClick(:left, 5, y; time = 0.0))
+    press(y) = read_intent(projection, nothing, Intent(MouseClick(:left, 5, y; time = 0.0)), iomap).operation
 
     @testset "a press selects the row it names, and the pane scrolls it into view" begin
         answer = press(5)
@@ -128,7 +128,7 @@ function test_scroll_pane_show()
         @test shown_box(shown_iomap, named) !== nothing
         # The first turn of the wheel scrolls from the shown offset, and the pane
         # then stays where the turn puts it.
-        down = read_intent(projection, shown_iomap, MouseScroll(0, -1, 100, 100; time = 0.0))
+        down = read_intent(projection, nothing, Intent(MouseScroll(0, -1, 100, 100; time = 0.0)), shown_iomap).operation
         written = only(pane_writes(down, shown)).value
         @test Int(written.y[]) > start[2]
         evaluate_operation(nothing, down)

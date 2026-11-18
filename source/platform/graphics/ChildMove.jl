@@ -124,7 +124,7 @@ end
 # The answer of a child's reader to `move` when it is an operation, else `nothing`:
 # a reader that passes its payload through answers the move itself.
 function _read_child_operation(child_iomap, move::MouseMove)
-    answer = read_intent(child_iomap.projection, child_iomap, move)
+    answer = read_intent(child_iomap.projection, nothing, Intent(move), child_iomap).operation
     answer isa Operation ? answer : nothing
 end
 

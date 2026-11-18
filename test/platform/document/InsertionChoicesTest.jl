@@ -37,7 +37,7 @@ function test_insertion_choices()
         # The text domain answers the key with an edit of the text that the leaf
         # printed, at the caret, and the leaf answers that edit.
         caret = map_reference_forward(leaf, iomap, get_selection(insertion))
-        answer = read_intent(leaf, iomap, ReplaceStringRangeOperation(caret, "c"))
+        answer = read_intent(leaf, nothing, Intent(ReplaceStringRangeOperation(caret, "c")), iomap).operation
         @test answer isa CompoundOperation
         typed, opened = answer.operations
         @test typed isa ReplaceStringRangeOperation && typed.replacement == "c"
@@ -55,8 +55,7 @@ function test_insertion_choices()
         @test read_intent(choice_projection, nothing, Intent(KeyPress('h'; time = 0.0)), listed).operation === nothing
         next = with_value_caret(DocumentInsertion("c"), 1)
         next_iomap = print_document(leaf, nothing, next, PrinterContext())
-        reopened = read_intent(leaf, next_iomap,
-                               ReplaceStringRangeOperation(map_reference_forward(leaf, next_iomap, get_selection(next)), "h"))
+        reopened = read_intent(leaf, nothing, Intent(ReplaceStringRangeOperation(map_reference_forward(leaf, next_iomap, get_selection(next)), "h")), next_iomap).operation
         list = reopened.operations[2].operation.layers[1][2]
         @test list isa WidgetChoiceList && list.query == "ch"
         listed = print_document(choice_projection, nothing, list, PrinterContext())
@@ -73,8 +72,7 @@ function test_insertion_choices()
         text = with_value_caret(TextInsertion(""), 0)
         domain_iomap = print_document(domain, nothing, text, PrinterContext())
         domain_caret = map_reference_forward(domain, domain_iomap, get_selection(text))
-        @test read_intent(domain, domain_iomap,
-                          ReplaceStringRangeOperation(domain_caret, "b")) isa ReplaceStringRangeOperation
+        @test read_intent(domain, nothing, Intent(ReplaceStringRangeOperation(domain_caret, "b")), domain_iomap).operation isa ReplaceStringRangeOperation
     end
 end
 end

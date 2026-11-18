@@ -321,9 +321,9 @@ end
 
 # `operation_reference` / `retarget_operation` registers these two operations: the
 # catch-all `reroot_operation` of the kernel reroots their reference, and the
-# default `read_intent` maps it back through a projection. The kernel cannot name
-# them, and a `read_intent(::Projection, iomap, ::TheOp)` method here would be
-# ambiguous with the catch-all reader of every concrete projection.
+# default `map_operation_backward` maps it back through a projection. The kernel
+# cannot name them, and a `map_operation_backward(::Projection, iomap, ::TheOp)`
+# method here would be ambiguous with the catch-all map of every concrete projection.
 operation_reference(op::ReplaceStringRangeOperation) = op.reference
 operation_reference(op::ReplaceNumberRangeOperation) = op.reference
 

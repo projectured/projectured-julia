@@ -132,9 +132,6 @@ function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Int
     return read_intent(get_iomap_projection(inner), recursion, change, inner)
 end
 
-read_intent(rdp::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, payload) =
-    read_intent(rdp, nothing, Intent(payload), iomap).operation
-
 function map_reference_forward(::ReferenceDispatchingProjection, iomap::ReferenceDispatchingIoMap, reference)
     inner = iomap.inner_iomap
     return map_reference_forward(get_iomap_projection(inner), inner, reference)
@@ -155,8 +152,6 @@ get_content_iomap(iomap::ReferenceDispatchingIoMap) = get_content_iomap(iomap.in
 # IO map: the reader and the maps go to the projection of the IO map.
 read_intent(::ReferenceDispatchingProjection, recursion, change::Intent, iomap::IoMap) =
     read_intent(get_iomap_projection(iomap), recursion, change, iomap)
-read_intent(::ReferenceDispatchingProjection, iomap::IoMap, payload) =
-    read_intent(get_iomap_projection(iomap), iomap, payload)
 map_reference_forward(::ReferenceDispatchingProjection, iomap::IoMap, reference) =
     map_reference_forward(get_iomap_projection(iomap), iomap, reference)
 map_reference_backward(::ReferenceDispatchingProjection, iomap::IoMap, reference) =

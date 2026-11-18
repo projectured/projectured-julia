@@ -61,7 +61,7 @@ end
     set_selection!(doc, _cursor(3))            # cursor after "edi"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    op = read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
     @test op.reference.head == FieldReferenceStep("content")
@@ -78,7 +78,7 @@ end
     runs = collect(only(iomap.content_iomap.input.viewed.elements).elements)
     @test [run.content for run in runs] == ["a", "bc"]
     @test runs[1].font_color == color_red
-    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    op = read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa ReplaceStringRangeOperation
     @test strip_reference_types(op.reference) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
@@ -90,7 +90,7 @@ end
     lines_iomap = print_document(_proj(), nothing, lines_doc, PrinterContext())
     @test [[run.content for run in line.elements] for line in lines_iomap.content_iomap.input.viewed.elements] ==
           [["a", "b"], ["cd"]]
-    typed = read_intent(_proj(), lines_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    typed = read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), lines_iomap).operation
     @test strip_reference_types(typed.reference) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(4, 4), EmptyReference()))
     # An empty field of code is one line with one empty run.
@@ -108,7 +108,7 @@ end
     # The content, which holds the caret, draws after it, and the box is as wide as it.
     @test findfirst(e -> e isa GraphicsCanvas, collect(iomap.output.elements)) > k
     @test iomap.output.w >= 8 * 10
-    op = read_intent(_proj(), iomap, MouseClick(:left, 60, 5, 1, ModifierKeys(); time = 0.0))
+    op = read_intent(_proj(), nothing, Intent(MouseClick(:left, 60, 5, 1, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa ReplaceSelectionOperation
     @test strip_reference_types(op.path) == ConcreteReference(FieldReferenceStep("content"),
         ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
@@ -125,7 +125,7 @@ end
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test doc.content.elements[1].elements[1].content == "edit me"         # value unchanged
 end
 
@@ -134,14 +134,14 @@ end
     set_selection!(doc, _cursor(4))            # cursor after "edit"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    bs = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    bs = read_intent(_proj(), nothing, Intent(KeyDown(:backspace, ModifierKeys(); time = 0.0)), iomap).operation
     @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReferenceStep("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].elements[1].content == "edi me"
 
     iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
-    arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys(); time = 0.0))
+    arrow = read_intent(_proj(), nothing, Intent(KeyDown(:left, ModifierKeys(); time = 0.0)), iomap2).operation
     @test arrow isa ReplaceSelectionOperation
     @test arrow.path.head == FieldReferenceStep("content")
 end
@@ -165,16 +165,16 @@ end
     set_selection!(doc, _cursor(3))            # cursor after "one"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    typed = read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference.head == FieldReferenceStep("content")
-    broken = read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0))
+    broken = read_intent(_proj(), nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation
     @test broken isa ReplaceTextRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
     # A textarea holds many lines, so Tab indents its line: spaces up to the next
     # stop of 4 columns, an edit of the lines that stays flat.
-    tab = read_intent(_proj(), iomap, KeyPress('\t'; time = 0.0))
+    tab = read_intent(_proj(), nothing, Intent(KeyPress('\t'; time = 0.0)), iomap).operation
     @test tab isa ReplaceTextRangeOperation && tab.changes_indentation && tab.replacement == " "
     @test tab.reference.head == FieldReferenceStep("content")
 
@@ -191,8 +191,8 @@ end
     # A press on the drawn second line puts the caret into that line. The test is
     # the window: the press is in the frame of the textarea's own canvas.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if occursin("two", t[1]))
-    click = read_intent(_proj(), iomap, MouseClick(:left, x + 25 - Int(iomap.output.x), y + 4 - Int(iomap.output.y),
-                                                   ModifierKeys(); time = 0.0))
+    click = read_intent(_proj(), nothing, Intent(MouseClick(:left, x + 25 - Int(iomap.output.x), y + 4 - Int(iomap.output.y),
+                                                   ModifierKeys(); time = 0.0)), iomap).operation
     @test click isa ReplaceSelectionOperation
     @test click.path.head == FieldReferenceStep("content")
     @test click.path.tail.head isa TextRangeReferenceStep
@@ -211,15 +211,15 @@ _held_caret(widget) = strip_reference_types(widget.selection)
     off = WidgetTextarea(content; enabled = false)
     set_selection!(off, _cursor(1))
     iomap = print_document(_proj(), nothing, off, PrinterContext())
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0)) === nothing
-    @test read_intent(_proj(), iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation === nothing
+    @test read_intent(_proj(), nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test off.content.elements[1].elements[1].content == "one"
 
     plain = WidgetTextarea("one\ntwo"; enabled = false)
     set_selection!(plain, _plain_cursor(1))
     plain_iomap = print_document(_proj(), nothing, plain, PrinterContext())
-    @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), plain_iomap).operation === nothing
     @test plain.content == "one\ntwo"
 end
 
@@ -228,18 +228,18 @@ end
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     # With no caret the string is drawn whole, and a key has nowhere to go.
     @test occursin("edit me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation === nothing
 
     # A press puts the caret into the string, under the pointer.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if startswith(t[1], "edit"))
-    click = read_intent(_proj(), iomap, MouseClick(:left, x + 32, y + 4, ModifierKeys(); time = 0.0))
+    click = read_intent(_proj(), nothing, Intent(MouseClick(:left, x + 32, y + 4, ModifierKeys(); time = 0.0)), iomap).operation
     @test click isa ReplaceSelectionOperation
     @test click.path == _plain_cursor(3)
     evaluate_operation(_WidgetTextMockEditor(doc), click)
     @test _held_caret(doc) == _plain_cursor(3)
 
     # A typed letter is a string edit of the field, and the caret moves past it.
-    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
+    typed = read_intent(_proj(), nothing, Intent(KeyPress('X', "X", ModifierKeys(); time = 0.0)), iomap).operation
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference == _plain_cursor(3)
     evaluate_operation(_WidgetTextMockEditor(doc), typed)
@@ -248,23 +248,23 @@ end
     @test occursin("ediXt me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
 
     # Backspace and an arrow go through the text domain too.
-    erased = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    erased = read_intent(_proj(), nothing, Intent(KeyDown(:backspace, ModifierKeys(); time = 0.0)), iomap).operation
     evaluate_operation(_WidgetTextMockEditor(doc), erased)
     @test doc.content == "edit me"
-    moved = read_intent(_proj(), iomap, KeyDown(:left, ModifierKeys(); time = 0.0))
+    moved = read_intent(_proj(), nothing, Intent(KeyDown(:left, ModifierKeys(); time = 0.0)), iomap).operation
     @test moved isa ReplaceSelectionOperation && moved.path == _plain_cursor(2)
 
     # A field is one line: Return breaks no line, and goes on to the bindings
     # around the field.
-    @test read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0)) === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation === nothing
     @test doc.content == "edit me"
 
     # A validator sees the edit of a plain string as it sees any other.
     digits = WidgetText("12"; validator = make_numeric_validator())
     set_selection!(digits, _plain_cursor(2))
     digits_iomap = print_document(_proj(), nothing, digits, PrinterContext())
-    @test read_intent(_proj(), digits_iomap, KeyPress('a', "a", ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(_proj(), digits_iomap, KeyPress('3', "3", ModifierKeys(); time = 0.0)) isa
+    @test read_intent(_proj(), nothing, Intent(KeyPress('a', "a", ModifierKeys(); time = 0.0)), digits_iomap).operation === nothing
+    @test read_intent(_proj(), nothing, Intent(KeyPress('3', "3", ModifierKeys(); time = 0.0)), digits_iomap).operation isa
           ReplaceStringRangeOperation
 end
 
@@ -272,7 +272,7 @@ end
     doc = WidgetTextarea("one two"; rows = 3)
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    broken = read_intent(_proj(), iomap, KeyPress('\n'; time = 0.0))
+    broken = read_intent(_proj(), nothing, Intent(KeyPress('\n'; time = 0.0)), iomap).operation
     @test broken isa ReplaceStringRangeOperation
     @test broken.replacement == "\n"
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
@@ -338,11 +338,11 @@ end
     # The caret at the end of the text shows at the right edge of the field.
     @test left + width - 10 <= caret.x <= left + width
     # A step to the left moves the caret one character, and the text stays.
-    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 0.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(KeyDown(:left, ModifierKeys(); time = 0.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test _find_drawn_caret(iomap, doc).x == caret.x - 10
     # Home shows the start of the text, with the caret at the left edge.
-    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:home, ModifierKeys(); time = 0.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(KeyDown(:home, ModifierKeys(); time = 0.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test _find_drawn_caret(iomap, doc).x == left
 end
@@ -365,7 +365,7 @@ end
 # a turn moves nothing; the IO map of the last print.
 function _turn_wheel_to_end!(proj, editor, widget, iomap, dx, dy, x, y)
     for second in 1:20
-        operation = read_intent(proj, iomap, MouseScroll(dx, dy, x, y; time = Float64(second)))
+        operation = read_intent(proj, nothing, Intent(MouseScroll(dx, dy, x, y; time = Float64(second))), iomap).operation
         operation === nothing && return iomap
         evaluate_operation(editor, operation)
         iomap, _ = _print_cut_text(proj, widget)
@@ -381,12 +381,12 @@ end
     iomap, (left, top, width, _) = _print_cut_text(proj, doc)
     x, y = left + 5, top + 5
     # A vertical turn goes on to the pane around the field, and Ctrl and the wheel zoom.
-    @test read_intent(proj, iomap, MouseScroll(0, 1, x, y; time = 0.0)) === nothing
-    @test read_intent(proj, iomap, MouseScroll(1, 0, x, y, ModifierKeys(; ctrl = true); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, x, y; time = 0.0)), iomap).operation === nothing
+    @test read_intent(proj, nothing, Intent(MouseScroll(1, 0, x, y, ModifierKeys(; ctrl = true); time = 0.0)), iomap).operation === nothing
     # A turn toward the start moves the text, and the caret at the end stays there,
     # out of the view.
     start = iomap.scroll.offset[1]
-    evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(1, 0, x, y; time = 0.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(MouseScroll(1, 0, x, y; time = 0.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test iomap.scroll.offset[1] < start
     @test strip_reference_types(get_selection(doc)) == _plain_cursor(30)
@@ -395,13 +395,13 @@ end
     iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 1, 0, x, y)
     @test iomap.scroll.offset[1] == 0
     # A step to the left moves the caret, and the text moves to show it again.
-    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 30.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(KeyDown(:left, ModifierKeys(); time = 30.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test left <= _find_drawn_caret(iomap, doc).x <= left + width
     # A turn is no edit, so a disabled field scrolls too.
     disabled = WidgetText("abcdefghijklmnopqrstuvwxyz0123"; width = 60, enabled = false)
     iomap, _ = _print_cut_text(proj, disabled)
-    @test read_intent(proj, iomap, MouseScroll(-1, 0, x, y; time = 0.0)) !== nothing
+    @test read_intent(proj, nothing, Intent(MouseScroll(-1, 0, x, y; time = 0.0)), iomap).operation !== nothing
 end
 
 @testset "after a turn of the wheel a key shows the caret again, also in a text document and at a caret that stays" begin
@@ -414,7 +414,7 @@ end
     iomap, (left, top, _, _) = _print_cut_text(proj, doc)
     iomap = _turn_wheel_to_end!(proj, editor, doc, iomap, 1, 0, left + 5, top + 5)
     @test iomap.scroll.offset[1] == 0
-    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 30.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(KeyDown(:left, ModifierKeys(); time = 30.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test iomap.scroll.offset[1] >= 290 - 60
     # A Delete keeps the caret where it is, and shows it.
@@ -424,7 +424,7 @@ end
     iomap, _ = _print_cut_text(proj, plain)
     iomap = _turn_wheel_to_end!(proj, editor, plain, iomap, 1, 0, left + 5, top + 5)
     @test iomap.scroll.offset[1] == 0
-    evaluate_operation(editor, read_intent(proj, iomap, KeyDown(:delete, ModifierKeys(); time = 30.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(KeyDown(:delete, ModifierKeys(); time = 30.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, plain)
     @test plain.content == "abcdefghijklmnopqrstuvwxy0123"
     @test iomap.scroll.offset[1] >= 250 - 60
@@ -439,9 +439,9 @@ end
     x, y = left + 5, top + 5
     shown_lines(iomap) = [t[1] for t in _drawn_texts_in_views(iomap.output) if top <= t[3] < top + height]
     # At the start a turn up goes on to the pane around the area.
-    @test read_intent(proj, iomap, MouseScroll(0, 1, x, y; time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, x, y; time = 0.0)), iomap).operation === nothing
     # A turn down shows the next lines, and the caret on the first line stays there.
-    evaluate_operation(editor, read_intent(proj, iomap, MouseScroll(0, -1, x, y; time = 0.0)))
+    evaluate_operation(editor, read_intent(proj, nothing, Intent(MouseScroll(0, -1, x, y; time = 0.0)), iomap).operation)
     iomap, _ = _print_cut_text(proj, doc)
     @test iomap.scroll.offset[2] > 0
     @test !("line 1" in shown_lines(iomap))

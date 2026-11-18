@@ -63,7 +63,7 @@ end
 
 # The path of the part under `(x, y)`, which a move with no button held names.
 function _part_at(projection, iomap, x, y)
-    op = read_intent(projection, iomap, MouseMove(x, y; time = 0.0))
+    op = read_intent(projection, nothing, Intent(MouseMove(x, y; time = 0.0)), iomap).operation
     op isa ReplaceMouseTargetOperation && return strip_reference_types(op.path)
     if op isa CompoundOperation
         for member in op.operations
@@ -80,7 +80,7 @@ _click(x, y) = MouseClick(:left, x, y; time = 0.0)
 function _find_slider_point(projection, iomap)
     for y in 0:4:400
         xs = [x for x in 0:6:800
-              if _written_value(read_intent(projection, iomap, _click(x, y))) !== nothing]
+              if _written_value(read_intent(projection, nothing, Intent(_click(x, y)), iomap).operation) !== nothing]
         isempty(xs) || return (xs[length(xs) ÷ 2 + 1], y)
     end
     nothing
@@ -113,7 +113,7 @@ routed_scenes = [
     @test point !== nothing
     if point !== nothing
         (x, y) = point
-        by_position = _written_value(read_intent(projection, iomap, _click(x, y)))
+        by_position = _written_value(read_intent(projection, nothing, Intent(_click(x, y)), iomap).operation)
         route = _part_at(projection, iomap, x, y)
         @test route isa ConcreteReference
         by_route = _written_value(_read_routed(projection, iomap, _click(x, y), route))

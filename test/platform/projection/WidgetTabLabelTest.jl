@@ -119,7 +119,7 @@ end
     pane = pane_of(WidgetTabLabel("Tests"; badges = badges(), tooltip = "37 of 40 finished"))
     iomap = print_document(projection, pane)
     name = _find_label_text(_collect_label_texts(iomap.output), "Tests")
-    operation = read_intent(projection, iomap, MouseDwell(name[2] + 2, name[3] + 2; time = 0.0))
+    operation = read_intent(projection, nothing, Intent(MouseDwell(name[2] + 2, name[3] + 2; time = 0.0)), iomap).operation
     @test operation !== nothing
     open = get_wrapped_operation(operation)
     @test open isa OpenTooltipOperation
@@ -128,7 +128,7 @@ end
     # A tab with no tooltip says nothing of its own.
     plain = print_document(projection, pane_of("Tests"))
     name = _find_label_text(_collect_label_texts(plain.output), "Tests")
-    quiet = read_intent(projection, plain, MouseDwell(name[2] + 2, name[3] + 2; time = 0.0))
+    quiet = read_intent(projection, nothing, Intent(MouseDwell(name[2] + 2, name[3] + 2; time = 0.0)), plain).operation
     @test quiet === nothing || !any(layer -> last(layer) isa TooltipNote,
                                     get_wrapped_operation(quiet).layers)
 end

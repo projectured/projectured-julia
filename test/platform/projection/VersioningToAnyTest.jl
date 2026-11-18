@@ -160,7 +160,7 @@ end
     # sequence splice (make_insert_elements_operation) — a ReplaceReferencedValueOperation
     # whose terminal is a zero-width RangeReferenceStep(0,0) into `versions` and whose
     # value is the items.
-    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0))
+    op = read_intent(p, nothing, Intent(KeyDown(:s, ctrl_shift; time = 0.0)), iomap).operation
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
@@ -173,13 +173,13 @@ end
     # Alt+Delete deletes the active version via a splice
     # (make_delete_elements_operation): a ReplaceReferencedValueOperation with terminal
     # RangeReferenceStep(0,1) and an empty value.
-    op = read_intent(p, iomap, KeyDown(:delete, ModifierKeys(alt = true); time = 0.0))
+    op = read_intent(p, nothing, Intent(KeyDown(:delete, ModifierKeys(alt = true); time = 0.0)), iomap).operation
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
     @test isempty(op.value)
     # Ctrl+Delete is the removal of a word of a text, so the versioning leaves it.
-    @test read_intent(p, iomap, KeyDown(:delete, ctrl; time = 0.0)) === nothing
+    @test read_intent(p, nothing, Intent(KeyDown(:delete, ctrl; time = 0.0)), iomap).operation === nothing
 end
 
 @testset "a version made with Ctrl+Shift+S has its author and time" begin
@@ -188,7 +188,7 @@ end
     # With no author named, the author is the user of the system.
     p = VersioningToAnyProjection()
     iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
-    snapshot = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0)).value[1]
+    snapshot = read_intent(p, nothing, Intent(KeyDown(:s, ctrl_shift; time = 0.0)), iomap).operation.value[1]
     @test snapshot.properties.author == Sys.username()
     @test snapshot.properties.timestamp isa Float64
     @test before <= snapshot.properties.timestamp <= time()
@@ -196,7 +196,7 @@ end
     # A named author, and the criteria select the new version.
     p = VersioningToAnyProjection(author = "dora")
     iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
-    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0))
+    op = read_intent(p, nothing, Intent(KeyDown(:s, ctrl_shift; time = 0.0)), iomap).operation
     @test op.value[1].properties.author == "dora"
     evaluate_operation((document = vo,), op)
     @test vo.versions[1].properties.author == "dora"

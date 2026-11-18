@@ -175,7 +175,7 @@ end
     @test at_text == ConcreteReference(ElementReferenceStep(2),
                                        ConcreteReference(PointReferenceStep(10, 5)))
     @test map_reference_backward(p, iomap, PointReferenceStep(5, 200)) === nothing
-    click = read_intent(p, iomap, MouseClick(:left, 15, 12; time = 0.0))
+    click = read_intent(p, nothing, Intent(MouseClick(:left, 15, 12; time = 0.0)), iomap).operation
     @test click isa ReplaceSelectionOperation && click.path == at_rect
 end
 

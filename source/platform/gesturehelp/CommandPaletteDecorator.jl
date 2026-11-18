@@ -91,9 +91,6 @@ function read_intent(p::CommandPaletteDecoratorProjection, recursion, change::In
     return child
 end
 
-read_intent(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 """
     make_command_palette_list(rows) -> WidgetChoiceList
 

@@ -52,9 +52,6 @@ function read_projection_gesture(p::EscapeQuittingProjection, iomap::EscapeQuitt
     invoke(read_projection_gesture, Tuple{Any, Any, Any}, p, iomap, gesture; answer)
 end
 
-read_intent(p::EscapeQuittingProjection, iomap::EscapeQuittingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 map_reference_forward(::EscapeQuittingProjection, iomap::EscapeQuittingIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::EscapeQuittingProjection, iomap::EscapeQuittingIoMap, reference) =

@@ -64,7 +64,7 @@ function walk_reader_events(document, projection; onevent=nothing)
     end
     for event in _ALL_READER_EVENTS
         try
-            read_intent(projection, iomap, event)
+            read_intent(projection, nothing, Intent(event), iomap).operation
             onevent === nothing || onevent(event, true, "")
         catch e
             msg = "read_intent threw for $event: $e"

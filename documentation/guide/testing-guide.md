@@ -631,7 +631,7 @@ the identical algorithm.
 
 **`test_reader`** — every gesture is handled without crashing.
 - **Seed:** clear the selection, print once → iomap.
-- **Drive:** fire every event in `_ALL_READER_EVENTS` (every key symbol × {ctrl on/off}, key repeats, `KeyUp`, printable `KeyPress`; mouse down/up/press/move/scroll at sample coordinates) through `read_intent(projection, iomap, event)`.
+- **Drive:** fire every event in `_ALL_READER_EVENTS` (every key symbol × {ctrl on/off}, key repeats, `KeyUp`, printable `KeyPress`; mouse down/up/press/move/scroll at sample coordinates) through `read_intent(projection, nothing, Intent(event), iomap)`.
 - **Asserts:** one `@test` per event — that `read_intent` *returns* (any value, `nothing` included) rather than throwing. It does **not** inspect the intent's content — only that no event makes the reader blow up. A `broken` predicate can mark known-failing events `@test_broken`.
 - **A failure means:** some gesture throws inside the reader.
 

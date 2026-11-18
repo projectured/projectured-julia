@@ -130,7 +130,7 @@ end # @testset
     proj = SelectionInverting()
     iomap = print_document(proj, _doc("alphabet", _range(1, 2, 5)))
     # Output span 3 is the trailing "bet", starting at input char 5.
-    edit = read_intent(proj, iomap, ReplaceStringRangeOperation(_range(3, 0, 3), "X"))
+    edit = read_intent(proj, nothing, Intent(ReplaceStringRangeOperation(_range(3, 0, 3), "X")), iomap).operation
     @test edit isa ReplaceStringRangeOperation
     @test edit.reference == _range(1, 5, 8)
     @test edit.replacement == "X"
@@ -177,7 +177,7 @@ end # @testset
 
     # An edit of a piece maps back to its span, at the offset of the piece.
     edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[2, 2], 0, 1), "X")
-    back = read_intent(p, iomap, edit)
+    back = read_intent(p, nothing, Intent(edit), iomap).operation
     @test back isa ReplaceStringRangeOperation
     @test strip_reference_types(back.reference) == TextModule._text_replace_path(Int[2, 1], 1, 2)
 

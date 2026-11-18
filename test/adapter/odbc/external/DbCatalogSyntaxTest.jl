@@ -411,7 +411,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
             end
 
             # Simulate mouse click on the marker
-            op = read_intent(proj, iomap, MouseClick(:left, click[1], click[2], ModifierKeys(); time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, click[1], click[2], ModifierKeys(); time = 0.0)), iomap).operation
 
             if show_detail
                 println("  Operation: ", op)
@@ -442,7 +442,7 @@ function test_dbcatalog_collapse_roundtrip(; show_detail=false)
                 # Click ellipsis to expand
                 eclick = _glyph_click_dbcat(coords2, "…")
                 @test eclick !== nothing
-                op2 = read_intent(proj, iomap2, MouseClick(:left, eclick[1], eclick[2], ModifierKeys(); time = 0.0))
+                op2 = read_intent(proj, nothing, Intent(MouseClick(:left, eclick[1], eclick[2], ModifierKeys(); time = 0.0)), iomap2).operation
                 @test op2 isa ToggleCollapseOperation
                 evaluate_operation(nothing, op2)
                 @test target.collapsed == false

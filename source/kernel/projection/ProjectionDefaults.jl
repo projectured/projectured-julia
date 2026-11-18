@@ -71,15 +71,15 @@ end
     read_move_answer(projection, iomap, answer::CompoundOperation) -> operation or nothing
 
 The answer to a move, which holds a `ReplaceMouseTargetOperation`, as `projection`
-reads it: each member alone, through the reader of `projection`, and a member with
-no image left out. A reader that passes every other operation on unchanged calls
+maps it: each member alone, through the map of `projection`, and a member with
+no image left out. A map that passes every other operation on unchanged calls
 it for a move, so the part under the pointer still maps back:
 
-    read_intent(p::MyView, iomap, op::CompoundOperation) =
+    map_operation_backward(p::MyView, iomap, op::CompoundOperation) =
         has_mouse_target(op) ? read_move_answer(p, iomap, op) : op
 """
 read_move_answer(projection, iomap, answer::CompoundOperation) =
-    join_move_answers((read_intent(projection, iomap, member) for member in answer.operations)...)
+    join_move_answers((map_operation_backward(projection, iomap, member) for member in answer.operations)...)
 
 """
     map_reference_backward(projection::Projection, iomap, reference)
@@ -108,31 +108,10 @@ function map_reference_backward(projection::Projection, iomap, reference)
     make_introduced_reference(projection, iomap.input, output_path)
 end
 
-"""
-    read_intent(projection::Projection, iomap, payload)
-
-The bridge of the older form of the reader to the two jobs of a stage: an input
-event (a key, a press, a move, a scroll), a gesture (a click, a dwell, a drag) or a
-`CollectIntents` payload goes to [`read_gesture`](@ref) of the projection, an
-operation to [`map_operation_backward`](@ref), and any other payload answers
-`nothing`. No gesture table has a pattern of a raw press, release, move or scroll,
-so the default `read_gesture` answers nothing for one, and a projection reads it
-with a method of its own. A projection that has a 3-argument method of its own
-answers before this default, so an old reader keeps working while the readers
-move to the two functions.
-"""
-function read_intent(projection::Projection, iomap, payload)
-    payload isa Operation && return map_operation_backward(projection, iomap, payload)
-    payload isa Union{Event, Gesture, CollectIntents} &&
-        return read_gesture(projection, iomap, payload)
-    nothing
-end
-
 # The default of `map_operation_backward`, declared in `ProjectionInterface.jl`.
 # A member of a compound, the operation of a wrapper and each operation of a
-# collection go back through the 3-argument `read_intent` of the projection, so a
-# 3-argument reader of the projection for that member answers first, as the bridge
-# above says.
+# collection go back through `map_operation_backward` of the projection, so a
+# method of the projection for the kind of that member maps it.
 function map_operation_backward(projection::Projection, iomap, operation)
     # A path-bearing operation that the kernel does not name reaches the `else`
     # branch through the pair `operation_reference` / `retarget_operation`, the
@@ -167,7 +146,7 @@ function map_operation_backward(projection::Projection, iomap, operation)
     elseif operation isa CompoundOperation
         # A selection of a document after an edit goes up as it is, so the editor
         # names its place once the edits before it are applied, as for a moved node.
-        mapped = Any[o isa SelectDocumentOperation ? o : read_intent(projection, iomap, o)
+        mapped = Any[o isa SelectDocumentOperation ? o : map_operation_backward(projection, iomap, o)
                      for o in operation.operations]
         # A move answers every part that it reached, the part under the pointer
         # with them: each goes back alone, and a part with no image here is left
@@ -178,7 +157,7 @@ function map_operation_backward(projection::Projection, iomap, operation)
     elseif operation isa WrappingOperation
         # A wrapper holds one operation, so it maps like a compound of one. A
         # wrapper whose inner operation does not map has nothing left to carry.
-        inner = read_intent(projection, iomap, get_wrapped_operation(operation))
+        inner = map_operation_backward(projection, iomap, get_wrapped_operation(operation))
         inner === nothing && return nothing
         return rewrap_operation(operation, inner)
     elseif operation isa CollectedIntentsOperation
@@ -188,7 +167,7 @@ function map_operation_backward(projection::Projection, iomap, operation)
         # because a row that cannot be run is still worth showing.
         return CollectedIntentsOperation([
             Intent(i.gesture,
-                   i.operation === nothing ? nothing : read_intent(projection, iomap, i.operation),
+                   i.operation === nothing ? nothing : map_operation_backward(projection, iomap, i.operation),
                    i.description, i.domain)
             for i in operation.intents])
     else
@@ -215,22 +194,23 @@ end
 """
     read_intent(p::Projection, recursion, change::Intent, iomap)
 
-Generic bridge from the symmetric 4-arg `Intent` interface to the 3-arg
-reader. For any projection without its own 4-arg method, unwrap the `Intent` and
-dispatch `read_intent(p, iomap, payload)` on the operation (when one
-has already been produced) or otherwise the gesture (the gesture→operation stage),
-then re-wrap the result as a `Intent` with the gesture, the description and the
-domain preserved. Compound
-projections that must thread the change to their children override this with a
-4-arg method of their own.
+The default reader of a stage. The operation of `change`, when it has one, goes to
+[`map_operation_backward`](@ref) of the projection. Otherwise the gesture goes to
+[`read_gesture`](@ref): an input event (a key, a press, a move, a scroll), a gesture
+(a click, a dwell, a drag) or a `CollectIntents` payload. Any other payload answers
+`nothing`. The result is an `Intent` with the gesture, the description and the
+domain of `change`. No gesture table has a pattern of a raw press, release, move or
+scroll, so the default `read_gesture` answers nothing for one, and a projection
+reads it with a method of its own. A container that chooses the child of a change
+in its own way, and a wrapper that acts on the passing, write a method of their own.
 
 A change with a route goes on to the child that the route names, when `iomap`
 holds children ([`get_child_iomaps`](@ref)), through
 [`read_routed_child`](@ref). A container is then not asked where the change goes,
 so it needs no code of its own for a route. Where `iomap` holds no children, a
 gesture is read as every gesture is, with the rest of the route as the part. The
-3-arg reader follows no route, so an operation whose route names a place below
-the input answers no operation.
+two functions of a stage follow no route, so an operation whose route names a place
+below the input answers no operation.
 
 **A stage reads the answer of the stage nearer the screen by the rule of a level.**
 A change that holds a gesture and an operation is the answer of a stage nearer the
@@ -251,7 +231,8 @@ function read_intent(p::Projection, recursion, change::Intent, iomap)
     change.route isa ConcreteReference && change.operation !== nothing &&
         return Intent(change.gesture, nothing)
     payload = change.operation === nothing ? change.gesture : change.operation
-    op = read_intent(p, iomap, payload)
+    op = payload isa Operation ? map_operation_backward(p, iomap, payload) :
+         payload isa Union{Event, Gesture, CollectIntents} ? read_gesture(p, iomap, payload) : nothing
     gesture = change.gesture
     # A chain collects the rows of each stage by itself (`CollectIntents`), so a
     # carried collection only maps back, and so does an answer that collects, such
@@ -447,8 +428,8 @@ and `steps` lead from the input of the container to the input of the child.
   does not reach the child, and the answer is no operation.
 - With `child === nothing`, no child reads, and the container is the part: only the
   rules of the container answer.
-- A change that holds an operation as its gesture, as the 3-argument form of a
-  reader gives it (`Intent(payload)`), passes as that operation.
+- A change that holds an operation as its gesture (`Intent(operation)`) passes as
+  that operation.
 - The answer of the child comes back rerooted by `steps`, with the description and
   the domain of the answer, or of `change` when the answer has none.
 - For a gesture, the answer then goes up level by level: through the documents on

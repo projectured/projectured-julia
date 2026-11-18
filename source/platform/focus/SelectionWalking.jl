@@ -52,9 +52,6 @@ function read_projection_gesture(p::SelectionWalkingProjection, iomap::Selection
     path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
-read_intent(p::SelectionWalkingProjection, iomap::SelectionWalkingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 map_reference_forward(::SelectionWalkingProjection, iomap::SelectionWalkingIoMap, reference) =
     map_reference_forward(iomap.child_iomap.projection, iomap.child_iomap, reference)
 map_reference_backward(::SelectionWalkingProjection, iomap::SelectionWalkingIoMap, reference) =

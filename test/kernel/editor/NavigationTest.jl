@@ -49,7 +49,7 @@ function explore_selections(document, projection;
         seed_gesture === nothing &&
             throw(ArgumentError("explore_selections needs a seed_gesture or an initial_selection"))
         op = try
-            read_intent(projection, iomap, seed_gesture)
+            read_intent(projection, nothing, Intent(seed_gesture), iomap).operation
         catch e
             return (state_count=0, errors=["seed gesture $seed_gesture failed: $e"], visited=visited)
         end
@@ -85,7 +85,7 @@ function explore_selections(document, projection;
 
         for key in nav_keys
             op = try
-                read_intent(projection, iomap, key)
+                read_intent(projection, nothing, Intent(key), iomap).operation
             catch e
                 push!(errors, "reader error at [$path_str] with $key: $e")
                 nothing

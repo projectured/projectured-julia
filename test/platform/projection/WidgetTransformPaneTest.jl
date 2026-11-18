@@ -20,7 +20,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op isa ReplaceViewStateOperation
         M = _written(op)
         @test M isa AffineTransform
@@ -34,7 +34,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, -1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op isa ReplaceViewStateOperation
         @test _written(op).a ≈ 1.0 / 1.1
     end
@@ -45,7 +45,7 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         # Already at ZOOM_MAX (4.0); a further zoom-in is a no-op.
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op === nothing
     end
 
@@ -53,7 +53,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(); time = 0.0)), iomap).operation
         @test op isa CompoundOperation
         @test all(o -> o isa ReplaceViewStateOperation, op.operations)
         M = _written(op)
@@ -67,7 +67,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(1, 0, 50, 50, ModifierKeys(); time = 0.0)), iomap).operation
         @test op isa CompoundOperation
         @test _written(op).e ≈ 72.0
         @test _written(op).f ≈ 0.0
@@ -77,8 +77,8 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 0, 50, 50, ModifierKeys(); time = 0.0,
-                                                  precise_dy = 0.5))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 0, 50, 50, ModifierKeys(); time = 0.0,
+                                                  precise_dy = 0.5)), iomap).operation
         @test _written(op).f ≈ 36.0     # half of three lines of 24
     end
 
@@ -86,17 +86,17 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, MouseScroll(0, 2, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 2, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test _written(op).a ≈ 1.1^2
-        @test read_intent(proj, iomap, MouseScroll(0, 0, 50, 50, ModifierKeys(ctrl=true); time = 0.0,
-                                                   precise_dy = 0.3)) === nothing
+        @test read_intent(proj, nothing, Intent(MouseScroll(0, 0, 50, 50, ModifierKeys(ctrl=true); time = 0.0,
+                                                   precise_dy = 0.3)), iomap).operation === nothing
     end
 
     @testset "Ctrl and the wheel zoom a pane inside a composite" begin
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, WidgetComposite(Any[doc]))
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test _written(op).a ≈ 1.1
     end
 
@@ -109,7 +109,7 @@ function test_widget_transform_pane()
     @testset "Ctrl and the wheel zoom a pane in a card, and do not scroll the page" begin
         proj  = _proj()
         iomap = print_document(proj, _card_page())
-        op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test _written(op) isa AffineTransform
         @test _written(op).a ≈ 1.1
     end
@@ -117,7 +117,7 @@ function test_widget_transform_pane()
     @testset "a turn that no slot of a card uses scrolls the page" begin
         proj  = _proj()
         iomap = print_document(proj, _card_page())
-        op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 12, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseScroll(0, -1, 50, 12, ModifierKeys(); time = 0.0)), iomap).operation
         @test _written(op) isa Point2D
         @test Int(_written(op).y[]) > 0
     end
@@ -125,7 +125,7 @@ function test_widget_transform_pane()
     @testset "Ctrl and the wheel never scroll a page" begin
         proj  = _proj()
         iomap = print_document(proj, _card_page())
-        @test read_intent(proj, iomap, MouseScroll(0, -1, 50, 12, ModifierKeys(ctrl=true); time = 0.0)) === nothing
+        @test read_intent(proj, nothing, Intent(MouseScroll(0, -1, 50, 12, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation === nothing
     end
 
     @testset "a zoom at its limit gives the page no notch" begin
@@ -134,16 +134,16 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, WidgetScrollPane(WidgetCard(; title = WidgetLabel("plot"), content = pane);
                                                       size = Point2D(240, 120)))
-        @test read_intent(proj, iomap, MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0)) === nothing
+        @test read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 80, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation === nothing
     end
 
     @testset "successive zooms accumulate" begin
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op1 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op1 = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         evaluate_operation(nothing, op1)
-        op2 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0))
+        op2 = read_intent(proj, nothing, Intent(MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test _written(op2).a ≈ 1.1 * 1.1
     end
 
@@ -151,7 +151,7 @@ function test_widget_transform_pane()
         doc   = _doc()                       # 200×200, no insets → centre (100,100)
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:equals, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(KeyDown(:equals, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op isa ReplaceViewStateOperation
         @test _written(op).a ≈ 1.1
         @test all(apply_affine_transform(_written(op), 100.0, 100.0) .≈ (100.0, 100.0))
@@ -161,7 +161,7 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:minus, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(KeyDown(:minus, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op isa ReplaceViewStateOperation
         @test _written(op).a ≈ 1.0 / 1.1
     end
@@ -171,7 +171,7 @@ function test_widget_transform_pane()
                                     size=Point2D(200, 200), transform=make_affine_scale(2.0, 2.0))
         proj  = _proj()
         iomap = print_document(proj, doc)
-        op = read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true); time = 0.0))
+        op = read_intent(proj, nothing, Intent(KeyDown(:zero, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation
         @test op isa ReplaceViewStateOperation
         @test _written(op) == affine_identity
     end
@@ -180,14 +180,14 @@ function test_widget_transform_pane()
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        @test read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true); time = 0.0)) === nothing
+        @test read_intent(proj, nothing, Intent(KeyDown(:zero, ModifierKeys(ctrl=true); time = 0.0)), iomap).operation === nothing
     end
 
     @testset "plain = (no Ctrl) does not zoom" begin
         doc   = _doc()
         proj  = _proj()
         iomap = print_document(proj, doc)
-        @test read_intent(proj, iomap, KeyDown(:equals, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(proj, nothing, Intent(KeyDown(:equals, ModifierKeys(); time = 0.0)), iomap).operation === nothing
     end
 
 end

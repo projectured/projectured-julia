@@ -47,9 +47,9 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
 
-    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) !== nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation !== nothing
     for (x, y) in ((200, 10), (10, 300), (900, 500), (-5, 10), (10, -5))
-        @test read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation === nothing
     end
     # The reader is pure (PAR-READER-IS-PURE): it answers with the operation and
     # never performs it, so the action has not run and the count is still zero.
@@ -60,7 +60,7 @@ end
     # definition, and declining it would suppress the very event that ends a
     # press held on the button.
     button.pressed = true
-    @test read_intent(proj, iomap, MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0)) !== nothing
+    @test read_intent(proj, nothing, Intent(MouseMove(-1, -1, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation !== nothing
 end
 
 @testset "button click invokes its action via InvokeActionOperation" begin
@@ -70,7 +70,7 @@ end
     @test iomap.output isa GraphicsCanvas
 
     # Click inside the button (its canvas is at 0,0 sized 120×40).
-    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa InvokeActionOperation
     @test op.action === button.action
 
@@ -84,7 +84,7 @@ end
     button, _ = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
-    @test read_intent(proj, iomap, MouseClick(:right, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:right, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation === nothing
 end
 
 @testset "press / release drive the transient pressed flag" begin
@@ -92,13 +92,13 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
 
-    down = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0))
+    down = read_intent(proj, nothing, Intent(MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test _view_state_write(down) isa ReplaceReferencedValueOperation
     @test _view_state_write(down).value == true
     evaluate_operation(_WidgetButtonMockEditor(button), down)
     @test button.pressed == true
 
-    up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys(); time = 0.0))
+    up = read_intent(proj, nothing, Intent(MouseUp(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test _view_state_write(up) isa ReplaceReferencedValueOperation
     @test _view_state_write(up).value == false
     evaluate_operation(_WidgetButtonMockEditor(button), up)
@@ -112,7 +112,7 @@ end
     # A motion alone answers no operation: the button's own reader has no case
     # for a move onto it, and the one that gives it the move names the part under
     # the pointer.
-    @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation === nothing
 
     driver = MttDriver(proj, button)
     @test get_mouse_target(button) === nothing
@@ -148,7 +148,7 @@ end
     composite = WidgetComposite(Any[button])
     proj = _proj()
     iomap = print_document(proj, nothing, composite, PrinterContext())
-    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test op isa InvokeActionOperation && op.action === button.action
     evaluate_operation(_WidgetButtonMockEditor(composite), op)
     @test count[] == 1
@@ -204,9 +204,9 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # disabled still renders
-    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+    @test read_intent(proj, nothing, Intent(MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation === nothing
+    @test read_intent(proj, nothing, Intent(MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test fired[] == false
     @test get_mouse_target(btn) === nothing && btn.pressed == false
 end
@@ -216,7 +216,7 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
     @test iomap.output isa GraphicsCanvas
-    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation === nothing
     @test cb.content === false                                # value unchanged
 end
 
@@ -303,20 +303,18 @@ end
     proj = _proj()
     btn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing)
     biomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, biomap, KeyPress('\n'; time = 0.0)) isa InvokeActionOperation
-    @test read_intent(proj, biomap, KeyPress(' '; time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), biomap).operation isa InvokeActionOperation
+    @test read_intent(proj, nothing, Intent(KeyPress(' '; time = 0.0)), biomap).operation isa InvokeActionOperation
     dbtn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing, enabled = false)
-    @test read_intent(proj, print_document(proj, nothing, dbtn, PrinterContext()),
-                          KeyPress('\n'; time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), print_document(proj, nothing, dbtn, PrinterContext())).operation === nothing
 
     cb = WidgetCheckbox(false)
     ciomap = print_document(proj, nothing, cb, PrinterContext())
-    op = read_intent(proj, ciomap, KeyPress(' '; time = 0.0))
+    op = read_intent(proj, nothing, Intent(KeyPress(' '; time = 0.0)), ciomap).operation
     @test op isa ReplaceReferencedValueOperation && op.value == true
-    @test read_intent(proj, ciomap, KeyPress('\n'; time = 0.0)) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), ciomap).operation isa ReplaceReferencedValueOperation
     dcb = WidgetCheckbox(false; enabled = false)
-    @test read_intent(proj, print_document(proj, nothing, dcb, PrinterContext()),
-                          KeyPress(' '; time = 0.0)) === nothing
+    @test read_intent(proj, nothing, Intent(KeyPress(' '; time = 0.0)), print_document(proj, nothing, dcb, PrinterContext())).operation === nothing
 end
 
 # Stage 2, Step 2: first/get_last_focusable_path locate enabled interactive leaves as
@@ -379,7 +377,7 @@ end
     proj = _proj()
     tab  = KeyPress('\t'; time = 0.0)
     stab = KeyPress('\t', ModifierKeys(shift=true); time = 0.0)
-    _read(c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
+    _read(c, ev) = read_intent(proj, nothing, Intent(ev), print_document(proj, nothing, c, PrinterContext())).operation
 
     comp = WidgetComposite(Any[_btn("A"), WidgetCheckbox(true), _btn("C")])
 
@@ -420,7 +418,7 @@ end
     stab = KeyPress('\t', ModifierKeys(shift=true); time = 0.0)
     _renderer() = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(; measure=_stub).dispatch))
-    _read(proj, c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
+    _read(proj, c, ev) = read_intent(proj, nothing, Intent(ev), print_document(proj, nothing, c, PrinterContext())).operation
 
     comp = WidgetComposite(Any[_btn("A"), _btn("B")])
     getfield(comp, :selection)[] = _mk(2)
@@ -447,7 +445,7 @@ end
             LayoutToGraphics().dispatch,
             WidgetToGraphics(; measure=_stub).dispatch)))))
     tab = KeyPress('\t'; time = 0.0)
-    _read(c, ev) = read_intent(lproj, print_document(lproj, nothing, c, PrinterContext()), ev)
+    _read(c, ev) = read_intent(lproj, nothing, Intent(ev), print_document(lproj, nothing, c, PrinterContext())).operation
 
     lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(true), _btn("C")]; gap=8)
     op = _read(lay, tab)                              # bootstrap → first focusable
@@ -473,12 +471,12 @@ end
             WidgetToGraphics(; measure=_stub).dispatch))))
     iomap = print_document(proj, nothing, layout, PrinterContext())
 
-    dn = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0))
+    dn = read_intent(proj, nothing, Intent(MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
-    up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys(); time = 0.0))
+    up = read_intent(proj, nothing, Intent(MouseUp(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation
     @test _view_state_write(up) isa ReplaceReferencedValueOperation && _view_state_write(up).document === button && _view_state_write(up).value == false
     # The composed click still reaches the action, as before.
-    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)), iomap).operation isa InvokeActionOperation
 end
 
 # A WidgetCard routes the press-down/up to the hit child, and a point on the button
@@ -507,10 +505,10 @@ end
 
     _mtt_move!(MttDriver(proj, card), cx, cy, 1.0)
     @test get_mouse_target(button) !== nothing
-    dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys(); time = 0.0))
+    dn = read_intent(proj, nothing, Intent(MouseDown(:left, cx, cy, ModifierKeys(); time = 0.0)), iomap).operation
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     # And a click still reaches the action through the card.
-    @test read_intent(proj, iomap, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, nothing, Intent(MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)), iomap).operation isa InvokeActionOperation
 end
 
 # A segmented control that fills an offer must still answer a press with the
@@ -550,7 +548,7 @@ end
         left = 0
         for (i, width) in enumerate(widths)
             centre = left + width ÷ 2
-            answer = read_intent(proj, iomap, MouseClick(:left, centre, 30, ModifierKeys(); time = 0.0))
+            answer = read_intent(proj, nothing, Intent(MouseClick(:left, centre, 30, ModifierKeys(); time = 0.0)), iomap).operation
             # Segment 1 is already selected, and pressing the one that is on is
             # not a change — the reader says so by answering nothing.
             if i == 1
@@ -562,7 +560,7 @@ end
             left += width
         end
         # And the far right edge is inside the last segment, not past every one.
-        answer = read_intent(proj, iomap, MouseClick(:left, 895, 30, ModifierKeys(); time = 0.0))
+        answer = read_intent(proj, nothing, Intent(MouseClick(:left, 895, 30, ModifierKeys(); time = 0.0)), iomap).operation
         @test answer isa ReplaceReferencedValueOperation && answer.value == 3
     end
 end

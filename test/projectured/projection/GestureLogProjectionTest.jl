@@ -128,8 +128,8 @@ function test_gesture_log()
 
         # A printable key on a whole-element selection replaces the element, which
         # is a compound operation and not a selection.
-        operation = read_intent(recorder, iomap, typed)
-        direct = read_intent(inner, iomap.inner_iomap, typed)
+        operation = read_intent(recorder, nothing, Intent(typed), iomap).operation
+        direct = read_intent(inner, nothing, Intent(typed), iomap.inner_iomap).operation
         @test operation isa CompoundOperation
         @test typeof(operation) === typeof(direct)               # nothing is consumed
         @test length(log.entries) == 1
@@ -145,7 +145,7 @@ function test_gesture_log()
                                                  filter = (gesture, operation) -> true)
         iomap = print_document(recorder, array)
 
-        @test read_intent(recorder, iomap, KeyDown(:f9, none; time = 0.0)) === nothing
+        @test read_intent(recorder, nothing, Intent(KeyDown(:f9, none; time = 0.0)), iomap).operation === nothing
         @test length(log.entries) == 0
     end
 
@@ -156,7 +156,7 @@ function test_gesture_log()
                                                  filter = (gesture, operation) -> false)
         iomap = print_document(recorder, array)
 
-        operation = read_intent(recorder, iomap, typed)
+        operation = read_intent(recorder, nothing, Intent(typed), iomap).operation
         @test operation isa CompoundOperation                     # the reader still fires
         @test length(log.entries) == 0                            # the filter dropped it
     end
@@ -166,21 +166,21 @@ function test_gesture_log()
         recorder = GestureLogRecordingProjection(inner = inner_syntax(), log = log, fold_typing = true)
         iomap = print_document(recorder, mkarray())
         gestures() = [entry.gesture for entry in log.entries]
-        read_intent(recorder, iomap, typed)
+        read_intent(recorder, nothing, Intent(typed), iomap).operation
         # The key down of a character key comes with the character, and a key up
         # follows it: the run goes on.
-        read_intent(recorder, iomap, KeyDown(:a, none; time = 0.0))
-        read_intent(recorder, iomap, typed)
-        read_intent(recorder, iomap, KeyUp(:a, none; time = 0.0))
-        read_intent(recorder, iomap, typed)
+        read_intent(recorder, nothing, Intent(KeyDown(:a, none; time = 0.0)), iomap).operation
+        read_intent(recorder, nothing, Intent(typed), iomap).operation
+        read_intent(recorder, nothing, Intent(KeyUp(:a, none; time = 0.0)), iomap).operation
+        read_intent(recorder, nothing, Intent(typed), iomap).operation
         @test gestures() == ["typed \"777\""]
         # A click that reads to nothing is no entry, but the next character starts one.
-        @test read_intent(recorder, iomap, MouseClick(:left, 3, 3, 1, none; time = 0.0)) === nothing
-        read_intent(recorder, iomap, typed)
+        @test read_intent(recorder, nothing, Intent(MouseClick(:left, 3, 3, 1, none; time = 0.0)), iomap).operation === nothing
+        read_intent(recorder, nothing, Intent(typed), iomap).operation
         @test gestures() == ["typed \"777\"", "typed \"7\""]
         # So does a key that types no character, such as F3.
-        read_intent(recorder, iomap, KeyDown(:f3, none; time = 0.0))
-        read_intent(recorder, iomap, typed)
+        read_intent(recorder, nothing, Intent(KeyDown(:f3, none; time = 0.0)), iomap).operation
+        read_intent(recorder, nothing, Intent(typed), iomap).operation
         @test gestures() == ["typed \"777\"", "typed \"7\"", "typed \"7\""]
     end
 
@@ -240,8 +240,8 @@ function test_gesture_log()
         overlay = GestureLogOverlayProjection(inner = inner, log = log)
         iomap = print_document(overlay, array)
 
-        operation = read_intent(overlay, iomap, typed)
-        direct = read_intent(inner, iomap.inner_iomap, typed)
+        operation = read_intent(overlay, nothing, Intent(typed), iomap).operation
+        direct = read_intent(inner, nothing, Intent(typed), iomap.inner_iomap).operation
         @test typeof(operation) === typeof(direct)
         @test length(log.entries) == 0                            # the overlay records nothing
     end

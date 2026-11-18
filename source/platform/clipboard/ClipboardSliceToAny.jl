@@ -820,6 +820,3 @@ function read_gesture(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToA
     invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
 end
 
-# 3-arg payload form (used by tests and any parent that hands a bare payload).
-read_intent(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

@@ -94,7 +94,7 @@ _gvd_operations(operation) = operation isa CompoundOperation ?
 function _gvd_find_content_drag_point(drawing, i)
     bx, by, bw, _ = _gvd_drawn_box(drawing, i)
     for y in by:2:(by + 40), x in bx:(bx + bw - 1)
-        answer = read_intent(drawing.projection, drawing, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+        answer = read_intent(drawing.projection, nothing, Intent(MouseDown(:left, x, y, ModifierKeys(); time = 0.0)), drawing).operation
         any(op -> op isa StartDragOperation &&
                   !isempty(get_reference_steps(strip_reference_types(op.path))),
             _gvd_operations(answer)) && return (x, y)
@@ -221,11 +221,10 @@ end
     margin = _gvd_margin(drawing)
     box = _gvd_drawn_box(drawing, 3)
     x, y = box[1] - pad + 1, box[2] + 2
-    apply!(read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0)))
-    apply!(read_intent(projection, iomap,
-                       MouseMove(x + 70, y, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+    apply!(read_intent(projection, nothing, Intent(MouseDown(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation)
+    apply!(read_intent(projection, nothing, Intent(MouseMove(x + 70, y, MouseButtons(:left), ModifierKeys(); time = 0.0)), iomap).operation)
     @test layout.drag.started
-    drop = read_intent(projection, iomap, DragEnd(x + 70, y; time = 0.0))
+    drop = read_intent(projection, nothing, Intent(DragEnd(x + 70, y; time = 0.0)), iomap).operation
     @test drop !== nothing
     # The undo buffer applies an operation this way, and keeps the way back.
     inverse = evaluate_invertible_operation!(editor, drop)
@@ -283,7 +282,7 @@ end
     pad = unwrap_cell(drawing.projection.style).node_padding
     editor = _GraphVertexDragTestEditor(graph)
     apply!(operation) = operation === nothing || evaluate_operation(editor, operation)
-    read!(event) = apply!(read_intent(projection, iomap, event))
+    read!(event) = apply!(read_intent(projection, nothing, Intent(event), iomap).operation)
     box = _gvd_drawn_box(drawing, 2)
     x, y = box[1] - pad + 1, box[2] + 2
     left = MouseButtons(:left)
@@ -324,7 +323,7 @@ end
     @test first_box[1] <= x < first_box[1] + first_box[3]
     @test first_box[2] <= y < first_box[2] + first_box[4]
     editor = _GraphVertexDragTestEditor(graph)
-    operation = read_intent(projection, iomap, MouseDown(:left, x, y, ModifierKeys(); time = 0.0))
+    operation = read_intent(projection, nothing, Intent(MouseDown(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
     evaluate_operation(editor, operation)
     # @broken: a press on the text of the content starts a drag of a text range (drag_path), so no vertex drag starts; on main since about 2026-11-08, not bisected
     @test_broken layout.drag !== nothing && layout.drag.index == 2

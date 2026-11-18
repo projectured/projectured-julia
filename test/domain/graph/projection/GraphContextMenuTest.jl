@@ -94,8 +94,7 @@ end
     iomap = print_document(projection, graph)
     drawing = _gvd_find_drawing(iomap)
     box = drawing.drawn_boxes[2]
-    answer = read_intent(projection, iomap,
-                         MouseClick(:right, box[1] + 5, box[2] + 5, 1, ModifierKeys(); time = 0.0))
+    answer = read_intent(projection, nothing, Intent(MouseClick(:right, box[1] + 5, box[2] + 5, 1, ModifierKeys(); time = 0.0)), iomap).operation
     menu = answer isa WrappingOperation ? get_wrapped_operation(answer) : answer
     @test menu isa OpenContextMenuOperation
     menu isa OpenContextMenuOperation || return

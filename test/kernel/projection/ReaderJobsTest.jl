@@ -123,12 +123,10 @@ ProjectionModule.print_document(p::JobProbeClickProjection, recursion, input, ct
 GestureBindingModule.read_gesture(::JobProbeClickProjection, iomap, click::MouseClick; answer = nothing) =
     JobProbeOperation("click")
 
-# A leaf with an older reader for one kind of operation, and a new method for it.
-struct JobProbeOldProjection <: Projection end
-ProjectionModule.print_document(p::JobProbeOldProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
-ProjectionModule.read_intent(::JobProbeOldProjection, iomap, operation::JobProbeOperation) =
-    JobProbeOperation("old")
-ProjectionModule.map_operation_backward(::JobProbeOldProjection, iomap, operation::JobProbeOperation) =
+# A leaf with a map of its own for one kind of operation.
+struct JobProbeMapProjection <: Projection end
+ProjectionModule.print_document(p::JobProbeMapProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
+ProjectionModule.map_operation_backward(::JobProbeMapProjection, iomap, operation::JobProbeOperation) =
     JobProbeOperation("new")
 
 # A leaf with a gesture table of its own.
@@ -186,21 +184,23 @@ function test_reader_jobs()
 @testset "the two jobs of a stage and the passing to a child" begin
     @testset "the older form hands an operation to map_operation_backward and a gesture to read_gesture" begin
         iomap = print_document(JobProbeMapProjection(), nothing, JobProbeLeaf(), PrinterContext())
-        @test read_intent(JobProbeMapProjection(), iomap, JobProbeOperation("x")) == JobProbeOperation("mapped x")
+        @test read_intent(JobProbeMapProjection(), nothing, Intent(JobProbeOperation("x")), iomap).operation == JobProbeOperation("mapped x")
         click = print_document(JobProbeClickProjection(), nothing, JobProbeLeaf(), PrinterContext())
-        @test read_intent(JobProbeClickProjection(), click, _job_left()) == JobProbeOperation("click")
+        @test read_intent(JobProbeClickProjection(), nothing, Intent(_job_left()), click).operation == JobProbeOperation("click")
         # A payload that is neither a gesture nor an operation answers nothing.
-        @test read_intent(JobProbeClickProjection(), click, "neither") === nothing
+        @test read_intent(JobProbeClickProjection(), nothing, Intent("neither"), click).operation === nothing
         # The walk reaches the same two methods.
         walked = read_intent(JobProbeMapProjection(), nothing, Intent(nothing, JobProbeOperation("y")), iomap)
         @test walked.operation == JobProbeOperation("mapped y")
     end
 
-    @testset "an older reader of a projection answers before its new method" begin
-        iomap = print_document(JobProbeOldProjection(), nothing, JobProbeLeaf(), PrinterContext())
-        @test read_intent(JobProbeOldProjection(), iomap, JobProbeOperation("x")) == JobProbeOperation("old")
-        @test map_operation_backward(JobProbeOldProjection(), iomap, JobProbeOperation("x")) == JobProbeOperation("new")
-        # A member of a compound goes back through the older form too.
+    @testset "the default reader of a stage maps an operation with the map of the stage" begin
+        p = JobProbeMapProjection()
+        iomap = print_document(p, nothing, JobProbeLeaf(), PrinterContext())
+        @test read_intent(p, nothing, Intent(nothing, JobProbeOperation("x")), iomap).operation ==
+              JobProbeOperation("new")
+        @test map_operation_backward(p, iomap, JobProbeOperation("x")) == JobProbeOperation("new")
+        # A member of a compound goes back through the map of the stage too.
         mapped = map_operation_backward(JobProbeLeafProjection(),
                                         print_document(JobProbeLeafProjection(), nothing, JobProbeLeaf(), PrinterContext()),
                                         CompoundOperation(Any[JobProbeOperation("a")]))

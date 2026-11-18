@@ -131,7 +131,7 @@ function test_widget_value_slot()
         select = WidgetSelect(ObjectField(settings, "style"); options = Any[:a, :b, :c])
         projection = _slot_projection()
         iomap = print_document(projection, projection, select, PrinterContext())
-        answer = read_intent(projection, iomap, _slot_click(5, 5))
+        answer = read_intent(projection, nothing, Intent(_slot_click(5, 5)), iomap).operation
         popup = get_wrapped_operation(answer)
         options = collect(popup.content.elements)
         @test length(options) == 3

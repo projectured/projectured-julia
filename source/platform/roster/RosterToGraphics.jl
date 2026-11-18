@@ -37,9 +37,6 @@ function read_intent(p::RosterToGraphics, recursion, change::Intent, iomap::Rost
     read_child_intent(p, recursion, change, iomap, iomap.inner_iomap, (FieldReferenceStep("rows"),))
 end
 
-read_intent(p::RosterToGraphics, iomap::RosterToGraphicsIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 function map_reference_forward(::RosterToGraphics, iomap::RosterToGraphicsIoMap, reference)
     reference isa ConcreteReference || return reference
     head = get_reference_head(reference)

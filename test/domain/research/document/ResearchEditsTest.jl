@@ -50,8 +50,7 @@ function test_research_edits()
             evidence = make_research_item(study, ResearchEvidence; time = _RESEARCH_TEST_TIME,
                                           statement = "At K = 12 the drop rate is 1.13 %.",
                                           basis = ["R1"], opposes = ["H1"])
-            evaluate_operation(editor, read_intent(projection, iomap,
-                                                   make_add_research_item_operation(study, evidence)))
+            evaluate_operation(editor, read_intent(projection, nothing, Intent(make_add_research_item_operation(study, evidence)), iomap).operation)
             @test length(study.evidence) == 2
             @test study.evidence[2] === evidence
             @test evidence.opposes[1] === study.hypotheses[1]
@@ -82,8 +81,7 @@ function test_research_edits()
             decision = make_research_item(study, ResearchDecision; time = _RESEARCH_TEST_TIME,
                                           statement = "The answer stands; the closed form is not used.",
                                           accepts = ["A1"], rejects = ["N1"])
-            evaluate_operation(editor, read_intent(projection, iomap,
-                                                   make_record_decision_operation(study, decision)))
+            evaluate_operation(editor, read_intent(projection, nothing, Intent(make_record_decision_operation(study, decision)), iomap).operation)
             @test study.decisions[3] === decision
             @test decision.id == "D3"
             @test answer.status === :accepted

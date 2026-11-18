@@ -121,9 +121,6 @@ function read_intent(p::TooltipDecoratorProjection, recursion, change::Intent, i
     return Intent(change.gesture, child_op)
 end
 
-read_intent(p::TooltipDecoratorProjection, iomap::TooltipDecoratorIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── Reference mapping ────────────────────────────────────────────────────
 # The decorator's output is the child's output (the TooltipSource's
 # `content` / `style` / `id` fields contribute nothing visible), so

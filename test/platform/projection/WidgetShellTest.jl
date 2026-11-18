@@ -151,7 +151,7 @@ function test_widget_shell_pointer()
         iomap = print_document(rec, nothing, framed(tabs), offer(800, 600))
         texts, _ = _shell_layout_walk(iomap.output)
         (_, x, y) = only(t for t in texts if t[1] == "Two")
-        operation = read_intent(rec, iomap, MouseDown(:left, x + 2, y + 2; time = 0.0))
+        operation = read_intent(rec, nothing, Intent(MouseDown(:left, x + 2, y + 2; time = 0.0)), iomap).operation
         @test operation isa DragTabOperation
         @test operation.tab_index == 2
     end
@@ -164,7 +164,7 @@ function test_widget_shell_pointer()
         # The divider: the first point at mid-height where a down grabs it.
         grab = nothing
         for x in 0:799
-            operation = read_intent(rec, iomap, MouseDown(:left, x, 300; time = 0.0))
+            operation = read_intent(rec, nothing, Intent(MouseDown(:left, x, 300; time = 0.0)), iomap).operation
             _unmark(operation) isa StartSplitterDragOperation && (grab = (x, operation); break)
         end
         @test grab !== nothing

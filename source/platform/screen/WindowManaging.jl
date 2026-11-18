@@ -206,9 +206,6 @@ function _join_window_answers(parts::Vector...)
     isempty(kept) ? nothing : length(kept) == 1 ? kept[1] : CompoundOperation(kept)
 end
 
-read_intent(p::WindowManagingProjection, iomap::WindowManagingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # Apply Open: add a new window, or update an existing one with the same id, on the
 # input screen only. `ScreenToScreen` mirrors the change into the output — it
 # reconciles the output's windows against the input (so a new/removed window

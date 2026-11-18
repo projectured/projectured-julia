@@ -74,7 +74,7 @@ _is_insert(op) = !isempty(_inserted_titles(op)) && !_is_duplicate(op)
 function _sweep(proj, iomap)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         op === nothing || push!(found, (x, op))
     end
     found
@@ -178,7 +178,7 @@ end
 
     caret = nothing
     for y in 0:2:300, x in 0:2:400
-        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         op isa ReplaceSelectionOperation || continue
         occursin("PrimitiveString", string(op.path)) || continue
         caret = op
@@ -202,8 +202,8 @@ end
     stranger = WidgetTabbedPane(Any[("x", WidgetLabel("x"))])
     pane_stage = RecursiveProjection(PaneToWidget())
     pane_iomap = print_document(pane_stage, tree)
-    @test read_intent(pane_stage, pane_iomap, CloseTabOperation(stranger, 1)) === nothing
-    @test read_intent(pane_stage, pane_iomap, OpenTabOperation(stranger)) === nothing
+    @test read_intent(pane_stage, nothing, Intent(CloseTabOperation(stranger, 1)), pane_iomap).operation === nothing
+    @test read_intent(pane_stage, nothing, Intent(OpenTabOperation(stranger)), pane_iomap).operation === nothing
 
     # A tab click names a place and not a pane. A press on the second tab of a
     # strip that another tree printed names a tab this tree does not have.
@@ -214,7 +214,7 @@ end
               if op isa ReplaceSelectionOperation &&
                  occursin("selector_element_pairs[2]", string(op.path))]
     @test !isempty(clicks)
-    @test read_intent(pane_stage, pane_iomap, clicks[1]) === nothing
+    @test read_intent(pane_stage, nothing, Intent(clicks[1]), pane_iomap).operation === nothing
 end
 
 @testset "a report of the strip passes a projection that is not a widget" begin
@@ -226,7 +226,7 @@ end
     iomap = SimpleIoMap(between, pane, pane)
     for report in (CloseTabOperation(pane, 1), OpenTabOperation(pane),
                    DragTabOperation(pane, 1))
-        @test read_intent(between, iomap, report) === report
+        @test read_intent(between, nothing, Intent(report), iomap).operation === report
     end
 end
 
@@ -247,7 +247,7 @@ end
     grab = nothing
     path = nothing
     for x in 190:210
-        op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseDown(:left, x, 150, ModifierKeys(); time = 0.0)), iomap).operation
         if _starts_drag(op)
             grab = x
             path = _drag_path(op)
@@ -300,7 +300,7 @@ end
     function _drag!(to)
         path = nothing
         for x in 0:399
-            operation = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
+            operation = read_intent(proj, nothing, Intent(MouseDown(:left, x, 150, ModifierKeys(); time = 0.0)), iomap).operation
             _starts_drag(operation) || continue
             path = _drag_path(operation)
             _apply!(editor, operation)
@@ -340,12 +340,11 @@ end
                                           Dict{Symbol,Any}()))
 
     # The inner divider runs across the right column, near half its height.
-    grabbed = findfirst(y -> _starts_drag(read_intent(proj, iomap,
-                                MouseDown(:left, 340, y, ModifierKeys(); time = 0.0))), 100:200)
+    grabbed = findfirst(y -> _starts_drag(read_intent(proj, nothing, Intent(MouseDown(:left, 340, y, ModifierKeys(); time = 0.0)), iomap).operation), 100:200)
     @test grabbed !== nothing
     grabbed === nothing && return
     y = (100:200)[grabbed]
-    down = read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys(); time = 0.0))
+    down = read_intent(proj, nothing, Intent(MouseDown(:left, 340, y, ModifierKeys(); time = 0.0)), iomap).operation
     _apply!(editor, down)
     path = _drag_path(down)
     @test path isa Reference
@@ -369,7 +368,7 @@ end
     # case — the assistant's transcript above its composer — and answering
     # `nothing` killed the drag: the grab started and the first motion went
     # nowhere.
-    @test read_intent(stage, iomap, op) === op
+    @test read_intent(stage, nothing, Intent(op), iomap).operation === op
 end
 
 # ── A whole page ─────────────────────────────────────────────────────────
@@ -440,7 +439,7 @@ _is_in_any(boxes, x, y) = any(((bx, by, bw, bh),) -> bx <= x < bx + bw && by <= 
         iomap = print_document(proj, nothing, tree, _page_context())
         at = _page_text_at(iomap.output, content isa DocumentNothing ? "Nothing" : "label")
         @test at !== nothing
-        op = read_intent(proj, iomap, _alt_double_press(at[1] + 2, at[2] + 2))
+        op = read_intent(proj, nothing, Intent(_alt_double_press(at[1] + 2, at[2] + 2)), iomap).operation
         @test op isa ReplaceSelectionOperation
         _apply!(editor, op)
         if content isa DocumentNothing
@@ -486,7 +485,7 @@ end
     iomap = print_document(proj, nothing, tree, _page_context())
     at = _page_text_at(iomap.output, "inner")
     @test at !== nothing
-    op = read_intent(proj, iomap, _alt_double_press(at[1] + 2, at[2] + 2))
+    op = read_intent(proj, nothing, Intent(_alt_double_press(at[1] + 2, at[2] + 2)), iomap).operation
     @test op isa ReplaceSelectionOperation
     _apply!(editor, op)
     # The Alt+double click selects the text of the label (P8), and the label draws the band
@@ -541,7 +540,7 @@ end
     paste(slice) = begin
         p = ClipboardSliceToAnyProjection()
         io = print_document(p, IdentityProjection(), slice, PrinterContext())
-        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        read_intent(p, nothing, Intent(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0)), io).operation
     end
     stored = WidgetLabel("stored")
     slice = ClipboardSlice(tree, stored)
@@ -607,7 +606,7 @@ end
     slice = ClipboardSlice(tree)
     p = ClipboardSliceToAnyProjection()
     io = print_document(p, IdentityProjection(), slice, PrinterContext())
-    press(key) = read_intent(p, io, KeyDown(key, ModifierKeys(ctrl = true); time = 0.0))
+    press(key) = read_intent(p, nothing, Intent(KeyDown(key, ModifierKeys(ctrl = true); time = 0.0)), io).operation
     stored(op) = op.operations[1].operations[1].value
     slice.selection = ConcreteReference(root, get_pane_tab_reference(tree, group, 1))
     copied = stored(press(:c))
@@ -635,7 +634,7 @@ end
 function _header_point(proj, iomap, tree, group, index)
     wanted = get_pane_tab_reference(tree, group, index)
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         op isa ReplaceSelectionOperation && op.path == wanted && return (x, y)
     end
     nothing
@@ -873,7 +872,7 @@ end
     # The lowest row of the strip: the last row where a press opens the tab.
     wanted = get_pane_tab_reference(tree, group, 1)
     bottom = maximum(y for y in 0:1:80
-                     if (op = read_intent(proj, driver.iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0));
+                     if (op = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), driver.iomap).operation;
                          op isa ReplaceSelectionOperation && op.path == wanted))
     # Below the strip, in the page of the open tab, also where its content
     # claims no part.

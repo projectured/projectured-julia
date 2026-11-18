@@ -150,7 +150,7 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
             for k in sc.char_start:sc.char_end
                 cx = _segment_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
-                op = read_intent(projection, iomap, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
+                op = read_intent(projection, nothing, Intent(MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)), iomap).operation
                 # A click on an inline expand/collapse marker (or a collapsed
                 # ellipsis) is a fold gesture, not a cursor move: it yields a
                 # ToggleCollapseOperation. That is a legitimate outcome — skip
@@ -247,7 +247,7 @@ function _walk_cursor(document, projection, walk; max_steps=10_000)
         return failure("print_document failed: $e")
     end
     op = try
-        read_intent(projection, iomap, walk.seed)
+        read_intent(projection, nothing, Intent(walk.seed), iomap).operation
     catch e
         return failure("seed $(walk.seed) failed: $e")
     end
@@ -283,7 +283,7 @@ function _walk_cursor(document, projection, walk; max_steps=10_000)
         end
         push!(carets, caret)
         op = try
-            read_intent(projection, iomap, walk.step)
+            read_intent(projection, nothing, Intent(walk.step), iomap).operation
         catch e
             return partial(paths, carets, "reader error at [$current] with $(walk.step): $e")
         end

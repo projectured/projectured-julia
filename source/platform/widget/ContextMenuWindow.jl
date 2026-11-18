@@ -157,9 +157,6 @@ function read_intent(p::ContextMenuWindowProjection, recursion, change::Intent,
     Intent(input, _join_menu_operations(rest, own))
 end
 
-read_intent(p::ContextMenuWindowProjection, iomap::ContextMenuWindowIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A key of the window under the open menu, read by the content of the menu window
 # first: the window under it keeps the focus, so the menu gets no key of its own.
 # The answer of the menu, with each edit of the part that it made lifted, or

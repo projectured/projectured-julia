@@ -133,13 +133,13 @@ function test_selection_walking()
         projection = SelectionWalkingProjection(inner = _WalkAnsweringProjection(fixed))
         iomap = print_document(projection, projection, t.root, PrinterContext())
         # The inner reader answers Alt+Up, and its answer is kept.
-        @test read_intent(projection, iomap, _walk_key(:up)) === fixed
+        @test read_intent(projection, nothing, Intent(_walk_key(:up)), iomap).operation === fixed
         # It does not answer Alt+Right, so the walk does.
-        right = read_intent(projection, iomap, _walk_key(:right))
+        right = read_intent(projection, nothing, Intent(_walk_key(:right)), iomap).operation
         @test right isa ReplaceSelectionOperation
         @test evaluate_reference(t.root, right.path) === t.field
         # A key that is not a walk is left alone.
-        @test read_intent(projection, iomap, _walk_key(:right, ModifierKeys())) === nothing
+        @test read_intent(projection, nothing, Intent(_walk_key(:right, ModifierKeys())), iomap).operation === nothing
         # The wrapper prints as its inner projection.
         @test iomap.output === t.root
     end

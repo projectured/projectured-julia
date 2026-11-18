@@ -98,11 +98,11 @@ mktempdir() do dir
                                               Dict{Symbol,Any}()))
         (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
                       if occursin("hello", text))
-        answer = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+        answer = read_intent(renderer, nothing, Intent(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)), iomap).operation
         @test answer isa ReplaceSelectionOperation
         @test occursin(r"^\.content\.entries\[1\]\.value\.value\{\d+\}$",
                        repr(strip_reference_types(answer.path)))
-        @test read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) isa SaveFileOperation
+        @test read_intent(renderer, nothing, Intent(KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)), iomap).operation isa SaveFileOperation
     end
 
     # The view of a file draws the band of the file above the file, a click on a
@@ -125,7 +125,7 @@ mktempdir() do dir
         (hello_x, hello_y) = only((x, y) for (text, x, y) in texts if occursin("hello", text))
         @test band_y < hello_y
         (load_x, load_y) = only((x, y) for (text, x, y) in texts if strip(text) == "Load it")
-        click(x, y) = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+        click(x, y) = read_intent(renderer, nothing, Intent(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)), iomap).operation
         @test click(load_x, load_y) isa _FileBandChoiceProbe
         answer = click(hello_x, hello_y)
         @test answer isa ReplaceSelectionOperation
@@ -156,12 +156,12 @@ mktempdir() do dir
         # A key reaches the file where the caret is: a click puts it in the file.
         (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
                       if occursin("hello", text))
-        click = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+        click = read_intent(renderer, nothing, Intent(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)), iomap).operation
         replace_selection!(view, click.path)
         iomap = print_view()
-        save = read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
+        save = read_intent(renderer, nothing, Intent(KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)), iomap).operation
         @test save isa SaveFileOperation && save.file === file && !save.force
-        load = read_intent(renderer, iomap, KeyDown(:f5, ModifierKeys(); time = 0.0))
+        load = read_intent(renderer, nothing, Intent(KeyDown(:f5, ModifierKeys(); time = 0.0)), iomap).operation
         @test load isa CompoundOperation
         @test any(o -> o isa ReloadFileOperation && o.file === file, load.operations)
         # Another program writes the file: the save shows the band and writes nothing.

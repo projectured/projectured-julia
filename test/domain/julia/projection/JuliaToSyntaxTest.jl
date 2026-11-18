@@ -62,7 +62,7 @@ function test_julia_to_syntax()
         function read_key(document, key)
             clear_selection!(document)
             set_selection!(document, caret)
-            read_intent(projection, print_document(projection, document), KeyPress(key; time = 0.0))
+            read_intent(projection, nothing, Intent(KeyPress(key; time = 0.0)), print_document(projection, document)).operation
         end
         for document in (JuliaComment(" note"), JuliaEndOfLineComment(JuliaIdentifier("x"), " note"))
             @test read_key(document, 'x') !== nothing
@@ -78,7 +78,7 @@ function test_julia_to_syntax()
         set_selection!(docstring, ConcreteReference(FieldReferenceStep("text"),
                                   ConcreteReference(RangeReferenceStep(2, 2), EmptyReference())))
         iomap = print_document(projection, docstring)
-        operation = read_intent(projection, iomap, KeyPress('$'; time = 0.0))
+        operation = read_intent(projection, nothing, Intent(KeyPress('$'; time = 0.0)), iomap).operation
         @test operation !== nothing
         evaluate_operation(_JuliaToSyntaxEditor(docstring, iomap), operation)
         @test docstring.text == "A \$value."

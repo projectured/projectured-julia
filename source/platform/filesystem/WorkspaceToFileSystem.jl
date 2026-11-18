@@ -43,7 +43,7 @@ end
 read_gesture(::WorkspaceFolderToFileSystemDirectory, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
 
 function map_operation_backward(p::WorkspaceFolderToFileSystemDirectory, iomap::SimpleIoMap, op)
-    op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
+    op isa CompoundOperation && return _read_compound_answer(o -> map_operation_backward(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))
     path === nothing ? nothing : make_path_operation(op, path)
@@ -109,7 +109,7 @@ end
 read_gesture(::WorkspaceToFileSystemDirectory, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
 
 function map_operation_backward(p::WorkspaceToFileSystemDirectory, iomap::ChildrenIoMap, op)
-    op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
+    op isa CompoundOperation && return _read_compound_answer(o -> map_operation_backward(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))
     path === nothing ? nothing : make_path_operation(op, path)
@@ -119,8 +119,8 @@ end
 # An Alt+double click on a row selects the row that the view drew, by the rule of the
 # container above (`convert_to_whole_selection`).
 function read_intent(p::WorkspaceToFileSystemDirectory, recursion, change::Intent, iomap)
-    payload = change.operation === nothing ? change.gesture : change.operation
-    Intent(change.gesture, read_intent(p, iomap, payload))
+    Intent(change.gesture, change.operation === nothing ? read_gesture(p, iomap, change.gesture) :
+                           map_operation_backward(p, iomap, change.operation))
 end
 
 

@@ -348,7 +348,7 @@ map_operation_backward(::TextFolding, ::TextFoldingIoMap, op::CompoundOperation)
 function read_gesture(p::TextFolding, iomap::TextFoldingIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
     answer === nothing || return nothing
     op = _read_lowered_gesture(iomap.output, evt, iomap.places.output)
-    op isa Operation ? read_intent(p, iomap, op) : nothing
+    op isa Operation ? map_operation_backward(p, iomap, op) : nothing
 end
 
 # Any other operation maps to itself, and any other gesture answers nothing.

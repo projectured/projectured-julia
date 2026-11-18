@@ -169,5 +169,3 @@ function read_gesture(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCol
     own === nothing ? invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer) : own
 end
 
-read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

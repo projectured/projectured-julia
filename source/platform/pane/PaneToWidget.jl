@@ -792,7 +792,7 @@ map_operation_backward(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
 # below made of it: the press keeps its point, and a move with a button held
 # starts the drag after the small move. The four-arg reader is where both are in
 # hand. The parts of a drag that has started come by the path of the tree. Every
-# other change reads exactly as the generic bridge does.
+# other change reads exactly as the default reader of a stage does.
 function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
                      iomap::PaneTreeToWidgetIoMap)
     tree = iomap.input
@@ -813,7 +813,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     state === nothing && is_outward_gesture(gesture) &&
         return Intent(gesture, _read_pane_outward(p, iomap, change))
     payload = change.operation === nothing ? gesture : change.operation
-    answer = read_intent(p, iomap, payload)
+    answer = change.operation === nothing ? read_gesture(p, iomap, gesture) :
+             map_operation_backward(p, iomap, change.operation)
     payload isa DragTabOperation && gesture isa MouseDown &&
         (answer = _press_tab(iomap, payload, (gesture.x, gesture.y)))
     (state === nothing || state.started) ||
@@ -862,7 +863,7 @@ end
 # tree.
 function _read_pane_outward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, change::Intent)
     tree = iomap.input
-    answer = change.operation === nothing ? nothing : read_intent(p, iomap, change.operation)
+    answer = change.operation === nothing ? nothing : map_operation_backward(p, iomap, change.operation)
     (steps, tab) = _walk_pane_path(tree, get_mouse_target(tree))
     read_gesture_outward(answer, change.gesture, tree; steps, with_part = tab === nothing)
 end

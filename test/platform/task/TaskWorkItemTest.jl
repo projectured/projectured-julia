@@ -211,7 +211,7 @@ end
 function _work_item_list_press(list, text; count = 1)
     projection, iomap, texts = _work_item_list_view(list)
     (x, y, _) = first(t for t in texts if t[3] == text)
-    read_intent(projection, iomap, MouseClick(:left, x + 2, y + 2, count, ModifierKeys(); time = 0.0))
+    read_intent(projection, nothing, Intent(MouseClick(:left, x + 2, y + 2, count, ModifierKeys(); time = 0.0)), iomap).operation
 end
 
 # The items of the rows of the table of `list` that its arrangement shows, in order.

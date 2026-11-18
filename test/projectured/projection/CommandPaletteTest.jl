@@ -82,7 +82,7 @@ function test_command_palette_decorator()
     @testset "the summoning gesture opens the list at the top of the window" begin
         p = mkpalette()
         iomap = print_document(p, mkarr())
-        answer = read_intent(p, iomap, summon)
+        answer = read_intent(p, nothing, Intent(summon), iomap).operation
         list = _palette_list(answer)
         @test list isa WidgetChoiceList
         @test list.prompt == "Command"
@@ -103,7 +103,7 @@ function test_command_palette_decorator()
     @testset "the rows are the context, and they carry their operations" begin
         p = mkpalette()
         iomap = print_document(p, mkarr())
-        list = _palette_list(read_intent(p, iomap, summon))
+        list = _palette_list(read_intent(p, nothing, Intent(summon), iomap).operation)
         rows = [choice.value for choice in list.find("")]
         # The whole chain contributes rows, so there are more than the array's own.
         @test any(row -> row.description == "Insert a new element", rows)
@@ -119,7 +119,8 @@ function test_command_palette_decorator()
         arr = mkarr()
         iomap = print_document(p, arr)
         key = KeyPress('1'; time = 0.0)
-        @test typeof(read_intent(p, iomap, key)) == typeof(read_intent(p.inner, iomap.inner_iomap, key))
+        @test typeof(read_intent(p, nothing, Intent(key), iomap).operation) ==
+              typeof(read_intent(p.inner, nothing, Intent(key), iomap.inner_iomap).operation)
     end
 
     @testset "a reference maps as it maps in the content" begin
@@ -202,7 +203,7 @@ function test_command_palette_decorator()
         set_selection!(inner_json, EmptyReference())
         p = CommandPaletteDecoratorProjection(inner = make_clipboard_projection(make_json_projection_example()))
         iomap = print_document(p, doc)
-        list = _palette_list(read_intent(p, iomap, summon))
+        list = _palette_list(read_intent(p, nothing, Intent(summon), iomap).operation)
         rows = [choice.value for choice in list.find("")]
         # Both the wrapper's own commands and the wrapped document's are offered.
         @test any(row -> row.domain == "clipboard", rows)

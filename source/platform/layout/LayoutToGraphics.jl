@@ -250,7 +250,7 @@ it names no part.
 """
 function read_child_event(child_iomap, event)
     event isa MouseMove && return read_child_move(child_iomap, event)
-    _apply_child_event_rules(child_iomap, event, read_intent(child_iomap.projection, child_iomap, event))
+    _apply_child_event_rules(child_iomap, event, read_intent(child_iomap.projection, nothing, Intent(event), child_iomap).operation)
 end
 
 """
@@ -830,9 +830,6 @@ function read_intent(p::LayoutConstraintToGraphicsCanvas, recursion, change::Int
            answer.description, answer.domain)
 end
 
-read_intent(p::LayoutConstraintToGraphicsCanvas, iomap::ContentIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 """
     make_slot_reference(canvas, entries, index, inner; drawn) -> Reference | Nothing
 
@@ -1304,9 +1301,6 @@ map_reference_backward(::HorizontalLayoutToGraphicsCanvas, iomap, reference) =
 read_intent(p::HorizontalLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
     _read_layout_children(p, recursion, change, iomap)
 
-read_intent(p::HorizontalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── VerticalLayout ─────────────────────────────────────────────────────────
 
 # Recompute the whole laid-out vertical stack. Reads `doc.children` (length +
@@ -1616,9 +1610,6 @@ map_reference_backward(::VerticalLayoutToGraphicsCanvas, iomap, reference) =
 
 read_intent(p::VerticalLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
     _read_layout_children(p, recursion, change, iomap)
-
-read_intent(p::VerticalLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── GridLayout ─────────────────────────────────────────────────────────────
 
@@ -2192,9 +2183,6 @@ ProjectionModule.get_child_iomaps(iomap::Union{GridLayoutIoMap, FlowLayoutIoMap}
 read_intent(p::GridLayoutToGraphicsCanvas, recursion, change::Intent, iomap::GridLayoutIoMap) =
     _read_layout_children(p, recursion, change, iomap)
 
-read_intent(p::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── FlowLayout ─────────────────────────────────────────────────────────────
 
 function _fl_line_plan(n::Int, child_iomaps::Vector, max_w_cell::Cell, hgap_cell::Cell)
@@ -2459,9 +2447,6 @@ find_first_baseline(iomap::FlowLayoutIoMap) =
 read_intent(p::FlowLayoutToGraphicsCanvas, recursion, change::Intent, iomap::FlowLayoutIoMap) =
     _read_layout_children(p, recursion, change, iomap)
 
-read_intent(p::FlowLayoutToGraphicsCanvas, iomap::FlowLayoutIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── StackLayout ───────────────────────────────────────────────────────────
 
 function _sl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, halign::Cell)
@@ -2604,9 +2589,6 @@ map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference) =
 
 read_intent(p::StackLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
     _read_layout_children(p, recursion, change, iomap; reverse = true)
-
-read_intent(p::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── ConstraintLayout ───────────────────────────────────────────────────────
 
@@ -2789,9 +2771,6 @@ map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference) =
 # scan topmost-first so the last-drawn child wins a click.
 read_intent(p::ConstraintLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
     _read_layout_children(p, recursion, change, iomap; reverse = true)
-
-read_intent(p::ConstraintLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── AnchoredLayoutToGraphicsCanvas ─────────────────────────────────────────
 #
@@ -3009,9 +2988,6 @@ function read_intent(p::AnchoredLayoutToGraphicsCanvas, recursion, change::Inten
     _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_anchored_child_steps, pointer)
 end
 
-read_intent(p::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 read_gesture(p::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt::KeyPress;
              answer = nothing) = _read_layout_key(p, iomap, evt, answer)
 
@@ -3173,9 +3149,6 @@ function read_intent(p::ScrollLayoutToGraphicsCanvas, recursion, change::Intent,
                      _get_scroll_part_slot(getfield(document, :selection)[])
     _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_scroll_part_steps, pointer)
 end
-
-read_intent(p::ScrollLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Factory ────────────────────────────────────────────────────────────────
 

@@ -104,12 +104,12 @@ function test_widget_fact_group()
             proj, iomap = _fact_print(group)
             texts = _fact_texts(iomap.output)
             go = _fact_find(texts, "Go")
-            operation = read_intent(proj, iomap, MouseClick(:left, go[2] + 2, go[3] + 2, ModifierKeys(); time = 0.0))
+            operation = read_intent(proj, nothing, Intent(MouseClick(:left, go[2] + 2, go[3] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test operation isa InvokeActionOperation
             @test operation.action === button.action
             # A press on a label is no press on a value: it puts the caret into the label.
             label = _fact_find(texts, "action")
-            caret = read_intent(proj, iomap, MouseClick(:left, label[2] + 2, label[3] + 2, ModifierKeys(); time = 0.0))
+            caret = read_intent(proj, nothing, Intent(MouseClick(:left, label[2] + 2, label[3] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test caret isa ReplaceSelectionOperation
             @test strip_reference_types(caret.path) == _fact_place(2, "label", 0)
             # The value sits in the value column, on the row of its label.
@@ -140,7 +140,7 @@ function test_widget_fact_group()
             proj, iomap = _fact_print(group)
             texts = _fact_texts(iomap.output)
             click(x, y; count = 1, modifiers = ModifierKeys()) =
-                read_intent(proj, iomap, MouseClick(:left, x, y, count, modifiers; time = 0.0))
+                read_intent(proj, nothing, Intent(MouseClick(:left, x, y, count, modifiers; time = 0.0)), iomap).operation
             run = _fact_find(texts, "run")
             value = _fact_find(texts, "#0")
             title = _fact_find(texts, "Run")
@@ -159,7 +159,7 @@ function test_widget_fact_group()
                   _fact_place(2, "value", 0)
             @test click(run[2] + 12, run[3] + 2; count = 2) === nothing
             # A move names the caret under the pointer.
-            move = read_intent(proj, iomap, MouseMove(run[2] + 12, run[3] + 2; time = 0.0))
+            move = read_intent(proj, nothing, Intent(MouseMove(run[2] + 12, run[3] + 2; time = 0.0)), iomap).operation
             @test move isa ReplaceMouseTargetOperation
             @test strip_reference_types(move.path) == _fact_place(1, "label", 1)
             # The caret maps to its line and back, and a point on the text maps to the caret.
@@ -214,16 +214,16 @@ function test_widget_fact_group()
                 ConcreteReference(RangeReferenceStep(0, 1), ConcreteReference(FieldReferenceStep("value"),
                     ConcreteReference(RangeReferenceStep(a, b, direction), EmptyReference()))))
             # A press puts the caret and starts a drag, and a move of the drag selects a range.
-            down = read_intent(proj, iomap, MouseDown(:left, value[2] + 22, value[3] + 2, ModifierKeys(); time = 0.0))
+            down = read_intent(proj, nothing, Intent(MouseDown(:left, value[2] + 22, value[3] + 2, ModifierKeys(); time = 0.0)), iomap).operation
             @test down isa CompoundOperation && selected(down.operations[1]) == _fact_place(1, "value", 2)
             set_selection!(group, _fact_place(1, "value", 2))
-            @test selected(read_intent(proj, iomap, DragMove(value[2] + 42, value[3] + 2; time = 0.0))) == range(2, 4)
+            @test selected(read_intent(proj, nothing, Intent(DragMove(value[2] + 42, value[3] + 2; time = 0.0)), iomap).operation) == range(2, 4)
             # A key moves the caret, and with Shift and Ctrl makes a range of a word.
-            @test selected(read_intent(proj, iomap, KeyDown(:left, ModifierKeys(); time = 0.0))) == _fact_place(1, "value", 1)
-            @test selected(read_intent(proj, iomap, KeyDown(:end, ModifierKeys(shift = true); time = 0.0))) == range(2, 12)
+            @test selected(read_intent(proj, nothing, Intent(KeyDown(:left, ModifierKeys(); time = 0.0)), iomap).operation) == _fact_place(1, "value", 1)
+            @test selected(read_intent(proj, nothing, Intent(KeyDown(:end, ModifierKeys(shift = true); time = 0.0)), iomap).operation) == range(2, 12)
             # A click with Shift moves the moving end there.
-            @test selected(read_intent(proj, iomap, MouseClick(:left, value[2] + 2, value[3] + 2, 1,
-                                                               ModifierKeys(shift = true); time = 0.0))) ==
+            @test selected(read_intent(proj, nothing, Intent(MouseClick(:left, value[2] + 2, value[3] + 2, 1,
+                                                               ModifierKeys(shift = true); time = 0.0)), iomap).operation) ==
                   range(0, 2; direction = :backward)
             # A paste leaves the title of the group and the label and the value of a fact.
             @test !accepts_pasted_text(group, :title)
@@ -237,8 +237,8 @@ function test_widget_fact_group()
             lines = sort([entry for entry in _fact_texts(iomap.output) if entry[1] != "note"]; by = entry -> entry[3])
             second = lines[2]
             start = length(lines[1][1]) + 1
-            operation = read_intent(proj, iomap, MouseClick(:left, second[2] + 2, second[3] + 2, 1, ModifierKeys();
-                                                            time = 0.0))
+            operation = read_intent(proj, nothing, Intent(MouseClick(:left, second[2] + 2, second[3] + 2, 1, ModifierKeys();
+                                                            time = 0.0)), iomap).operation
             @test strip_reference_types(operation.path) == _fact_place(1, "value", start)
         end
 

@@ -217,7 +217,7 @@ end
 # to the table and goes on to the pane.
 function _read_table_bar_event(cells_pane, place, event)
     pane = get_content_iomap(cells_pane)
-    answer = read_intent(pane.projection, pane, shift_event_position(event, -place[1], -place[2]))
+    answer = read_intent(pane.projection, nothing, Intent(shift_event_position(event, -place[1], -place[2])), pane).operation
     answer isa Operation ? shift_operation_position(answer, place[1], place[2]) : nothing
 end
 
@@ -293,7 +293,7 @@ function _read_cells_wheel(table, pane, x::Int, y::Int, evt::MouseScroll)
     view_h = max(1, Int(pane.output.h) - ty)
     point_x = clamp(evt.x - x, cox, cox + view_w - 1)
     point_y = clamp(evt.y - y, coy, coy + view_h - 1)
-    read_intent(pane.projection, pane, shift_event_position(evt, point_x - evt.x, point_y - evt.y))
+    read_intent(pane.projection, nothing, Intent(shift_event_position(evt, point_x - evt.x, point_y - evt.y)), pane).operation
 end
 
 # The rows that the grid of the cells walks: the list of rows, or `nothing`, a
@@ -1594,8 +1594,8 @@ function _read_table_cell_press(w::WidgetTable, st::WidgetTablePartsState, k::In
     found === nothing && return nothing
     cim, left, top = found
     op = _find_control_answer(get_iomap_input(cim),
-                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                          g.modifiers; time = g.time)), g)
+                              read_intent(cim.projection, nothing, Intent(MouseClick(g.button, x - left, y - top, g.count,
+                                                                                     g.modifiers; time = g.time)), cim).operation, g)
     op === nothing && return nothing
     reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
@@ -1608,8 +1608,8 @@ function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y:
     found === nothing && return nothing
     cim, left, top = found
     op = _find_control_answer(get_iomap_input(cim),
-                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                                          g.modifiers; time = g.time)), g)
+                              read_intent(cim.projection, nothing, Intent(MouseClick(g.button, x - left, y - top, g.count,
+                                                                          g.modifiers; time = g.time)), cim).operation, g)
     op === nothing && return nothing
     reroot_operation(op, steps)
 end
@@ -1625,8 +1625,8 @@ end
 function _read_whole_part_press(found, steps::Tuple, g::MouseClick, x::Int, y::Int)
     (found === nothing || !_is_on_part_content(found, x, y)) && return nothing
     cim, left, top = found
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                     g.modifiers; time = g.time))
+    op = read_intent(cim.projection, nothing, Intent(MouseClick(g.button, x - left, y - top, g.count,
+                                                     g.modifiers; time = g.time)), cim).operation
     op isa ReplaceSelectionOperation || return nothing
     reroot_operation(convert_to_whole_selection(op, get_iomap_input(cim)), steps)
 end
@@ -2017,7 +2017,7 @@ function _enter_table_cell(w::WidgetTable, st::WidgetTablePartsState, k::Int, c:
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
     cim = found[1]
-    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl = true); time = time()))
+    op = read_intent(cim.projection, nothing, Intent(KeyDown(:home, ModifierKeys(ctrl = true); time = time())), cim).operation
     op isa ReplacePathOperation || return nothing
     reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
@@ -2122,7 +2122,7 @@ end
 function _read_table_corner_press(st::WidgetTablePartsState, press::MouseClick)
     cim = st.corner
     cim === nothing && return nothing
-    op = _find_control_answer(get_iomap_input(cim), read_intent(cim.projection, cim, press), press)
+    op = _find_control_answer(get_iomap_input(cim), read_intent(cim.projection, nothing, Intent(press), cim).operation, press)
     op === nothing ? nothing : reroot_operation(op, (FieldReferenceStep("corner"),))
 end
 
@@ -2315,9 +2315,6 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
     whole = _read_whole_cell_key(iomap.input, g)
     whole === nothing ? answer : Intent(g, whole, answer.description, answer.domain)
 end
-
-read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # The table lists no row of its own for the gesture help; its cells list theirs.
 read_gesture(::WidgetTableToGraphicsCanvas, ::WidgetTableListIoMap, ::CollectIntents; answer = nothing) = nothing

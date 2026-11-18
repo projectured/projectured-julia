@@ -165,7 +165,7 @@ _url_leaf_edit(index, start, stop, text) = ReplaceStringRangeOperation(
 # steps of the caret that it puts.
 function _read_url_line_edit!(url::Url, edit)
     projection = UrlToSyntax()
-    answer = read_intent(projection, print_document(projection, url), edit)
+    answer = read_intent(projection, nothing, Intent(edit), print_document(projection, url)).operation
     members = answer isa CompoundOperation ? answer.operations : Any[answer]
     writes = Any[member for member in members if !(member isa ReplaceSelectionOperation)]
     caret = only(member for member in members if member isa ReplaceSelectionOperation)
@@ -197,7 +197,7 @@ _url_caret(piece, offset) = Any[FieldReferenceStep(piece), RangeReferenceStep(of
     # while the writes run, gives the address back.
     url = Url("https://julialang.org")
     projection = UrlToSyntax()
-    answer = read_intent(projection, print_document(projection, url), _url_leaf_edit(4, 13, 13, "/docs?x"))
+    answer = read_intent(projection, nothing, Intent(_url_leaf_edit(4, 13, 13, "/docs?x")), print_document(projection, url)).operation
     writes = CompoundOperation(Any[member for member in answer.operations if !(member isa ReplaceSelectionOperation)])
     inverse = evaluate_invertible_operation!((; document = nothing), writes)
     @test format_url(url) == "https://julialang.org/docs?x"

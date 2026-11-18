@@ -72,9 +72,6 @@ function read_intent(np::NestingProjection, recursion, change::Intent, iomap::Ne
     end
 end
 
-read_intent(np::NestingProjection, iomap::NestingIoMap, payload) =
-    read_intent(np, nothing, Intent(payload), iomap).operation
-
 function map_reference_forward(np::NestingProjection, iomap::NestingIoMap, reference)
     if !isempty(np.elements)
         map_reference_forward(np.elements[1], iomap.child_iomap, reference)

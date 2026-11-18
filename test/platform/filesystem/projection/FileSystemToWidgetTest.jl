@@ -45,7 +45,7 @@ end
         function click_chevron!(row)
             press = MouseClick(:left, (row.chevron_x0 + row.chevron_x1) ÷ 2, row.y0 + 2,
                                ModifierKeys(); time = 0.0)
-            operation = read_intent(tree_projection, iomap, press)
+            operation = read_intent(tree_projection, nothing, Intent(press), iomap).operation
             operation isa ReplaceViewStateOperation && (operation = get_wrapped_operation(operation))
             getfield(tree, :expanded)[] = operation.value
         end

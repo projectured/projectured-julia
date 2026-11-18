@@ -110,7 +110,7 @@ function test_widget_text_fit()
                                                                     domain = "test")])
         iomap = print_at(chip, 400)
         @test any(rect -> Int(rect.radius_tl) == 4, _fit_drawn_elements(GraphicsRect, iomap.output))
-        operation = read_intent(projection, iomap, MouseClick(:left, 3, 3, 1, ModifierKeys(); time = 0.0))
+        operation = read_intent(projection, nothing, Intent(MouseClick(:left, 3, 3, 1, ModifierKeys(); time = 0.0)), iomap).operation
         @test operation isa DoNothingOperation
         @test pressed[] == 1
     end

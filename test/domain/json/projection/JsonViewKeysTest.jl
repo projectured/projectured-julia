@@ -58,7 +58,7 @@ end
 # Read `event` on one side and do the operation that it gives.
 function _press_json_keys_side!(projection, document, event)
     iomap = print_document(projection, document)
-    operation = read_intent(projection, iomap, event)
+    operation = read_intent(projection, nothing, Intent(event), iomap).operation
     operation === nothing || evaluate_operation((; document), operation)
     operation
 end
@@ -361,13 +361,13 @@ end
     replace_selection!(sides.root, _get_json_keys_place(sides, @reference(insertion, value{4})))
     for event in (_json_keys_typed('\n'), _json_keys_down(:escape))
         iomap = print_document(sides.view_projection, sides.root)
-        @test read_intent(sides.view_projection, iomap, event) === nothing
+        @test read_intent(sides.view_projection, nothing, Intent(event), iomap).operation === nothing
     end
     @test sides.view.viewed === insertion && insertion.value == "null"
     @test sides.root.children[1] === sides.view
     # A key that changes the typed text is an edit of the text of the place.
     iomap = print_document(sides.view_projection, sides.root)
-    operation = read_intent(sides.view_projection, iomap, _json_keys_typed('x'))
+    operation = read_intent(sides.view_projection, nothing, Intent(_json_keys_typed('x')), iomap).operation
     @test operation isa ReplaceStringRangeOperation
     evaluate_operation((; document = sides.root), operation)
     @test insertion.value == "nullx" && get_stored_selection(insertion) === nothing

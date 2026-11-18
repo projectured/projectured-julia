@@ -61,7 +61,7 @@ function test_widget_table_bar()
     @testset "a click on the track scrolls the table" begin
         table, iomap = _print_bar_test_table(projection)
         x, y = _get_table_test_bar_point(iomap, 150)
-        click = read_intent(projection, iomap, MouseClick(:left, x, y, 1, plain; time = 0.0))
+        click = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, 1, plain; time = 0.0)), iomap).operation
         written = only(o for o in _bar_test_writes(click) if o isa ReplaceReferencedValueOperation)
         _bar_test_apply!(click)
         # The pane of the cells shares the offset of the table.
@@ -73,19 +73,19 @@ function test_widget_table_bar()
         table, iomap = _print_bar_test_table(projection)
         _, _, bar = _find_table_test_bar(iomap)
         x, y = _get_table_test_bar_point(iomap, 2)
-        press = read_intent(projection, iomap, MouseDown(:left, x, y, plain; time = 0.0))
+        press = read_intent(projection, nothing, Intent(MouseDown(:left, x, y, plain; time = 0.0)), iomap).operation
         start = only(o for o in _bar_test_writes(press) if o isa StartDragOperation)
         @test start.path isa EmptyReference
         _bar_test_apply!(press)
         @test bar.document.thumb_drag !== nothing
-        moved = read_intent(projection, iomap, DragMove(x, y + 40, plain; time = 0.0))
+        moved = read_intent(projection, nothing, Intent(DragMove(x, y + 40, plain; time = 0.0)), iomap).operation
         _bar_test_apply!(moved)
         @test Int(table.scroll_position.y[]) > 0
         # A move far off the table takes the cells to their end.
-        far = read_intent(projection, iomap, DragMove(x, 5000, plain; time = 0.0))
+        far = read_intent(projection, nothing, Intent(DragMove(x, 5000, plain; time = 0.0)), iomap).operation
         _bar_test_apply!(far)
         @test bar.document.value == 1.0
-        _bar_test_apply!(read_intent(projection, iomap, DragEnd(x, 5000, plain; time = 0.0)))
+        _bar_test_apply!(read_intent(projection, nothing, Intent(DragEnd(x, 5000, plain; time = 0.0)), iomap).operation)
         @test bar.document.thumb_drag === nothing
     end
 
@@ -115,7 +115,7 @@ function test_widget_table_bar()
         _, _, bar = _find_table_test_bar(iomap)
         @test bar.document === mine
         x, y = _get_table_test_bar_point(iomap, Int(bar.place.h) - 2)
-        click = read_intent(projection, iomap, MouseClick(:left, x, y, 1, plain; time = 0.0))
+        click = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, 1, plain; time = 0.0)), iomap).operation
         @test _bar_test_written(click, mine, "value") ≈ 1 / 3
         @test Int(table.scroll_position.y[]) == 0
     end

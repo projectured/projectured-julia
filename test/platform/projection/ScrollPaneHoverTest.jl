@@ -29,7 +29,7 @@ _scroll_pane_page(content; kw...) =
 
 # The row a pointer event resolves to, whatever form the answer takes.
 function _scroll_pane_row(projection, iomap, evt)
-    op = read_intent(projection, iomap, evt)
+    op = read_intent(projection, nothing, Intent(evt), iomap).operation
     op isa ReplaceViewStateOperation && (op = get_wrapped_operation(op))
     op === nothing ? nothing :
     hasproperty(op, :value) ? op.value :
@@ -148,7 +148,7 @@ function test_scroll_pane_hover()
         @test room > 0
         @test Int(_scroll_pane_viewport(iomap).content.y) == -room
         # Up one notch: the pane leaves the end, and the owner's cell says so.
-        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100; time = 0.0))
+        up = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 100, 100; time = 0.0)), iomap).operation
         @test up !== nothing
         evaluate_operation(nothing, up)
         @test owned[] == false

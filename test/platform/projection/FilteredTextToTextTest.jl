@@ -104,13 +104,13 @@ end # @testset
     out = iomap.output
     # ReplaceSelectionOperation on output line 2 → line 3 of the block, char
     # preserved, under the step `text`.
-    sel = read_intent(stage, iomap, ReplaceSelectionOperation(
-        TextModule.make_flat_caret_reference(get_flat_base(out, Int[2, 1]) + 2)))
+    sel = read_intent(stage, nothing, Intent(ReplaceSelectionOperation(
+        TextModule.make_flat_caret_reference(get_flat_base(out, Int[2, 1]) + 2))), iomap).operation
     @test sel isa ReplaceSelectionOperation
     @test strip_reference_types(sel.path) ==
           _text(TextModule.make_flat_caret_reference(get_flat_base(block, Int[3, 1]) + 2))
     # ReplaceStringRangeOperation on output line 2 → line 3, range preserved.
-    edit = read_intent(stage, iomap, ReplaceStringRangeOperation(_range(2, 1, 1, 4), "XYZ"))
+    edit = read_intent(stage, nothing, Intent(ReplaceStringRangeOperation(_range(2, 1, 1, 4), "XYZ")), iomap).operation
     @test edit isa ReplaceStringRangeOperation
     @test strip_reference_types(edit.reference) == _text(_range(3, 1, 1, 4))
     @test edit.replacement == "XYZ"
@@ -153,7 +153,7 @@ end # @testset
     @test back == _text(_text(TextModule.make_flat_caret_reference(
                      get_flat_base(block, Int[3, 1]) + 8)))
     # An edit in the highlighted part writes the block.
-    edit = read_intent(stage, iomap, ReplaceStringRangeOperation(_range(1, 2, 0, 5), "X"))
+    edit = read_intent(stage, nothing, Intent(ReplaceStringRangeOperation(_range(1, 2, 0, 5), "X")), iomap).operation
     evaluate_operation(_FilterEditor(document), edit)
     @test _contents(block) == ["alpha dolor", "beta gamma", "delta X"]
 end # @testset
@@ -179,7 +179,7 @@ end # @testset
           _text(make_flat_caret_reference(9))
     # An edit of a kept line maps back to its input line.
     edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[2, 1], 0, 1), "D")
-    @test strip_reference_types(read_intent(stage, iomap, edit).reference) ==
+    @test strip_reference_types(read_intent(stage, nothing, Intent(edit), iomap).operation.reference) ==
           _text(TextModule._text_replace_path(Int[3, 1], 0, 1))
     # With no pattern every line stays.
     @test length(print_document(stage, stage, FilteredText(text = lines), PrinterContext()).output.elements) == 3

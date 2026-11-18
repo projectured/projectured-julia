@@ -226,5 +226,5 @@ end
 function read_gesture(p::MarkedTextToText, iomap::SimpleIoMap, evt::Union{KeyPress, KeyDown}; answer = nothing)
     answer === nothing || return nothing
     op = read_gesture(iomap.output, evt)
-    op isa ReplaceTextRangeOperation ? read_intent(p, iomap, op) : nothing
+    op isa ReplaceTextRangeOperation ? map_operation_backward(p, iomap, op) : nothing
 end

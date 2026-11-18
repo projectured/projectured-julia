@@ -25,7 +25,7 @@ _chain() = make_pane_projection_example(measure = _stub)
 function _press!(editor, chord)
     proj = _chain()
     iomap = print_document(proj, editor.document)
-    op = read_intent(proj, iomap, chord)
+    op = read_intent(proj, nothing, Intent(chord), iomap).operation
     op === nothing || evaluate_operation(editor, op)
     op
 end

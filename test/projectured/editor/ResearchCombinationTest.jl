@@ -16,7 +16,7 @@ end
 # a text, satisfies `accept`.
 function _has_combination_click(editor, accept)
     for y in 0:6:1500, x in 0:6:1300
-        operation = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+        operation = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), editor.iomap).operation
         operation isa ReplaceSelectionOperation &&
             accept(string(strip_reference_types(operation.path))) && return true
     end

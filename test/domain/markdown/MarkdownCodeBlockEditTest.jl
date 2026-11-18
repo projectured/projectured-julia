@@ -32,7 +32,7 @@ function press!(selection, key)
     set_selection!(document, selection)
     iomap = print_document(projection, document)
     _force_layout(iomap.output)
-    op = read_intent(projection, iomap, _code_block_key_event(key, ModifierKeys()))
+    op = read_intent(projection, nothing, Intent(_code_block_key_event(key, ModifierKeys())), iomap).operation
     op === nothing || evaluate_operation((document = document,), op)
     op
 end

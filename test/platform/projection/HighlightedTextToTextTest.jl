@@ -80,7 +80,7 @@ end # @testset
     iomap = print_document(stage, stage, _highlighted("alpha beta alpha"; pattern = "alpha"),
                            PrinterContext())
     # Output span 3 is the second "alpha", starting at input char 11.
-    edit = read_intent(stage, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
+    edit = read_intent(stage, nothing, Intent(ReplaceStringRangeOperation(_range(3, 0, 5), "X")), iomap).operation
     @test edit isa ReplaceStringRangeOperation
     @test strip_reference_types(edit.reference) ==
           ConcreteReference(FieldReferenceStep("text"), _range(1, 11, 16))
@@ -145,7 +145,7 @@ end # @testset
     document = _highlighted("alpha beta alpha"; pattern = "alpha")
     stage = _stage()
     iomap = print_document(stage, stage, document, PrinterContext())
-    edit = read_intent(stage, iomap, ReplaceStringRangeOperation(_range(3, 0, 5), "X"))
+    edit = read_intent(stage, nothing, Intent(ReplaceStringRangeOperation(_range(3, 0, 5), "X")), iomap).operation
     evaluate_operation(_HighlightEditor(document), edit)
     @test _contents(document.text) == ["alpha beta X"]
 
@@ -169,7 +169,7 @@ end # @testset
     @test strip_reference_types(map_reference_forward(stage, iomap, in_text)) == caret
     # An edit of the match maps back to its span, at the offset of the match.
     edit = ReplaceStringRangeOperation(TextModule._text_replace_path(Int[1, 2], 0, 1), "D")
-    @test strip_reference_types(read_intent(stage, iomap, edit).reference) ==
+    @test strip_reference_types(read_intent(stage, nothing, Intent(edit), iomap).operation.reference) ==
           ConcreteReference(FieldReferenceStep("text"), TextModule._text_replace_path(Int[1, 1], 4, 5))
 
 end # @testset

@@ -135,7 +135,7 @@ end
     evaluate_operation(editor, make_pane_focus_operation(tree, group, 1))
     function press!(event)
         projection = make_pane_projection_example(measure = _tk_measure())
-        operation = read_intent(projection, print_document(projection, editor.document), event)
+        operation = read_intent(projection, nothing, Intent(event), print_document(projection, editor.document)).operation
         operation === nothing || evaluate_operation(editor, operation)
     end
     press!(_tk_key(:f2))

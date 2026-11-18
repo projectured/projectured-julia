@@ -51,15 +51,15 @@ function test_assistant_composer_panel()
             iom = print_document(proj, a)
             @test iom.output isa GraphicsCanvas
             # No selection in the draft: the key is no edit of it.
-            @test !(read_intent(proj, iom, KeyPress('h'; time = 0.0)) isa ReplaceStringRangeOperation)
+            @test !(read_intent(proj, nothing, Intent(KeyPress('h'; time = 0.0)), iom).operation isa ReplaceStringRangeOperation)
             # A caret in the draft: the text layer edits the draft's value.
             set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
-            op = read_intent(proj, iom, KeyPress('h'; time = 0.0))
+            op = read_intent(proj, nothing, Intent(KeyPress('h'; time = 0.0)), iom).operation
             @test op isa ReplaceStringRangeOperation
             @test op.replacement == "h"
             @test first(get_reference_steps(strip_reference_types(op.reference))) ==
                   FieldReferenceStep("draft")
-            @test read_intent(proj, iom, KeyPress('\n'; time = 0.0)) isa SubmitDraftTurnOperation
+            @test read_intent(proj, nothing, Intent(KeyPress('\n'; time = 0.0)), iom).operation isa SubmitDraftTurnOperation
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin

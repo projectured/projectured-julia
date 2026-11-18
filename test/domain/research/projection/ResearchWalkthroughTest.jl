@@ -28,7 +28,7 @@ function test_research_walkthrough()
         is_undo_step(nothing, operation) && push!(history, (inverse, before))
         nothing
     end
-    press_key(char) = apply!(read_intent(editor.projection, editor.iomap, KeyPress(char; time = 0.0)))
+    press_key(char) = apply!(read_intent(editor.projection, nothing, Intent(KeyPress(char; time = 0.0)), editor.iomap).operation)
     type_text(text) = foreach(press_key, text)
     selected() = string(strip_reference_types(get_selection(study)))
     # A press that `accept` takes, and an item of a menu: each answers whether it

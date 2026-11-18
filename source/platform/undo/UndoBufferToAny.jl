@@ -180,10 +180,6 @@ function read_intent(p::UndoBufferToAnyProjection, recursion, change::Intent,
            answer.description, answer.domain)
 end
 
-# 3-arg payload form, for a test and for a parent that hands a bare payload.
-read_intent(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # Whether this buffer records this operation, and how.
 function _record_operation(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap,
                            gesture, operation)

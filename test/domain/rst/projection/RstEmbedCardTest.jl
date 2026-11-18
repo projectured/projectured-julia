@@ -59,7 +59,7 @@ end
     named = map_reference_backward(iomap.projection, iomap, header)
     @test named.tail.head.start == 1 && named.tail.tail isa EmptyReference
     fold = ToggleCollapseOperation(children[3])
-    @test read_intent(iomap.projection, iomap, fold) === fold
+    @test read_intent(iomap.projection, nothing, Intent(fold), iomap).operation === fold
 end
 
 end

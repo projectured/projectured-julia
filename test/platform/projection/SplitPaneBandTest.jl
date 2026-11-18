@@ -44,7 +44,7 @@ function test_split_pane_band()
         iomap = print_document(projection, nothing, doc, offer)
         doc, iomap, iomap.projection
     end
-    move(iomap, x, y) = read_intent(projection, iomap, MouseMove(x, y; time = 0.0))
+    move(iomap, x, y) = read_intent(projection, nothing, Intent(MouseMove(x, y; time = 0.0)), iomap).operation
 
     @testset "the pointer on a grab area writes the divider, once" begin
         doc = WidgetSplitPane(:horizontal, Any[WidgetList(["row 1", "row 2"]; selected = 0, width = 250),
@@ -64,7 +64,7 @@ function test_split_pane_band()
         apply!(move(iomap, 300, 5))
         @test doc.splitter_under_pointer == 1
         # A leave writes 0.
-        leave = read_intent(projection, iomap, MouseMove(-1, -1; time = 0.0))
+        leave = read_intent(projection, nothing, Intent(MouseMove(-1, -1; time = 0.0)), iomap).operation
         @test only(_find_band_members(leave, SetSplitterUnderPointerOperation)).splitter_index == 0
         apply!(leave)
         @test doc.splitter_under_pointer == 0
@@ -140,15 +140,15 @@ function test_split_pane_band()
         ring = p.splitter_band_color
         set_time!(30.0)
         @test band.color == color_transparent
-        apply!(read_intent(projection, iomap, MouseDown(:left, 300, 5, ModifierKeys(); time = 0.0)))
+        apply!(read_intent(projection, nothing, Intent(MouseDown(:left, 300, 5, ModifierKeys(); time = 0.0)), iomap).operation)
         @test doc.active_splitter == 1
         @test band.color == ring
         @test !reads_clock()
-        apply!(read_intent(projection, iomap, DragMove(320, 5; time = 0.0)))
+        apply!(read_intent(projection, nothing, Intent(DragMove(320, 5; time = 0.0)), iomap).operation)
         @test Int(band.x) == 319
         set_time!(31.0)
         @test band.color == ring
-        apply!(read_intent(projection, iomap, DragEnd(320, 5; time = 0.0)))
+        apply!(read_intent(projection, nothing, Intent(DragEnd(320, 5; time = 0.0)), iomap).operation)
         @test doc.active_splitter == 0
         @test band.color == ring
         set_time!(31.0 + p.fade_duration / 2)
@@ -200,7 +200,7 @@ function test_split_pane_band()
         apply!(move(iomap, 300, 5))
         @test doc.splitter_under_pointer == 1
         @test band.color == color_transparent
-        apply!(read_intent(projection, iomap, MouseDown(:left, 300, 5, ModifierKeys(); time = 0.0)))
+        apply!(read_intent(projection, nothing, Intent(MouseDown(:left, 300, 5, ModifierKeys(); time = 0.0)), iomap).operation)
         @test band.color == p.splitter_band_color
     end
 end

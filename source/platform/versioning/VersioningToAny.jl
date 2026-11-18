@@ -220,6 +220,3 @@ function read_gesture(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap,
     own === nothing ? invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer) : own
 end
 
-# 3-arg payload form (used by tests and any parent that hands a bare payload).
-read_intent(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation

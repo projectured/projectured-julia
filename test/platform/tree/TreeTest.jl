@@ -206,7 +206,7 @@ function test_document_tree()
         getfield(tree, :selection)[] = alpha_two
         @test _nav_is(widget.selection, _doctree_node_path(1, 1, 2))
         # A press on a node selects its document.
-        answer = read_intent(projection, iomap, ReplaceSelectionOperation(_doctree_node_path(1, 3)))
+        answer = read_intent(projection, nothing, Intent(ReplaceSelectionOperation(_doctree_node_path(1, 3))), iomap).operation
         @test answer isa ReplaceSelectionOperation && _nav_is(answer.path, notes_first)
         # A double click on a node and Return on it open its document as a page.
         double = MouseClick(:left, 0, 0, 2, ModifierKeys(); time = 0.0)
@@ -214,7 +214,7 @@ function test_document_tree()
         for gesture in (double, KeyPress('\n'; time = 0.0))
             open = read_bound_gesture(gamma, gesture, nothing)
             @test open isa OpenPageOperation && _nav_is(open.reference, _doctree_node_path(1, 3))
-            mapped = read_intent(projection, iomap, open)
+            mapped = read_intent(projection, nothing, Intent(open), iomap).operation
             @test mapped isa OpenPageOperation && _nav_is(mapped.reference, notes_first)
         end
         @test read_bound_gesture(gamma, MouseClick(:left, 0, 0, 1, ModifierKeys(); time = 0.0), nothing) === nothing
@@ -227,7 +227,7 @@ function test_document_tree()
         widget = iomap.output
         alpha = root.parts[1]
         # A chevron writes the open nodes of the tree document, as view state.
-        write = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1]))
+        write = read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1])), iomap).operation
         @test write isa ReplaceViewStateOperation
         writes = get_wrapped_operation(write).operations
         @test first(writes).document === tree
@@ -239,14 +239,14 @@ function test_document_tree()
         @test widget.expanded == Set([[1], [1, 2]])
         @test widget.roots[1].children[2].label == "alpha"
         # A node under a closed node is not open.
-        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1, 2])))
+        evaluate_operation(nothing, read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1, 2])), iomap).operation)
         @test isempty(widget.expanded)
         @test [child.label for child in widget.roots[1].children] == ["first", "alpha", "beta", "gamma"]
         # The next write holds only the documents of the nodes that are there.
-        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 2])))
+        evaluate_operation(nothing, read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 2])), iomap).operation)
         deleteat!(root.parts, 2)
         @test widget.expanded == Set([[1]])
-        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 3])))
+        evaluate_operation(nothing, read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 3])), iomap).operation)
         @test _doctree_is_open(tree, root, root.notes[1])
     end
 
@@ -260,7 +260,7 @@ function test_document_tree()
         widget = iomap.output
         @test has_tree_children(lazy)
         # The open of the lazy node makes no child.
-        evaluate_operation(nothing, read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1])))
+        evaluate_operation(nothing, read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1])), iomap).operation)
         @test _doctree_is_open(tree, root, lazy) && made[] <= 1
         # The children of its node are a lazy list: a walk of twenty rows makes
         # twenty children.
@@ -279,7 +279,7 @@ function test_document_tree()
                                  FieldReferenceStep("children"), ElementReferenceStep(5))
         @test _nav_is(map_reference_forward(projection, iomap, run_five), _doctree_node_path(1, 1, 5))
         # A chevron on a child that a walk made opens it and holds its document.
-        write = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 1, 3]))
+        write = read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1], [1, 1, 3])), iomap).operation
         @test last(get_wrapped_operation(write).operations).acquired == Any[runs[3]]
         evaluate_operation(nothing, write)
         @test widget.expanded == Set([[1], [1, 1], [1, 1, 3]])
@@ -312,7 +312,7 @@ function test_document_tree()
         iomap = print_document(projection, nothing, tree, nothing)
         widget = iomap.output
         editor = _doctree_hold_editor(PrimitiveString("x"))
-        chevron!(paths...) = evaluate_operation(editor, read_intent(projection, iomap, _doctree_chevron(widget, paths...)))
+        chevron!(paths...) = evaluate_operation(editor, read_intent(projection, nothing, Intent(_doctree_chevron(widget, paths...)), iomap).operation)
         # A tree that nothing holds passes nothing on.
         chevron!([1], [1, 1])
         @test isempty(_DOCTREE_HOLD_EVENTS)
@@ -371,7 +371,7 @@ function test_document_tree()
         @test length(follow!()) == 50 && "run 1" in held && "run 50" in held
         # A wheel turn down: the tree holds the runs that its view shows, and lets
         # go of the others, as view state.
-        turn = read_intent(chain, iomap, MouseScroll(0, -3, 20, 60; time = 0.0))
+        turn = read_intent(chain, nothing, Intent(MouseScroll(0, -3, 20, 60; time = 0.0)), iomap).operation
         is_view_state(operation) = operation isa ReplaceViewStateOperation ||
             (operation isa CompoundOperation && all(is_view_state, operation.operations))
         @test turn isa CompoundOperation && is_view_state(turn)
@@ -381,7 +381,7 @@ function test_document_tree()
         @test 9 <= length(held) <= 11 && !("run 50" in held)
         # More turns move the holds down the list, and the count stays the rows of the view.
         for time in 1.0:1.0:40.0
-            evaluate_operation(editor, read_intent(chain, iomap, MouseScroll(0, -3, 20, 60; time)))
+            evaluate_operation(editor, read_intent(chain, nothing, Intent(MouseScroll(0, -3, 20, 60; time)), iomap).operation)
         end
         follow!()
         @test 9 <= length(held) <= 11 && !("run 1" in held)
@@ -429,18 +429,18 @@ function test_document_tree()
         @test widget.expanded == Set([[1], [1, 1], [1, 2]])
         # The place under the first parent opens, and the one under the second stays
         # closed.
-        open_first = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1]))
+        open_first = read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1])), iomap).operation
         @test last(get_wrapped_operation(open_first).operations).acquired == Any[shared]
         evaluate_operation(nothing, open_first)
         @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 1, 1]])
         @test haskey(tree.expanded[root][first_parent], shared) && !haskey(tree.expanded[root][second_parent], shared)
         # The second place opens too, and the document is held once.
-        open_both = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1], [1, 2, 1]))
+        open_both = read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 1, 1], [1, 2, 1])), iomap).operation
         @test get_wrapped_operation(open_both) isa ReplaceReferencedValueOperation
         evaluate_operation(nothing, open_both)
         @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 1, 1], [1, 2, 1]])
         # The first place closes; the document stays held, open at the second.
-        close_first = read_intent(projection, iomap, _doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 2, 1]))
+        close_first = read_intent(projection, nothing, Intent(_doctree_chevron(widget, [1], [1, 1], [1, 2], [1, 2, 1])), iomap).operation
         @test get_wrapped_operation(close_first) isa ReplaceReferencedValueOperation
         evaluate_operation(nothing, close_first)
         @test widget.expanded == Set([[1], [1, 1], [1, 2], [1, 2, 1]])

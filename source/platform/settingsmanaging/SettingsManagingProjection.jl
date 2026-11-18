@@ -56,9 +56,6 @@ function read_intent(p::SettingsManagingProjection, recursion, change::Intent,
            answer.description, answer.domain)
 end
 
-read_intent(p::SettingsManagingProjection, iomap::SettingsManagingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The event of a device under the window that it came from: the commands read the
 # event, whatever window holds the focus.
 _get_device_event(gesture::WindowInput) = gesture.event

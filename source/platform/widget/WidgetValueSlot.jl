@@ -68,8 +68,7 @@ answer is `nothing`: the kernel would read that place as the root of the editor.
 function make_slot_store_operation(widget, slot::Symbol, value_iomap, value)
     value_iomap === nothing &&
         return ReplaceReferencedValueOperation(widget, String(slot), value)
-    answer = read_intent(value_iomap.projection, value_iomap,
-                         ReplaceReferencedValueOperation(nothing, EmptyReference(), value))
+    answer = read_intent(value_iomap.projection, nothing, Intent(ReplaceReferencedValueOperation(nothing, EmptyReference(), value)), value_iomap).operation
     _is_child_place_write(answer) ? nothing : answer
 end
 

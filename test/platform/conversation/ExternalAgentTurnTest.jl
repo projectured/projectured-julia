@@ -702,7 +702,7 @@ function test_external_agent_turn()
             @test is_external_agent_turn_running(a)
             button = make_assistant_stop_button(a)
             @test button.enabled
-            escape = read_intent(AssistantToWidgetCard(), (input = a,), KeyDown(:escape, ModifierKeys(); time = 0.0))
+            escape = read_intent(AssistantToWidgetCard(), nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), (input = a,)).operation
             @test escape isa CancelAssistantTurnOperation
             evaluate_operation((document = a,), escape)
             _wait_for_idle(a)
@@ -712,8 +712,7 @@ function test_external_agent_turn()
             @test last_turn.stop_reason === :cancelled
             @test !button.enabled
             # With no turn that runs, Escape is the composer's again.
-            @test !(read_intent(AssistantToWidgetCard(), (input = a,),
-                                KeyDown(:escape, ModifierKeys(); time = 0.0)) isa CancelAssistantTurnOperation)
+            @test !(read_intent(AssistantToWidgetCard(), nothing, Intent(KeyDown(:escape, ModifierKeys(); time = 0.0)), (input = a,)).operation isa CancelAssistantTurnOperation)
         end
 
         @testset "a permission request draws one button for each answer" begin

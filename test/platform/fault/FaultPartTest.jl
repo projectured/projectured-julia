@@ -206,7 +206,7 @@ function test_fault_part()
                                _make_tolerant_context(FaultStore()))
         @test iomap.output isa SyntaxLeaf
         click = MouseClick(:left, 0, 0, 1, ModifierKeys(); time = 0.0)
-        operation = read_intent(barrier, iomap, click)
+        operation = read_intent(barrier, nothing, Intent(click), iomap).operation
         @test operation isa ReplaceViewStateOperation
         is_broken[] = false
         @test begin
@@ -222,7 +222,7 @@ function test_fault_part()
         iomap = print_document(barrier, barrier, FaultPartProbe(),
                                _make_tolerant_context(FaultStore()))
         right = MouseClick(:right, 0, 0, 1, ModifierKeys(); time = 0.0)
-        operation = read_intent(barrier, iomap, right)
+        operation = read_intent(barrier, nothing, Intent(right), iomap).operation
         @test get_wrapped_operation(operation) isa OpenContextMenuOperation
     end
 end

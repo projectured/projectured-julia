@@ -231,7 +231,7 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100, 
             # Call read_intent with mouse click
             event = MouseClick(:left, click_x, click_y; time = 0.0)
             op = try
-                read_intent(projection, iomap, event)
+                read_intent(projection, nothing, Intent(event), iomap).operation
             catch e
                 push!(errors, "read_intent threw for $description at ($click_x, $click_y): $e")
                 continue

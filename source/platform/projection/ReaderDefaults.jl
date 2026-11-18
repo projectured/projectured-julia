@@ -13,15 +13,13 @@
 # operation.
 #
 # What remains here needs a concrete IoMap type — the `ProjectionTemplate`
-# `TemplateIoMap` retype — and the disambiguation of a key that the
-# `RecursiveProjection` wrapper needs over it.
+# `TemplateIoMap` retype.
 import ProjecturedKernel.ProjectionModule: read_intent, map_operation_backward, map_reference_backward,
                                            Projection
 import ProjecturedKernel.IntentModule: Intent
 import ProjecturedKernel.ProjectionModule: TemplateIoMap, AtomicWiring,
                                            find_template_value_retype, find_template_output_child
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation, reroot_operation
-import ProjecturedKernel.EventModule: KeyDown, KeyPress
 
 # The value-edit retype for ProjectionTemplate's TemplateIoMap lives here (not
 # in `kernel/projection/ProjectionTemplate.jl`) because it references
@@ -43,8 +41,7 @@ function map_operation_backward(p::Projection, iomap::TemplateIoMap, op::Replace
     found = find_template_output_child(iomap, op.reference)
     if found !== nothing
         child, reference, steps = found
-        answer = read_intent(child.projection, child,
-                             ReplaceStringRangeOperation(reference, op.replacement))
+        answer = read_intent(child.projection, nothing, Intent(ReplaceStringRangeOperation(reference, op.replacement)), child).operation
         return answer === nothing ? nothing : reroot_operation(answer, steps)
     end
     new_ref = map_reference_backward(p, iomap, op.reference)
@@ -71,14 +68,3 @@ function map_operation_backward(p::Projection, iomap::TemplateIoMap, op::Replace
     end
     return ReplaceStringRangeOperation(new_ref, op.replacement)
 end
-
-# Disambiguation for the transparent `RecursiveProjection` wrapper over
-# `TemplateIoMap`. The key reader in `ProjectionTemplate.jl` (`Projection`) and the
-# wrapper's 3-arg reader both match `(RecursiveProjection, TemplateIoMap, key)`,
-# neither more specific — so this method defers to the wrapper, which threads the
-# read into its child projection. It lives here (not in
-# `kernel/projection/ProjectionTemplate.jl`) because it dispatches on
-# `RecursiveProjection`, a base projection the kernel cannot name.
-read_intent(rp::RecursiveProjection, iomap::TemplateIoMap,
-            evt::Union{KeyPress, KeyDown}) =
-    read_intent(rp, nothing, Intent(evt), iomap).operation

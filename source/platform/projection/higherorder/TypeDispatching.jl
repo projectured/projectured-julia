@@ -66,9 +66,6 @@ function read_intent(tdp::TypeDispatchingProjection, recursion, change::Intent, 
     return Intent(change.gesture, nothing)
 end
 
-read_intent(tdp::TypeDispatchingProjection, iomap, payload) =
-    read_intent(tdp, nothing, Intent(payload), iomap).operation
-
 function map_reference_forward(::TypeDispatchingProjection, iomap, reference)
     # TypeDispatchingProjection is transparent: it returns the selected inner
     # projection's IoMap directly, so iomap.projection is the inner projection.

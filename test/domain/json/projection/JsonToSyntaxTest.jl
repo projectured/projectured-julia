@@ -77,7 +77,7 @@ selof(x) = getfield(x, :selection)[]
 read_key(doc, sel, evt) = begin
     set_selection!(doc, sel)
     iomap = print_document(j2s, doc)
-    read_intent(j2s, iomap, evt)
+    read_intent(j2s, nothing, Intent(evt), iomap).operation
 end
 
 # A type-to-replace gesture now returns the folded `make_replace_document_operation`
@@ -141,7 +141,7 @@ end
                                TextToGraphics(measure = FontFileMeasure()))
     n = JsonNumber(42)
     set_selection!(n, @reference(n, value{1}))
-    @test read_intent(chain, print_document(chain, n), KeyPress('5'; time = 0.0)) isa ReplaceNumberRangeOperation
+    @test read_intent(chain, nothing, Intent(KeyPress('5'; time = 0.0)), print_document(chain, n)).operation isa ReplaceNumberRangeOperation
 end
 
 @testset "a letter typed into a number is ignored" begin
@@ -151,7 +151,7 @@ end
     # Type `key` at the caret `caret`, and evaluate what the chain reads.
     function type_key!(document, caret, key)
         set_selection!(document, caret)
-        op = read_intent(chain, print_document(chain, document), KeyPress(key; time = 0.0))
+        op = read_intent(chain, nothing, Intent(KeyPress(key; time = 0.0)), print_document(chain, document)).operation
         op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
         op
     end
@@ -199,7 +199,7 @@ end
                                TextToGraphics(measure = FontFileMeasure()))
     function type_key!(document, caret, key)
         set_selection!(document, caret)
-        op = read_intent(chain, print_document(chain, document), KeyPress(key; time = 0.0))
+        op = read_intent(chain, nothing, Intent(KeyPress(key; time = 0.0)), print_document(chain, document)).operation
         op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
         op
     end
@@ -248,7 +248,7 @@ end
                                RecursiveProjection(SyntaxToText()),
                                TextToGraphics(measure = FontFileMeasure()))
     press!(document, key) = begin
-        op = read_intent(chain, print_document(chain, document), key)
+        op = read_intent(chain, nothing, Intent(key), print_document(chain, document)).operation
         op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
         op
     end

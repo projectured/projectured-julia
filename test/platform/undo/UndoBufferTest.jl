@@ -218,7 +218,7 @@ function test_undo_buffer()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         editor = _UndoEditor(buffer)
 
-        operation = read_intent(projection, iomap, _write_first("changed"))
+        operation = read_intent(projection, nothing, Intent(_write_first("changed")), iomap).operation
         @test operation isa RecordUndoOperation
         # The recorded operation is rooted at the buffer, not at the content.
         @test get_reference_steps(get_wrapped_operation(operation).reference)[1] ==
@@ -266,7 +266,7 @@ function test_undo_buffer()
         projection = UndoBufferToAnyProjection()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         evaluate_operation(_UndoEditor(buffer),
-                           read_intent(projection, iomap, _write_first("changed")))
+                           read_intent(projection, nothing, Intent(_write_first("changed")), iomap).operation)
         @test _texts(list) == ["changed", "b"]
         # An editor whose document is another tree entirely takes the step back.
         evaluate_operation(_UndoEditor(UndoLeaf("elsewhere", nothing)), UndoOperation(buffer))
@@ -277,7 +277,7 @@ function test_undo_buffer()
         buffer = UndoBuffer(_make_list(["a"]))
         projection = UndoBufferToAnyProjection()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
-        operation = read_intent(projection, iomap, ReplaceSelectionOperation(EmptyReference()))
+        operation = read_intent(projection, nothing, Intent(ReplaceSelectionOperation(EmptyReference())), iomap).operation
         @test operation isa ReplaceSelectionOperation
         @test !(operation isa RecordUndoOperation)
     end
@@ -286,7 +286,7 @@ function test_undo_buffer()
         buffer = UndoBuffer(_make_list(["a"]))
         projection = UndoBufferToAnyProjection(filter = (gesture, operation) -> false)
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
-        @test !(read_intent(projection, iomap, _write_first("x")) isa RecordUndoOperation)
+        @test !(read_intent(projection, nothing, Intent(_write_first("x")), iomap).operation isa RecordUndoOperation)
     end
 
     @testset "Ctrl+Z answers only when there is something to take back" begin
@@ -297,17 +297,17 @@ function test_undo_buffer()
         editor = _UndoEditor(buffer)
 
         # Nothing recorded yet: the key is not swallowed.
-        @test !(read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0)) isa UndoOperation)
+        @test !(read_intent(projection, nothing, Intent(KeyDown(:z, ctrl; time = 0.0)), iomap).operation isa UndoOperation)
 
-        evaluate_operation(editor, read_intent(projection, iomap, _write_first("changed")))
-        undo = read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0))
+        evaluate_operation(editor, read_intent(projection, nothing, Intent(_write_first("changed")), iomap).operation)
+        undo = read_intent(projection, nothing, Intent(KeyDown(:z, ctrl; time = 0.0)), iomap).operation
         @test undo isa UndoOperation
         @test undo.buffer === buffer
 
         evaluate_operation(editor, undo)
         @test _texts(list) == ["a"]
-        @test read_intent(projection, iomap, KeyDown(:y, ctrl; time = 0.0)) isa RedoOperation
-        @test read_intent(projection, iomap, KeyDown(:z, ctrl_shift; time = 0.0)) isa RedoOperation
+        @test read_intent(projection, nothing, Intent(KeyDown(:y, ctrl; time = 0.0)), iomap).operation isa RedoOperation
+        @test read_intent(projection, nothing, Intent(KeyDown(:z, ctrl_shift; time = 0.0)), iomap).operation isa RedoOperation
     end
 
     @testset "a barrier stops the way back" begin
@@ -474,7 +474,7 @@ function test_undo_buffer()
                                            Cell(@computation inner_iomap.output), inner_iomap)
         editor = _UndoEditor(outer)
 
-        operation = read_intent(projection, outer_iomap, _write_first("changed"))
+        operation = read_intent(projection, nothing, Intent(_write_first("changed")), outer_iomap).operation
         @test operation isa RecordUndoOperation
         @test operation.buffer === outer
         @test get_wrapped_operation(operation) isa RecordUndoOperation
@@ -509,10 +509,10 @@ function test_undo_buffer()
         outer_iomap = UndoBufferToAnyIoMap(projection, outer,
                                            Cell(@computation inner_iomap.output), inner_iomap)
         editor = _UndoEditor(outer)
-        evaluate_operation(editor, read_intent(projection, outer_iomap, _write_first("changed")))
+        evaluate_operation(editor, read_intent(projection, nothing, Intent(_write_first("changed")), outer_iomap).operation)
 
         # Ctrl+Z reaches the inner buffer, and the outer records the undo.
-        undo = read_intent(projection, outer_iomap, KeyDown(:z, ctrl; time = 0.0))
+        undo = read_intent(projection, nothing, Intent(KeyDown(:z, ctrl; time = 0.0)), outer_iomap).operation
         @test undo isa RecordUndoOperation
         @test undo.buffer === outer
         @test get_wrapped_operation(undo) isa UndoOperation
@@ -529,8 +529,8 @@ function test_undo_buffer()
         projection = UndoBufferToAnyProjection()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         editor = _UndoEditor(buffer)
-        evaluate_operation(editor, read_intent(projection, iomap, _write_first("changed")))
-        evaluate_operation(editor, read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0)))
+        evaluate_operation(editor, read_intent(projection, nothing, Intent(_write_first("changed")), iomap).operation)
+        evaluate_operation(editor, read_intent(projection, nothing, Intent(KeyDown(:z, ctrl; time = 0.0)), iomap).operation)
         @test length(buffer.undo_entries) == 0
     end
 
@@ -540,7 +540,7 @@ function test_undo_buffer()
         projection = UndoBufferToAnyProjection()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         editor = _UndoEditor(buffer)
-        make_write(text) = read_intent(projection, iomap, _write_first(text))
+        make_write(text) = read_intent(projection, nothing, Intent(_write_first(text)), iomap).operation
         reader = Cell(Computation(() -> has_unsaved_edits(buffer)))
         @test reader[] == false
         evaluate_operation(editor, make_write("b"))

@@ -241,9 +241,6 @@ function read_intent(p::TextGutterToGraphics, recursion, change::Intent, iomap::
         read_child_intent(p, recursion, change, iomap, entries[k][3], _get_gutter_lane_steps(k)))
 end
 
-read_intent(p::TextGutterToGraphics, iomap::ChildrenIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The answer of a mark, rooted at its lane, with the types that its path needs.
 function _annotate_gutter_answer(gutter, answer::Intent)
     operation = answer.operation

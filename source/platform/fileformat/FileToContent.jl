@@ -122,9 +122,6 @@ function read_intent(p::FileToContent, recursion, change::Intent, iomap::Content
                       read_child = (projection, _, c, ch) -> read_routed_intent(projection, content_recursion, c, ch))
 end
 
-read_intent(p::FileToContent, iomap::Union{ContentIoMap, RepeatedFileIoMap}, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The paths of the file are not mapped into a repeat, so a selection does not go into it.
 map_reference_forward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing
 map_reference_backward(::FileToContent, ::RepeatedFileIoMap, reference) = nothing

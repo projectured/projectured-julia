@@ -98,9 +98,6 @@ function _ends_typing_run(gesture)
     modifiers.ctrl || modifiers.alt || modifiers.meta || event.key in _NON_TYPING_KEYS
 end
 
-read_intent(p::GestureLogRecordingProjection, iomap::GestureLogRecordingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # ── Reference mapping (transparent — the output is the inner output) ───────
 
 map_reference_forward(p::GestureLogRecordingProjection,

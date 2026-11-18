@@ -121,7 +121,7 @@ function test_text_folding()
         outer.collapsed = false
         caret = get_flat_offsets(block)[4] + 1
         getfield(block, :selection)[] = make_flat_caret_reference(caret)
-        answer = read_intent(folding.projection, folding, ToggleCollapseOperation())
+        answer = read_intent(folding.projection, nothing, Intent(ToggleCollapseOperation()), folding).operation
         @test answer isa ToggleCollapseOperation
         @test answer.target === inner
     end

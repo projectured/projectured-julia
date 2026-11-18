@@ -170,10 +170,6 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
     Intent(gesture, answer)
 end
 
-# 3-arg payload form (reader entry point).
-read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # A write of the press of the state, which a history does not record.
 _write_press(state::DraggingState, press) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(state, "press", press))

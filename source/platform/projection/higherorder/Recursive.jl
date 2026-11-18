@@ -45,9 +45,6 @@ print_document_pure(rp::RecursiveProjection, recursion, input, ctx) =
 read_intent(rp::RecursiveProjection, recursion, change::Intent, iomap) =
     read_intent(rp.child, rp, change, iomap)
 
-read_intent(rp::RecursiveProjection, iomap, payload) =
-    read_intent(rp, nothing, Intent(payload), iomap).operation
-
 # It prints through its child and answers the child's IoMap, so a reference maps
 # forward and back through the child.
 map_reference_forward(rp::RecursiveProjection, iomap, reference) =

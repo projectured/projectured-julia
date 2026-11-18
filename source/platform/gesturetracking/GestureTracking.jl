@@ -87,9 +87,6 @@ function read_intent(p::GestureTrackingProjection, recursion, change::Intent,
     Intent(input, _read_content(p, recursion, change, iomap))
 end
 
-read_intent(p::GestureTrackingProjection, iomap::GestureTrackingIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
-
 # The answer of the content to `change`, as an operation from the state.
 function _read_content(p::GestureTrackingProjection, recursion, change::Intent,
                        iomap::GestureTrackingIoMap)

@@ -95,11 +95,11 @@ end
     node_io = print_document(j2s, arr)
     text_io = print_document(s2t, node_io.output)
 
-    op_syntax = read_intent(s2t, text_io, ReplaceSelectionOperation(whole))
+    op_syntax = read_intent(s2t, nothing, Intent(ReplaceSelectionOperation(whole)), text_io).operation
     @test op_syntax isa ReplaceSelectionOperation
     @test op_syntax.path isa EmptyReference
 
-    op_json = read_intent(j2s, node_io, op_syntax)
+    op_json = read_intent(j2s, nothing, Intent(op_syntax), node_io).operation
     @test op_json isa ReplaceSelectionOperation
     @test strip_reference_types(op_json.path) isa EmptyReference
 end
@@ -131,7 +131,7 @@ end
     @test tr.stop > tr.start
 
     # Backward: `.children[2]` maps back to `.elements[2]` on the JSON array.
-    op_json = read_intent(j2s, node_io, ReplaceSelectionOperation(node_io.output.selection))
+    op_json = read_intent(j2s, nothing, Intent(ReplaceSelectionOperation(node_io.output.selection)), node_io).operation
     @test op_json isa ReplaceSelectionOperation
     @test is_reference_equal(strip_reference_types(op_json.path), nested)
 end

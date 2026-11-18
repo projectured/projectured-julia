@@ -12,7 +12,9 @@ using ProjecturedKernel.OperationModule: ReplaceViewStateOperation, get_wrapped_
     CompoundOperation
 using ProjecturedKernel.ProjectionModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
-import ProjecturedKernel.ProjectionModule: print_document, read_intent, map_reference_forward
+import ProjecturedKernel.ProjectionModule: print_document, read_intent, map_reference_forward,
+                                          map_operation_backward
+import ProjecturedKernel.GestureBindingModule: read_gesture
 using ProjecturedPlatform.LayoutModule: ScrollLayout
 using ProjecturedPlatform.WidgetModule: WidgetScrollPane, Point2D, WidgetToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsRect, GraphicsViewport, layout_none
@@ -38,11 +40,11 @@ function print_document(p::_SppContent, recursion, input::ScrollLayout, ctx)
     SimpleIoMap(p, input, input)
 end
 
-function read_intent(p::_SppContent, iomap, evt::MouseClick)
+function read_gesture(p::_SppContent, iomap, evt::MouseClick; answer = nothing)
     push!(p.clicks, (evt.x, evt.y))
     ReplaceSelectionOperation(EmptyReference())
 end
-read_intent(::_SppContent, iomap, payload) = nothing
+map_operation_backward(::_SppContent, iomap, operation) = nothing
 
 # The output is the input, so a reference into a part names the same part.
 map_reference_forward(::_SppContent, iomap, reference) = reference
@@ -135,7 +137,7 @@ function test_scroll_pane_parts()
     end
 
     @testset "a click reaches the content in the frame of the parts put together" begin
-        click(x, y) = read_intent(renderer, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        click(x, y) = read_intent(renderer, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         op = click(cox + 5, coy + 17)        # on the left edge
         @test content.clicks[end] == (5, 47)
         @test strip_reference_types(op.path) ==
@@ -149,8 +151,7 @@ function test_scroll_pane_parts()
     end
 
     @testset "a wheel over an edge scrolls the pane" begin
-        op = read_intent(renderer, iomap,
-                         MouseScroll(0, -1, cox + 5, coy + 17, ModifierKeys(); time = 0.0))
+        op = read_intent(renderer, nothing, Intent(MouseScroll(0, -1, cox + 5, coy + 17, ModifierKeys(); time = 0.0)), iomap).operation
         written = _spp_written_scroll(op, pane)
         @test written !== nothing
         @test Int(written.x[]) == 50

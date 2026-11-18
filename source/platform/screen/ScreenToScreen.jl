@@ -331,8 +331,8 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
     end
     # Non-window-input change (operation threaded up, or coordless gesture):
     # fall back to the generic per-reference mapping (selection/edit retarget).
-    payload = change.operation === nothing ? change.gesture : change.operation
-    return Intent(change.gesture, read_intent(p, iomap, payload))
+    return Intent(change.gesture, change.operation === nothing ? read_gesture(p, iomap, change.gesture) :
+                                  map_operation_backward(p, iomap, change.operation))
 end
 
 # The 1-based index of the window whose id is `id`, or 0.
@@ -434,8 +434,8 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         op = read_container_gesture(op, window_input.event, iomap.input; steps)
         return Intent(change.gesture, _open_popup_windows(op, iomap.output))
     end
-    payload = change.operation === nothing ? change.gesture : change.operation
-    return Intent(change.gesture, read_intent(p, iomap, payload))
+    return Intent(change.gesture, change.operation === nothing ? read_gesture(p, iomap, change.gesture) :
+                                  map_operation_backward(p, iomap, change.operation))
 end
 
 # A popup that the content of a window answers is in the frame of the window,
