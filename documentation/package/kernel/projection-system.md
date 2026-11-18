@@ -629,13 +629,58 @@ write that comes from the next stage is a write below `viewed` of a view that th
 step gave, and the step takes that step out before the readers of the content
 print map the write back.
 
+**The printer that holds the place of a view writes the node of that view.** The
+node of the view at the top of a chain of views has its place in what holds its
+content. A printer that prints a view of its own, and whose view holds that
+content, says so in the context of the print of the child:
+`with_view_place_holder(ctx)`. The step of the child keeps that fact in its IO
+map (`is_place_held`). It then passes a write of its own node up as it is, at the
+empty path, and the printer above makes the edit with `make_content_edit` on its
+own view. The printer of the view of an undo buffer does this: the document of
+the buffer is at `.viewed.content` of that view. The fact is true only for the
+place of that context, so a view deeper in the print does not have it.
+
+**A part that has no view.** A document whose type has no view type prints as
+content inside a view, with the printer that it has with no view. It keeps its
+caret as a content does. A path into it has the step `viewed` before the step
+that reaches no view: `.elements.viewed[2].value{3}` for an element of a list,
+and `.entries[1].viewed.value.value{3}` for the document in a slot. The selection
+walk then goes into the content, so the part holds its caret. The step of a view
+changes a path on its two sides. The way forward takes the step `viewed` out
+(`get_content_path`), and the way back puts it in. The view that a step gives can
+hold such a part too, for example the node of a document that prints by
+reflection, so a path of the output loses and takes the step in the same way.
+`make_content_edit` gives each operation with a path the same form: an edit of a
+text and a move of the caret into such a part go below `viewed`. A caret that
+follows a write in one operation takes the form of the document that the write
+puts in, because that document is not in the tree when the path gets its form. A
+key goes to the part by the route of an intent: the reader of the step gives the
+readers of the content print the gesture with the path of the part, and the key
+table and the printer of the part read it as they do with no view. The views on
+the caret read the key after the part. A leaf that a print makes with no step of
+its own, such as the key of an entry, is no such part: its type has a view type,
+and its caret stays on the view of the node above it.
+
 **The view of a list.** A view keeps the view of each list of its content, a
 `CellVectorView`. The list view makes the view of an element at the first read of
 that element, and it keeps each view that it made. A view type is declared with
-`@content_view`, which writes the field `viewed` and the child fields.
+`@content_view`, which writes the field `viewed` and the child fields. A content
+type declares a field that gets no child field with
+`is_child_view_field(content, field)`: the two lists of the steps of an undo
+buffer are such fields. A view that is written by hand follows a place of its
+content with `make_slot_view_computation(read)`, the computation that the macro
+uses for a field that takes any document.
 
-**Limits.** A child with no view takes no caret in its text inside a view. A chain
-that prints to widgets has no views.
+**The barrier of a fault.** In the general renderer the step of a view is around
+the barrier of a stage, and the barrier is around the stage:
+`ViewingProjection(FaultCatchingProjection(inner = stage, …))`. So the print of
+the content of each view has its barrier, and a fault costs one node, as with no
+view. The step reads the print through the IO map of the barrier
+(`get_content_iomap`).
+
+**Limits.** A chain that prints to widgets has no views. Two views of one
+document share the caret of a part that has no view, because the part holds that
+caret.
 
 ## A print while a value is still to come
 

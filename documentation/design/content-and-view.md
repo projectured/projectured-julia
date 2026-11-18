@@ -74,6 +74,13 @@ JSON string.
 **A view is made when something reaches it**: a caret, a state, or the window of
 a list. A list of a million elements does not make a million views.
 
+**A node that has no state of its own has a view too.** An undo buffer prints
+nothing of its own, and no caret stops at it. Its view keeps no state: it is the
+link between the view of the file above it and the view of the document below
+it. So the path of a caret has a way down through the views, the printer of the
+undo buffer stays on the path of a key, and the write of the document of the
+buffer has a place.
+
 **A view goes when nothing reaches it and each of its fields has its default
 value.** A new view is then equal to it, so no state is lost. Something reaches
 a view when a caret path goes through it, when it is in the window of its list,
@@ -283,17 +290,25 @@ The code differs from this design in these places.
   keep one.
 - `ContentView` in `source/platform/projection/higherorder/Viewing.jl` sends a
   field step that a view does not have to the field `viewed`.
-- Seventeen view types have the declaration: `TextView`, three syntax views, nine
-  JSON views and four Markdown views. `@content_view` makes a child field for a
+- Twenty view types have the declaration: `TextView`, three syntax views, the two
+  views of the place of every domain, the view of an undo buffer, nine JSON views
+  and four Markdown views. `@content_view` makes a child field for a
   list that is declared as a `CellVector`, and for a field that is declared as
   `Document`. A field that takes any value, a field of one document type and the
   lines of a text get no view of their own.
-- Each node of a JSON document has a view. The editor uses these views in no
-  tab: a tab shows a JSON file as content with no view. Of all the view types,
-  only `TextView` shows in the editor, for the text of a widget.
+- Each node of a JSON document has a view. A file view can hold the view of what
+  its file holds (`make_file_view(file; views = true)`), with the view of the undo
+  buffer of the file between the two. The general renderer prints these views.
+  The editor uses them in no tab: a tab shows a JSON file as content with no
+  view. Of all the view types, only `TextView` shows in the editor, for the text
+  of a widget.
 - A write through a view names its place below `viewed`, as in this design
   (`make_content_edit`). A caret does not: it has the path of the content, with
-  no step `.viewed`.
+  no step `.viewed`. One caret has that step already: a caret in a document whose
+  type has no view type, which keeps its selection field. Its path is the steps
+  to the deepest view, the step `viewed`, and the steps in the content.
+- The content that holds a part with no view keeps a piece of the caret, because
+  the step `viewed` names it: the list of an array, or the entry of an object.
 - `CellVectorView` is the one view of a list. No plain value has a view type, so
   no view follows an index.
 - A walk of a document reads each element of the view of a list, and so it makes
@@ -303,7 +318,8 @@ The code differs from this design in these places.
 - The other view documents name their content in a field of their own:
   `DataFrameView.frame`, `ChartPlot.chart`, `SequenceChartPlot.chart`,
   `GraphLayout.graph`, `WorkspaceExplorer.workspace`, `DocumentTree.root`,
-  `Navigator.content`, `FileView.file` and `UrlView.url`. Four of them have the
+  `Navigator.content`, `FileView.file` and `UrlView.url`. `FileView` has the
+  field `content` too, for the view of what its file holds. Four of them have the
   supertype of their content: the two plots, `GraphLayout` and
   `WorkspaceExplorer`.
 - Two functions make a view: `make_content_view` and `make_document_view`.

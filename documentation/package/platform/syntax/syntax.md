@@ -167,6 +167,12 @@ The syntax slice depends on the kernel and on the text, domain, natural, primiti
 
 Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads `ProjecturedPlatform` can draw a document of any shape, and the natural slice does not name this one. The fallback has a row for `SyntaxDocument` too: a syntax tree that a view puts among its parts, such as the path view in the bar of a navigator, starts at the stage from syntax to text and is not reflected as a struct.
 
+**The fallback has rows for a view.** The row for `ContentView` prints a view of a content in the stages of a view: the step of a view around the stage from any domain to syntax, the step of a view around the stage from syntax to text with `text_folds`, `TextFolding`, and the stage that draws the `TextView` at the line spacing of code. The barrier of a fault is inside each step, so a fault costs one node. A view draws the same texts at the same places as its content with no view. The three views of the syntax have rows that start at the stage from syntax to text. The row of the widgets for a `TextView` comes before these rows.
+
+### The views of the place of every domain
+
+`DocumentInsertionView(viewed)` and `DocumentNothingView(viewed)` are the views of the place where a person types the name of a kind, and of the empty place ([InsertionView.jl](../../../../source/platform/syntax/InsertionView.jl)). Their key tables hold the rows that the printers have for a place with no view: Return makes the document that the typed name names, Escape puts the empty place back, Tab takes the completion, and Insert makes the place of the empty place. `make_insertion_widen_operation(insertion)` puts the place of every domain in the place of the insertion of one domain, with the same typed text. The printer of an insertion and the view of the insertion of a domain call it for Insert.
+
 ## Design decisions
 
 - **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../../plan/done/syntaxtotext-delegation.md).

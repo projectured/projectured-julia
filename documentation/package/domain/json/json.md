@@ -86,9 +86,12 @@ No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the nod
 | no key, by name | `JsonObjectEntryView` | move the caret from the value to the key |
 | no key, by name | `JsonObjectView` | sort the entries by key |
 | Return, Escape, Tab | `JsonInsertionView` | make the document that the typed text names, put the empty place back, take the completion |
+| Insert | `JsonInsertionView` | make the place of JSON the place of every domain, with the same typed text |
 | Insert | `JsonNothingView` | make the place for a new value of the empty place |
 
 An entry of an object is not replaced, as with no view. A comma on the bracket that closes a node goes to the node around it. The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view. The editor shows a JSON file through such a chain.
+
+**A JSON file through views.** The general renderer prints a JSON view with no chain of its own, and a file view can hold the views of a JSON file: `make_file_view(file; views = true)` gives the view of the undo buffer of the file in `content`, which holds the view of the JSON document ([fileformat.md](../../platform/fileformat/fileformat.md)). The example `json_file_view` shows one JSON file in two such file views side by side, with a fold in one, a caret in each, and one undo history. A document in a JSON tree whose type has no view prints as content there, and it takes a caret and its keys below the step `viewed` of the view above it.
 
 ### The text form
 
@@ -208,8 +211,8 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 ## Limits
 
 - The fold of an array is state of a `JsonArrayView`, and the fold of an object is state of a `JsonObjectView`. In a chain with no view, such as `JsonToSyntax()` on a `JsonArray`, the fold that a person makes is a cell of the syntax node that the print makes, and a new print of the array loses it.
-- A view that no view holds does not replace its own content. A key that makes another kind of value answers nothing there, because the place of that content is not below a view.
-- Through a view, the place for a new value has no Insert key that makes it a place of every domain. A document inside a JSON tree whose type has no view takes no caret through a view.
+- A view that no view holds does not replace its own content. A key that makes another kind of value answers nothing there, because the place of that content is not below a view. The view of an undo buffer holds the place of the document of the buffer, so the keys answer below it.
+- Two views of one JSON document share the caret of a part that has no view, because that part holds its caret.
 - `,` appends at the end of the container, not after the selected element.
 - The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

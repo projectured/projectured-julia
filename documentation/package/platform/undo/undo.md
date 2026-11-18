@@ -51,7 +51,7 @@ A fold is dropped by its kind instead: `ToggleCollapseOperation` is the flip of 
 
 A history holds `capacity` steps, 100 by default, so a step for each character would push every other step out after 100 characters. A run of typed characters is therefore one step. A `KeyPress` is a character, and a `KeyPress` that makes a recorded step is typing; a key that is not a character arrives as a `KeyDown`.
 
-The reader decides when it reads the step, and `RecordUndoOperation` carries the answer in `run`: `:none`, `:starts` or `:continues`. A run is open while its last step is typing and has a way back, nothing was taken back since, the caret of the buffer is where the run left it (`typing_caret`), and less than `TYPING_PAUSE`, one second, passed. So a caret move, a key that is not a character, an undo and a pause each end a run. A step that joins the run keeps the caret from before the first character, and its way back takes back the newest character first.
+The reader decides when it reads the step, and `RecordUndoOperation` carries the answer in `run`: `:none`, `:starts` or `:continues`. A run is open while its last step is typing and has a way back, nothing was taken back since, the caret of the buffer, or of its view, is where the run left it (`typing_caret`), and less than `TYPING_PAUSE`, one second, passed. So a caret move, a key that is not a character, an undo and a pause each end a run. A step that joins the run keeps the caret from before the first character, and its way back takes back the newest character first.
 
 A buffer above a buffer keeps a copy of each step below. A run joins in both or in neither: the copy of a run is taken back by one undo of the buffer below, which joined its own run too. When the outer buffer recorded a step of its own since, such as a tab that opens, its reader turns `:continues` into `:starts`, and the next character begins a new run in both. A typed character with no way back makes the joined run a barrier, so the two buffers keep the same number of steps.
 
@@ -82,6 +82,14 @@ Four rules make the two work together, and a run of typing keeps them (see above
 `make_history_wrap(settings)` puts a document into a buffer whose capacity is the cell of `undo_capacity` of `HistorySettings`. When the editor has settings, the evaluation of the open of a file gives the file such a history, whatever started the open (the Files pane, the command Open file… of the File menu, a link): around the part that the opener puts around the file document, such as a navigator, so the buffer records every edit of that part, and else around the content inside the file, as a file tab of the application has it.
 
 So every editor that has settings can hold a history, and every editor must draw one. The slice registers the row `UndoBuffer => UndoBufferToAnyProjection()` with the natural renderer when it loads, and each `NaturalToGraphics` draws a history as what it holds. A renderer that does not draw through the natural renderer needs the row in its own table.
+
+### The view of a history
+
+`UndoBufferView(viewed)` is the view of a buffer. It keeps no state of its own: it is the link between the view that holds it, such as the view of a file, and the view of the document that the buffer holds, which is in its field `content`. So the caret of a place that shows the document is a path of the views, and the buffer and its document hold no caret. Two views of one buffer share the steps of the buffer, and each keeps its caret: Ctrl+Z at one place takes back an edit that a person made at the other.
+
+`UndoBufferToAnyProjection` prints a view of a buffer as it prints the buffer, and the slice registers a second row for it. The output is the print of the view in `content`. Its reader records each edit on the buffer of the view, and it reads Ctrl+Z and Ctrl+Y last. It holds the place of the view that it shows (`with_view_place_holder`), so a key that replaces the whole document writes the field `content` of the buffer. A document that has no view prints as the buffer prints it, at the path `.viewed.content` of the view.
+
+The run of typing reads the caret of what the projection printed: the buffer, or its view. `RecordUndoOperation` carries that document in `caret_holder`, and the form with no `caret_holder` names the buffer. The two lists of the steps get no view: `is_child_view_field` answers `false` for them.
 
 ### The keys
 
@@ -129,7 +137,7 @@ The undo slice depends on the kernel, the collection slice for the two lists, th
 
 A walk of the documents does not enter the two lists of a buffer: `is_field_walked(::UndoBuffer, name)` keeps `undo_entries` and `redo_entries` out. The steps hold the old versions of the content, which share their parts with it, so a search of a window would find a value that the content no longer holds, and a search of places would find a shared part once for each step. A search of the old versions starts at a list itself, `search_documents(buffer.undo_entries, query)`. A load clears the mouse targets with a walk that enters every field, the steps too.
 
-At load time it registers one row with the natural renderer, `UndoBuffer => UndoBufferToAnyProjection()`. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
+At load time it registers two rows with the natural renderer, `UndoBuffer => UndoBufferToAnyProjection()` and the same projection for `UndoBufferView`. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 
 ## Design decisions
 

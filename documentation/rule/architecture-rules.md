@@ -332,6 +332,25 @@ content holds neither.
   shared, saved and compared with no state of a view.
 - **A view type has a method of `make_content_view`** for its content type. A
   content type with no such method has no view, and prints as content.
+- **A view can be a link with no state.** A content that prints nothing of its
+  own and that no caret stops at has a view too, when a view above it and a view
+  below it need the way through it. The view of an undo buffer is such a view: it
+  holds the view of the document of the buffer, it keeps the printer of the buffer
+  on the path of a key, and it writes the document of the buffer.
+- **A path into a part that has no view has the step `viewed`.** A document whose
+  type has no view type keeps its caret as a content does. The step `viewed`
+  comes before the step that reaches no view, such as
+  `.elements.viewed[2].value{3}`, in a caret and in each operation with a path.
+  The path of a caret in a view, and in a field of the content of a view, has no
+  such step.
+- **The printer that holds the place of a view writes the node of that view.** A
+  view does not replace its own content. The step of a view passes a write of its
+  own node up only when the printer above says that it holds the place
+  (`with_view_place_holder`), and that printer writes below `viewed` of its own
+  view. A view that no view holds gives no operation for such a write.
+- **A content type says which of its fields no view shows.**
+  `is_child_view_field(content, field)` answers `false` for such a field, and
+  `@content_view` writes no child field for it.
 - **A content type that has a view has no field `viewed`.** A view type names the
   content in `viewed`, so a path that names a field of the content must not meet a
   field of that name. A viewing step throws an error for a view whose content has such a field.
@@ -344,12 +363,17 @@ content holds neither.
 
 These types have views: `TextBlock` (`TextView`); `SyntaxLeaf`, `SyntaxNode` and
 `SyntaxDelimitation` (`SyntaxLeafView`, `SyntaxNodeView`,
-`SyntaxDelimitationView`); each type of the JSON domain, with the views that
+`SyntaxDelimitationView`); `DocumentInsertion` and `DocumentNothing`
+(`DocumentInsertionView`, `DocumentNothingView`); `UndoBuffer` (`UndoBufferView`);
+each type of the JSON domain, with the views that
 `JsonView.jl` defines; and the four Markdown types that `MarkdownView.jl`
 defines: `MarkdownText`, `MarkdownParagraph`, `MarkdownHeading` and
-`MarkdownRoot`. Every other Markdown type prints as content inside a view and
-takes no caret in its text there, and so does each document inside a JSON view
-whose type has no view.
+`MarkdownRoot`. A `FileView` can hold the view of what its file holds, in its
+field `content` (`make_file_view(file; views = true)`). No tab of the editor makes
+such a file view yet. Every other Markdown type prints as content inside a view and
+takes no caret in its text there. A document inside a view of the general
+renderer whose type has no view prints as content and keeps its caret, below the
+step `viewed`.
 
 Every other type and every other chain has no view: the type keeps its caret in
 its own selection field. The widgets have no views. A

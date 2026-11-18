@@ -878,6 +878,24 @@ Two rules make this order possible:
    - **4b. A file tab shows a content through its views.** The views of the
      file, of the undo buffer, and of the place for a new value of every
      domain. The JSON content keeps its selection field, with no use in a tab.
+     **This plan is two plans** (the owner on 2026-11-18: "yes", with the plan
+     of 4b1). The reason: about a dozen features of the editor name a place by
+     a path through the content, and about 20 test files outside the JSON
+     suite open a JSON file.
+     - **4b1. A file and its undo steps have views.** The views and their
+       printers, with no change of the editor: the rows of the general
+       renderer for a view, the view of the undo buffer as a link with no
+       state (the owner on 2026-11-18: "yes"), the write of the root value, a
+       caret in a part that has no view, the field `content` of `FileView`,
+       and the views of the place of every domain. The plan is
+       `a-file-and-its-undo-steps-have-views.md`.
+     - **A measurement.** In a copy of the repository, each file view of a
+       JSON file is made with views, and the suites of the editor run there.
+       The list of the failures gives the steps of 4b2. The copy lands
+       nowhere.
+     - **4b2. The editor shows a JSON file through its views.** The JSON
+       domain turns the views on for its files, and each feature that names a
+       place by a path through the content takes the path through the views.
    - **4c. The JSON content keeps no selection.** The kernel hook, the step
      `.viewed`, the caret place in an operation, the key tables of the content,
      and the tests that put a caret into a JSON content. Then the review of the

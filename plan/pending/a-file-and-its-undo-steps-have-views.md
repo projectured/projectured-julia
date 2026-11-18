@@ -485,12 +485,14 @@ views" come from that list.
    today have no fold stage of the text, and the stage from syntax to text
    makes no text folds there. A view folds the lines of its text. Step 1
    records the two pictures. The difference shows in the editor only
-   after the second plan.
+   after the second plan. **No case:** a JSON content has no fold, so a fold
+   is new with the views (found fact 3).
 4. **A file below itself.** The printer of a file view prints no child, so it
    can not put its file on the path of the files. Through views, the closed
    card of a file below itself can show one level deeper than now. Step 5
    records the place. The second plan decides it, because only that plan shows
-   views in the editor.
+   views in the editor. **No case in a JSON file:** a file in a JSON document
+   prints by reflection, in a tab of today and through views (found fact 12).
 5. **Two views share the caret of a part that has no view.** That part keeps
    its selection field, so one file in two tabs has one caret in it. The same
    is true for each content of today. It ends when the domain of the part gets
