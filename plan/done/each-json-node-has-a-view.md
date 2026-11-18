@@ -1,7 +1,8 @@
 # Each JSON node has a view
 
-**Status:** done on 2026-11-18, on the branch `json-views`. The owner approved the
-plan on 2026-11-18 ("Yes").
+**Status:** done on 2026-11-18, and on `main`. The owner approved the plan on
+2026-11-18 ("Yes"), and the landing on 2026-11-18 ("yes, but main moved, land
+first, test if necessary only").
 
 This plan is the first of the three plans of point 4 of the order in section
 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`. The owner
@@ -316,7 +317,11 @@ They are approved with this plan.
   that an edit through a view writes below `viewed`. The package documents of
   JSON and of the syntax. The plan moves to `plan/done/`. Then the session asks
   for the landing, and for the push apart.
-  **Done on 2026-11-18.** The base commit is `f7c6d4339`.
+  **Done on 2026-11-18.** The base commit is `f7c6d4339`. Before the landing,
+  `main` was 5 commits ahead, at `665f42d93`, and the branch went over it with a
+  rebase and with no new test run. The 5 commits change only the chart and the
+  sequence chart domains and two plans: they change no file of this plan, and
+  their code uses no name that this plan changed.
   - `test_platform()` at the base: 236427 passes, 16 failures, 1 error, 21
     broken. On the branch: 236480 passes, 16 failures, 1 error, 21 broken. The 17
     lines of the failures and of the error are the same. The 53 more passes are
