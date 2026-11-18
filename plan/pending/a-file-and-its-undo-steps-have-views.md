@@ -1,10 +1,12 @@
 # A file and its undo steps have views
 
-**Status:** proposed on 2026-11-18. Not approved, and not started.
+**Status:** approved by the owner on 2026-11-18 ("yes", to "Do you approve this plan, so
+that I start it in a worktree?"). In work on the branch `file-views`.
 
 This plan is the first of two plans in the place of plan 4b of point 4 of the
 order in section 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`.
-The cut into two plans is proposed decision 1. The design is
+The cut into two plans is proposed decision 1, which the owner approved with the
+plan. The design is
 `documentation/design/content-and-view.md`. Plan 4a is
 `plan/done/each-json-node-has-a-view.md`, and it is on `main`. The plan lands
 nothing and pushes nothing: it ends with a request to land.
