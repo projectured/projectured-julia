@@ -897,3 +897,6 @@ other containers and wrappers.
   base, but the time guard of the formula (`FormulaFrameGuardTest.jl:67`), which fails on main
   as well (two runs alone on main `ef8023369`: 3.86 and 3.06 for a limit of 3.0; on the branch:
   3.38 and 3.28), and one more passing test of the pivot table, which main added after the base.
+- **After the fix of the tab name** (commit `ecaa17619`): the pane, tab, window wrapper,
+  navigator and explorer suites, run alone, pass 1985, and fail only the 4 assertions of
+  `NavigatorChoicesTest.jl` that fail on main.
