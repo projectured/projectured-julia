@@ -1115,6 +1115,85 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       explorer, which is another view, a text inside a layer document of a
       tooltip, the label of an embedded formula, and the quote leaf of a string
       in the reversing view.
+
+    **The design of 5.4** (2026-11-18, proposed by the assistant).
+
+    Found before the design, in a read of the code:
+    - The step `ProjectionReferenceStep(projection, output_path)` evaluates to
+      `output_path`, a path, and not to the part. A path of a drawn part is one
+      node, `X‹.a.b{3}›`, whose terminal records `Position`, also when the path
+      names a whole widget. So the path does not evaluate in the input, and a
+      copy, a note and the whole-part rule do not reach the part.
+    - 99 of the 111 makers in the sources call
+      `make_introduced_reference(projection, iomap, path)`, so they have the IO
+      map of the view. 12 do not: `WholeSelection.jl:151` and
+      `PivotZoneEdit.jl:191`, which change a step that exists;
+      `ProjectionTemplate.jl:887`, `:906` and `:1050`, `Finding.jl:42`,
+      `DbCatalogToSyntax.jl:51`, `PaneToWidget.jl:591`, `OutlinePaths.jl:135`,
+      `SyntaxToText.jl:759`, `RosterToGraphics.jl:312`, `:571` and `:611`, and
+      `AppearanceToWidget.jl:849`. Most of them have an IO map in scope.
+    - An IO map keeps its identity while its output computes again
+      (`@iomap`), so a step that holds the IO map reaches the output as it is
+      drawn now.
+    - `OutputReferenceStep` has two users: the mark of a fault
+      (`FaultCatching.jl:389`), which has the IO map of its barrier, and the
+      runner form of omnet-julia (`LegacySimulationRunnerToWidget.jl:786`),
+      which has the IO map of its view.
+    - No code that saves a document reads the step, so a selection that holds an
+      IO map is never written to a file.
+    - About 30 places evaluate a selection and read the result as a document:
+      the owner of a selection (`Operations.jl:756`), the edits
+      (`DocumentEdits.jl:27`, `Inversion.jl:101`), the targets of a paste and a
+      cut (`Clipboard.jl`, `ClipboardSliceToAny.jl`), the named document
+      (`Domain.jl:644`), the innermost document of a tab (`PaneToWidget.jl:652`),
+      the selected part (`SelectedPart.jl:12`), the walk (`SelectionWalking.jl`)
+      and the route of a gesture (`Chaining.jl:191`). Today each of them stops at
+      the step, because the step does not evaluate.
+
+    The decisions:
+    - **S1. The step holds the IO map of the view that drew the part.** The
+      fields are `projection`, `iomap` and `output_path`. It evaluates to the
+      part in the output of the IO map now:
+      `evaluate_reference(get_iomap_output(iomap), output_path)`. A step with no
+      IO map (`nothing`), such as one from a `.proj` literal of a test, does not
+      evaluate. Rejected: the step holds the output at the time of the click, as
+      `OutputReferenceStep` holds its node; then a copy after the view draws
+      again gives the old part.
+    - **S2. Two steps are equal when the projection and the output path are
+      equal**, as now. The IO map is not compared, so a selection that a view
+      names again after it prints again is the same selection.
+    - **S3. The terminal records the type of the drawn part**: the widget for a
+      whole widget, `Position` for a caret. `make_introduced_reference` types
+      the path against the output of the IO map.
+    - **S4. A walk that writes stops before the first introduced step. A walk
+      that reads goes on.** The owner of a selection, an edit, its inverse, and
+      the target of a paste and a cut take the input document that the view
+      drew, so a drawn part takes no write. The whole-part rule, the copy, the
+      note, the description and the ring read the drawn part.
+    - **S5. `OutputReferenceStep` goes.** The mark of a fault and the runner
+      form of omnet-julia make the introduced step with their IO map, and
+      `make_output_reference` and `find_output_path` go with it.
+    - **S6. The makers that have no IO map** carry it: a maker that changes a
+      step takes the IO map of that step, and a maker that has an IO map in
+      scope passes it. A maker that has none makes a step that does not
+      evaluate, as now.
+
+    The sub-steps, one commit each:
+    - [ ] 5.4a **The step** (S1, S2, S3, S6). Test: `ProjectionReferenceStepTest`
+      gives the drawn part from a path, the typed terminal, the equality with
+      another IO map, and a step with no IO map that does not evaluate.
+    - [ ] 5.4b **The walks** (S4). Each of the 30 places is checked. Test: a
+      paste and a cut refuse a drawn part, and the owner of a selection in a
+      drawn part is the document that the view drew.
+    - [ ] 5.4c **One step for a drawn object** (S5), in projectured-julia and in
+      omnet-julia. Test: the tests of the fault mark and `WidgetSelectionTest`.
+    - [ ] 5.4d **The use.** An Alt+click on the button "Save" of the appearance
+      view selects the button, and the ring holds it; the whole-part rule keeps
+      it. The copy of a drawn part is the rest of 5.5. The texts that the plan
+      gives to 5.4 (the labels of the ticks and the names of the states in a
+      band, the glyphs of math, a label cell of a data frame) are causes of
+      step 6: each view names its text by an introduced step, and the step of
+      5.4a gives the copy and the whole-part rule for them.
   - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
     done (2026-11-10); the copy of a part that a view drew waits for 5.4.
 
