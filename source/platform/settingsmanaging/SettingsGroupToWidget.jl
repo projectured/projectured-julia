@@ -206,7 +206,7 @@ _make_setting_write(group, name::Symbol, value) =
 # The write of a control becomes the write of its setting. Every other operation
 # takes the default way back of the kernel: a path in the widgets becomes a path
 # that this projection introduces into the group.
-read_intent(::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceReferencedValueOperation) =
+map_operation_backward(::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceReferencedValueOperation) =
     _read_control_write(iomap, operation)
 
 function _read_control_write(iomap, operation::ReplaceReferencedValueOperation)
@@ -219,12 +219,12 @@ end
 
 # An edit of the text of a setting becomes the write of the whole text, and the
 # caret after the characters that it put in.
-read_intent(p::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceStringRangeOperation) =
+map_operation_backward(p::SettingsGroupToWidget, iomap::SettingsGroupToWidgetIoMap, operation::ReplaceStringRangeOperation) =
     _read_text_edit(p, iomap, operation)
 
 function _read_text_edit(p::Projection, iomap, operation::ReplaceStringRangeOperation)
     found = _find_text_edit(iomap, strip_reference_types(operation.reference))
-    found === nothing && return invoke(read_intent, Tuple{Projection, Any, Any},
+    found === nothing && return invoke(map_operation_backward, Tuple{Projection, Any, Any},
                                        p, iomap, operation)
     (group, name, range) = found
     text = string(getproperty(group, name))

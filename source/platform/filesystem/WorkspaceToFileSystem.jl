@@ -38,11 +38,11 @@ end
 
 # A path from the tree maps back onto the folder, also each path in a compound.
 # Anything else that is an operation passes as it is, but a raw gesture does not:
-# the ChainingProjection reader gives the input-domain stage first say on the
-# bare gesture, and returning the gesture there would short-circuit the whole
-# read with a non-operation "operation".
-function read_intent(p::WorkspaceFolderToFileSystemDirectory, iomap, op)
-    op isa Operation || return nothing
+# the folder reads no gesture of its own, so `read_gesture` answers nothing and the
+# chain gives the input-domain stage first say on it.
+read_gesture(::WorkspaceFolderToFileSystemDirectory, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+
+function map_operation_backward(p::WorkspaceFolderToFileSystemDirectory, iomap::SimpleIoMap, op)
     op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))
@@ -106,8 +106,9 @@ end
 # A path from the view (the selection, or any other kind) maps back onto the workspace,
 # also each path in a compound. Anything else that is an operation passes as it is,
 # and a raw gesture is declined, as for a folder.
-function read_intent(p::WorkspaceToFileSystemDirectory, iomap, op)
-    op isa Operation || return nothing
+read_gesture(::WorkspaceToFileSystemDirectory, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+
+function map_operation_backward(p::WorkspaceToFileSystemDirectory, iomap::ChildrenIoMap, op)
     op isa CompoundOperation && return _read_compound_answer(o -> read_intent(p, iomap, o), op)
     op isa ReplacePathOperation || return op
     path = map_reference_backward(p, iomap, get_operation_path(op))

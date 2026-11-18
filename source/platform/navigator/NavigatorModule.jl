@@ -47,7 +47,8 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title, get_edited_field, has_document_duplicate, is_walk_opaque, copy_document
 import ..PaneModule: make_pane_tab_title
 import ..SerializationModule: pred_arguments, make_pred_document
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 import ..EditorModule: make_change
 import ..OperationModule: evaluate_operation
 import ..DomainModule: acquire_document!, release_document!, get_document_decoration

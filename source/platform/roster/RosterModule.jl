@@ -43,6 +43,7 @@ import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, is_walk_opaque
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
                            get_child_iomaps
+import ..ProjectionModule: map_operation_backward
 import ..SerializationModule: pred_arguments, make_pred_document, is_pred_constructible
 
 import ..DomainModule: get_document_decoration

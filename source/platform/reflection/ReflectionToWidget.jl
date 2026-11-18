@@ -136,11 +136,11 @@ end
 
 _text(x) = x === nothing ? "" : (x isa AbstractString ? String(x) : string(x))
 
-# ── read_intent ───────────────────────────────────────────────────────────────
+# ── map_operation_backward ───────────────────────────────────────────────────────────────
 
 # The chevron writes a whole new `expanded` set. Exactly one path differs from
 # what the printer derived, and that path names the node the user acted on.
-function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
+function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
                      op::ReplaceReferencedValueOperation)
     (op.document === iomap.output && _field_name(op) == "expanded") || return op
     next = op.value
@@ -162,7 +162,7 @@ end
 
 # The tree marks a fold as view state. The disclosure that it becomes keeps the
 # mark, so a history does not record it either.
-function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
+function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
                      op::ReplaceViewStateOperation)
     inner = get_wrapped_operation(op)
     inner isa ReplaceReferencedValueOperation || return op
@@ -172,10 +172,10 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
 end
 
 # A row click selects; there is no reflected-domain cursor to move it to.
-read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplacePathOperation) = nothing
+map_operation_backward(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplacePathOperation) = nothing
 
 # The part under the pointer is a row, which goes back as a part of this view.
-function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
+function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
                      op::ReplaceMouseTargetOperation)
     path = map_reference_backward(p, iomap, op.path)
     path === nothing ? nothing : ReplaceMouseTargetOperation(path)
@@ -184,7 +184,7 @@ end
 # A move answers the leave of a part and the part under the pointer together; each
 # goes back as this view reads it alone. A chevron of a tree that scrolls itself
 # answers the open rows with the rows of its view; each part goes back alone too.
-function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap, op::CompoundOperation)
+function map_operation_backward(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap, op::CompoundOperation)
     if any(member -> _is_disclosure_write(iomap, member), op.operations)
         parts = Any[read_intent(p, iomap, member) for member in op.operations]
         return CompoundOperation(Any[part for part in parts if part !== nothing])
@@ -201,7 +201,7 @@ function _is_disclosure_write(iomap::ReflectionToWidgetIoMap, op)
         _field_name(inner) == "expanded"
 end
 
-read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
+map_operation_backward(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
 
 # The operation carries a `Reference`; the writes we care about are the
 # single-field form `tree.expanded`.

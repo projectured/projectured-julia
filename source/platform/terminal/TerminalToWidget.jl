@@ -126,7 +126,7 @@ end
 
 # A click that named no input line is still a click on the terminal, and the
 # terminal takes it rather than the document that holds the terminal.
-function read_intent(p::TerminalToWidget, iomap::SimpleIoMap, operation::ReplacePathOperation)
+function map_operation_backward(p::TerminalToWidget, iomap::SimpleIoMap, operation::ReplacePathOperation)
     inner = map_reference_backward(p, iomap, operation.path)
     make_path_operation(operation, inner === nothing ? EmptyReference() : inner)
 end
@@ -157,7 +157,7 @@ end
 # A press that nothing in the terminal took, on its lines or beside its input
 # line, puts the caret at the end of the input line, as a press in a terminal
 # gives it the keys.
-function read_intent(::TerminalToWidget, iomap::SimpleIoMap, click::MouseClick)
+function read_gesture(::TerminalToWidget, iomap::SimpleIoMap, click::MouseClick; answer = nothing)
     terminal = iomap.input
     terminal isa TerminalDocument && click.button === :left || return nothing
     ReplaceSelectionOperation(_make_terminal_input_caret(terminal))
@@ -169,7 +169,7 @@ _is_terminal_input_selected(terminal::TerminalDocument) =
 # Return with no modifier sends the input line while the caret is in it and the
 # program runs, and puts the caret at the start of the empty line. Every other
 # key goes on.
-function read_intent(::TerminalToWidget, iomap::SimpleIoMap, key::KeyPress)
+function read_gesture(::TerminalToWidget, iomap::SimpleIoMap, key::KeyPress; answer = nothing)
     terminal = iomap.input
     terminal isa TerminalDocument || return nothing
     key.char == '\n' || return nothing

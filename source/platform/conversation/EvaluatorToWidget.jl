@@ -158,7 +158,7 @@ end
 # the empty space after its code, puts the caret at the end of the code, so a
 # click on a form is the way back to typing in it. A form whose code is a
 # document selects the code whole instead.
-function read_intent(::EvaluatorFormToVerticalLayout, iomap, event::MouseClick)
+function read_gesture(::EvaluatorFormToVerticalLayout, iomap, event::MouseClick; answer = nothing)
     _is_plain_left_press(event) || return nothing
     code = iomap.input.form
     _is_text_form(code) ||

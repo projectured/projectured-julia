@@ -84,7 +84,8 @@ import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default
 import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
 import ..RosterModule: get_item_facets, compute_item_facet
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
                      format_task_column, get_task_actions, make_task_kind_document

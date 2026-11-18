@@ -34,7 +34,8 @@ using ..WidgetModule
 import ..DocumentModule: get_document_title
 import ..DomainModule: release_document!
 import ..OperationModule: evaluate_operation, make_inverse_operation
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 
 export TerminalLine, TerminalControl, TerminalDocument, format_terminal_command, is_terminal_running,
        is_terminal_stopped,

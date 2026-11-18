@@ -54,7 +54,7 @@ using ..WidgetModule
 import ..DocumentModule: get_wrapped_document
 import ..EditorModule: wrap_editor!, get_wrapper_layers, is_wrapper_default,
                        make_wrapper_argument
-import ..ProjectionModule: print_document, read_intent, map_reference_forward,
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward,
                            map_reference_backward, get_child_iomaps
 
 import ..DomainModule: get_document_decoration, accepts_pasted_document

@@ -635,3 +635,32 @@ converted the rows of `source/platform/widget/` (37 of 70) and of `source/platfo
   and 1 failure). `test_process()` passed 316, as on `e9af3a5a7`; on the base it hung in
   `ProcessDebugTest.jl:185`, where `wait(run.task)` waits while the task of the process waits on
   its channel, and the run was stopped after 45 minutes.
+
+**2026-11-18, step 4, the third slice: the rest of the platform.** Two Sonnet agents
+converted the rows of 20 folders of `source/platform/` (86 rows that are no walk and no
+wrapper) by the four rules.
+
+- **Converted:** the maps and the key readers of the syntax stages (`SyntaxToText`,
+  `PrimitiveToSyntax`, `InsertionToSyntax`, `CollectionToSyntax`), of the file system, the
+  panes, the reflection, the roster, the links, the terminal, the settings, the address of the
+  navigator, the assistant, the statistics, the conversation editor and the graphics; the
+  safe mode of a fault answers nothing in the two methods. Eight more calls of
+  `invoke(read_intent, Tuple{Projection, Any, Any}, ...)` in converted maps call the default of
+  `map_operation_backward` now (`PrimitiveToSyntax`, `RosterToGraphics` twice, the settings,
+  the assistant twice, the statistics, the conversation editor).
+- **The old answer is kept where the default answers more:** `InsertionToSyntax`,
+  `GraphicsCaching` and `GraphicsToGraphics` answer nothing for an operation, or for a gesture,
+  that their untyped reader declined; the split pane of the assistant answers nothing for a
+  gesture.
+- **Changes of behavior:** the untyped identities of `ReflectionToWidget` and
+  `RosterToGraphics`, like that of `ObjectFieldToValue` in the second slice, gave a gesture back
+  as their answer; a gesture now goes to the default `read_gesture`.
+- **Left for step 5:** the 3-argument readers that the `@eval` loops of `ConversationToWidget`
+  write for three conversation projections, because their 4-argument reader calls them by the
+  older form; and the readers of the navigator, the explorer and the evaluator that read the
+  answer of a later stage. `SyntaxToText` still gives a key that it declines back as its
+  answer, as before; step 6 removes such answers with the older form.
+- **The runs of the third slice**, against main `24536d808`: `test_kernel()` 5226 passed;
+  `test_platform()` the 15 lines of failure of the base, with 236373 passed, as in the second
+  slice; the 23 domain suites the counts and the lines of the base, and `test_process()` 316 as on
+  `e9af3a5a7`. The precompile gives no warning.

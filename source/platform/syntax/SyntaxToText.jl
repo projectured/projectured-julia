@@ -189,12 +189,6 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
                                    paths.selection, paths.mouse_target))
 end
 
-function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplacePathOperation)
-    input_path = map_reference_backward(p, iomap, op.path)
-    input_path === nothing && return nothing
-    return make_path_operation(op, input_path)
-end
-
 # Gesture-aware reader, the leaf half of what `SyntaxCompoundToText` does for a
 # node. An Alt+double click selects the innermost whole part under the pointer
 # (`convert_to_whole_selection`): the field of the leaf that holds the character
@@ -275,7 +269,7 @@ _get_delimiter_text(value) = nothing
 # `ReaderDefaults`), so the key falls through to the structural gesture. Which field
 # a span of a line shows, and where in it, depends on the delimiters and the breaks
 # of the leaf, so ask the leaf.
-function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     parsed = _parse_span_range(op.reference)
     parsed === nothing && return nothing
     span_path, char_start, char_stop = parsed
@@ -317,7 +311,7 @@ end
 # text domain), so Enter there falls to the key bindings around the text. The lines
 # of a syntax view belong to the syntax, so a change of their indentation is no
 # edit, and Tab falls to the key bindings of the syntax.
-function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
+function map_operation_backward(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
     op.changes_indentation && return nothing
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) ||
@@ -356,7 +350,7 @@ end
 # TextToGraphics still gets the untouched KeyDown for keys nothing consumes. This mirrors
 # `SyntaxCompoundToText`'s KeyDown reader and is what gives every domain the selection-mode
 # toggle for free through the backward selection map.
-function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown)
+function read_gesture(p::SyntaxLeafToText, iomap::SimpleIoMap, evt::KeyDown; answer = nothing)
     op = read_gesture(iomap.input, evt)
     op === nothing ? evt : op
 end
@@ -1420,18 +1414,12 @@ function _resolve_click(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMa
     nothing
 end
 
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplacePathOperation)
-    input_path = map_reference_backward(p, iomap, op.path)
-    input_path === nothing && return nothing
-    return make_path_operation(op, input_path)
-end
-
 # Keyboard fold (`Ctrl+.`): the operation arrives from below carrying no
 # target. Resolve it here — where both the syntax tree and its selection are
 # in hand — to the innermost collapsible node containing the cursor, then let
 # it propagate up unchanged. An already-targeted operation (e.g. a click
 # resolved above) passes through untouched.
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ToggleCollapseOperation)
+function map_operation_backward(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ToggleCollapseOperation)
     op.target === nothing || return op
     target = _resolve_collapsible(iomap.input, iomap.input.selection)
     return ToggleCollapseOperation(target)
@@ -1444,7 +1432,7 @@ end
 # `ReplaceSelectionOperation` on the syntax tree) is mapped backward to the source
 # domain by the rest of the chain, exactly as before. The mouse hit-testing for
 # collapse glyphs / Alt+double click stays in the 4-arg `Intent` reader above (geometry).
-function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, evt::KeyDown)
+function read_gesture(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, evt::KeyDown; answer = nothing)
     return read_gesture(iomap.input, evt)
 end
 

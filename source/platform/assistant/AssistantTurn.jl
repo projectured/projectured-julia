@@ -1354,15 +1354,15 @@ end
 # which merely normalizes the draft — and turns it into a
 # `SubmitDraftTurnOperation`, which pushes the draft into the conversation and
 # launches a streaming turn.
-function read_intent(::AssistantToWidgetSplitPane,
-                          iomap, op::ComposerSubmitOperation)
+function map_operation_backward(::AssistantToWidgetSplitPane,
+                                iomap, op::ComposerSubmitOperation)
     iomap.input isa Assistant || return op
     SubmitDraftTurnOperation(iomap.input::Assistant)
 end
 
 # The composer's Escape stops the turn that runs, and reverts the draft at any
 # other time.
-function read_intent(::AssistantToWidgetSplitPane, iomap, op::ComposerRevertOperation)
+function map_operation_backward(::AssistantToWidgetSplitPane, iomap, op::ComposerRevertOperation)
     a = iomap.input
     a isa Assistant && is_assistant_turn_running(a) ? CancelAssistantTurnOperation(a) : op
 end
@@ -1378,13 +1378,13 @@ end
 _is_draft_selected(a::Assistant) =
     (path = a.selection; path isa ConcreteReference && path.head == FieldReferenceStep("draft"))
 
-read_intent(::AssistantToWidgetCard, iomap, evt::KeyPress) =
+read_gesture(::AssistantToWidgetCard, iomap, evt::KeyPress; answer = nothing) =
     (a = iomap.input; a isa Assistant && _is_draft_selected(a) ?
         resolve_composer_host_operation(a, read_composer_gesture(a.draft, evt)) : nothing)
 
 # Escape stops the turn that runs. The composer's own Escape, which reverts the
 # draft, answers at any other time.
-function read_intent(::AssistantToWidgetCard, iomap, evt::KeyDown)
+function read_gesture(::AssistantToWidgetCard, iomap, evt::KeyDown; answer = nothing)
     a = iomap.input
     a isa Assistant || return nothing
     evt.key === :escape && is_assistant_turn_running(a) && return CancelAssistantTurnOperation(a)
@@ -1393,14 +1393,14 @@ end
 
 # An operation made below, said onward. `resolve_composer_host_operation` turns
 # the two the assistant owns into its own. An operation that carries a path — the
-# text layer's edit of the draft, say — takes the kernel's default reader, which
+# text layer's edit of the draft, say — takes the default map of the kernel, which
 # maps the path back through this card's `map_reference_backward`. One that
 # carries none passes as it is.
-function read_intent(p::AssistantToWidgetCard, iomap, op::Operation)
+function map_operation_backward(p::AssistantToWidgetCard, iomap, op::Operation)
     a = iomap.input
     a isa Assistant || return op
     resolved = resolve_composer_host_operation(a, op)
     resolved === op || return resolved
-    mapped = invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, op)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, op)
     (mapped === nothing && OperationModule.operation_reference(op) === nothing) ? op : mapped
 end

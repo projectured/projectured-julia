@@ -77,8 +77,9 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..NaturalModule: make_syntax_projection
 import ..EditorModule: wrap_editor!, get_wrapper_layers, make_safe_mode_projection
 import ..StyleModule: get_theme_presets
-import ..ProjectionModule: print_document, read_intent,
+import ..ProjectionModule: print_document, read_intent, map_operation_backward,
                            map_reference_forward, map_reference_backward
+import ..GestureBindingModule: read_gesture
 
 export FaultLog, FaultLogEntry, get_session_fault_log, clear_fault_log!,
        FaultTheme, ScaledFaultTheme,

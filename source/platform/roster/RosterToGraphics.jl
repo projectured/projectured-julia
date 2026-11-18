@@ -605,7 +605,7 @@ function _map_mouse_target_backward(p::RosterRowsToWidget, iomap::RosterRowsToWi
     inside = length(steps) >= length(_TABLE_STEPS) && all(steps[k] == _TABLE_STEPS[k] for k in eachindex(_TABLE_STEPS))
     cell = inside ? _find_table_cell(iomap, steps[(length(_TABLE_STEPS) + 1):end]) : nothing
     (cell === nothing || iomap.input[cell[1]].values[cell[2]] isa Document) &&
-        return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+        return invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
     (r, c) = cell
     make_path_operation(operation, extend_reference(EmptyReference(), ElementReferenceStep(r), FieldReferenceStep("item"),
                                                     ProjectionReferenceStep(p, Reference(ElementReferenceStep(c)))))
@@ -633,7 +633,7 @@ end
 # so the write of `cells` becomes a write of the anchor, and the shift goes: the
 # selection of the rows names a row of `rows`, which the maps place from the
 # anchor. Every other answer goes back as it goes from any projection.
-function read_intent(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, operation)
+function map_operation_backward(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, operation)
     operation isa ReplaceMouseTargetOperation && return _map_mouse_target_backward(p, iomap, operation)
     if operation isa ReplaceStringRangeOperation
         edit = _make_header_edit(p, iomap, operation)
@@ -642,7 +642,7 @@ function read_intent(p::RosterRowsToWidget, iomap::RosterRowsToWidgetIoMap, oper
     moved = _retarget_header_operation(operation)
     moved === nothing || return moved
     k = _find_roster_head_move(iomap, operation)
-    k === nothing && return invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+    k === nothing && return invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
     anchor = _get_roster_head_row(iomap) + k - 1
     moved = Any[ReplaceViewStateOperation(_make_head_write(iomap, anchor))]
     for member in operation.operations

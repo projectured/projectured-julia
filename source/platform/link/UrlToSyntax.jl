@@ -71,7 +71,7 @@ end
 
 # An edit in leaf `i` of the line, `.children[i].value{start:stop}`, is an edit of
 # the text of the address at the same place.
-function read_intent(p::UrlToSyntax, iomap::TemplateIoMap, operation::ReplaceStringRangeOperation)
+function map_operation_backward(p::UrlToSyntax, iomap::TemplateIoMap, operation::ReplaceStringRangeOperation)
     url = get_iomap_input(iomap)
     range = _find_url_text_range(url, operation.reference)
     range === nothing && return nothing

@@ -122,7 +122,7 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cx >= Int(r.x) && cx < Int(r.x) + Int(r.w) &&
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
-function read_intent(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
+function read_gesture(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt; answer = nothing)
     evt isa MouseClick && evt.button === :left || return nothing
     # Always emit a plain click (element + pixel offset). Whole-element promotion
     # (Alt+double click) is decided in SyntaxToText off the originating gesture. Only a
@@ -130,6 +130,9 @@ function read_intent(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
     path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
     path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
+
+# An operation of the image has no way back through the canvas.
+map_operation_backward(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, operation) = nothing
 
 # The element of `canvas` at `(x, y)`, and the point inside it, as a path; `nothing`
 # when no element is there. A rect is hit by its precise bounds first (a cursor

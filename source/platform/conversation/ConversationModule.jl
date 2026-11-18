@@ -57,8 +57,9 @@ import ..SelectionModule: has_dormant_selection
 import ..OperationModule: evaluate_operation, make_inverse_operation, is_self_contained_operation
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..ProjectionModule: get_projection_gesture_bindings
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
-                           get_child_iomaps
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward,
+                           map_reference_backward, get_child_iomaps
+import ..GestureBindingModule: read_gesture
 import ..TreeModule: get_tree_children_steps, format_tree_node_label
 
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label, find_form_document,

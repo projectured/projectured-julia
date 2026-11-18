@@ -265,7 +265,7 @@ _value_path(range::RangeReferenceStep) =
 
 # ── Reader ───────────────────────────────────────────────────────────────────
 
-function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
     # A caret in the rendered value span backward-maps to the value cursor; a
     # caret on the label/hint spans becomes an introduced caret on the whole
     # insertion; a raw input-vocabulary `value{k}` op passes through.
@@ -283,7 +283,7 @@ end
 # keystroke into a `ReplaceStringRangeOperation` before it reaches here) backward-maps
 # to the buffer's own `value[range]`. This is the one way a key edits the buffer. An
 # edit on a label/hint span has no value pre-image and declines.
-function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     mapped = map_reference_backward(p, iomap, op.reference)
     mapped === nothing && return nothing
     _add_insertion_popup(p, iomap.input,
@@ -410,15 +410,18 @@ end
 # The projection's own table first (commit / cancel / Tab / widen);
 # when every binding declines — e.g. a printable char with no value cursor —
 # fall through to the input document's own gesture table, exactly like the
-# generic `read_intent` leaf default this method shadows. That keeps the
+# generic `read_gesture` leaf default. That keeps the
 # whole-selection authoring gestures firing on the domain insertions
 # (`@gestures JsonDocument`'s `"`/`[`/`{`/digit type-to-replace, …).
-function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event)
+function read_gesture(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event; answer = nothing)
     op = read_projection_gesture(p, iomap, event)
     op !== nothing && return op
     event isa Union{KeyPress, KeyDown, MouseClick} && iomap.input isa Document ?
         read_gesture(iomap.input, event) : nothing
 end
+
+# Any other operation of the output has no input image: the leaf answers nothing.
+map_operation_backward(::InsertionToSyntaxLeaf, iomap::SimpleIoMap, operation) = nothing
 
 # ── Name → document: reflection over the type tree ────────────────────────────
 #
@@ -544,7 +547,7 @@ end
 # `*Nothing` placeholder be filled by typing directly. Non-empty text only (a
 # deletion has nothing to create); a key the document defines no create for
 # (`read_gesture` → `nothing`) is simply dropped, exactly as on a ∅ selection.
-function read_intent(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     text = op.replacement
     isempty(text) && return nothing
     read_gesture(iomap.input, KeyPress(first(text), text, ModifierKeys(); time = time()))

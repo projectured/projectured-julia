@@ -58,6 +58,8 @@ import ..FileChangeModule: receive_folder_change!
 import ..FileFormatModule: open_file_document!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: map_operation_backward
+import ..GestureBindingModule: read_gesture
 import ..WidgetModule: make_graphics_projection
 import ..SerializationModule: make_pred_document, pred_arguments
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, has_tree_children, is_explorer_entry_type,

@@ -59,17 +59,17 @@ map_reference_forward(::ReferenceStepToSyntaxLeaf, iomap, reference) =
 map_reference_backward(::ReferenceStepToSyntaxLeaf, iomap, reference) =
     EmptyReference(get_reference_node_type(iomap.input))
 
-function read_intent(p::ReferenceStepToSyntaxLeaf, iomap, operation::ReplaceStringRangeOperation)
+function map_operation_backward(p::ReferenceStepToSyntaxLeaf, iomap, operation::ReplaceStringRangeOperation)
     text = _get_step_text(iomap.input)
     _make_step_insertion_operation(isempty(operation.replacement) ? chop(text) : text * operation.replacement)
 end
 
-function read_intent(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyPress)
+function read_gesture(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyPress; answer = nothing)
     isprint(key.char) || return nothing
     _make_step_insertion_operation(_get_step_text(iomap.input) * key.text)
 end
 
-function read_intent(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyDown)
+function read_gesture(p::ReferenceStepToSyntaxLeaf, iomap, key::KeyDown; answer = nothing)
     key.key === :backspace && !(key.modifiers.ctrl || key.modifiers.alt || key.modifiers.meta) ||
         return nothing
     _make_step_insertion_operation(chop(_get_step_text(iomap.input)))

@@ -954,8 +954,8 @@ make_evaluate_operation(::Any) = nothing
 # A press that DID find text never arrives here. It is answered by the text
 # layer under the card, and `map_reference_backward` turns that answer into the
 # `parts[i].content.value{k}` the composer's own cursor reads.
-function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap,
-                     click::MouseClick)
+function read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap,
+                      click::MouseClick; answer = nothing)
     click.button === :left || return nothing
     d = iomap.input
     n = length(d.parts)
@@ -968,17 +968,17 @@ function read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap,
                 ConcreteReference(FieldReferenceStep("content"), tail))))
 end
 
-read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress) =
+read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyPress; answer = nothing) =
     read_composer_gesture(iomap.input, evt)
 
 # The composer owns Return: a plain Return submits the draft, and Shift+Return
 # breaks the line of its value (`_composer_bindings`). The text under a card reads
 # Return as a break of its line; the composer declines that edit, so the key goes
 # on to its own bindings.
-read_intent(p::ConversationComposerToWidget, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
-    occursin('\n', op.replacement) ? nothing : invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+map_operation_backward(p::ConversationComposerToWidget, iomap::SimpleIoMap, op::ReplaceRangeOperation) =
+    occursin('\n', op.replacement) ? nothing : invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
 
-read_intent(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown) =
+read_gesture(::ConversationComposerToWidget, iomap::SimpleIoMap, evt::KeyDown; answer = nothing) =
     (d = iomap.input; resolve_composer_host_operation(d.assistant, read_composer_gesture(d, evt)))
 
 """

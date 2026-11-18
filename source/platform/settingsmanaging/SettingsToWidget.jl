@@ -97,9 +97,9 @@ end
 # The write of a control becomes the write of its setting, and an edit of the text
 # of a setting the write of the whole text, as on the page of a group. Every other
 # operation takes the default way back of the kernel.
-read_intent(::SettingsToWidget, iomap::SettingsToWidgetIoMap, operation::ReplaceReferencedValueOperation) =
+map_operation_backward(::SettingsToWidget, iomap::SettingsToWidgetIoMap, operation::ReplaceReferencedValueOperation) =
     _read_control_write(iomap, operation)
-read_intent(p::SettingsToWidget, iomap::SettingsToWidgetIoMap, operation::ReplaceStringRangeOperation) =
+map_operation_backward(p::SettingsToWidget, iomap::SettingsToWidgetIoMap, operation::ReplaceStringRangeOperation) =
     _read_text_edit(p, iomap, operation)
 
 # ── Reference mapping ─────────────────────────────────────────────────────

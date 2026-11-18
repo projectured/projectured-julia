@@ -54,6 +54,8 @@ using ..WidgetModule
 import ..CellModule: set_cell_computation!
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: map_operation_backward
+import ..GestureBindingModule: read_gesture
 import ..NaturalModule: make_syntax_to_text_projection
 import ..ProjectionAlgebraModule: map_view_state!, read_view_operation
 

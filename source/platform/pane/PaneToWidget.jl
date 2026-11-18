@@ -693,24 +693,24 @@ function _is_inside_page(path)
     false
 end
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+function map_operation_backward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::CloseTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     make_pane_close_tab_operation(iomap.input, group, operation.tab_index)
 end
 
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+function map_operation_backward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
                      operation::OpenTabOperation)
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     make_pane_open_tab_operation(iomap.input, group, p.new_tab())
 end
 
-read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation) =
+map_operation_backward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation) =
     _press_tab(iomap, operation, nothing)
 
-read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+map_operation_backward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
             operation::ResizeSplitPaneOperation) =
     _read_resize(iomap.input, iomap, operation)
 
@@ -725,16 +725,16 @@ read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
 # `sizes` be written, so they still hold what was measured at the first grab. A
 # second drag would anchor on those, and the splitter would jump back to where the
 # first one started. Clearing them makes the widget re-measure what is on screen.
-read_intent(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
+map_operation_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap,
             operation::StartSplitterDragOperation) =
     _pane_node_for(iomap, operation.split) isa PaneSplit ?
         CompoundOperation(Any[
             ReplaceReferencedValueOperation(operation.split, "sizes", CellVector()),
             operation]) :
         operation      # a split a tab's content built: it keeps its own sizes
-read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+map_operation_backward(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::EndSplitterDragOperation) = operation
-read_intent(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
+map_operation_backward(::PaneTreeToWidget, ::PaneTreeToWidgetIoMap,
             operation::SetSplitterUnderPointerOperation) = operation
 
 # The drag of a tab needs the raw gesture beside the operation that the layers

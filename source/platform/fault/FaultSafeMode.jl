@@ -44,7 +44,9 @@ end
 read_intent(::FaultSafeModeProjection, recursion, change::Intent,
             ::FaultSafeModeIoMap) = Intent(change.gesture, nothing)
 
-read_intent(::FaultSafeModeProjection, ::FaultSafeModeIoMap, payload) = nothing
+read_gesture(::FaultSafeModeProjection, ::FaultSafeModeIoMap, gesture; answer = nothing) = nothing
+
+map_operation_backward(::FaultSafeModeProjection, ::FaultSafeModeIoMap, operation) = nothing
 
 map_reference_forward(::FaultSafeModeProjection, ::FaultSafeModeIoMap, reference) = nothing
 map_reference_backward(::FaultSafeModeProjection, ::FaultSafeModeIoMap, reference) = nothing

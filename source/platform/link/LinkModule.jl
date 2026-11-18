@@ -49,6 +49,8 @@ import ..DocumentModule: get_document_title, get_edited_field, is_field_walked
 import ..DomainModule: get_document_decoration, make_document_view
 import ..OperationModule: describe_operation, is_self_contained_operation
 import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward, read_intent
+import ..ProjectionModule: map_operation_backward
+import ..GestureBindingModule: read_gesture
 import ..TreeModule: format_tree_node_label
 import ..WidgetModule: make_graphics_projection, make_target_open_operation
 

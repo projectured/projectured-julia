@@ -68,6 +68,7 @@ import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync,
 import ..FeedModule: drain_changes!, compute_wake_deadline, attach_wake_callback!
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent
+import ..ProjectionModule: map_operation_backward
 
 export UnsyncedDocument, AUnsyncedDocument,
        SyncPolicy, DepthPolicy, UNBOUNDED_SYNC,

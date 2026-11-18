@@ -37,7 +37,7 @@ end
 # arrangement of the content goes in its place. The reader of an arranged content
 # answers the operation itself, so it comes here only from a content that nobody
 # arranged.
-function read_intent(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::ArrangeCollectionOperation)
+function map_operation_backward(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, operation::ArrangeCollectionOperation)
     path = map_reference_backward(p, iomap, operation.at)
     path isa Reference || return nothing
     path = strip_reference_types(path)

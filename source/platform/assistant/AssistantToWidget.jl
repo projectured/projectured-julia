@@ -234,8 +234,8 @@ end
 
 # A click that named no pane is still a click on the card, and the card takes it
 # rather than letting it fall through to whatever the card is embedded in.
-function read_intent(p::AssistantToWidgetCard, iomap::SimpleIoMap,
-                     op::ReplacePathOperation)
+function map_operation_backward(p::AssistantToWidgetCard, iomap::SimpleIoMap,
+                                op::ReplacePathOperation)
     inner = map_reference_backward(p, iomap, op.path)
     make_path_operation(op, inner === nothing ? EmptyReference() : inner)
 end
@@ -293,29 +293,32 @@ end
 
 # The write of the spin box of the wakes sets the count; any other operation takes
 # the way below.
-function read_intent(p::AssistantToWidgetSplitPane, iomap::AssistantToWidgetSplitPaneIoMap,
-                     op::ReplaceReferencedValueOperation)
+function map_operation_backward(p::AssistantToWidgetSplitPane, iomap::AssistantToWidgetSplitPaneIoMap,
+                                op::ReplaceReferencedValueOperation)
     count = op.document === iomap.wakes ? _parse_wake_count(op.value) : nothing
-    count === nothing ? invoke(read_intent, Tuple{AssistantToWidgetSplitPane,Any,Any}, p, iomap, op) :
+    count === nothing ? invoke(map_operation_backward, Tuple{AssistantToWidgetSplitPane,Any,Any}, p, iomap, op) :
                         SetAssistantWakesOperation(iomap.input, count)
 end
 
 _parse_wake_count(value::Real) = isfinite(value) ? Int(round(value)) : nothing
 _parse_wake_count(value) = tryparse(Int, strip(string(value)))
 
-function read_intent(p::AssistantToWidgetSplitPane,
-                          iomap, op)
-    # The specific KeyPress / KeyDown handlers live in
+function map_operation_backward(p::AssistantToWidgetSplitPane,
+                                iomap, op)
+    # The specific handlers of the composer's operations live in
     # `AssistantModule` (loaded later in the include chain) and
     # take precedence via multiple dispatch. For everything else that
     # reaches us, translate path-bearing ops to the assistant's input
     # domain and let widget-target ops (an identity-rooted ReplaceReferencedValueOperation)
-    # pass through; unhandled raw events return `nothing`.
+    # pass through.
     if op isa Operation
         return _retarget_panel_op(p, iomap, op)
     end
     nothing
 end
+
+# A raw event or a gesture has no reader in the split pane.
+read_gesture(::AssistantToWidgetSplitPane, iomap::AssistantToWidgetSplitPaneIoMap, gesture; answer = nothing) = nothing
 
 
 # ── The two helpers this module keeps its own copy of ──────────────────────

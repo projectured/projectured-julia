@@ -60,19 +60,13 @@ function map_reference_backward(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMa
     make_introduced_reference(p, iomap, caret)
 end
 
-function read_intent(p::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing && return nothing
-    make_path_operation(op, result)
-end
-
 # The basename is derived display text, not an editable field, so a text-range
 # edit (backspace / delete / type-in) is declined — the leaf is navigable but
 # read-only. This must name the operation type exactly (not a catch-all `op`),
-# because `ReaderDefaults`' `read_intent(::Projection, iomap, ::ReplaceStringRangeOperation)`
-# is equally specific on the operation; a bare `op` would be ambiguous with it.
+# because the default `map_operation_backward(::Projection, iomap, operation)` maps it
+# through the reference seam; a bare `op` would also decline the other operations.
 # The `ReplaceSelectionOperation` method above still maps carets, so navigation works.
-read_intent(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation) = nothing
+map_operation_backward(::FileSystemFileToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation) = nothing
 
 # ── FileSystemDirectoryToSyntaxNode ───────────────────────────────────────────
 #
@@ -161,12 +155,6 @@ function map_reference_backward(p::FileSystemDirectoryToSyntaxNode, iomap::Child
         end
         __ => make_introduced_reference(p, iomap, reference)
     end
-end
-
-function read_intent(p::FileSystemDirectoryToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing && return nothing
-    make_path_operation(op, result)
 end
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────

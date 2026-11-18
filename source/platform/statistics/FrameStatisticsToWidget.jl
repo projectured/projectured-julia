@@ -565,12 +565,12 @@ _get_head_place(statistics::FrameStatistics) =
 # A press on Pause and a pick of a choice become view state, so the undo does not
 # record them. A write of the value of the scroll bar becomes a jump to the row
 # at that value.
-function read_intent(p::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap, operation::Operation)
+function map_operation_backward(p::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap, operation::Operation)
     started = _convert_bar_drag_start(iomap, operation)
     started === nothing || return started
     converted = _convert_widget_write(iomap.input, operation)
     converted === nothing || return converted
-    invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+    invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
 end
 
 # The table of the frames is the part that no path reaches, so the statistics
@@ -587,8 +587,8 @@ end
 
 # A part of the drag of the thumb: a move is a jump to the row at the value of
 # the bar, and the end lets the thumb go.
-function read_intent(::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap,
-                     event::Union{DragMove,DragEnd,DragCancel})
+function read_gesture(::FrameStatisticsToWidget, iomap::FrameStatisticsToWidgetIoMap,
+                      event::Union{DragMove,DragEnd,DragCancel}; answer = nothing)
     answer = read_scroll_bar_drag(iomap.bar, event)
     answer isa CompoundOperation || return something(_convert_widget_write(iomap.input, answer), Some(answer))
     CompoundOperation(Any[something(_convert_widget_write(iomap.input, o), Some(o)) for o in answer.operations])

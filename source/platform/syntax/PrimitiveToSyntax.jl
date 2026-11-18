@@ -58,14 +58,9 @@ function print_document(p::PrimitiveBoolToSyntaxLeaf, recursion, b::PrimitiveBoo
     iomap
 end
 
-function read_intent(p::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
 # A key that would edit the text of a Bool does nothing: a Bool switches by the
 # keys of `@gestures PrimitiveBool` (`PrimitiveToText.jl`).
-read_intent(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
+map_operation_backward(::PrimitiveBoolToSyntaxLeaf, iomap::SimpleIoMap, ::ReplaceRangeOperation) = nothing
 
 # ── PrimitiveNumberToSyntaxLeaf ──────────────────────────────────────────────
 
@@ -122,16 +117,11 @@ function print_document(p::PrimitiveNumberToSyntaxLeaf, recursion, n::PrimitiveN
     iomap
 end
 
-function read_intent(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
 # A key in the number is a range replace that the default reader maps back to
 # `value{s:e}`; with `allows_type_in`, a text that the number can not show makes
 # a type-in instead.
-function read_intent(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceRangeOperation)
-    mapped = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, op)
+function map_operation_backward(p::PrimitiveNumberToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceRangeOperation)
+    mapped = invoke(map_operation_backward, Tuple{Projection,Any,Any}, p, iomap, op)
     p.allows_type_in && mapped isa ReplaceRangeOperation ? make_number_edit_operation(iomap.input, mapped) : mapped
 end
 
@@ -187,11 +177,6 @@ function print_document(p::PrimitiveStringToSyntaxLeaf, recursion, s::PrimitiveS
         paths...))
     iomap_cell[] = iomap
     iomap
-end
-
-function read_intent(p::PrimitiveStringToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # The keys that edit the string are the text domain's: its edit comes back through
