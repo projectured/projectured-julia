@@ -1235,6 +1235,23 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       through the first stage (`map_reference_forward`), as the route of a
       gesture is (`_read_routed_chain`).
 
+    **The owner decided on 2026-11-19**: "Then I would just skip copying
+    projection induced stuff. Probably still worth removing returning the output
+    path for a projection induced step. I guess nobody depends on that and it's
+    just plain wrong." So no copy of a drawn part, no print option and no IO map
+    form in this plan (R2, R3 and R4 go), and the step no longer evaluates to its
+    output path.
+
+    Found after that decision: the gate of every selection write depends on the
+    value. `_matched_selection` (`SelectionDefaults.jl:155`) types the path
+    (`annotate_reference_types`) and checks it (`is_valid_reference`). Both
+    evaluate the step: the value is the output path, so the terminal records
+    `ConcreteReference` and the check passes. With no value, the check cuts the
+    path at the step, and the write of each selection in a drawn part throws
+    `SelectionMismatchException`. The same check clears or cuts the selection in
+    the repair after a fault (`FaultBarriers.jl:230`) and after a file is read
+    again (`DocumentFile.jl:674`).
+
     The decisions as first proposed:
     - **S1. The step holds the IO map of the view that drew the part.** The
       fields are `projection`, `iomap` and `output_path`. It evaluates to the
