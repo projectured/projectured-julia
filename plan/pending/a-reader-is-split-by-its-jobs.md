@@ -708,3 +708,65 @@ rows that are no walk and no wrapper) by the four rules.
   236418 passed, 15 failed, 21 broken on both, with the same lines; the 23 domain suites the
   counts and the lines of the base, but for the time guard of `test_formula()`, which passed on
   the branch.
+
+**2026-11-18, step 4 lands.** The owner: "Land first, check only if needed." Main had moved to
+`a2faf9fa0` (the table rule of another session: helpers in the roster, the data frame view and
+the widget table, and calls of `read_intent` through the bridge, no new reader). The rebase had
+no conflict, and no reader of the two commits clashes with step 4, so no new test round ran.
+Step 4 is on main `6de377ef2`; nothing is pushed.
+
+**2026-11-18, step 5, the first container and the first wrapper (for R4).**
+
+- **The kernel has no pixel, so the helper takes the read of the child.** The functions that
+  move a position (`shift_event_position`, `shift_operation_position`) are in the graphics
+  slice, and O1 keeps the kernel free of places and pixels. So `read_child_intent` gets the
+  keyword `read_child`, the function with which the child reads the change, by default
+  `read_routed_intent`. A container that draws its children in frames of their own gives a
+  `read_child` that moves the point in and the positions of the answer out. With
+  `child === nothing`, no child reads, and only the rules of the container answer: the
+  container is the part.
+- **The passing of a placed child is written once, in the layout slice:**
+  `read_entry_child(projection, recursion, change, iomap, entry, steps)`, beside
+  `read_child_event`. It takes the frame of the child from the `(x, y, child_iomap)` entry,
+  gives the moved gesture to the child by the rules of `read_child_event` (the Alt+click, the
+  Alt+double click, the focus of a press, a dwell and a right click inside the child), moves
+  the positions of the answer back, and the kernel lifts the answer by `steps` with the rule of
+  a level. `read_child_event` gets a form that takes the change, so the route, the description
+  and the domain reach the child.
+- **The first container, `WidgetCompositeToGraphicsCanvas`, keeps only its own rules:** a key,
+  a gesture with no point and an operation go to the child that its selection names; a
+  pointer gesture goes to the topmost child that drew at its point; a pointer off the
+  composite answers nothing; a move goes to the child that the pointer leaves as well; a press
+  over no child goes to the first child that takes it (the divider of a split pane in the gap);
+  Tab is a plain rule of its level (`read_gesture` on a key), which moves the selection to the
+  next focusable child when the selected child declines Tab. A route goes to the child that it
+  names, as by default. `_route_composite_press` and `_forward_composite_event_slot` go, and
+  `_composite_tab` keeps only the move of the selection. The 3-to-4 wrapper of the composite
+  stays until step 6.
+- **The first wrapper, `WindowInputUnwrappingProjection`,** passes the event of a window input
+  to its inner stage with `read_child_intent`, so the route, the description and the domain of
+  the change and of the answer stay; before, it dropped all three.
+- **The O1 finding, as built:** the composite chooses the child with the hit test of its point
+  mapper (`_find_widget_child_point`, the first level of `_map_point_to_child`), not with the
+  whole mapper, which answers the path down to the innermost part. The steps of a child of the
+  composite are `elements[i]`, which the composite knows by the slot, so no search finds them
+  (P2); the other containers carry the steps in their entries when they move.
+- **Changes of behavior:** a pointer gesture reaches only the topmost child at its point (O1);
+  before, a child under it got a gesture that the topmost one declined. Every gesture, not only
+  a dwell and a right click, now reads the documents on the steps and the tables of the
+  composite and of its input; no widget document and no widget projection has a table, so no
+  answer changes today. A press over no child gives the positions of its answer back in the
+  frame of the composite.
+- **Not moved yet:** the move of the pointer asks two children, the one under the pointer and
+  the one that the pointer leaves, and joins the two answers, so it is no single passing; it
+  stays the own code of the composite (`_read_composite_move`).
+- **The narrow runs:** the window input, the point of a widget, the mouse target of a move, a
+  routed gesture, the selection walk, the selection of a widget, the button, the popup example,
+  the window wrappers, the drag tracking, the context menu and the size of a composite: 626
+  passed, none failed. `test_reader_jobs()` has a testset for the two new parts of the helper.
+- **The runs against the baseline**, the branch at 7a50bfbf7 and main at 6de377ef2, each with
+  its own precompile: the kernel 5228 passed and 2 broken (main 5226 and 2; the 2 more are the
+  new testset); the platform 236428 passed, 15 failed, 1 error and 21 broken, as on main; the
+  chart 645, the data frames 622, as on main; the graph 630 passed, 6 failed and 2 errors, as on
+  main. The failed tests are the same tests at the same lines, and the text of the layering
+  failures is the same.
