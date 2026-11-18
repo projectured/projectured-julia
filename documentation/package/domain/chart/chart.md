@@ -39,7 +39,7 @@ The order of `series` is the draw order and the legend order. A chart has two ax
 Chart ──ChartToChartPlot──▶ ChartPlot ──ChartPlotToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-`ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `horizontal_scroll_bar` and `vertical_scroll_bar`. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
+`ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `horizontal_scroll_bar` and `vertical_scroll_bar`. The series that the mouse target of the plot names lights, and the others are veiled. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step. A container can give a path without the types of its nodes, as a grid does; such a path takes its types from the chart, and a path that the chart can not type maps to nothing.
 
 **A function series samples in the print.** The layout calls each `ChartFunctionSeries` at `sample_count` points evenly spaced over the x window that the plot shows, through `Base.invokelatest`, and again at each new window, so a zoom shows more detail. The x window comes from the other series and the `x_range` of the function series; the samples over the fit window give its y bounds. One function, `_compute_function_samples`, answers the samples or the reason, and the bounds, the line, the legend and the hit read it. A call that raises, or a value that is no real number, stops the samples: the series draws no line, keeps its legend entry, and the entry says why after the label (`no x range; give x_range`, `gives no number at x = 0.1`, or the text of the error of a callable object such as a formula). A formula called in the print reads its stored function, so the line follows a new value of the formula.
 
@@ -90,6 +90,10 @@ A plain click selects a sample, as a press in the source view of a Markdown page
 
 A click on a part selects it. A click on a data point or on a strip segment selects that sample, and the renderer draws a ring around it. A selected sample still counts as its series for the navigation, the hover and the legend. Inside a strip the reader finds the segment by the time under the pointer and by the raw sample index, so the reference is still correct after a zoom that folds the runs in a different way.
 
+**A text that a field holds.** The title, the title of an axis, the name of a category, and the label of a series in the legend or beside its strip are texts of fields of the chart. The renderer records the line of each with its part, such as `.chart.x_axis.title` (a `DrawnTextLine`, [widget.md](../../platform/widget/widget.md)), so these texts act as the text of a label. An Alt+click puts the caret at the character, an Alt+double click selects the text as a whole, and a move names the text under the pointer. A key moves the caret or the range in the text, read-only. The renderer draws the caret and the band of the text, and no part lights for a selection in a text. A caret or a range in a text maps forward to the place of its characters; a part still maps forward to nothing. A plain click keeps its meaning: on the title or a text of an axis it selects that part, also on the title of the y axis, which lies beside the strip of the axis, and on a legend item it hides or shows the series. The labels of the ticks have no field, so they take no caret.
+
+A press with Alt selects and never acts. So it starts no zoom and no pan, an Alt+click on a legend item selects its series and does not hide it, and an Alt+double click in the plot selects the part at the point and does not show all the data.
+
 | Gesture | Effect |
 | --- | --- |
 | arrows, Home, End, Ctrl+Home, Ctrl+End | move the selection between the parts |
@@ -98,6 +102,7 @@ A click on a part selects it. A click on a data point or on a strip segment sele
 | Ctrl+Shift+Up, Ctrl+Shift+Down | move the selected series in the list |
 | Alt+Delete | remove the selected series |
 | click on a legend item; hover on it | hide or show that series; veil the other series |
+| Alt+click on a text that a field holds; Alt+double click | the caret at the character; the text as a whole |
 | Ctrl+click on a point, a segment or a cell with a link; Ctrl+Shift+click | follow the link; open it in a new tab |
 | Ctrl+wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
 | wheel; Shift+wheel | scroll up and down; scroll across |

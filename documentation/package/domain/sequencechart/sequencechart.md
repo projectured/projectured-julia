@@ -32,7 +32,7 @@
 SequenceChart ──SequenceChartToSequenceChartPlot──▶ SequenceChartPlot ──SequenceChartPlotToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `time_scroll_bar` and `lane_scroll_bar`. These are the state of the view, and the reader marks each write of them as view state, so a history records no zoom, lane scroll, drag or readout. The stage builds the buttons and the bars once with the plot, gives each its part of the mouse target (`follow_output_mouse_target!`), and names a part of them by an introduced reference, as `ChartToChartPlot` does. The event or the arrow that the mouse target of the plot names lights. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
+The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, the `cursor`, the state of a drag, and the parts that only the plot has: the `toolbar` of the buttons and the two scroll bars, `time_scroll_bar` and `lane_scroll_bar`. These are the state of the view, and the reader marks each write of them as view state, so a history records no zoom, lane scroll, drag or readout. The stage builds the buttons and the bars once with the plot, gives each its part of the mouse target (`follow_output_mouse_target!`), and names a part of them by an introduced reference, as `ChartToChartPlot` does. The event or the arrow that the mouse target of the plot names lights. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does, and it types a path that a container gives without types; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
 
 The renderer splits its work into three cells by what makes each one stale: the cumulative timeline pass, the frame layout, and the element list. The hover, the selection and the cursor are read only by the last cell. So a pointer move over a long trace builds an overlay again, not the frame.
 
@@ -70,7 +70,11 @@ Two visible results follow:
 
 A row of a table has no document of its own. `SequenceChartRowReferenceStep`, written `.row(k)`, names a row inside the event table, the arrow table or a band. It is the same idiom as the sample step of the chart; [chart.md](../chart/chart.md#a-reference-step-into-a-column) describes it. `evaluate_reference_step` gathers the row back out of the columns. `get_event_reference`, `get_arrow_reference` and `get_band_reference` build the typed paths.
 
-A click selects the most specific thing under the pointer: an event before an arrow, an arrow before a band, a band before a lane. The keyboard treats the chart as a graph, not as a picture:
+A click selects the most specific thing under the pointer: an event before an arrow, an arrow before a band, a band before a lane.
+
+The title, the name of a lane, and the label of an arrow or an event are texts of fields of the chart, such as `.chart.axes[2].label` and `.chart.arrows.labels[3]`. The renderer records the line of each (a `DrawnTextLine`, [widget.md](../../platform/widget/widget.md)), so these texts act as the text of a label. An Alt+click puts the caret at the character, an Alt+double click selects the text as a whole, a move names the text under the pointer, and a key moves the caret or the range in the text, read-only. A plain click on a label selects its arrow or its event, on the name of a lane the lane, and on the title the title. The renderer draws the caret and the band in the canvas that holds the line: the body for a label, the frame for the title and the name of a lane. A label of arrows or events that a trace reads holds no list, so it takes no caret, and neither do the labels of the time and the names of the states of a band. A press with Alt selects, so it starts no band and no pan, and an Alt+double click selects and does not show the whole trace.
+
+The keyboard treats the chart as a graph, not as a picture:
 
 | Gesture | What it does |
 | --- | --- |
@@ -88,6 +92,7 @@ A click selects the most specific thing under the pointer: an event before an ar
 | drag on the time scale | pan the time |
 | `Escape` during a drag | stop the drag; a pan puts back the view of the press |
 | double click in the body or on the time scale | show the whole trace again |
+| Alt+click on a text that a field holds; Alt+double click | the caret at the character; the text as a whole |
 | `Ctrl+=` `Ctrl+-` | zoom in; zoom out |
 | `Ctrl+0` | show the whole trace |
 | `+` `-` `0` | the same, as typed characters |

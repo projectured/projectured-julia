@@ -1833,6 +1833,96 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     (P4), and no ring or band draws it. The filter header has the same gap on
     main (for example `backgroundwork/log` at (600, 57)), with the moves there
     that name the table and not the header. This cause stays open.
+
+  **The chart texts taken up (2026-11-18).** To "Can I start on the texts of the
+  charts?" the owner answered "Yes". The base walk of the 15 chart examples
+  (`ONLY="chart,plot"`, scratchpad `/var/tmp/ic-scratch/step9/walk-base`) gives
+  325 lines: `alt:no-caret` 182, `alt2:not-drawn` 60, `move:differs` 55,
+  `plain:nothing` 19, `no-image` 9. The texts are of two kinds:
+  - A text that a field holds. In a chart: the title (`chart.title`), the title
+    of an axis (`x_axis.title`, `y_axis.title`), the name of a category
+    (`x_axis.categories[k]`) and the label of a series in the legend
+    (`series[i].label`). In a sequence chart: the name of a lane, the label of a
+    band and the label of an arrow or an event. These follow D9 and D10.
+  - A text that the chart computes: the labels of the ticks and the times. No
+    field holds them, so they wait for step 5.4, as the glyphs of math do.
+
+  The design of the work, with the steps of the math view and the label:
+  1. [x] **The chart.** The element pass records a `DrawnTextLine` for each text
+     of the first kind, with its part from the plot, such as
+     `.chart.x_axis.title`. The IO map keeps the lines. The pass draws the caret
+     and the band (`make_drawn_selection_elements`), and it draws no part
+     highlight while the selection is in a recorded text. The forward map gives
+     the place of a caret or a range on its line (`map_drawn_caret_forward`),
+     and any other path still maps to nothing. The backward map of a point on a
+     line gives the caret there, before the tests of the parts, so a move names
+     the text. Only the buttons and the bars of the chart come first, because
+     they lie on top of every part. The reader answers an Alt+click with the caret and an
+     Alt+double click with the text as a whole (`convert_to_whole_selection`),
+     and a key moves a caret in a text (`read_drawn_text_key`). A plain click
+     keeps its answer (D9): an axis title selects the axis, a legend item shows
+     or hides its series. Done: the IO map has the field `frame`, a cell of the
+     elements and the lines (`ChartPlotToGraphicsCanvasIoMap(p, plot, canvas,
+     geometry, frame, toolbar, horizontal, vertical)`). The legend records the
+     label of a series only when the legend shows that field, not the name of a
+     pie slice and not a name that the chart computes.
+  2. [x] **The sequence chart**, the same way. A plain click on the label of an
+     arrow, which does nothing today, selects the arrow (D9). Done: the lines are
+     the title, the name of a lane (`axes[k].label`) and the label of an arrow or
+     an event (`arrows.labels[k]`, `events.labels[k]`). A plain click of count 1
+     on a name or a label selects its lane, its arrow or its event, and on the
+     title the title. The IO map has the field `frame` after `geometry`.
+  3. [ ] **The checks.** Tests of the two readers, the walk of the chart examples
+     against the base, the chart and sequence chart suites, and the platform
+     suite.
+
+  Found in the work:
+  - A press that selects never acts, so an Alt+double click in the plot no
+    longer shows all the data again, and an Alt+click on a legend item selects
+    its series and does not hide it. Off a text they select the part at the
+    point, which is deeper than the whole chart that the reset left.
+  - A plain click on the title of the y axis did nothing: the title lies
+    between the chart title and the plot, where no test of a part hits. A plain
+    click on a recorded text of the title or an axis now selects that part.
+  - The names of the states in a band come from the state table of the band,
+    which every sample of that state shares, so a caret there would mark every
+    sample of the state. They wait for step 5.4 with the computed texts. The
+    labels of events are off by default (`event_labels`).
+  - A grid gives the rest of a path to its child without the types of its nodes
+    (`descend_reference_forward`), and the first stage of a chart needs them for
+    its case. So on main the forward map of every path into a chart in a grid
+    throws, and the first walk of the change counted the carets of
+    `examples/chart` and `examples/sequencechart_pair` as not drawn (46 lines).
+    The first stage of both charts now types such a path from the chart, as
+    `GraphGraphToWidgetScrollPane` does, and a path that it can not type maps to
+    nothing.
+  - `make_drawn_selection_elements` draws in the frame of the canvas of the
+    lines. The labels of a sequence chart lie in its body, a canvas in a
+    viewport, so the body marks its own lines and the frame marks the title and
+    the names of the lanes.
+  - The first walk of the change: 325 → 275 lines (`alt:no-caret` 182 → 118,
+    `move:differs` 55 → 18). The second, with the types and the body marks:
+    208 lines. The third, with no zoom on an Alt press: 205 lines
+    (`alt:no-caret` 118, `alt2:not-drawn` 47, `move:differs` 18,
+    `plain:nothing` 13, `no-image` 9). The 118 lines of `alt:no-caret` are the
+    labels of the ticks and the names of the states in a band, for step 5.4.
+  - The suites on main a2faf9fa0 with the change: `test_chart` 656 pass,
+    `test_sequencechart` 488, `test_fsm` 273, `test_process` 316,
+    `test_assistant_verbs` 98. `test_pivot` has the 2 failures and the error of
+    main (`PivotModuleTest.jl:21`, `:23`, `PivotZoneEditTest.jl:84`).
+    `test_reactivity` has 1 failure: in `conversation_widget` the fields `fold`
+    and `signature` are frozen. That pipeline draws no chart, so the failure
+    does not come from the change.
+  - An Alt press started the zoom drag of a chart. In the second press of an
+    Alt+double click, the release of that drag wrote a new view, because in a
+    grid the release comes with other coordinates than the press, so the label
+    moved before the click of count 2 came. The reset of the view by an
+    Alt+double click hid this before. A press with Alt now starts no zoom and no
+    pan, in both charts, because it selects (D10).
+  - Open, outside the texts: a whole part that an Alt+double click selects in a
+    plot draws no ring that the walk takes, such as the legend (an outline of
+    four lines), a series, a band, a lane or the arrows; and a move names a
+    sample or a row, `arrowsrow(6)`, where the whole part cuts the row away.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,

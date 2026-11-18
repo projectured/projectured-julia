@@ -83,6 +83,12 @@ function map_reference_forward(p::ChartToChartPlot, iomap, reference)
     # as an introduced reference.
     introduced = find_introduced_path(p, reference)
     introduced === nothing || return introduced
+    # A container gives a path without the types of its nodes, as a grid does, so
+    # the path takes them from the chart. A path that the chart can not type has no
+    # place in the plot.
+    is_fully_typed_reference(reference) ||
+        (reference = annotate_reference_types(iomap.input, strip_reference_types(reference)))
+    is_fully_typed_reference(reference) || return nothing
     ct = get_reference_node_type(iomap.input)
     @reference_case reference begin
         ∅ => @reference ::ChartPlot

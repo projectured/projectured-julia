@@ -70,6 +70,7 @@ SequenceChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=900,
     output::Any
     timeline::Cell     # the coordinate of every event, one cumulative pass
     geometry::Cell     # the laid-out frame: window, lanes, ticks, shapes
+    frame::Cell        # the elements of the frame, and the lines of the texts that a field holds
     toolbar::Cell      # the print of the buttons while they show, or nothing
     right_scroll_bar::Cell   # the print of the bar along the right edge of the body while it is there, or nothing
     bottom_scroll_bar::Cell  # the print of the bar along the bottom edge of the body while it is there, or nothing
@@ -369,7 +370,7 @@ _kind_color(kind, index::Integer, cycle, fallback) =
 
 # The chart's frame: background, title, the gutters with their ticks, the lane
 # labels. Everything here lives outside the scrolling body, so it stays put.
-function _frame_elements!(out, g)
+function _frame_elements!(out, g, drawn)
     style = g.style
     push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, g.background)))
     push!(out, GraphicsRect(round(Int, g.body_x), round(Int, g.body_y),
@@ -380,10 +381,11 @@ function _frame_elements!(out, g)
         title_line = compute_line_box(g.measure, g.title, g.title_font)
         push!(out, GraphicsText(g.title, g.padding, g.padding + title_line.text_y;
                                 font = g.title_font, color = _or(style.tick_color, g.title_color)))
+        _record_sequence_chart_text!(drawn, out, FieldReferenceStep("title"))
     end
 
     _gutter_elements!(out, g)
-    _lane_label_elements!(out, g)
+    _lane_label_elements!(out, g, drawn)
     out
 end
 
@@ -452,7 +454,7 @@ end
 
 # A lane's name, beside its line when time runs across and above the body when
 # time runs down. Horizontal in both cases — the backends do not rotate text.
-function _lane_label_elements!(out, g)
+function _lane_label_elements!(out, g, drawn)
     text_color = _or(g.style.axis_color, g.text_color)
     for (position, identity) in enumerate(g.order)
         position <= length(g.lanes) || break
@@ -469,6 +471,8 @@ function _lane_label_elements!(out, g)
                                     round(Int, cross + g.body_y - line.height / 2) + line.text_y;
                                     font = g.axis_font, color = text_color))
         end
+        _record_sequence_chart_text!(drawn, out, FieldReferenceStep("axes"), ElementReferenceStep(identity),
+                                     FieldReferenceStep("label"))
     end
     out
 end
@@ -476,13 +480,13 @@ end
 # The body: what scrolls and what is clipped. Drawn back to front — the stretches
 # where the clock stands still, the hairlines, the lanes, the bands, the arrows,
 # then the events on top of the arrows that connect them.
-function _body_elements!(out, g)
+function _body_elements!(out, g, drawn)
     _zero_time_elements!(out, g)
     _hairline_elements!(out, g)
     _lane_elements!(out, g)
     _band_elements!(out, g)
-    _arrow_elements!(out, g)
-    _event_elements!(out, g)
+    _arrow_elements!(out, g, drawn)
+    _event_elements!(out, g, drawn)
     out
 end
 
@@ -574,7 +578,7 @@ end
 # The arrows. A same-lane arrow arcs off its lane, because a straight line along
 # a lane would be invisible inside it; a long one is drawn as two stubs, because
 # at that length the line says nothing its ends do not.
-function _arrow_elements!(out, g)
+function _arrow_elements!(out, g, drawn)
     style = g.style
     cycle = _or(style.color_cycle, g.series_colors)
     for shape in g.shapes
@@ -595,7 +599,7 @@ function _arrow_elements!(out, g)
             _split_elements!(out, g, shape, color, dash, head)
         end
         (kind !== nothing && kind.elided) && _elided_marker!(out, g, shape, color)
-        _arrow_label!(out, g, shape, color)
+        _arrow_label!(out, g, shape, color, drawn)
     end
     out
 end
@@ -643,7 +647,7 @@ function _elided_marker!(out, g, shape, color)
     out
 end
 
-function _arrow_label!(out, g, shape, color)
+function _arrow_label!(out, g, shape, color, drawn)
     g.style.arrow_labels || return out
     label = get_arrow_label(g.chart.arrows, shape.index)
     (label === nothing || isempty(label)) && return out
@@ -657,13 +661,14 @@ function _arrow_label!(out, g, shape, color)
     x = clamp(x - line.width / 2, 0, max(g.body_w - line.width, 0))
     y = clamp(y - line.height - 3, 0, max(g.body_h - line.height, 0))
     push!(out, GraphicsText(label, round(Int, x), round(Int, y) + line.text_y; font = g.label_font, color = g.text_color))
+    _record_sequence_chart_label!(drawn, out, g.chart.arrows, "arrows", shape.index)
     out
 end
 
 _line_dash(style::Symbol, g) =
     style === :dashed ? g.dashed_arrow_dash : style === :dotted ? g.dotted_arrow_dash : nothing
 
-function _event_elements!(out, g)
+function _event_elements!(out, g, drawn)
     events = g.chart.events
     style = g.style
     cycle = _or(style.color_cycle, g.series_colors)
@@ -683,6 +688,7 @@ function _event_elements!(out, g)
         (label === nothing || isempty(label)) && continue
         push!(out, GraphicsText(label, round(Int, x + radius + 2),
                                 round(Int, y + radius); font = g.label_font, color = g.text_color))
+        _record_sequence_chart_label!(drawn, out, events, "events", i)
     end
     out
 end
@@ -925,18 +931,27 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                     with_exact_size(make_child_context(ctx, FieldReferenceStep(bottom_field[]));
                                     width = bottom_length, height = nothing)) : nothing)
 
-    elements = CellVector(@computation begin
+    # The elements, and the lines of the texts that a field holds, which the maps
+    # and the reader of such a text read.
+    frame = Cell(@computation begin
         g = geometry[]
-        g === nothing && return _empty_elements(p, plot, ctx, t)
+        g === nothing && return (elements = _empty_elements(p, plot, ctx, t), drawn = DrawnTextLine[])
         out = Any[]
-        _frame_elements!(out, g)
+        drawn = DrawnTextLine[]
+        _frame_elements!(out, g, drawn)
 
         body = Any[]
-        _body_elements!(body, g)
+        body_drawn = DrawnTextLine[]
+        _body_elements!(body, g, body_drawn)
         # Hover and selection are read *here* rather than in the layout, so
         # moving the pointer over a dense chart rebuilds this list and nothing
         # else. They draw last, over everything they call out.
         _overlay_elements!(body, g, plot)
+        # A selection in a text that a field holds draws its band behind the text
+        # and its caret on top, in the canvas that holds the line of the text: the
+        # body for a label, the frame for the title and the name of a lane.
+        selection = getfield(plot, :selection)[]
+        body = make_drawn_selection_elements(body, body_drawn, selection, p.measure, t.band_fill)
         # The buttons keep their corner, so a second click finds them; the range
         # readout ends left of them while they show.
         parts = _find_shown_sequence_chart_parts(g, plot, toolbar[], right[], bottom[])
@@ -965,8 +980,10 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         for part in reverse(parts)
             push!(out, GraphicsViewport(part.x, part.y, part.w, part.h, part.iomap.output))
         end
-        out
+        (elements = make_drawn_selection_elements(out, drawn, selection, p.measure, t.band_fill),
+         drawn = vcat(drawn, body_drawn))
     end)
+    elements = CellVector(@computation frame[].elements)
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
@@ -975,7 +992,7 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                             Cell(@computation Int32(_get_canvas_height(p, ctx))),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry, toolbar, right, bottom)
+    SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry, frame, toolbar, right, bottom)
 end
 
 # A chart-shaped placeholder for an empty or not-yet-typed root, so it still
@@ -1001,16 +1018,23 @@ get_lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), no
 # A chart part is not a cursor position: there is nowhere in the canvas for a
 # selection to land, and no output element a reference should follow. Selection
 # is instead expressed by what the reader selects and what the overlay
-# highlights, so a reference maps forward to nothing.
-map_reference_forward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
+# highlights, so a part maps forward to nothing. A caret or a range in a text
+# that a field holds is the place of its characters on the line of that text.
+map_reference_forward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) =
+    iomap isa SequenceChartPlotToGraphicsCanvasIoMap ?
+        map_drawn_caret_forward(iomap.frame.drawn, iomap.output, reference) : nothing
 
 # A point maps back to the part drawn at it, with the hit tests of the reader of
 # a click, in its order: a button or a bar, in the body an event, an arrow, a band
 # or a lane, and else the plot at that point, which the cursor readout reads;
-# beside the body, the lane of the label strip.
-function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, reference)
+# beside the body, the lane of the label strip. A point on a text that a field
+# holds maps to the caret at the character there, before the parts, so a move
+# names the text; a place of its characters maps to the caret or the range there.
+function map_reference_backward(p::SequenceChartPlotToGraphicsCanvas, iomap, reference)
+    iomap isa SequenceChartPlotToGraphicsCanvasIoMap || return nothing
     point = find_reference_point(reference)
-    point === nothing && return nothing
+    point === nothing && return reference === nothing ? nothing :
+                                map_drawn_place_backward(iomap.frame.drawn, iomap.output, reference)
     g = iomap.geometry
     g === nothing && return nothing
     plot, x, y = iomap.input, point.x, point.y
@@ -1019,6 +1043,8 @@ function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, refe
     # part of them there.
     shown = find_drawn_child_at(_find_shown_sequence_chart_parts(iomap), x, y)
     shown === nothing || return map_drawn_child_point(plot, shown, x, y)
+    caret = find_drawn_caret(iomap.frame.drawn, iomap.output, x, y, p.measure)
+    caret === nothing || return annotate_reference_types(plot, caret)
     if _in_body(g, x, y)
         part = _find_sequence_chart_part(g, plot, x, y)
         part === nothing || return part
@@ -1032,6 +1058,52 @@ function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, refe
     end
     lane = _label_strip_lane(g, x, y)
     lane === nothing ? nothing : lift_sequence_chart_reference(plot, get_axis_reference(chart, lane))
+end
+
+# ── The texts that a field holds ─────────────────────────────────────────
+#
+# The title, the name of a lane, and the label of an arrow or an event are texts
+# of fields of the chart. The element pass records the line of each
+# (`DrawnTextLine`), with its part from the plot, such as `.chart.axes[2].label`.
+# So an Alt+click puts the caret at a character there, an Alt+double click selects
+# the text as a whole, a move names the text, and a key moves the caret,
+# read-only, as in the text of a label. The labels of the ticks, the prefix of the
+# times and the names of the states of a band have no field of their own, so no
+# line is recorded for them.
+
+# Record the text that the pass drew last, `out[end]`, as the line of the part of
+# the chart at the field steps `steps`.
+_record_sequence_chart_text!(drawn, out, steps::ReferenceStep...) =
+    push!(drawn, DrawnTextLine(out[end], extend_reference(EmptyReference(), FieldReferenceStep("chart"), steps...), 0))
+
+# Record the text that the pass drew last as the label of row `k` of `table`, the
+# arrows or the events of the chart at `field`, while the table holds its labels
+# as a list. A table that a trace reads holds no list to put a caret in.
+function _record_sequence_chart_label!(drawn, out, table, field::String, k::Integer)
+    (table isa Union{SequenceChartArrows, SequenceChartEvents} && table.labels isa AbstractVector) || return drawn
+    _record_sequence_chart_text!(drawn, out, FieldReferenceStep(field), FieldReferenceStep("labels"),
+                                 ElementReferenceStep(k))
+end
+
+# The part that a plain click on a text that a field holds selects, from `caret`,
+# the caret at the point: the arrow or the event of a label, the lane of a name,
+# and the title as a whole. `nothing` for any other text.
+function _find_sequence_chart_text_part(plot, caret)
+    chart = plot.chart
+    steps = get_reference_steps(strip_reference_types(caret))
+    length(steps) >= 3 || return nothing
+    field = steps[2]
+    inner = if field == FieldReferenceStep("title")
+        annotate_reference_types(chart, ConcreteReference(FieldReferenceStep("title"), EmptyReference()))
+    elseif field == FieldReferenceStep("axes")
+        get_axis_reference(chart, steps[3].start + 1)
+    elseif length(steps) >= 4 && steps[3] == FieldReferenceStep("labels")
+        field == FieldReferenceStep("arrows") ? get_arrow_reference(chart, steps[4].start + 1) :
+        field == FieldReferenceStep("events") ? get_event_reference(chart, steps[4].start + 1) : nothing
+    else
+        nothing
+    end
+    lift_sequence_chart_reference(plot, inner)
 end
 
 # The event or the arrow drawn at `(x, y)` of the body, as a reference from the
@@ -1216,8 +1288,12 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap::SequenceChartP
     if event isa MouseScroll
         return _read_scroll(g, plot, event)
     elseif event isa MouseDown && event.button in (:left, :middle)
-        return _drag_start(g, plot, event)
+        # A press with Alt selects, so it starts no zoom and no pan.
+        return event.modifiers.alt ? nothing : _drag_start(g, plot, event)
     elseif event isa Union{KeyDown, KeyPress}
+        # A key moves a caret or a range in a text that a field holds, read-only.
+        text = read_drawn_text_key(iomap.frame.drawn, plot, event, p.measure)
+        text === nothing || return text
         return _key_intent(g, plot, event)
     elseif event isa Union{DragMove, DragEnd, DragCancel}
         # The drag comes by the path of the plot, also off the body: the drag of the
@@ -1234,7 +1310,7 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap::SequenceChartP
         # the plot, whose menu holds the view actions.
         return read_child_part_gesture(iomap, event)
     elseif event isa MouseClick
-        return _read_click(g, plot, event)
+        return _read_click(g, plot, event, iomap)
     end
     nothing
 end
@@ -1243,15 +1319,30 @@ end
 # one the reference tool settled on and for the same reason: an occurrence is a
 # point and an arrow is a line, so where both are within reach the point was almost
 # certainly what was aimed at. Another button moves no selection.
-function _read_click(g, plot::SequenceChartPlot, gesture::MouseClick)
+#
+# On a text that a field holds, an Alt+click puts the caret at the character, an
+# Alt+double click selects the text as a whole, and a plain click selects the part
+# that the text names (`_find_sequence_chart_text_part`). A press that selects
+# never acts.
+function _read_click(g, plot::SequenceChartPlot, gesture::MouseClick, iomap)
     gesture.button === :left || return nothing
     chart = plot.chart
     x, y = gesture.x, gesture.y
+    selecting = is_selection_press(gesture)
+    caret = find_drawn_caret(iomap.frame.drawn, iomap.output, x, y, iomap.projection.measure)
+    if caret !== nothing
+        if selecting
+            answer = ReplaceSelectionOperation(annotate_reference_types(plot, caret))
+            return is_caret_press(gesture) ? answer : convert_to_whole_selection(answer, plot)
+        end
+        part = gesture.count == 1 ? _find_sequence_chart_text_part(plot, caret) : nothing
+        part === nothing || return ReplaceSelectionOperation(part)
+    end
 
     # Double-click returns to the whole trace: the reliable way out of a zoom,
     # and the one people reach for without being told. On the time axis it fits
     # the time.
-    if gesture.count >= 2 && (_in_body(g, x, y) || _is_over_time_axis(g, x, y))
+    if gesture.count >= 2 && !selecting && (_in_body(g, x, y) || _is_over_time_axis(g, x, y))
         plot.view === nothing && return nothing
         return _write_view_state(plot, "view", nothing)
     end

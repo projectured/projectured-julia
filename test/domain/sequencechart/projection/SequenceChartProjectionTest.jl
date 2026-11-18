@@ -444,6 +444,66 @@ function test_sequencechart_projection()
             @test plot.view === nothing
         end
 
+        @testset "a text that a field holds takes the caret, and a plain click selects what it names" begin
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            stage2 = _stage2_iomap(iomap)
+            p, plot = stage2.projection, stage2.input
+            g = _geometry_of(iomap)
+            read(event) = read_intent(p, stage2, event)
+            path_of(op) = strip_reference_types(op.path)
+            part(steps...) = extend_reference(EmptyReference(), FieldReferenceStep("chart"), steps...)
+            characters(path, a, b) = concat_references(path, ConcreteReference(RangeReferenceStep(a, b), EmptyReference()))
+            # A point a quarter into the character `k` of the text of `path`, at the
+            # place of that character on its drawn line.
+            function point_in(path, k)
+                place = map_reference_forward(p, stage2, characters(path, k - 1, k))
+                box = place === nothing ? nothing : find_reference_box(stage2.output, place; measure = p.measure)
+                box === nothing ? (-1, -1) : (box.x + max(1, box.width ÷ 4), box.y + box.height ÷ 2)
+            end
+            alt = ModifierKeys(; alt = true)
+            lookup = part(FieldReferenceStep("arrows"), FieldReferenceStep("labels"), ElementReferenceStep(2))
+            (x, y) = point_in(lookup, 3)
+            # An Alt+click on the label of an arrow puts the caret before the
+            # character, an Alt+double click selects the label as a whole, and a move
+            # names the caret there.
+            @test path_of(read(MouseClick(:left, x, y, 1, alt; time = 0.0))) == characters(lookup, 2, 2)
+            @test path_of(read(MouseClick(:left, x, y, 2, alt; time = 0.0))) == lookup
+            @test strip_reference_types(map_reference_backward(p, stage2, PointReferenceStep(x, y))) ==
+                  characters(lookup, 2, 2)
+            # A plain click on the label selects its arrow, on the name of a lane the
+            # lane, and on the title the title.
+            @test path_of(read(MouseClick(:left, x, y, 1, _sc_no_modifier; time = 0.0))) ==
+                  strip_reference_types(lift_sequence_chart_reference(plot, get_arrow_reference(chart, 2)))
+            server = part(FieldReferenceStep("axes"), ElementReferenceStep(2), FieldReferenceStep("label"))
+            @test path_of(read(MouseClick(:left, point_in(server, 2)..., 1, _sc_no_modifier; time = 0.0))) ==
+                  part(FieldReferenceStep("axes"), ElementReferenceStep(2))
+            title = part(FieldReferenceStep("title"))
+            @test path_of(read(MouseClick(:left, point_in(title, 2)..., 1, _sc_no_modifier; time = 0.0))) == title
+            # A key moves the caret in the label, read-only.
+            chart.selection = annotate_reference_types(chart, characters(extend_reference(EmptyReference(),
+                FieldReferenceStep("arrows"), FieldReferenceStep("labels"), ElementReferenceStep(2)), 2, 2))
+            @test path_of(read(KeyDown(:right, _sc_no_modifier; time = 0.0))) == characters(lookup, 3, 3)
+            # The label as a whole draws a band behind its text, in the canvas of the
+            # body that holds the text.
+            chart.selection = annotate_reference_types(chart, extend_reference(EmptyReference(),
+                FieldReferenceStep("arrows"), FieldReferenceStep("labels"), ElementReferenceStep(2)))
+            holds_lookup(canvas) = any(e -> e isa GraphicsText && String(e.text) == "lookup", collect(canvas.elements))
+            body = only(e.content for e in collect(stage2.output.elements)
+                        if e isa GraphicsViewport && e.content isa GraphicsCanvas && holds_lookup(e.content))
+            text = only(e for e in collect(body.elements) if e isa GraphicsText && String(e.text) == "lookup")
+            fill = get_theme_defaults(SequenceChartTheme).band_fill
+            @test any(e -> e isa GraphicsRect && e.color == fill && e.x == round(Int, text.x) &&
+                           e.y <= text.y < e.y + e.h, collect(body.elements))
+            # A press with Alt in the body selects, so it starts no zoom.
+            @test read(MouseDown(:left, round(Int, g.body_x + g.body_w / 2), round(Int, g.body_y + g.body_h / 2), alt;
+                                 time = 0.0)) === nothing
+            # An Alt+double click off the texts selects and does not clear the window.
+            plot.view = SequenceChartView(1, 0.0, 0.5)
+            corner = MouseClick(:left, round(Int, g.body_x + 2), round(Int, g.body_y + 2), 2, alt; time = 0.0)
+            @test !(read(corner) isa ReplaceViewStateOperation)
+        end
+
         @testset "Ctrl and the wheel zoom about the pointer" begin
             chart = _sc_chart()
             iomap = _sequencechart_iomap(chart)

@@ -89,6 +89,7 @@ ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::In
     input::Any
     output::Any
     geometry::Cell      # the laid-out frame: ranges, plot rect, scales, ticks
+    frame::Cell         # the elements of the frame, and the lines of the texts that a field holds
     toolbar::Cell       # the print of the buttons while they show, or nothing
     horizontal_scroll_bar::Cell  # the print of the bar under the plot while it is there, or nothing
     vertical_scroll_bar::Cell    # the print of the bar right of the plot while it is there, or nothing
@@ -666,7 +667,7 @@ function get_legend_item_rects(plan, pad::Integer = get_theme_defaults(ChartThem
     out
 end
 
-function _legend_elements!(out, g)
+function _legend_elements!(out, g, drawn)
     plan = g.legend
     plan === nothing && return out
     style = g.style
@@ -703,6 +704,14 @@ function _legend_elements!(out, g)
         th = line.height
         push!(out, GraphicsText(label, x + t.swatch + t.legend_gap, cy - th ÷ 2 + line.text_y;
                                 font = plan.font, color = label_color))
+        # The label of a series is its field `label`; the slices of a pie, the
+        # states of a strip and the reason of a function series are other texts.
+        if index != 0
+            s = g.chart.series[index]
+            s isa ChartPieSeries || label != _series_label(s) ||
+                _record_chart_text!(drawn, out, FieldReferenceStep("series"), ElementReferenceStep(index),
+                                    FieldReferenceStep("label"))
+        end
     end
 
     # Whatever did not fit is accounted for rather than silently dropped.
@@ -843,8 +852,11 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     xs = AxisScale(view.x_min, view.x_max, plot_x, plot_x + plot_w; log=xlog)
     ys = AxisScale(view.y_min, view.y_max, plot_y + plot_h, plot_y; log=ylog)
 
-    selected_index = _reference_series_index(chart, chart.selection)
-    selected_part = get_chart_part_index(chart, chart.selection)
+    # A selection in a text that a field holds shows as the band or the caret of
+    # that text, so no part and no series lights for it.
+    in_text = _is_chart_text_path(chart.selection)
+    selected_index = in_text ? 0 : _reference_series_index(chart, chart.selection)
+    selected_part = in_text ? 0 : get_chart_part_index(chart, chart.selection)
     whole_selected = chart.selection isa EmptyReference
 
     measure_label = label -> compute_line_box(p.measure, label, axis_font)
@@ -909,7 +921,7 @@ end
 
 # ── Frame elements ───────────────────────────────────────────────────────
 
-function _frame_elements!(out, g)
+function _frame_elements!(out, g, drawn)
     style = g.style
     t = g.theme_values
     grid_color = _or(style.grid_color, t.grid)
@@ -955,6 +967,9 @@ function _frame_elements!(out, g)
         tw, th = line.width, line.height
         push!(out, GraphicsText(g.ylabels[i], px - t.tick_length - t.label_gap - tw, y - th ÷ 2 + line.text_y;
                                 font = g.axis_font, color = text_color))
+        # A chart of strips names each strip by the label of its series.
+        g.strip_only && _record_chart_text!(drawn, out, FieldReferenceStep("series"),
+                                            ElementReferenceStep(g.series[i][1]), FieldReferenceStep("label"))
     end
     for i in eachindex(g.xlabels)
         x = round(Int, to_pixel(g.xs, g.xticks[i]))
@@ -963,23 +978,75 @@ function _frame_elements!(out, g)
         line = g.xsizes[i]
         push!(out, GraphicsText(g.xlabels[i], x - line.width ÷ 2, py + ph + t.tick_length + t.label_gap + line.text_y;
                                 font = g.axis_font, color = text_color))
+        # On a category axis a tick is the number of its category.
+        chart.x_axis isa ChartCategoryAxis &&
+            _record_chart_text!(drawn, out, FieldReferenceStep("x_axis"), FieldReferenceStep("categories"),
+                                ElementReferenceStep(round(Int, g.xticks[i])))
     end
 
     _selection_elements!(out, g)
 
-    isempty(g.title) ||
+    if !isempty(g.title)
         push!(out, GraphicsText(g.title, px, t.padding + g.title_text_y; font = g.title_font,
                                 color = _or(style.title_color, t.title_color)))
+        _record_chart_text!(drawn, out, FieldReferenceStep("title"))
+    end
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.
-    isempty(g.y_title) ||
+    if !isempty(g.y_title)
         push!(out, GraphicsText(g.y_title, px, t.padding + g.title_h + g.y_title_text_y;
                                 font = g.axis_title_font, color = text_color))
-    isempty(g.x_title) ||
+        _record_chart_text!(drawn, out, FieldReferenceStep("y_axis"), FieldReferenceStep("title"))
+    end
+    if !isempty(g.x_title)
         push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - t.padding - g.x_title_h + 2 + g.x_title_text_y;
                                 font = g.axis_title_font, color = text_color))
+        _record_chart_text!(drawn, out, FieldReferenceStep("x_axis"), FieldReferenceStep("title"))
+    end
     out
+end
+
+# ── The texts that a field holds ─────────────────────────────────────────
+#
+# The title, the title of an axis, the name of a category, and the label of a
+# series in the legend or beside its strip are texts of fields of the chart. The
+# element pass records the line of each (`DrawnTextLine`), with its part from the
+# plot, such as `.chart.x_axis.title`. So an Alt+click puts the caret at a
+# character there, an Alt+double click selects the text as a whole, a move names
+# the text, and a key moves the caret, read-only, as in the text of a label. The
+# labels of the ticks and the other texts that the chart computes have no field,
+# so no line is recorded for them.
+
+# Record the text that the pass drew last, `out[end]`, as the line of the part of
+# the chart at the field steps `steps`.
+_record_chart_text!(drawn, out, steps::ReferenceStep...) =
+    push!(drawn, DrawnTextLine(out[end], extend_reference(EmptyReference(), FieldReferenceStep("chart"), steps...), 0))
+
+# Whether `reference`, a path from the chart, goes into one of those texts.
+function _is_chart_text_path(reference)
+    reference isa ConcreteReference || return false
+    steps = get_reference_steps(strip_reference_types(reference))
+    head = steps[1]
+    head == FieldReferenceStep("title") && return true
+    if head == FieldReferenceStep("x_axis") || head == FieldReferenceStep("y_axis")
+        length(steps) >= 2 || return false
+        steps[2] == FieldReferenceStep("title") && return true
+        return steps[2] == FieldReferenceStep("categories") && length(steps) >= 3
+    end
+    head == FieldReferenceStep("series") && length(steps) >= 3 && steps[3] == FieldReferenceStep("label")
+end
+
+# The part of the frame that the text of `caret`, a caret from the plot in one of
+# those texts, belongs to: `:title`, `:x_axis` or `:y_axis`, or `nothing` for the
+# label of a series, which its legend item or its strip reads.
+function _find_chart_text_part(caret)
+    steps = get_reference_steps(strip_reference_types(caret))
+    length(steps) >= 2 || return nothing
+    field = steps[2]
+    field == FieldReferenceStep("title") ? :title :
+    field == FieldReferenceStep("x_axis") ? :x_axis :
+    field == FieldReferenceStep("y_axis") ? :y_axis : nothing
 end
 
 # What a selection looks like. Every part of a chart is a document that can be
@@ -1911,15 +1978,18 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                     with_exact_size(make_child_context(ctx, FieldReferenceStep("horizontal_scroll_bar"));
                                     width = horizontal_length, height = nothing)) : nothing)
 
-    elements = CellVector(@computation begin
+    # The elements, and the lines of the texts that a field holds, which the maps
+    # and the reader of such a text read.
+    frame = Cell(@computation begin
         g = geometry[]
-        g === nothing && return _empty_elements(p, plot, ctx, t)
+        g === nothing && return (elements = _empty_elements(p, plot, ctx, t), drawn = DrawnTextLine[])
         # The series that the pointer is on lights, and the others are veiled. The
         # element pass reads it, which each move of the cursor runs, and the
         # layout does not.
         g = merge(g, (lit_index = _reference_series_index(g.chart, getfield(plot, :mouse_target)[]),))
         out = Any[]
-        _frame_elements!(out, g)
+        drawn = DrawnTextLine[]
+        _frame_elements!(out, g, drawn)
 
         # A series whose family does not match the x axis is a configuration
         # error, not a crash: it is left out and the frame still draws.
@@ -1940,13 +2010,17 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         content = GraphicsCanvas(series_out; w = g.plot_w, h = g.plot_h)
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
         # Last, so an inside legend sits over the series rather than under them.
-        _legend_elements!(out, g)
+        _legend_elements!(out, g, drawn)
         # The bars, and the buttons over everything.
         for part in reverse(_find_shown_chart_parts(g, plot, toolbar[], horizontal[], vertical[]))
             push!(out, GraphicsViewport(part.x, part.y, part.w, part.h, part.iomap.output))
         end
-        out
+        (elements = out, drawn)
     end)
+    # A selection in such a text draws its band behind the text and its caret on top.
+    elements = CellVector(@computation make_drawn_selection_elements(frame[].elements, frame[].drawn,
+                                                                     getfield(plot, :selection)[], p.measure,
+                                                                     t.selected_fill))
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
@@ -1955,7 +2029,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
                             Cell(@computation Int32(_get_canvas_height(p, ctx))),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
-    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, toolbar, horizontal, vertical)
+    ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry, frame, toolbar, horizontal, vertical)
 end
 
 # Whether the buttons of `plot` show: while the pointer is over the chart and no
@@ -2051,17 +2125,24 @@ end
 # A chart part is not a cursor position: there is nowhere in the canvas for a
 # selection to land, and no output element a reference should follow. Selection
 # is instead expressed by what the reader selects and what the frame highlights,
-# so a reference maps forward to nothing.
-map_reference_forward(::ChartPlotToGraphicsCanvas, iomap, reference) = nothing
+# so a part maps forward to nothing. A caret or a range in a text that a field
+# holds is the place of its characters on the line of that text.
+map_reference_forward(::ChartPlotToGraphicsCanvas, iomap, reference) =
+    iomap isa ChartPlotToGraphicsCanvasIoMap ? map_drawn_caret_forward(iomap.frame.drawn, iomap.output, reference) :
+    nothing
 
 # A point maps back to the part drawn at it, with the hit tests of the reader of
 # a click, in its order: a legend item to its series and the rest of the legend
 # to the legend, a part of the frame to that part, a data point to the point, a
 # series line to its series. Any other point of the plot area maps to the plot
-# at that point, which the cursor readout reads.
-function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
+# at that point, which the cursor readout reads. A point on a text that a field
+# holds maps to the caret at the character there, before the parts, so a move
+# names the text; a place of its characters maps to the caret or the range there.
+function map_reference_backward(p::ChartPlotToGraphicsCanvas, iomap, reference)
+    iomap isa ChartPlotToGraphicsCanvasIoMap || return nothing
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa ChartPlotToGraphicsCanvasIoMap)) && return nothing
+    point === nothing && return reference === nothing ? nothing :
+                                map_drawn_place_backward(iomap.frame.drawn, iomap.output, reference)
     g = iomap.geometry
     g === nothing && return nothing
     plot, x, y = iomap.input, point.x, point.y
@@ -2074,6 +2155,8 @@ function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
     # part of them there.
     shown = find_drawn_child_at(_find_shown_chart_parts(iomap), x, y)
     shown === nothing || return map_drawn_child_point(plot, shown, x, y)
+    caret = find_drawn_caret(iomap.frame.drawn, canvas, x, y, p.measure)
+    caret === nothing || return annotate_reference_types(plot, caret)
     index = _legend_hit(g, x, y)
     index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
                                         get_chart_part_reference(:legend, plot)
@@ -2174,8 +2257,12 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     if event isa MouseScroll
         return has_window ? _scroll_intent(g, plot, event) : nothing
     elseif event isa MouseDown && event.button in (:left, :middle)
-        return has_window ? _drag_start(g, plot, event) : nothing
+        # A press with Alt selects, so it starts no zoom and no pan.
+        return has_window && !event.modifiers.alt ? _drag_start(g, plot, event) : nothing
     elseif event isa Union{KeyDown, KeyPress}
+        # A key moves a caret or a range in a text that a field holds, read-only.
+        text = read_drawn_text_key(iomap.frame.drawn, plot, event, p.measure)
+        text === nothing || return text
         return has_window ? _key_intent(g, plot, event) : nothing
     elseif event isa Union{DragMove, DragEnd, DragCancel}
         # The drag comes by the path of the plot, also off the plot: the drag of
@@ -2192,10 +2279,21 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         # the plot, whose menu holds the view actions.
         return read_child_part_gesture(iomap, event)
     elseif event isa MouseClick && event.button === :left
+        # An Alt+click on a text that a field holds puts the caret at the character,
+        # and an Alt+double click selects the text as a whole. A press that selects
+        # never acts, so off such a text it selects the part at the point.
+        selecting = is_selection_press(event)
+        if selecting
+            caret = find_drawn_caret(iomap.frame.drawn, iomap.output, event.x, event.y, p.measure)
+            if caret !== nothing
+                answer = ReplaceSelectionOperation(annotate_reference_types(plot, caret))
+                return is_caret_press(event) ? answer : convert_to_whole_selection(answer, plot)
+            end
+        end
         # A double click in the plot shows all the data again, and a double click
         # on an axis fits that axis. A fit that changes nothing goes on to the
         # click, which selects the axis.
-        if has_window && event.count >= 2
+        if has_window && event.count >= 2 && !selecting
             _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) &&
                 return _set_view(plot, nothing)
             fit = _is_over_x_axis(g, event.x, event.y) ? _fit_axis_view(plot, :x) :
@@ -2203,6 +2301,8 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
             fit === nothing || return fit
         end
         index = _legend_hit(g, event.x, event.y)
+        index isa Int && index > 0 && selecting &&
+            return ReplaceSelectionOperation(get_chart_series_reference(index, plot))
         if index isa Int && index > 0
             # Clicking a legend item hides or shows the series it stands for —
             # a content edit, unlike everything else the legend does.
@@ -2211,6 +2311,12 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
         elseif index isa Int
             return ReplaceSelectionOperation(get_chart_part_reference(:legend, plot))
         end
+        # A plain click on the title or on a text of an axis selects that part,
+        # also where the title of an axis lies beside the strip of the axis.
+        caret = event.count == 1 ? find_drawn_caret(iomap.frame.drawn, iomap.output, event.x, event.y, p.measure) :
+                nothing
+        part = caret === nothing ? nothing : _find_chart_text_part(caret)
+        part === nothing || return ReplaceSelectionOperation(get_chart_part_reference(part, plot))
         part = _part_hit(g, event.x, event.y)
         part === nothing || return ReplaceSelectionOperation(get_chart_part_reference(part, plot))
         # A click on a data point selects the point; anywhere else on a series'

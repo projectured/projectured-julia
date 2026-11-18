@@ -439,15 +439,73 @@ function test_chart_projection()
             click = read_intent(stage.projection, stage, MouseClick(:left, sx, sy; time = 0.0))
             @test click isa ReplaceSelectionOperation
             @test is_reference_equal(at(sx, sy), click.path)
-            # A legend item maps to its series.
+            # The swatch of a legend item maps to its series; its label is a text.
             if g.legend !== nothing
                 (index, ix, iy, iw, ih) = first(get_legend_item_rects(g.legend))
-                @test is_reference_equal(at(ix + iw ÷ 2, iy + ih ÷ 2),
+                @test is_reference_equal(at(ix + 2, iy + ih ÷ 2),
                                          get_chart_series_reference(index, stage.input))
             end
             # The whole chain maps a data point on to the chart.
             @test map_reference_backward(iomap.projection, iomap, PointReferenceStep(sx, sy)) !== nothing
             @test at(-50, -50) === nothing
+        end
+
+        @testset "a text that a field holds takes the caret, and the frame draws it" begin
+            chart = _line_chart()
+            iomap = _chart_iomap(chart)
+            stage = iomap.step_iomaps[2][]
+            p, plot = stage.projection, stage.input
+            read(event) = read_intent(p, stage, event)
+            path_of(op) = strip_reference_types(op.path)
+            texts() = [e for e in collect(stage.output.elements) if e isa GraphicsText]
+            # A point a quarter into the character `k` of the drawn text `label`, so
+            # the caret nearest to it is before that character.
+            function point_in(label, k)
+                text = only(e for e in texts() if String(e.text) == label)
+                offsets = compute_caret_offsets(p.measure, label, text.font)
+                box = compute_line_box(p.measure, label, text.font)
+                (round(Int, text.x + offsets[k] + (offsets[k + 1] - offsets[k]) / 4),
+                 round(Int, text.y - box.text_y + box.height ÷ 2))
+            end
+            part(steps...) = extend_reference(EmptyReference(), FieldReferenceStep("chart"), steps...)
+            caret(path, k) = concat_references(path, ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
+            x_title = part(FieldReferenceStep("x_axis"), FieldReferenceStep("title"))
+            (x, y) = point_in("time (s)", 3)
+            # An Alt+click puts the caret before the character, an Alt+double click
+            # selects the title as a whole, and a move names the caret there.
+            @test path_of(read(MouseClick(:left, x, y, 1, alt_modifier; time = 0.0))) == caret(x_title, 2)
+            @test path_of(read(MouseClick(:left, x, y, 2, alt_modifier; time = 0.0))) == x_title
+            @test strip_reference_types(map_reference_backward(p, stage, PointReferenceStep(x, y))) ==
+                  caret(x_title, 2)
+            # A plain click on the title of the y axis, which lies beside the strip of
+            # the axis, selects the axis, and on the title of the chart the title.
+            @test path_of(read(MouseClick(:left, point_in("value", 2)..., 1, no_modifier; time = 0.0))) ==
+                  part(FieldReferenceStep("y_axis"))
+            @test path_of(read(MouseClick(:left, point_in("Signal", 2)..., 1, no_modifier; time = 0.0))) ==
+                  part(FieldReferenceStep("title"))
+            # An Alt+click on the label of a series in the legend puts the caret there
+            # and does not hide the series.
+            @test any(text -> String(text.text) == "cos", texts())
+            label = part(FieldReferenceStep("series"), ElementReferenceStep(2), FieldReferenceStep("label"))
+            op = read(MouseClick(:left, point_in("cos", 2)..., 1, alt_modifier; time = 0.0))
+            @test op isa ReplaceSelectionOperation && path_of(op) == caret(label, 1)
+            # The caret in the title of the x axis is drawn at the character, and a
+            # key moves it, read-only.
+            getfield(chart, :selection)[] = annotate_reference_types(chart,
+                caret(extend_reference(EmptyReference(), FieldReferenceStep("x_axis"), FieldReferenceStep("title")), 2))
+            image = map_reference_forward(p, stage, getfield(plot, :selection)[])
+            box = image === nothing ? nothing : find_reference_box(stage.output, image; measure = p.measure)
+            @test box !== nothing && abs(box.x - x) <= 3
+            @test path_of(read(KeyDown(:right, no_modifier; time = 0.0))) == caret(x_title, 3)
+            # A press with Alt in the plot selects, so it starts no zoom.
+            g = stage.geometry
+            @test read(MouseDown(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, alt_modifier; time = 0.0)) ===
+                  nothing
+            # The title as a whole draws a band behind its text.
+            getfield(chart, :selection)[] = @reference ::Chart.x_axis::ChartAxis.title::String
+            fill = get_theme_defaults(ChartTheme).selected_fill
+            @test any(e -> e isa GraphicsRect && e.color == fill && e.x <= x < e.x + e.w && e.y <= y < e.y + e.h,
+                      collect(stage.output.elements))
         end
 
         @testset "a sample step hashes as it compares" begin
