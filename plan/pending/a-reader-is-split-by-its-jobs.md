@@ -237,7 +237,8 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   [xml.md](../../documentation/package/domain/xml/xml.md) and
   [markdown.md](../../documentation/package/domain/markdown/markdown.md).
   Test: `test_kernel()` with a testset for each of the eight cases of §7, the nested XML case of §7 in `test_xml()`, and the suites of step 3.
-- [ ] **4. The stages.** The 249 readers that only map become methods of
+- [x] **4. The stages.** Landed 2026-11-18 after R3 (§7), rebased with no conflict over main
+  a2faf9fa0, whose two commits only call `read_intent` through the bridge. The 249 readers that only map become methods of
   `map_operation_backward`, the 56 that only read a gesture become methods of `read_gesture`,
   and the 110 bridges, declines and identities go, slice by slice in the order of the package
   graph. Test: the suite of each slice.
