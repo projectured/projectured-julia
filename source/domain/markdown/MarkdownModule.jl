@@ -13,7 +13,7 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!, set_cell_value!
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+import ..ProjectionModule: print_document, map_operation_backward, map_reference_forward, map_reference_backward,
                            get_projection_gesture_bindings
 import ..NavigatorModule: find_navigator_target
 import ..LinkModule: is_link, get_link_target, get_link_content

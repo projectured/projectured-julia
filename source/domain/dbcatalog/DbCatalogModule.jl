@@ -14,7 +14,9 @@ using ..PlatformModule
 using ..SqlModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: map_operation_backward
+import ..GestureBindingModule: read_gesture
 
 export DbCatalogDocument
 export DbCatalogRdbmsToSql, DbCatalogDatabaseToSql, DbCatalogSchemaToSql,

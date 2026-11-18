@@ -299,15 +299,10 @@ function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::Markdow
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style, shape); paths...))
 end
 
-function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
-end
-
-function read_intent(p::MarkdownStyledTextToSyntaxLeaf, iomap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── MarkdownStyledInline (rendered Strong/Emphasis/Heading/Link) ───────────────
@@ -464,12 +459,7 @@ for (T, D) in ((:MarkdownStrongToStyledNode,   :MarkdownStrong),
     end
 end
 
-function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : make_path_operation(op, r)
-end
-
-function read_intent(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::MarkdownStyledInline, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
@@ -532,11 +522,7 @@ function map_reference_backward(::MarkdownImageToStyledNode, iomap::SimpleIoMap,
     end
 end
 
-function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplacePathOperation)
-    r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : make_path_operation(op, r)
-end
-function read_intent(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::MarkdownImageToStyledNode, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end
@@ -608,11 +594,7 @@ function map_reference_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMa
     end
 end
 
-function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    r = map_reference_backward(p, iomap, op.path)
-    r === nothing ? nothing : make_path_operation(op, r)
-end
-function read_intent(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::MarkdownListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     r = map_reference_backward(p, iomap, op.reference)
     (r === nothing || has_introduced_step(r)) ? nothing : ReplaceStringRangeOperation(r, op.replacement)
 end

@@ -75,11 +75,6 @@ function print_document(p::MathVariableToSyntaxLeaf, recursion, v::MathVariable,
     iomap
 end
 
-function read_intent(p::MathVariableToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
 # ── MathBinaryOperationToSyntaxNode ───────────────────────────────────────────
 
 @projection UntrackedCell struct MathBinaryOperationToSyntaxNode
@@ -177,11 +172,6 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
     iomap
 end
 
-function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
-end
-
 # ── MathParenthesizedToSyntaxNode ─────────────────────────────────────────────
 
 @projection UntrackedCell struct MathParenthesizedToSyntaxNode
@@ -248,11 +238,6 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
     iomap = ChildrenIoMap(p, m, node, content_iomap)
     iomap_cell[] = iomap
     iomap
-end
-
-function read_intent(p::MathParenthesizedToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── MathAssignmentToSyntaxNode ────────────────────────────────────────────────
@@ -349,11 +334,6 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
     iomap = ChildrenIoMap(p, m, node, Cell(@computation [target_iomap[], value_iomap[]]))
     iomap_cell[] = iomap
     iomap
-end
-
-function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── Shared styles for the template rules ─────────────────────────────────────

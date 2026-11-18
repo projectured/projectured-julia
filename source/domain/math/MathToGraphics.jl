@@ -1861,7 +1861,7 @@ caret and starts the drag of a range, a click with Shift moves the moving end
 there, the moves of the drag reach the leaf that holds the selection, and a key
 moves the caret or the range in it, read-only.
 """
-function read_intent(p::MathProjection, iomap::MathIoMap, event)
+function read_gesture(p::MathProjection, iomap::MathIoMap, event; answer = nothing)
     event isa MouseMove && return _read_math_move(iomap, event)
     event isa Union{DragMove, DragEnd} && return _read_selected_leaf(iomap, event, _read_leaf_pointer)
     event isa MouseDown && event.button === :left && return _read_point_leaf(iomap, event, _read_leaf_pointer)
@@ -1872,6 +1872,9 @@ function read_intent(p::MathProjection, iomap::MathIoMap, event)
     (event isa KeyDown || event isa KeyPress) || return nothing
     _read_key(iomap, event)
 end
+
+# An operation of the output has no image in the input of a formula.
+map_operation_backward(p::MathProjection, iomap::MathIoMap, operation) = nothing
 
 # A move names the part under the pointer, as a click selects it: the caret on the
 # text of a leaf, else the smallest box. A move off the formula names nothing.

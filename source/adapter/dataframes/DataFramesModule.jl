@@ -20,8 +20,9 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title, copy_document, has_document_duplicate
-import ..GestureBindingModule: get_document_gesture_bindings_own
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..GestureBindingModule: get_document_gesture_bindings_own, read_gesture
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+                           map_operation_backward
 import ..OperationModule: evaluate_operation, make_inverse_operation,
                           is_self_contained_operation
 import ..DomainModule: compute_context_menu

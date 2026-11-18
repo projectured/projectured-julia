@@ -984,8 +984,8 @@ end
 
 # The first key in the quiet row of a study with no item adds the first question,
 # whose statement is what the key typed, and the caret goes on after it.
-function read_intent(p::ResearchStudyToWidget, iomap::ResearchToWidgetIoMap, operation::ReplaceStringRangeOperation)
-    answer = invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+function map_operation_backward(p::ResearchStudyToWidget, iomap::ResearchToWidgetIoMap, operation::ReplaceStringRangeOperation)
+    answer = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
     study = iomap.input
     (answer isa ReplaceStringRangeOperation && study isa ResearchStudy && _is_first_text_reference(answer.reference)) ||
         return answer
@@ -995,8 +995,8 @@ function read_intent(p::ResearchStudyToWidget, iomap::ResearchToWidgetIoMap, ope
 end
 
 # An Escape in the type-in of a new element of an item removes the element.
-read_intent(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, operation::CompoundOperation) =
-    make_element_cancel_operation(iomap.input, invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation))
+map_operation_backward(p::_ResearchProjection, iomap::ResearchToWidgetIoMap, operation::CompoundOperation) =
+    make_element_cancel_operation(iomap.input, invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation))
 
 function _is_first_text_reference(reference)
     steps = collect(get_reference_steps(strip_reference_types(reference)))

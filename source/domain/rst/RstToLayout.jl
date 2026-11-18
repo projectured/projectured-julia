@@ -175,12 +175,12 @@ end
 # names its own `Action` and needs no re-rooting, but the generic reader answers
 # nothing for an operation type it does not recognise, which is where a card's
 # button would die.
-read_intent(::RstRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
-read_intent(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
+map_operation_backward(::RstRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
+map_operation_backward(::RstSectionToVerticalLayout, iomap, op::InvokeActionOperation) = op
 # A press on an embedded file's card header folds the card, and the operation
 # names the card it folds.
-read_intent(::RstRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
-read_intent(::RstSectionToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
+map_operation_backward(::RstRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
+map_operation_backward(::RstSectionToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # An RST page is a stack of blocks, for the reason a markdown page is. It takes

@@ -107,7 +107,7 @@ map_reference_backward(::GitTextToText, iomap::SimpleIoMap, reference) =
 # The reader keeps a selection, the part under the pointer and a drag, at their place
 # in the document, and answers no edit: an edit of the text, of its lines or of its
 # elements, and a key that the stages after this one give back.
-function read_intent(p::GitTextToText, iomap::SimpleIoMap, operation::ReplacePathOperation)
+function map_operation_backward(p::GitTextToText, iomap::SimpleIoMap, operation::ReplacePathOperation)
     operation isa Union{ReplaceSelectionOperation, ReplaceMouseTargetOperation, StartDragOperation} ||
         return nothing
     path = _backward_git_text(iomap.input, iomap.output, operation.path)
@@ -200,9 +200,9 @@ function _find_offset_line(lines, offset::Int)
     nothing
 end
 
-read_intent(::GitTextToText, ::SimpleIoMap, ::ReplaceRangeOperation) = nothing
-read_intent(::GitTextToText, ::SimpleIoMap, ::ReplaceReferencedValueOperation) = nothing
-read_intent(::GitTextToText, ::SimpleIoMap, ::Union{KeyPress, KeyDown}) = nothing
+map_operation_backward(::GitTextToText, ::SimpleIoMap, ::ReplaceRangeOperation) = nothing
+map_operation_backward(::GitTextToText, ::SimpleIoMap, ::ReplaceReferencedValueOperation) = nothing
+read_gesture(::GitTextToText, ::SimpleIoMap, ::Union{KeyPress, KeyDown}; answer = nothing) = nothing
 
 # ── The pages ───────────────────────────────────────────────────────────────
 

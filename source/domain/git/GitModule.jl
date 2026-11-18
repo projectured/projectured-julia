@@ -14,8 +14,9 @@ using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..SerializationModule: pred_arguments
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward, map_reference_backward,
                            get_projection_gesture_bindings
+import ..GestureBindingModule: read_gesture
 import ..DocumentModule: get_document_title, is_field_walked
 import ..WidgetModule: make_graphics_projection
 import ..OperationModule: evaluate_operation

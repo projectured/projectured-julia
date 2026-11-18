@@ -43,7 +43,7 @@ end
 
 # Opaque display leaf (no marker): the rendered text is a pure multi-field
 # display with no editable interior. The engine derives the ∅↔∅ selection
-# mapping; the shared `read_intent = nothing` (below) keeps it non-editable.
+# mapping; the shared `read_gesture` and `map_operation_backward` that answer nothing (below) keeps it non-editable.
 @projection_template SqlAllColumnsToSyntaxLeaf SqlAllColumns (p, doc) ->
     SyntaxLeaf(TextString(() -> begin
                    q = doc.qualifier
@@ -167,12 +167,13 @@ function map_reference_backward(p::SqlSubqueryFromItemToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlSubqueryFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 _join_type_display(::SqlInnerJoin)      = "INNER JOIN"
 _join_type_display(::SqlLeftOuterJoin)  = "LEFT OUTER JOIN"
@@ -256,12 +257,13 @@ function map_reference_backward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectClauseToSyntaxNode ───────────────────────────────────────────────
 
@@ -335,12 +337,13 @@ function map_reference_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenI
     end
 end
 
-function read_intent(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlJoinedFromItemToSyntaxNode ─────────────────────────────────────────────
 
@@ -439,12 +442,13 @@ function map_reference_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::Childre
     end
 end
 
-function read_intent(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlJoinOnConditionToSyntaxNode ─────────────────────────────────────────────
 
@@ -501,12 +505,13 @@ function map_reference_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlJoinUsingConditionToSyntaxNode ─────────────────────────────────────────
 #
@@ -618,12 +623,13 @@ function map_reference_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap
     end
 end
 
-function read_intent(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlFromClauseToSyntaxNode ─────────────────────────────────────────────────
 
@@ -689,12 +695,13 @@ function map_reference_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlWhereFilterConditionToSyntaxNode ──────────────────────────────────────
 
@@ -750,12 +757,13 @@ function map_reference_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::C
     end
 end
 
-function read_intent(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlWhereClauseToSyntaxNode ────────────────────────────────────────────────
 
@@ -820,12 +828,13 @@ function map_reference_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIo
     end
 end
 
-function read_intent(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlWhereClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlScalarValueToSyntaxLeaf ───────────────────────────────────────────────
 
@@ -952,12 +961,13 @@ function map_reference_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoM
     end
 end
 
-function read_intent(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlComparisonToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlBooleanBinaryToSyntaxNode (AND / OR) ──────────────────────────────────
 
@@ -1040,12 +1050,13 @@ function map_reference_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::Children
     end
 end
 
-function read_intent(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlNotToSyntaxNode ────────────────────────────────────────────────────────
 
@@ -1103,12 +1114,13 @@ function map_reference_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, ref
     end
 end
 
-function read_intent(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlSelectStatementToSyntaxNode ────────────────────────────────────────────
 #
@@ -1200,11 +1212,6 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
         end
         __ => make_introduced_reference(p, iomap, reference)
     end
-end
-
-function read_intent(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── SqlInsertStatementToSyntaxNode ────────────────────────────────────────────
@@ -1345,12 +1352,13 @@ function map_reference_backward(p::SqlInsertStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlUpdateAssignmentToSyntaxNode ───────────────────────────────────────────
 # Renders `<col> = <value>`. children[1]=column, children[3]=value (the `=`
@@ -1428,12 +1436,13 @@ function map_reference_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlUpdateStatementToSyntaxNode ────────────────────────────────────────────
 #
@@ -1566,12 +1575,13 @@ function map_reference_backward(p::SqlUpdateStatementToSyntaxNode, iomap::Childr
     end
 end
 
-function read_intent(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlColumnDefinitionToSyntaxNode ───────────────────────────────────────────
 # Renders `<column-name> <data-type>` inside a CREATE TABLE column list.
@@ -1631,12 +1641,13 @@ function map_reference_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::Child
     end
 end
 
-function read_intent(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlCreateTableStatementToSyntaxNode ───────────────────────────────────────
 #
@@ -1746,12 +1757,13 @@ function map_reference_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::C
     end
 end
 
-function read_intent(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlCreateTableStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlCreateSchemaStatementToSyntaxNode ──────────────────────────────────────
 #
@@ -1801,12 +1813,13 @@ function map_reference_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::
     end
 end
 
-function read_intent(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── SqlStatementListToSyntaxNode ──────────────────────────────────────────────
 #
@@ -1893,12 +1906,13 @@ function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::Children
     end
 end
 
-function read_intent(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
+function map_operation_backward(p::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
     result = map_reference_backward(p, iomap, op.path)
     result === nothing ? nothing : make_path_operation(op, result)
 end
 
-read_intent(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
+read_gesture(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlStatementListToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
 # ── Compound constructor ──────────────────────────────────────────────────────
 

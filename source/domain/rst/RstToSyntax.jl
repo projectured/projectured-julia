@@ -893,15 +893,10 @@ function map_reference_backward(p::RstStyledTextToSyntaxLeaf, iomap, reference)
     end
 end
 
-function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
-end
-
-function read_intent(p::RstStyledTextToSyntaxLeaf, iomap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
 end
 
 # ── RstStyledInline (rendered Strong / Emphasis) ──────────────────────────────
@@ -1138,13 +1133,7 @@ function map_reference_backward(p::RstSectionToStyledNode, iomap::ChildrenIoMap,
     end
 end
 
-function read_intent(p::RstSectionToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing && return nothing
-    make_path_operation(op, result)
-end
-
-function read_intent(p::RstSectionToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::RstSectionToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)
@@ -1222,13 +1211,7 @@ function map_reference_backward(p::RstEnumeratedListToStyledNode, iomap::Childre
     end
 end
 
-function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing && return nothing
-    make_path_operation(op, result)
-end
-
-function read_intent(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
+function map_operation_backward(p::RstEnumeratedListToStyledNode, iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
     ReplaceStringRangeOperation(new_ref, op.replacement)

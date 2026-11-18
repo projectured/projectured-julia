@@ -4,6 +4,8 @@ import ProjecturedKernel.CellModule: Cell, Computation, @computation
 import ProjecturedPlatform.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, Projection, find_introduced_path
+import ProjecturedKernel.ProjectionModule: map_operation_backward
+import ProjecturedKernel.GestureBindingModule: read_gesture
 import ProjecturedSQL.SqlModule: SqlSelectStatement
 import ProjecturedSQL.SqlModule: SqlToSyntax
 import ProjecturedPlatform.SyntaxModule: SyntaxToText
@@ -44,4 +46,5 @@ end
 # result table by an introduced reference, and only such a reference maps forward
 # again.
 map_reference_forward(p::SqlToCellTable, iomap, reference) = find_introduced_path(p, reference)
-read_intent(::SqlToCellTable, iomap, op) = nothing
+read_gesture(::SqlToCellTable, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::SqlToCellTable, iomap::SimpleIoMap, op) = nothing

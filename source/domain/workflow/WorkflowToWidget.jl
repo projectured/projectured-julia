@@ -620,8 +620,8 @@ end
 
 # The first key in the quiet row of a workflow with no step adds the first step,
 # whose title is what the key typed, and the caret goes on after it.
-function read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::ReplaceStringRangeOperation)
-    answer = invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation)
+function map_operation_backward(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::ReplaceStringRangeOperation)
+    answer = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
     root = iomap.input
     answer isa ReplaceStringRangeOperation && root isa WorkflowStep || return answer
     steps = collect(get_reference_steps(strip_reference_types(answer.reference)))
@@ -631,8 +631,8 @@ function read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, oper
 end
 
 # An Escape in the type-in of a new element of a node removes the element.
-read_intent(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::CompoundOperation) =
-    make_element_cancel_operation(iomap.input, invoke(read_intent, Tuple{Projection, Any, Any}, p, iomap, operation))
+map_operation_backward(p::WorkflowNodeToWidget, iomap::WorkflowToWidgetIoMap, operation::CompoundOperation) =
+    make_element_cancel_operation(iomap.input, invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation))
 
 # A document that is pasted while the node is selected, or while the caret is in
 # its row, is an element of the node: the document itself after a note, or a copy.

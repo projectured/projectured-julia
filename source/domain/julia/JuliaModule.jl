@@ -13,9 +13,9 @@ using ..ReferenceModule   # `@document` injects the implicit `selection::Union{N
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate, convert_to_declared_type
-import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..GestureBindingModule: get_document_gesture_bindings_own, read_gesture
 import ..ArrangementModule: get_arrangement_value
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
 import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string

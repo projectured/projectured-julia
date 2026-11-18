@@ -29,7 +29,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..EditorModule: make_change
 import ..WidgetModule: make_graphics_projection
 import ..DomainModule: compute_context_menu
-import ..GestureBindingModule: get_document_gesture_bindings_own
+import ..GestureBindingModule: get_document_gesture_bindings_own, read_gesture
 
 export PivotDimension, PivotMeasure, PivotCellView, PivotNumberView, PivotRowsView, PivotBarChartView,
        PivotLineChartView, PivotPieChartView, PivotGroupView, PivotChartCell, PivotPartTable, PivotTable, PivotCells,

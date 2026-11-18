@@ -11,7 +11,7 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_operation_backward, map_reference_forward, map_reference_backward
 import ..SerializationModule: make_reference_leaf, find_reference_marker, make_document_seed,
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string

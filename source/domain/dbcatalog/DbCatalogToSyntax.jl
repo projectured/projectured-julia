@@ -51,12 +51,6 @@ function map_reference_backward(p::DbCatalogColumnToSyntaxLeaf, iomap, reference
     make_introduced_reference(p, DbCatalogColumn, reference)
 end
 
-function read_intent(p::DbCatalogColumnToSyntaxLeaf, iomap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing && return nothing
-    make_path_operation(op, result)
-end
-
 # ── Shared reference mapping helpers ─────────────────────────────────────────
 #
 # All non-leaf catalog projections share the same 2-level output shape:
@@ -124,16 +118,6 @@ function _catalog_backward_ref(p, iomap::ChildrenIoMap, reference, field_name::S
         end
         __ => make_introduced_reference(p, iomap, reference)
     end
-end
-
-"""
-Reader for `ReplaceSelectionOperation`: the backward map, which names a
-structural position (an entity name, a keyword label, whitespace) by the
-projection's own introduced step.
-"""
-function _catalog_read_selection(p, iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
 end
 
 # ── Lazy-expansion helper ─────────────────────────────────────────────────────
@@ -234,8 +218,6 @@ map_reference_forward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) 
     _catalog_forward_ref(p, iomap, ref, "columns")
 map_reference_backward(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "columns")
-read_intent(p::DbCatalogTableToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation) =
-    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogSchemaToSyntaxNode ───────────────────────────────────────────────
 
@@ -257,8 +239,6 @@ map_reference_forward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref)
     _catalog_forward_ref(p, iomap, ref, "tables")
 map_reference_backward(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "tables")
-read_intent(p::DbCatalogSchemaToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation) =
-    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogDatabaseToSyntaxNode ─────────────────────────────────────────────
 
@@ -280,8 +260,6 @@ map_reference_forward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, re
     _catalog_forward_ref(p, iomap, ref, "schemas")
 map_reference_backward(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "schemas")
-read_intent(p::DbCatalogDatabaseToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation) =
-    _catalog_read_selection(p, iomap, op)
 
 # ── DbCatalogRdbmsToSyntaxNode ────────────────────────────────────────────────
 
@@ -303,8 +281,6 @@ map_reference_forward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) 
     _catalog_forward_ref(p, iomap, ref, "databases")
 map_reference_backward(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, ref) =
     _catalog_backward_ref(p, iomap, ref, "databases")
-read_intent(p::DbCatalogRdbmsToSyntaxNode, iomap::ChildrenIoMap, op::ReplacePathOperation) =
-    _catalog_read_selection(p, iomap, op)
 
 # ── Marker eligibility ──────────────────────────────────────────────────────────
 #

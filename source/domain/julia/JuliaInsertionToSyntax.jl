@@ -174,14 +174,6 @@ function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInse
     iomap
 end
 
-# Only the structural selection mapping lives here. An edit of the text goes back
-# through the generic reader by the backward map, and a raw key falls through to the
-# generic `read_gesture` fallback → `@gestures JuliaInsertion`.
-function read_intent(p::JuliaInsertionToSyntaxLeaf, iomap::SimpleIoMap, op::ReplacePathOperation)
-    path = map_reference_backward(p, iomap, op.path)
-    path === nothing ? nothing : make_path_operation(op, path)
-end
-
 # Commit the buffer via `_julia_commit` (keyword scaffold or `parse_julia`); the
 # rerooted `∅` targets this hole, so a nested hole is replaced in place and the
 # cursor lands on the committed value's own selection (a scaffold's first hole).

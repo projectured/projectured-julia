@@ -16,7 +16,9 @@ import ..SerializationModule: make_reference_leaf, find_reference_marker, make_d
                               get_file_format_extensions, get_file_format_domain,
                               parse_document_string
 import ..NaturalModule: make_syntax_projection, find_natural_file_format
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: map_operation_backward
+import ..GestureBindingModule: read_gesture
 import ..DisplayModule: make_workload_file
 
 export SqlStatement, SqlSelectExpression, SqlFromBaseItem, SqlJoinType,

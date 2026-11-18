@@ -204,16 +204,10 @@ function map_reference_backward(p::BookBookToSyntaxNode,
     end
 end
 
-function read_intent(p::BookBookToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
-end
-
 # Type-in: translate a `.value[s:e]` / element `.…[s:e]` edit back to the book
 # domain (`.title`, `.author`, `.elements[i].…`) through map_reference_backward,
 # the single definition reused for selection reads.
-function read_intent(p::BookBookToSyntaxNode,
+function map_operation_backward(p::BookBookToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
@@ -389,16 +383,10 @@ function map_reference_backward(p::BookChapterToSyntaxNode,
     end
 end
 
-function read_intent(p::BookChapterToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
-end
-
 # Type-in: a `.value[s:e]` edit on the title leaf maps back to `.title[s':e']`
 # (shifted by the numbering prefix); element edits delegate through the child IO
 # maps. map_reference_backward owns the shift and the range stays intact.
-function read_intent(p::BookChapterToSyntaxNode,
+function map_operation_backward(p::BookChapterToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
@@ -528,15 +516,9 @@ function map_reference_backward(p::BookListToSyntaxNode,
     end
 end
 
-function read_intent(p::BookListToSyntaxNode,
-                          iomap::ChildrenIoMap, op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result === nothing ? nothing : make_path_operation(op, result)
-end
-
 # Type-in: each bullet wraps its element at `.children[i].content`; the edit
 # delegates through the child IO map back to `.elements[i].…`.
-function read_intent(p::BookListToSyntaxNode,
+function map_operation_backward(p::BookListToSyntaxNode,
                           iomap::ChildrenIoMap, op::ReplaceStringRangeOperation)
     new_ref = map_reference_backward(p, iomap, op.reference)
     (new_ref === nothing || has_introduced_step(new_ref)) && return nothing
@@ -594,21 +576,6 @@ end
           SyntaxLeaf(bound(:content, String,
                            _picture_leaf_value(doc, prj.placeholder))) ];
         sep=TextString("\n", prj.placeholder))
-
-# The newline `sep` between caption and figure is a projection-introduced position
-# with no input pre-image. The generic template `ReplaceSelectionOperation`
-# fallback would wrap such an unmapped caret in a `ProjectionReferenceStep`, which
-# `strip_reference_types` cannot collapse — growing the path without bound on every
-# navigation round-trip (the reason XmlElementToSyntaxNode adds a flat-offset
-# reader). Match the previous behaviour instead: an unmapped caret yields nothing
-# (that position is simply not selectable), which keeps navigation bounded.
-# Everything else — the printer, both reference mappers, and the type-in reader —
-# comes from the template.
-function read_intent(p::BookPictureToSyntaxLeaf, iomap::TemplateIoMap,
-                     op::ReplacePathOperation)
-    result = map_reference_backward(p, iomap, op.path)
-    result !== nothing ? make_path_operation(op, result) : nothing
-end
 
 # ── Compound convenience constructor ─────────────────────────────────────────
 

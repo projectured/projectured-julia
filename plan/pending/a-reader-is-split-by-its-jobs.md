@@ -664,3 +664,34 @@ wrapper) by the four rules.
   `test_platform()` the 15 lines of failure of the base, with 236373 passed, as in the second
   slice; the 23 domain suites the counts and the lines of the base, and `test_process()` 316 as on
   `e9af3a5a7`. The precompile gives no warning.
+
+**2026-11-18, step 4, the fourth slice: the domains, the adapters and the examples.** Two
+Sonnet agents converted the rows of `source/domain/`, `source/adapter/` and `example/` (108
+rows that are no walk and no wrapper) by the four rules.
+
+- **Converted:** the maps of SQL, the database catalog, Markdown, RST, the book, YAML, the
+  math, Git, the workflow, the research, the pivot table and the data frames; the readers of a
+  key of the data frames and the pivot table; the catalog to SQL and SQL to a cell table answer
+  nothing in the two methods. Many maps of a path were the default and go (the database
+  catalog, the book, Markdown, RST, the math, YAML, the Julia insertion, the select statement of
+  SQL). Four more calls of the default of the older form with `invoke` call the default of
+  `map_operation_backward` (the research and the workflow, two each).
+- **The old answer is kept where the default answers more.** 19 nodes of SQL declined every
+  operation but a path, and every gesture: each keeps its path map, which is the default, and
+  answers nothing in the two methods for the rest. `MathProjection` answers nothing for an
+  operation, as its untyped reader did.
+- **Found for step 5:** the new `read_gesture` of `MathProjection` passes the gesture to its
+  children by the older form, so it is a walk inside a method of job 1; step 5 moves that walk
+  out. The data frame view reads a drag and converts the writes that it makes in one method of
+  `read_gesture`; the conversion reads no answer of a child.
+- **Found: a module that no longer extends `read_intent` must not import it.** The layering guard
+  "every file imports what it extends" failed in nine domain suites: their modules (the book,
+  the database catalog, Julia, Markdown, the math, the research, RST, SQL, the workflow) imported
+  `read_intent` from `ProjectionModule` and no longer define a method of it. The name leaves
+  their import lists; `using ..KernelModule` still gives it to their calls. The guard of the
+  platform gives the message of the base.
+- **The runs of the fourth slice**, against main `24536d808`: the 23 domain suites give the counts
+  and the lines of the base, after the change of the imports; `test_math()` fails
+  `MathToGraphicsTest.jl:346` (the depth limit of the walk of the printer) on both. One run of
+  `test_process()` hung in the race of `ProcessDebugTest.jl:185`, as the base did, and a second
+  run passed 316. The precompile gives no warning.

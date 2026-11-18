@@ -209,22 +209,11 @@ end
 # needs no re-rooting, but the generic reader returns `nothing` for every
 # operation type it does not recognise, which is where a card's Run button used
 # to die: it rendered, took the press, answered, and the answer stopped here.
-read_intent(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
+map_operation_backward(::MarkdownRootToVerticalLayout, iomap, op::InvokeActionOperation) = op
 
 # A press on an embedded file's card header folds the card. The operation names
 # the card it folds, so it needs no re-rooting either.
-read_intent(::MarkdownRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
-
-# And the same for a click that lands IN an embedded card rather than on one of
-# its buttons. A card that takes the keyboard — a conversation, a form — needs
-# the caret to arrive, and the caret arrives as a selection naming a child of
-# this layout. Re-rooted here into the page's own elements, exactly as
-# `map_reference_backward` does for any other reference; without this a click on
-# the card lands on nothing and every key goes to the prose above.
-function read_intent(p::MarkdownRootToVerticalLayout, iomap, op::ReplacePathOperation)
-    inner = map_reference_backward(p, iomap, op.path)
-    inner === nothing ? nothing : make_path_operation(op, inner)
-end
+map_operation_backward(::MarkdownRootToVerticalLayout, iomap, op::ToggleCollapseOperation) = op
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A markdown page is a stack of blocks, not one syntax tree, so each element

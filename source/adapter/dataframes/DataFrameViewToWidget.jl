@@ -463,8 +463,8 @@ _make_shape_step(operation::_DataFrameColumnOperation) = _make_column_step(opera
 
 # A key that the table does not take: the gestures of the view answer it, Return
 # by its KeyPress.
-read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-            event::Union{KeyDown, KeyPress}) =
+read_gesture(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+             event::Union{KeyDown, KeyPress}; answer = nothing) =
     read_gesture(iomap.input, event)
 
 # A selection in the table selects in the view: a header selects its column, a
@@ -472,7 +472,7 @@ read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
 # a cell their place in the frame, and the corner or the whole table the view. A
 # caret in a cell that is not open opens it first: the selection goes into the
 # document of its new entry, so its path is typed when the entry is there.
-read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation) =
+map_operation_backward(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::ReplaceSelectionOperation) =
     _read_table_selection(iomap, operation, _get_head_place(iomap.input))
 
 # A selection of the table in the view, with the rows of the table counted from
@@ -681,8 +681,8 @@ end
 # An edit of a field of the filter row or of the expression bar is an edit of
 # the text of the query, and the view shows the result of the new query from
 # its start.
-function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-                     operation::ReplaceStringRangeOperation)
+function map_operation_backward(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+                                operation::ReplaceStringRangeOperation)
     cell = _convert_cell_operation(iomap, operation)
     cell === nothing || return cell
     target = _find_expression_path(operation.reference)
@@ -710,7 +710,7 @@ end
 # three lists again from it. A write of the value of the scroll bar
 # is a jump to the row at that value, also in the compound of a move with the
 # button held, which sets the mouse target too.
-read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation) =
+map_operation_backward(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, operation::Operation) =
     _convert_table_writes(iomap, operation)
 
 # The field of `document` that `operation` writes, and the value it writes, or
@@ -889,10 +889,10 @@ end
 # the view and in the table, which is all that the width reads. The parts of the
 # drag of the thumb of the bar come the same way, and the bar reads them in the
 # frame of the view, where the view kept the press.
-function read_intent(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
-                     event::Union{DragMove,DragEnd,DragCancel})
+function read_gesture(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap,
+                      event::Union{DragMove,DragEnd,DragCancel}; answer = nothing)
     thumb = read_scroll_bar_drag(iomap.bar, event)
     _convert_table_writes(iomap, thumb === nothing ? read_table_column_drag(iomap.table, event) : thumb)
 end
 
-read_intent(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, event) = nothing
+read_gesture(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, event; answer = nothing) = nothing

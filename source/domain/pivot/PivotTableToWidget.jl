@@ -511,7 +511,7 @@ function _read_pivot_part_gesture(pivot::PivotTable, gesture)
 end
 
 # A key that the table and the bar do not take: the gestures of the pivot answer it.
-read_intent(::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, event::KeyDown) =
+read_gesture(::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, event::KeyDown; answer = nothing) =
     read_gesture(iomap.input, event)
 
 # Where a drop of the dragged item lands with the pointer on `target`, the mouse

@@ -53,7 +53,8 @@ end
 
 map_reference_forward(::DbCatalogColumnToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogColumnToSql, iomap, ref) = nothing
-read_intent(::DbCatalogColumnToSql, iomap, op) = nothing
+read_gesture(::DbCatalogColumnToSql, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::DbCatalogColumnToSql, iomap::SimpleIoMap, op) = nothing
 
 # ── DbCatalogTableToSql ──────────────────────────────────────────────────────────
 
@@ -71,7 +72,8 @@ end
 
 map_reference_forward(::DbCatalogTableToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogTableToSql, iomap, ref) = nothing
-read_intent(::DbCatalogTableToSql, iomap, op) = nothing
+read_gesture(::DbCatalogTableToSql, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::DbCatalogTableToSql, iomap::SimpleIoMap, op) = nothing
 
 # ── DbCatalogSchemaToSql ─────────────────────────────────────────────────────────
 
@@ -89,7 +91,8 @@ end
 
 map_reference_forward(::DbCatalogSchemaToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogSchemaToSql, iomap, ref) = nothing
-read_intent(::DbCatalogSchemaToSql, iomap, op) = nothing
+read_gesture(::DbCatalogSchemaToSql, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::DbCatalogSchemaToSql, iomap::SimpleIoMap, op) = nothing
 
 # ── DbCatalogDatabaseToSql ───────────────────────────────────────────────────────
 
@@ -102,7 +105,8 @@ end
 
 map_reference_forward(::DbCatalogDatabaseToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogDatabaseToSql, iomap, ref) = nothing
-read_intent(::DbCatalogDatabaseToSql, iomap, op) = nothing
+read_gesture(::DbCatalogDatabaseToSql, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::DbCatalogDatabaseToSql, iomap::SimpleIoMap, op) = nothing
 
 # ── DbCatalogRdbmsToSql ──────────────────────────────────────────────────────────
 
@@ -115,7 +119,8 @@ end
 
 map_reference_forward(::DbCatalogRdbmsToSql, iomap, ref) = nothing
 map_reference_backward(::DbCatalogRdbmsToSql, iomap, ref) = nothing
-read_intent(::DbCatalogRdbmsToSql, iomap, op) = nothing
+read_gesture(::DbCatalogRdbmsToSql, iomap::SimpleIoMap, gesture; answer = nothing) = nothing
+map_operation_backward(::DbCatalogRdbmsToSql, iomap::SimpleIoMap, op) = nothing
 
 # ── Compound convenience constructor ─────────────────────────────────────────────
 

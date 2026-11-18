@@ -14,7 +14,7 @@ using ..KernelModule
 using ..PlatformModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_operation_backward, map_reference_forward, map_reference_backward
 import ..DisplayModule: make_workload_file
 import ..SerializationModule: splice_named_file!
 import ..DocumentModule: get_view_state_fields

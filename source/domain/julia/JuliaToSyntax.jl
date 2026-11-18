@@ -1001,7 +1001,7 @@ map_reference_forward(::JuliaObjectToSyntaxLeaf, iomap, reference) =
 # Any place in the label names the object whole.
 map_reference_backward(::JuliaObjectToSyntaxLeaf, iomap, reference) = EmptyReference()
 
-read_intent(::JuliaObjectToSyntaxLeaf, iomap, ::Union{KeyPress, KeyDown}) = nothing
+read_gesture(::JuliaObjectToSyntaxLeaf, iomap, ::Union{KeyPress, KeyDown}; answer = nothing) = nothing
 
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 
