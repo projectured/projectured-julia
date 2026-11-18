@@ -9,6 +9,11 @@
 # object holds the views of its entries, at `entries`, and the view of an entry
 # holds the view of its value, at `value`, so `.entries[1].value.value{3}` is a
 # path of the view and of its object.
+#
+# A key that acts at the caret is a row of the key table of a view. The view at
+# the end of the caret reads a key first, and its row answers for the node of that
+# view, with a path from the view. The step of a view makes the write of it in the
+# content (`make_content_edit`).
 
 """
     JsonView
@@ -91,70 +96,106 @@ entries and whose fold is the fold of this view.
     collapsed::Bool = false
 end
 
-# The view that the caret of `view` names, when it is a view of a node that a
-# replace may retype: not the view itself, whose content has no place of its own
-# before the places of the plan, and not an entry of an object, which stays a key
-# and a value.
-function _find_replaceable_view(view::JsonView)
-    caret = view.selection
-    caret === nothing && return nothing
+"""
+    JsonInsertionView(viewed::JsonInsertion)
+
+A view of the place where a person types a new JSON value. Its caret is a place in
+the typed text, such as `.value{2}`, or the whole place. Return makes the document
+that the typed text names, Escape puts the empty place back, and Tab takes the
+completion of the typed text. A viewing step of `JsonToSyntax` prints it as the
+`SyntaxDelimitationView` of the wrapper of the place.
+"""
+@content_view JsonInsertion struct JsonInsertionView <: JsonView end
+
+"""
+    JsonNothingView(viewed::JsonNothing)
+
+A view of the empty place of JSON, which holds no value. Its caret is the whole
+place or a place on its label. Insert makes the place for a new value of it, and a
+key of a kind of value makes that value. A viewing step of `JsonToSyntax` prints
+it as the `SyntaxLeafView` of the leaf of the label.
+"""
+@content_view JsonNothing struct JsonNothingView <: JsonView end
+
+# Whether the caret of `view` names the node of `view`, and goes into no view of a
+# child: the caret is on the whole node, on a text that the print made for the node,
+# such as a bracket, or in a text of the node, such as the digits of a number.
+function _names_own_node(view::JsonView)
+    caret = get_selection(view)
+    caret isa Reference || return false
     path = normalize_named_node_reference(caret)
-    path isa ConcreteReference || return nothing
-    named = try_evaluate_reference(view, path, nothing)
-    (named isa JsonView && !(getproperty(named, :viewed) isa JsonObjectEntry)) ? named : nothing
+    path isa ConcreteReference || return true
+    !(try_evaluate_reference(view, Reference(path.head), nothing) isa ContentView)
 end
 
-# A replace of the node that the caret names, as an edit of the content: the new
-# node goes into the content, and the caret that it brings goes to its view.
-function _replace_through_view(view::JsonView, replacement)
-    _find_replaceable_view(view) === nothing && return nothing
-    make_content_edit(replace_selected_document(view, replacement))
-end
+# A node that a replace may retype: the node that the caret of its view names. An
+# entry of an object stays a key and a value.
+_is_replaceable_node(view::JsonView) = !(view.viewed isa JsonObjectEntry) && _names_own_node(view)
+
+# A replace of the node of a view with `replacement`. The path is the empty path,
+# the path of the view of the row, and the caret that `replacement` brings goes to
+# the view of the new node.
+_replace_node(replacement) = make_replace_document_operation(EmptyReference(), replacement)
 
 @gestures JsonView begin
-    when(_find_replaceable_view(doc) !== nothing)
-    KeyPress('n') => "Replace with null"   => _replace_through_view(doc, @selected JsonNull())
-    KeyPress('f') => "Replace with false"  => _replace_through_view(doc, make_insertion_document(JsonBool))
-    KeyPress('t') => "Replace with true"   => _replace_through_view(doc, @selected JsonBool(true))
-    KeyPress('"') => "Replace with a string" => _replace_through_view(doc, make_insertion_document(JsonString))
-    KeyPress('[') => "Replace with an array" => _replace_through_view(doc, make_insertion_document(JsonArray))
-    KeyPress('{') => "Replace with an object" => _replace_through_view(doc, make_insertion_document(JsonObject))
+    when(_is_replaceable_node(doc))
+    KeyPress('n') => "Replace with null"   => _replace_node(@selected JsonNull())
+    KeyPress('f') => "Replace with false"  => _replace_node(make_insertion_document(JsonBool))
+    KeyPress('t') => "Replace with true"   => _replace_node(@selected JsonBool(true))
+    KeyPress('"') => "Replace with a string" => _replace_node(make_insertion_document(JsonString))
+    KeyPress('[') => "Replace with an array" => _replace_node(make_insertion_document(JsonArray))
+    KeyPress(':') => "Replace with an object entry" => _replace_node(make_insertion_document(JsonObjectEntry))
+    KeyPress('{') => "Replace with an object" => _replace_node(make_insertion_document(JsonObject))
     when(KeyPress(c), isdigit(c)) => "Replace with a number" =>
-        _replace_through_view(doc, @selected JsonNumber(parse(Int, string(c))) value{1})
+        _replace_node(@selected JsonNumber(parse(Int, string(c))) value{1})
 end
 
-# The innermost view of an array around the caret `caret` of `view`, with its path
-# from `view`: the caret goes down through the views of the elements that are
-# arrays, and an array whose own closing bracket holds the caret leaves the key to
-# the array around it.
-function _find_innermost_array(view::JsonArrayView, caret)
-    caret isa Reference || return nothing
-    plain = strip_reference_types(caret)
-    if plain isa ConcreteReference && plain.head isa FieldReferenceStep && plain.head.name == "elements"
-        indexed = plain.tail
-        if indexed isa ConcreteReference && indexed.head isa RangeReferenceStep
-            element = try_evaluate_reference(view,
-                ConcreteReference(plain.head, ConcreteReference(indexed.head, EmptyReference())), nothing)
-            if element isa JsonArrayView
-                inner = _find_innermost_array(element, indexed.tail)
-                inner === nothing || return (inner[1],
-                    ConcreteReference(plain.head, ConcreteReference(indexed.head, inner[2])))
-            end
-        end
-    end
-    is_on_closing_delimiter(caret) ? nothing : (view, EmptyReference())
-end
-
-# A comma appends a new element to the innermost array around the caret, as an edit
-# of its content, and the caret goes to the view of the new element.
-function _append_element_through_view(view::JsonArrayView)
-    found = _find_innermost_array(view, view.selection)
-    found === nothing && return nothing
-    array_view, path = found
-    edit = make_content_edit(append_insertion_operation(array_view.viewed, :elements, JsonInsertion))
-    path isa EmptyReference ? edit : reroot_operation(edit, Tuple(get_reference_steps(path)))
-end
+# A comma appends to the list `field` of the content of `view` a new document of
+# the type `T`, and the caret goes to the view of the new document. A comma on the
+# bracket that closes the node of `view` goes to the node around it.
+_append_through_view(view::JsonView, field::Symbol, T::Type) =
+    is_on_closing_delimiter(get_selection(view); from = 1) ? nothing :
+    append_insertion_operation(view.viewed, field, T)
 
 @gestures JsonArrayView begin
-    KeyPress(',') => "Insert a new element" => _append_element_through_view(doc)
+    KeyPress(',') => "Insert a new element" => _append_through_view(doc, :elements, JsonInsertion)
+end
+
+@gestures JsonObjectView begin
+    KeyPress(',') => "Insert a new entry" => _append_through_view(doc, :entries, JsonObjectEntry)
+    nothing       => "Sort the entries by key" =>
+        ReplaceReferencedValueOperation(doc.viewed, "entries", sort(doc.viewed.entries; by = _json_entry_sort_key))
+end
+
+# The caret of the view of an entry moves from the field `from` of the entry to its
+# field `to`: the move of the content, read against the caret of the view.
+function _move_in_entry(view::JsonObjectEntryView; from::Symbol, to::Symbol)
+    caret = get_selection(view)
+    caret isa Reference || return nothing
+    move_to_field(view.viewed, get_content_path(view, caret); from, to)
+end
+
+@gestures JsonObjectEntryView begin
+    KeyPress('\t') => "Move from key to value" => _move_in_entry(doc; from = :key, to = :value)
+    # The way back has no key of its own, as in the table of the object.
+    nothing        => "Move from value to key" => _move_in_entry(doc; from = :value, to = :key)
+end
+
+# Return in the place for a new value: the document that the typed text names, in
+# the place of the node of the view; `nothing` when the text names none.
+function _commit_through_view(view::JsonInsertionView)
+    insertion = view.viewed
+    document = _commit_json_insertion(insertion, something(insertion.value, ""))
+    document === nothing ? nothing : _replace_node(document)
+end
+
+@gestures JsonInsertionView begin
+    KeyPress('\n')   => "Commit insertion" => _commit_through_view(doc)
+    KeyDown(:escape) => "Cancel insertion" => _replace_node(get_nothing_document(JsonInsertion)())
+    KeyPress('\t')   => "Accept completion" =>
+        make_completion_operation(doc.viewed, get_selection(doc), _complete_json_insertion)
+end
+
+@gestures JsonNothingView begin
+    KeyDown(:insert) => "Insert a new json document" => insert_document_operation(JsonInsertion)
 end

@@ -34,6 +34,8 @@ function test_json()
         test_json_view_places()
         test_json_view_pastes()
         test_json_object_view()
+        test_json_view_keys()
+        test_json_insertion_view()
         test_json_theme()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
@@ -44,6 +46,7 @@ export test_json, test_json_layering, test_json_document
 export test_json_parser, test_json_file_note
 export test_json_placeholder_navigation, test_json_to_syntax, test_json_string_view, test_json_array_view,
        test_json_view_places, test_json_view_pastes, test_json_object_view,
+       test_json_view_keys, test_json_insertion_view,
        test_json_theme,
        test_json_mouse_target
 export test_json_to_syntax_reader, test_json_gesture_collection

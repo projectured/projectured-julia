@@ -77,10 +77,10 @@ export PrimitiveBoolToSyntaxLeaf, PrimitiveNumberToSyntaxLeaf, PrimitiveStringTo
        PrimitiveToSyntax
 export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSyntaxLeaf,
        InsertionNothingToSyntaxLeaf,
-       default_factory, default_completion, parse_completion
+       default_factory, default_completion, parse_completion, make_completion_operation
 export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
-export SyntaxLeafView, SyntaxNodeView
+export SyntaxLeafView, SyntaxNodeView, SyntaxDelimitationView
 export FaultToSyntax
 export MarkedTextToSyntaxLeaf
 

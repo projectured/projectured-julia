@@ -247,18 +247,6 @@ end
 
 # ── Value-edit helpers (mirror PrimitiveStringToSyntaxLeaf) ────────────────────
 
-function _value_range(ins)
-    sel = getfield(ins, :selection)[]
-    sel = sel
-    sel isa ConcreteReference || return nothing
-    h = sel.head
-    (h isa FieldReferenceStep && h.name == "value") || return nothing
-    t = sel.tail
-    t isa ConcreteReference || return nothing
-    t.head isa RangeReferenceStep || return nothing
-    t.head
-end
-
 _value_path(range::RangeReferenceStep) =
     ConcreteReference(FieldReferenceStep("value"),
         ConcreteReference(range, EmptyReference()))
@@ -397,15 +385,35 @@ function _make_insertion_popup_operation(p::InsertionToSyntaxLeaf, ins, typed::A
     make_choice_list_operation("Kinds", list)
 end
 
-# Append the completion policy's Tab extension at the end of the buffer, caret
-# after it; nothing without a value cursor or with nothing to extend.
-function _insertion_tab(p::InsertionToSyntaxLeaf, ins)
-    _value_range(ins) === nothing && return nothing
-    extension = p.completion(ins, _get_insertion_place(p)).extension
+"""
+    make_completion_operation(insertion, caret, completion = name_completion; place = Any) -> Operation or nothing
+
+The operation of Tab in `insertion`, a document with a typed text in the field
+`value`: put what the policy `completion` adds to the text at the end of the text,
+with the caret after it. `caret` is the caret in the insertion, of the insertion
+itself or of a view of it. `place` is the declared type of the place of the
+insertion. `nothing` when `caret` is no caret in the text, and when the policy has
+nothing to add.
+
+# Example
+
+    insertion = JsonInsertion("str")
+    caret = @reference(insertion, value{3})
+    make_completion_operation(insertion, caret)     # puts "ing" at `value{3:3}`
+
+See also `name_completion`, the policy of a typed name.
+"""
+function make_completion_operation(insertion, caret, completion = name_completion; place::Type = Any)
+    find_value_range(caret) === nothing && return nothing
+    extension = completion(insertion, place).extension
     isempty(extension) && return nothing
-    n = length(something(ins.value, ""))
+    n = length(something(insertion.value, ""))
     ReplaceStringRangeOperation(_value_path(RangeReferenceStep(n, n)), extension)
 end
+
+# Tab: the completion of the policy of the projection, at the caret of the insertion.
+_insertion_tab(p::InsertionToSyntaxLeaf, ins) =
+    make_completion_operation(ins, getfield(ins, :selection)[], p.completion; place = _get_insertion_place(p))
 
 # The projection's own table first (commit / cancel / Tab / widen);
 # when every binding declines — e.g. a printable char with no value cursor —

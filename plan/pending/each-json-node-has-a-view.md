@@ -238,7 +238,7 @@ They are approved with this plan.
   writes no field whose value is equal already, so an empty child field of a
   copy still follows its content. The eighteen narrow tests keep their counts of
   the branch before the change.
-- [ ] **2. The views of the object and of its entry.** `JsonObjectView` and
+- [x] **2. The views of the object and of its entry.** `JsonObjectView` and
   `JsonObjectEntryView`, by the declaration. The output view of a step holds
   the view of each child at the index of that child in the printed node.
   The step starts with a test of one fact: the print of an entry keeps one
@@ -249,7 +249,12 @@ They are approved with this plan.
   on the views, and no content holds one; a typed character changes a key and a
   value; two views of one object keep two carets; the fold of an object is the
   fold of a view; an object in an array in an object.
-- [ ] **3. An edit through a view writes the content.**
+  **Done on 2026-11-18.** `test_json_object_view` has 52 of 52. The fact is
+  true, and it is a test set of that function: the print of an entry keeps one
+  child print, and its node has two children. The first run had 42 passes and 2
+  errors, in the two test sets that looked for the step of an entry in the IO
+  map (found fact 2). The eighteen narrow tests keep their counts.
+- [x] **3. An edit through a view writes the content.**
   `make_content_edit(view, operation)`, and the step of a view applies it to
   each answer. The rows of `JsonView` and of `JsonArrayView` take the form of
   proposed decision 5.
@@ -258,12 +263,24 @@ They are approved with this plan.
   Tests: the comparison of proposed decision 8 for the 8 rows of today, in an
   array in an array; a replace of the content of a view that no view holds
   gives no operation; the four test functions of today keep their counts.
-- [ ] **4. The keys of the object and of its entry.** The six new rows of
+  **Done on 2026-11-18.** The new platform test `test_content_edit` has 31 of 31.
+  The four test functions of today keep their counts: 42, 34, 25 and 66. The
+  fact could not be tested on the base: there the place for a new value has no
+  view, so no print of it through a view exists. The comparison of a typed digit
+  in step 5 tests the same write. Steps 3, 4 and 5 are one commit, because the
+  comparison presses keys on a tree that holds the place for a new value, and so
+  the tests of each of the three steps need the code of the two others.
+- [x] **4. The keys of the object and of its entry.** The six new rows of
   `JsonView`, `JsonObjectView` and `JsonObjectEntryView` in the table of
   proposed decision 6.
   Tests: the comparison for each row. A comma on the brace that closes an object
   goes to the node around it, as now.
-- [ ] **5. The place for a new value, and the empty place.**
+  **Done on 2026-11-18.** `test_json_view_keys` has 181 of 181. Its first run
+  had 10 failures: Tab wrote spaces into a key through a view (found fact 6),
+  and the test compared the text of a caret that holds a projection (the test
+  now prints the type of the projection). The rows that have no key are tested
+  through the list that a palette collects.
+- [x] **5. The place for a new value, and the empty place.**
   `JsonInsertionView`, `JsonNothingView` and `SyntaxDelimitationView`, with the
   five rows of the table. The function of the Tab row takes the caret as an
   argument.
@@ -273,6 +290,13 @@ They are approved with this plan.
   Return, for a typed digit, for a typed `-` and then a digit, and for a key on
   the label of the empty place; a place for a new value as an element, as the
   value of an entry, and as a view that no view holds.
+  **Done on 2026-11-18.** `test_json_insertion_view` has 147 of 147. Its first
+  run had 50 failures and 1 error, all from one cause: the syntax stage refused
+  each character that a person typed into the empty place (found fact 7). The
+  fact of this step: with no caret in the content, the rows of the content
+  answer nothing for a key on the label of the empty place. The chain then gives
+  the key to the key tables of the views, and the row of `JsonView` answers. So
+  the printer of the empty place needs no change.
 - [ ] **6. The example.** One example of an object in two views at three
   places, with a fold and with the place for a new value, beside the three
   examples of the array and of the string. It is registered as they are.
@@ -300,6 +324,43 @@ They are approved with this plan.
    print.** The recursion of a view keeps the steps of the children in a table
    of its own. The tests read the output view of the step of the whole view,
    and the views below it.
+3. **The step of a view makes the edit at each stage, in two directions.** A
+   chain has a step of a view at more than one stage. An answer of a later stage
+   is an operation of the output view of the stage before it, and that stage
+   maps it back with the readers of its content print. So each step also takes
+   the step `viewed` out of a write that comes from the next stage
+   (`_make_printed_edit`). The two functions are the two path functions of point
+   4 of the order, for a write. Plan 4c uses them for a caret too.
+4. **`make_content_edit` takes a wrapped operation and the rows of a palette.**
+   A palette collects each row with its operation, so the function makes the
+   edit of each row, and it leaves out a row whose write has no place.
+5. **A write of a field of state of a view stays a write of the view.** The
+   function reads the declared type of the field of the view: a child field
+   holds a view, and any other field of the view is state.
+6. **The fold stage of a view lost the mark of an edit of the indentation.** Tab
+   in a text makes an edit with the mark `changes_indentation`, and the syntax
+   stage declines such an edit, so Tab goes to the key tables. The reader of
+   `TextFolding` for a view made a new edit with no mark. So Tab in a key
+   through a view wrote spaces into the key. The comparison of the Tab row
+   found it. The correction is one line in `source/platform/text/TextFolding.jl`.
+7. **The syntax stage reads the caret of its content at one more place.** Two
+   parts of a node can share one position of the text, for example the end of
+   an empty delimiter and the start of the typed text after it. The reader of a
+   node in `SyntaxToText.jl` reads the caret of the node to choose the part. A
+   node under a view has no caret, so the stage refused each character that a
+   person typed into an empty place for a new value. The view of a node now
+   makes that choice with its own caret, in a method of `read_view_operation`
+   for `SyntaxNodeView` and `SyntaxDelimitationView`. The read of the caret of
+   the node stays for a node with no view. It goes in point 11.
+8. **`SyntaxDelimitationView` takes the rows of the table of `SyntaxNodeView`.**
+   Its table splices the table of the node view, so the rows are the same
+   objects and they keep their tag.
+9. **The Tab of the place for a new value is one function with the caret as an
+   argument.** `make_completion_operation(insertion, caret, completion; place)`
+   is a new exported function of the syntax slice. The Tab row of the printer
+   calls it with the caret of the content, and the Tab row of the view calls it
+   with the caret of the view. `find_value_range` reads the caret, as it did for
+   an operation.
 
 ## Risks
 

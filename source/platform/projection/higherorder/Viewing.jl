@@ -30,7 +30,8 @@ every view does is written here once:
   path into the content, such as `.value{3}`, is a path of the view, and the
   selection walk stops at the view;
 - an edit of a field that the view does not have edits its content
-  (`get_edited_field` names `viewed`);
+  (`get_edited_field` names `viewed`), and a write of a child of its content goes
+  to the content below `viewed` (`make_content_edit`);
 - the view keeps its caret while the focus is elsewhere, as a dormant selection;
 - a copy of the view is a new view of the copy of its content, and a paste of the
   view puts a second view of the same content (`make_sibling_view`), each with the
@@ -74,27 +75,125 @@ puts each view at the index of its content; any other content takes no children.
 make_content_view(content, children) = make_content_view(content)
 
 """
-    make_content_edit(operation) -> Operation
+    make_content_edit(view::ContentView, operation) -> Operation or nothing
 
-An edit that the key table of a view makes with the helpers of its content, such
-as an insert of an element or a replace of a node, as an edit through the view.
-Each write of a value goes to the same place below the field `viewed` of the view,
-because the child fields of a view hold views; the value keeps no caret of its own.
-Each caret stays a path of the view, which the view of the new part takes.
+`operation`, whose paths are paths of the tree of views from `view`, as an edit of
+the content that the views show. A write of a value goes to the same place of the
+content: the steps to the deepest view above the written place, the step `viewed`,
+and the steps that remain. The view of a list is a view, so a write of element 2
+of `.elements` is a write of `.elements.viewed[2]`. The value that a write puts in
+keeps no caret of its own. Each caret stays a path of the tree of views, which the
+view of the new part takes. A write of a field of state of a view, such as a fold,
+stays a write of the view.
+
+`nothing` when a write has no view above its place: the content of `view` itself
+has its place in what holds that content, above `view`.
+
+The step of a view applies it to each operation that it answers. So a row of the
+key table of a view answers with a path from its view, as a row of a content
+answers with a path from its document.
+
+# Example
+
+    replace = make_replace_document_operation(@reference(array_view, elements[2]), JsonNull())
+    edit = make_content_edit(array_view, replace)
+    # the write of `edit` is at `.elements.viewed[2]`, and its caret is at `.elements[2]`
 """
-make_content_edit(operation::CompoundOperation) =
-    CompoundOperation(Any[make_content_edit(member) for member in operation.operations])
-function make_content_edit(operation::ReplaceReferencedValueOperation)
-    operation.document === nothing || return operation
-    foreach(_clear_written_selection!, operation.value isa AbstractVector ? operation.value : (operation.value,))
-    viewed = ConcreteReference(FieldReferenceStep("viewed"), EmptyReference())
-    ReplaceReferencedValueOperation(nothing, concat_references(viewed, operation.reference), operation.value)
+function make_content_edit end
+make_content_edit(view::ContentView, operation) = operation
+
+function make_content_edit(view::ContentView, operation::CompoundOperation)
+    members = Any[]
+    for member in operation.operations
+        edit = make_content_edit(view, member)
+        edit === nothing && return nothing
+        push!(members, edit)
+    end
+    CompoundOperation(members)
 end
-make_content_edit(operation) = operation
+
+function make_content_edit(view::ContentView, operation::WrappingOperation)
+    edit = make_content_edit(view, get_wrapped_operation(operation))
+    edit === nothing ? nothing : rewrap_operation(operation, edit)
+end
+
+# Each row of a list of rows, as a palette collects them. A row whose write has no
+# place can not act, so the list leaves it out.
+function make_content_edit(view::ContentView, operation::CollectedIntentsOperation)
+    intents = Intent[]
+    for intent in operation.intents
+        edit = make_content_edit(view, intent.operation)
+        (edit === nothing && intent.operation !== nothing) && continue
+        push!(intents, Intent(intent.gesture, edit, intent.description, intent.domain, intent.route))
+    end
+    CollectedIntentsOperation(intents)
+end
+
+function make_content_edit(view::ContentView, operation::ReplaceReferencedValueOperation)
+    operation.document === nothing || return operation
+    steps = get_reference_steps(strip_reference_types(operation.reference))
+    isempty(steps) && return nothing
+    holder, count = _find_deepest_view(view, steps)
+    step = steps[count + 1]
+    # The path names a place of a content already, or a field of state of a view.
+    step == _VIEWED_STEP && return operation
+    (count == length(steps) - 1 && step isa AFieldReferenceStep && _is_view_state(holder, Symbol(step.name))) &&
+        return operation
+    foreach(_clear_written_selection!, operation.value isa AbstractVector ? operation.value : (operation.value,))
+    place = Reference(steps[1:count]..., _VIEWED_STEP, steps[(count + 1):end]...)
+    ReplaceReferencedValueOperation(nothing, place, operation.value)
+end
+
+# The step from a view to its content.
+const _VIEWED_STEP = FieldReferenceStep("viewed")
+
+# The deepest view above the place that `steps` name from `view`, and the count of
+# the steps that lead to it: the walk goes through the views of the children, and it
+# stops before the last step, and at the first step that reaches no view.
+function _find_deepest_view(view::ContentView, steps)
+    holder, count = view, 0
+    for index in 1:(length(steps) - 1)
+        next = try_evaluate_reference(holder, Reference(steps[index]), nothing)
+        next isa ContentView || break
+        holder, count = next, index
+    end
+    (holder, count)
+end
+
+# Whether the field `name` of `view` holds state of the view, and not the content or
+# the view of a child of the content.
+function _is_view_state(view::ContentView, name::Symbol)
+    (hasfield(typeof(view), name) && name !== :viewed) || return false
+    declared = find_declared_field_type(typeof(view), name)
+    declared isa Type ? !(declared <: Union{ContentView, Nothing}) : !(getproperty(view, name) isa ContentView)
+end
 
 # A content that an edit writes carries no caret: its caret is the caret of the view.
 _clear_written_selection!(value::Document) = clear_selection!(value)
 _clear_written_selection!(value) = nothing
+
+# An operation of the next stage as an operation of the content that a step printed.
+# The next stage writes below the field `viewed` of a view of `output`, the view that
+# the step gave. The same write with no step `viewed` is a write of the printed
+# content, which the readers of the content print map back.
+_make_printed_edit(output, operation) = operation
+_make_printed_edit(output::ContentView, operation::CompoundOperation) =
+    CompoundOperation(Any[_make_printed_edit(output, member) for member in operation.operations])
+_make_printed_edit(output::ContentView, operation::WrappingOperation) =
+    rewrap_operation(operation, _make_printed_edit(output, get_wrapped_operation(operation)))
+_make_printed_edit(output::ContentView, operation::CollectedIntentsOperation) =
+    CollectedIntentsOperation(Intent[Intent(intent.gesture, _make_printed_edit(output, intent.operation),
+                                            intent.description, intent.domain, intent.route)
+                                     for intent in operation.intents])
+function _make_printed_edit(output::ContentView, operation::ReplaceReferencedValueOperation)
+    operation.document === nothing || return operation
+    steps = get_reference_steps(strip_reference_types(operation.reference))
+    isempty(steps) && return operation
+    _, count = _find_deepest_view(output, steps)
+    steps[count + 1] == _VIEWED_STEP || return operation
+    place = Reference(steps[1:count]..., steps[(count + 2):end]...)
+    ReplaceReferencedValueOperation(nothing, get_content_path(output, place), operation.value)
+end
 
 """
     make_sibling_view(view::ContentView) -> ContentView
@@ -244,11 +343,13 @@ map_view_state!(output, view, content_iomap) = output
 """
     read_view_operation(view, content_iomap, operation) -> Operation or nothing
 
-The operation of the state of `view` that `operation`, an operation of the next
-stage, is, such as a toggle of a fold of its text that is a toggle of the fold of a
-view of a node; `nothing` when `operation` is no operation of the state of the
-view, and then it goes back through the readers of the content print. A pair of
-view types declares a method where such state crosses the step.
+The operation that `operation`, an operation of the next stage, is when the state
+of `view` decides it. A toggle of a fold of its text is a toggle of the fold of a
+view of a node. A character typed at a place of the text that two parts of a node
+share is an edit of the part that holds the caret of the view. `nothing` when the
+state of the view decides nothing for `operation`, and then it goes back through
+the readers of the content print. A pair of view types declares a method where
+such state crosses the step.
 """
 function read_view_operation end
 read_view_operation(view, content_iomap, operation) = nothing
@@ -361,20 +462,25 @@ map_reference_backward(p::ViewingProjection, iomap, reference) =
 
 # A gesture that no later stage took goes to the key tables of the views on the
 # live caret of the view, the deepest first. An operation goes back through the
-# readers of the content print.
+# readers of the content print, as an operation of the printed content. Each answer
+# is an edit of the content that the views show (`make_content_edit`).
 function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::ViewingIoMap)
+    view = iomap.input
     if change.operation === nothing && change.route === nothing
-        view = iomap.input
         operation = read_gesture_outward(nothing, change.gesture, view;
                                          steps = _find_caret_view_steps(view), with_part = true)
-        return Intent(change.gesture, operation, change.description, change.domain)
+        return Intent(change.gesture, make_content_edit(view, operation), change.description, change.domain)
     end
     if change.operation !== nothing
-        operation = read_view_operation(iomap.input, iomap.content, change.operation)
+        operation = read_view_operation(view, iomap.content, change.operation)
         operation === nothing ||
             return Intent(change.gesture, operation, change.description, change.domain)
+        change = Intent(change.gesture, _make_printed_edit(iomap.output, change.operation),
+                        change.description, change.domain, change.route)
     end
-    read_intent(p.content, recursion, change, iomap.content)
+    answer = read_intent(p.content, recursion, change, iomap.content)
+    Intent(answer.gesture, make_content_edit(view, answer.operation), answer.description, answer.domain,
+           answer.route)
 end
 
 read_intent(p::ViewingProjection, recursion, change::Intent, iomap) =

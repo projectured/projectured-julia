@@ -407,10 +407,12 @@ function map_operation_backward(::TextFolding, iomap::TextViewFoldingIoMap, op::
     fold === nothing ? nothing : ToggleCollapseOperation(fold)
 end
 
-# A flat edit of the lines shown is an edit at the same place of the text.
+# A flat edit of the lines shown is an edit at the same place of the text. It stays
+# an edit of the indentation of the lines when it is one, so the stage before can
+# decline it.
 function map_operation_backward(p::TextFolding, iomap::TextViewFoldingIoMap, op::ReplaceTextRangeOperation)
     path = map_reference_backward(p, iomap.content, op.reference)
-    path === nothing ? nothing : ReplaceTextRangeOperation(path, op.replacement)
+    path === nothing ? nothing : ReplaceTextRangeOperation(path, op.replacement, op.changes_indentation)
 end
 
 # Any other operation maps to itself, and any gesture answers nothing.

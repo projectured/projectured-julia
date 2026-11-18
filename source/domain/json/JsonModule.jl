@@ -42,7 +42,7 @@ export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
 export JsonFileFormat, JsonFile
 export JsonView, JsonNullView, JsonBoolView, JsonNumberView, JsonStringView, JsonArrayView,
-       JsonObjectView, JsonObjectEntryView
+       JsonObjectView, JsonObjectEntryView, JsonInsertionView, JsonNothingView
 
 
 include("JsonDocument.jl")
