@@ -347,11 +347,18 @@ They are approved with this plan.
   itself (found fact 12). The function that the macro uses for a slot is public
   now, `make_slot_view_computation(read)`, and the file view uses it to follow
   what its file holds.
-- [ ] **6. The place for a new value of every domain.** Proposed decision 9.
+- [x] **6. The place for a new value of every domain.** Proposed decision 9.
   Tests: the comparison for each row of the two new view types; Insert in the
   place of JSON gives the place of every domain, with its view; a typed name of
   a domain and Return gives a document of that domain, as a view when its type
   has one, and as a part with no view when it has none.
+  **Done on 2026-11-18.** The new test is `test_json_document_insertion_view`,
+  with 106 of 106. The two view types are in the new file
+  `source/platform/syntax/InsertionView.jl`. Each test compares a JSON array
+  with no view and an equal array through its views, in the general renderer.
+  The typed names of the test are `json` and `text`, the names that the
+  packages of the JSON tests know. The narrow tests keep the counts of the base
+  commit.
 - [ ] **7. The example.** One example: a JSON file with undo steps in two file
   views side by side, with a caret in each, a fold in one, and one part that
   has no view. It is registered as the examples of plan 4a are.

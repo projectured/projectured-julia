@@ -81,6 +81,7 @@ export InsertionToSyntaxLeaf, DocumentInsertionToSyntaxLeaf, DomainInsertionToSy
 export make_natural_to_syntax_dispatch, make_natural_prose_graphics, register_syntax_fallback!
 export SyntaxLeaf, SyntaxNode, SyntaxConcatenation, SyntaxSeparation, SyntaxDelimitation, SyntaxIndentation, SyntaxCollapsible, SyntaxNavigation
 export SyntaxLeafView, SyntaxNodeView, SyntaxDelimitationView
+export DocumentInsertionView, DocumentNothingView, make_insertion_widen_operation
 export FaultToSyntax
 export MarkedTextToSyntaxLeaf
 
@@ -96,6 +97,7 @@ include("CollectionToSyntax.jl")
 include("PrimitiveToSyntax.jl")
 include("MarkedTextToSyntax.jl")
 include("InsertionToSyntax.jl")
+include("InsertionView.jl")
 include("SyntaxNatural.jl")
 
 end # module

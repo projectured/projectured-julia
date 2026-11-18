@@ -102,8 +102,9 @@ end
 A view of the place where a person types a new JSON value. Its caret is a place in
 the typed text, such as `.value{2}`, or the whole place. Return makes the document
 that the typed text names, Escape puts the empty place back, and Tab takes the
-completion of the typed text. A viewing step of `JsonToSyntax` prints it as the
-`SyntaxDelimitationView` of the wrapper of the place.
+completion of the typed text, and Insert makes it the place of every domain, with the same text.
+A viewing step of `JsonToSyntax` prints it as the `SyntaxDelimitationView` of the
+wrapper of the place.
 """
 @content_view JsonInsertion struct JsonInsertionView <: JsonView end
 
@@ -194,6 +195,9 @@ end
     KeyDown(:escape) => "Cancel insertion" => _replace_node(get_nothing_document(JsonInsertion)())
     KeyPress('\t')   => "Accept completion" =>
         make_completion_operation(doc.viewed, get_selection(doc); completion = _complete_json_insertion)
+    # Each place of JSON takes a document of any domain, so the place of JSON can
+    # become the place of every domain.
+    KeyDown(:insert) => "Widen the insertion to every domain" => make_insertion_widen_operation(doc.viewed)
 end
 
 @gestures JsonNothingView begin

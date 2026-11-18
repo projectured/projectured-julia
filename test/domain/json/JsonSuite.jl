@@ -41,6 +41,7 @@ function test_json()
         test_json_view_root_write()
         test_json_view_part_without_view()
         test_json_file_view_content()
+        test_json_document_insertion_view()
         test_json_theme()
         test_json_to_syntax_reader()
         test_json_gesture_collection()
@@ -57,6 +58,7 @@ export test_json_placeholder_navigation, test_json_to_syntax, test_json_string_v
        test_json_view_root_write,
        test_json_view_part_without_view,
        test_json_file_view_content,
+       test_json_document_insertion_view,
        test_json_theme,
        test_json_mouse_target
 export test_json_to_syntax_reader, test_json_gesture_collection

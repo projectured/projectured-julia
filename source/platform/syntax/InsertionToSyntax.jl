@@ -312,7 +312,7 @@ function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
         # the same text, where the place admits a `DocumentInsertion` as it is: a
         # person can then type a document of any domain there.
         GestureBinding(KeyDownPattern(:insert),
-                       (doc, event, _) -> _make_insertion_widen_operation(ins);
+                       (doc, event, _) -> make_insertion_widen_operation(ins);
                        applicable = (doc, selection) -> _is_insertion_widenable(p, ins),
                        description = "Widen the insertion to every domain", domain = "insertion"),
     ]
@@ -320,12 +320,6 @@ end
 
 _is_insertion_widenable(p::InsertionToSyntaxLeaf, ins) =
     !(ins isa DocumentInsertion) && p.place isa Type && DocumentInsertion <: p.place
-
-function _make_insertion_widen_operation(ins)
-    text = something(ins.value, "")
-    make_replace_document_operation(EmptyReference(),
-                                    with_value_caret(DocumentInsertion(text), length(text)))
-end
 
 # Commit the typed value through the projection's `commit` callback; nothing when
 # the callback refuses (unknown/incomplete value).

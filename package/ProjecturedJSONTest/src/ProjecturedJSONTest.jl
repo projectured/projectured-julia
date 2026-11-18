@@ -56,6 +56,7 @@ include("../../../test/domain/json/projection/JsonUndoBufferViewTest.jl")
 include("../../../test/domain/json/projection/JsonViewRootWriteTest.jl")
 include("../../../test/domain/json/projection/JsonViewPartTest.jl")
 include("../../../test/domain/json/projection/JsonFileViewContentTest.jl")
+include("../../../test/domain/json/projection/JsonDocumentInsertionViewTest.jl")
 include("../../../test/domain/json/projection/JsonThemeTest.jl")
 
 include("../../../test/domain/json/JsonSuite.jl")
