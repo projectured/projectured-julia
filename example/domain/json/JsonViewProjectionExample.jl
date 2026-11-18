@@ -33,3 +33,22 @@ function make_json_array_view_projection_example(; measure = FontFileMeasure())
         JsonArrayView  => stages,
     ]))
 end
+
+# A place prints its object view in the four stages of an array view. JSON to syntax
+# gives the view of the node of the object over the views of the nodes of its
+# entries, and the view of the node of an entry holds the view of the node of its
+# value.
+function make_json_object_view_projection_example(; measure = FontFileMeasure())
+    stages = ChainingProjection(
+        RecursiveProjection(ViewingProjection(JsonToSyntax())),
+        RecursiveProjection(ViewingProjection(SyntaxToText(text_folds = true))),
+        TextFolding(),
+        RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+            TextView  => TextViewToGraphicsCanvas(),
+            TextBlock => TextBlockToGraphicsCanvas(; measure),
+        ])))
+    RecursiveProjection(TypeDispatchingProjection(Pair{Type,Any}[
+        VerticalLayout => VerticalLayoutToGraphicsCanvas(),
+        JsonObjectView => stages,
+    ]))
+end

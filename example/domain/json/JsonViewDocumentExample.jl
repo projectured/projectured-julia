@@ -43,3 +43,19 @@ function make_json_view_places_document_example()
                                                  @reference(view_a, elements[3].elements[1].value{2})))
     layout
 end
+
+# One JSON object in two views at three places. View A, at the first and the third
+# place, folds the object of its entry `size`; view B, at the second place, keeps it
+# open and has its caret in a key of that object. The last entry holds the place
+# where a person types a new value. The objects hold no fold and no caret.
+function make_json_object_view_document_example()
+    size = JsonObject("width" => JsonNumber(30), "height" => JsonNumber(45))
+    object = JsonObject("name" => JsonString("one object"), "size" => size, "next" => JsonInsertion())
+    view_a = JsonObjectView(object)
+    view_b = JsonObjectView(object)
+    view_a.entries[2].value.collapsed = true
+    layout = VerticalLayout([view_a, view_b, view_a]; gap = 20)
+    replace_selection!(layout, concat_references(@reference(layout, children[2]),
+                                                 @reference(view_b, entries[2].value.entries[1].key{2})))
+    layout
+end

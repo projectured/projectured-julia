@@ -279,7 +279,10 @@ They are approved with this plan.
   had 10 failures: Tab wrote spaces into a key through a view (found fact 6),
   and the test compared the text of a caret that holds a projection (the test
   now prints the type of the projection). The rows that have no key are tested
-  through the list that a palette collects.
+  through the list that a palette collects. After the first commit the tests of
+  the comma name the effect of the key, with 215 of 215: a comma in a number, a
+  comma at a place of the node around, and a comma on the bracket that closes
+  the inner array.
 - [x] **5. The place for a new value, and the empty place.**
   `JsonInsertionView`, `JsonNothingView` and `SyntaxDelimitationView`, with the
   five rows of the table. The function of the Tab row takes the caret as an
@@ -297,9 +300,12 @@ They are approved with this plan.
   answer nothing for a key on the label of the empty place. The chain then gives
   the key to the key tables of the views, and the row of `JsonView` answers. So
   the printer of the empty place needs no change.
-- [ ] **6. The example.** One example of an object in two views at three
+- [x] **6. The example.** One example of an object in two views at three
   places, with a fold and with the place for a new value, beside the three
   examples of the array and of the string. It is registered as they are.
+  **Done on 2026-11-18.** The example is `json_object_view`. The test of its
+  printer has 7496 passes and no failure. The 116 other examples of the platform
+  and of the JSON and the Markdown domains have the counts of the base commit.
 - [ ] **7. The wide check and the guides.** `test_platform()`, the suites of
   the JSON and the Markdown domains, and the examples, against the same runs at
   the base commit. The six guard scripts. The recorded precompile calls, if a
@@ -356,7 +362,7 @@ They are approved with this plan.
    Its table splices the table of the node view, so the rows are the same
    objects and they keep their tag.
 9. **The Tab of the place for a new value is one function with the caret as an
-   argument.** `make_completion_operation(insertion, caret, completion; place)`
+   argument.** `make_completion_operation(insertion, caret; completion, place)`
    is a new exported function of the syntax slice. The Tab row of the printer
    calls it with the caret of the content, and the Tab row of the view calls it
    with the caret of the view. `find_value_range` reads the caret, as it did for
@@ -389,8 +395,10 @@ They are approved with this plan.
   `DocumentNothing` are types of the platform, and they get views in plan 4b.
   So the Insert row that makes the place of JSON a place of every domain is not
   a row of `JsonInsertionView` here.
-- **A document of another domain inside a JSON tree.** It has no view type. It
-  prints as content and it takes no caret through a view, as now.
+- **A document inside a JSON tree whose type has no view.** Most documents of
+  the other domains are such documents. It prints as content and it takes no
+  caret through a view, as now. A document of a type that has a view, such as a
+  Markdown document, takes its view.
 - **The rule that a view reads the key table of its content after its own.** It
   comes in plan 4c, when the key tables of the JSON content keep no row that
   reads a caret. Until then, the row that sorts the entries is in both tables.
