@@ -158,22 +158,50 @@ end
 @testset "A comma in the text of a number goes to the array or the object around it" begin
     sides = _make_json_keys_sides(_make_json_keys_tree)
     _set_json_keys_caret!(sides, document -> @reference(document, entries[2].value.elements[1].value{1}))
-    _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test length(sides.viewed.entries[2].value.elements) == 4
+    @test sides.viewed.entries[2].value.elements[4] isa JsonInsertion
+    @test sides.viewed.entries[2].value.elements[1].value == 4
     sides = _make_json_keys_sides(_make_json_keys_tree)
     _set_json_keys_caret!(sides, document -> @reference(document, entries[3].value.entries[1].value.value{1}))
-    _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test length(sides.viewed.entries[3].value.entries) == 2 && length(sides.viewed.entries) == 3
+end
+
+@testset "A comma at a place that the print made appends to the node of that place" begin
+    # From the last element of the inner array, the key Down moves the caret to the
+    # line of the bracket that closes it, after the comma of the outer array.
+    sides = _make_json_keys_sides(_make_json_keys_tree)
+    _set_json_keys_caret!(sides, document -> @reference(document, entries[2].value.elements[2].elements[2].value{1}))
+    @test _test_json_keys_press!(sides, _json_keys_down(:down))
+    @test _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test length(sides.viewed.entries[2].value.elements) == 4
+    @test length(sides.viewed.entries[2].value.elements[2].elements) == 2
+    # From the entry of the inner object, the key Down moves the caret to the brace
+    # that closes the outer object, before its break, which is a place of that object.
+    sides = _make_json_keys_sides(_make_json_keys_tree)
+    _set_json_keys_caret!(sides, document -> @reference(document, entries[3].value.entries[1].value.value{1}))
+    @test _test_json_keys_press!(sides, _json_keys_down(:down))
+    @test _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test length(sides.viewed.entries) == 4 && length(sides.viewed.entries[3].value.entries) == 1
 end
 
 @testset "A comma on the bracket that closes a node goes to the node around it" begin
-    # The key Down moves the caret from the last element to the line of the bracket.
+    # Down puts the caret on the line of the bracket that closes the inner array, and
+    # Left moves it on that line until it is on that bracket.
     sides = _make_json_keys_sides(_make_json_keys_tree)
     _set_json_keys_caret!(sides, document -> @reference(document, entries[2].value.elements[2].elements[2].value{1}))
-    _test_json_keys_press!(sides, _json_keys_down(:down))
-    _test_json_keys_press!(sides, _json_keys_typed(','))
-    sides = _make_json_keys_sides(_make_json_keys_tree)
-    _set_json_keys_caret!(sides, document -> @reference(document, entries[3].value.entries[1].value.value{1}))
-    _test_json_keys_press!(sides, _json_keys_down(:down))
-    _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test _test_json_keys_press!(sides, _json_keys_down(:down))
+    inner_view = sides.view.entries[2].value.elements[2]
+    is_on_bracket() = is_on_closing_delimiter(get_selection(inner_view); from = 1)
+    for _ in 1:4
+        is_on_bracket() && break
+        _test_json_keys_press!(sides, _json_keys_down(:left))
+    end
+    @test is_on_bracket()
+    @test _test_json_keys_press!(sides, _json_keys_typed(','))
+    @test length(sides.viewed.entries[2].value.elements) == 4
+    @test length(sides.viewed.entries[2].value.elements[2].elements) == 2
 end
 
 @testset "Tab moves the caret from the key of an entry to its value" begin

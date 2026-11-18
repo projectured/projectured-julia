@@ -193,7 +193,7 @@ end
     KeyPress('\n')   => "Commit insertion" => _commit_through_view(doc)
     KeyDown(:escape) => "Cancel insertion" => _replace_node(get_nothing_document(JsonInsertion)())
     KeyPress('\t')   => "Accept completion" =>
-        make_completion_operation(doc.viewed, get_selection(doc), _complete_json_insertion)
+        make_completion_operation(doc.viewed, get_selection(doc); completion = _complete_json_insertion)
 end
 
 @gestures JsonNothingView begin

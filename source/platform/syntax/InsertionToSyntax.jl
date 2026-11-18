@@ -386,7 +386,7 @@ function _make_insertion_popup_operation(p::InsertionToSyntaxLeaf, ins, typed::A
 end
 
 """
-    make_completion_operation(insertion, caret, completion = name_completion; place = Any) -> Operation or nothing
+    make_completion_operation(insertion, caret; completion = name_completion, place = Any) -> Operation or nothing
 
 The operation of Tab in `insertion`, a document with a typed text in the field
 `value`: put what the policy `completion` adds to the text at the end of the text,
@@ -403,7 +403,7 @@ nothing to add.
 
 See also `name_completion`, the policy of a typed name.
 """
-function make_completion_operation(insertion, caret, completion = name_completion; place::Type = Any)
+function make_completion_operation(insertion, caret; completion = name_completion, place::Type = Any)
     find_value_range(caret) === nothing && return nothing
     extension = completion(insertion, place).extension
     isempty(extension) && return nothing
@@ -413,7 +413,8 @@ end
 
 # Tab: the completion of the policy of the projection, at the caret of the insertion.
 _insertion_tab(p::InsertionToSyntaxLeaf, ins) =
-    make_completion_operation(ins, getfield(ins, :selection)[], p.completion; place = _get_insertion_place(p))
+    make_completion_operation(ins, getfield(ins, :selection)[]; completion = p.completion,
+                              place = _get_insertion_place(p))
 
 # The projection's own table first (commit / cancel / Tab / widen);
 # when every binding declines — e.g. a printable char with no value cursor —
