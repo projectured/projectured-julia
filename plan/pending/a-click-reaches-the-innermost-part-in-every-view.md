@@ -1872,9 +1872,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
      an event (`arrows.labels[k]`, `events.labels[k]`). A plain click of count 1
      on a name or a label selects its lane, its arrow or its event, and on the
      title the title. The IO map has the field `frame` after `geometry`.
-  3. [ ] **The checks.** Tests of the two readers, the walk of the chart examples
+  3. [x] **The checks.** Tests of the two readers, the walk of the chart examples
      against the base, the chart and sequence chart suites, and the platform
-     suite.
+     suite. Done on the branch rebased with no conflict over main `f7c6d4339`,
+     which has step 4 of the plan "a reader is split by its jobs": `test_chart`
+     656 pass, `test_sequencechart` 488, the walk 205 lines with the same
+     counts, and `test_platform` 236428 passed, 15 failed, 1 error, 21 broken.
+     The 15 failures are the lines of main. The error is the timeout of the
+     first frame in `TaskWorkItemTest.jl:171` (31.22 s, the call waits 30 s);
+     alone, `test_task_work_item` passes 54 with a frame of 26.39 s. The chart
+     readers keep `read_intent`, as on main, because they walk; step 5 of that
+     plan changes them.
 
   Found in the work:
   - A press that selects never acts, so an Alt+double click in the plot no
