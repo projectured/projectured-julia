@@ -1621,6 +1621,12 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `nothing`, so the body of each rule is its guard.
   - The focus of a tab is only a change of the selection, so Escape makes no
     step of the undo.
+  - Two views take Escape at all times, so the rule does not act there: the
+    draft of the assistant cancels on each Escape, and the address of the
+    navigator answers each Escape while the caret is in it. A window that has no
+    tab pane, such as an example window of the REPL or of the gallery, has no
+    rule. The owner decided on 2026-11-18 to keep it so: the rule stays in the
+    tab pane, and these views and windows keep their Escape.
 
   Result: `test_pane_gestures` 128 pass; `test_escape_quitting` 12 pass;
   `test_gallery_wrappers` 15 pass, so the second Escape still quits an example
