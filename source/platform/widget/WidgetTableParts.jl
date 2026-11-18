@@ -1542,9 +1542,10 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
 end
 
 # Backward: a point maps to the corner, the row header, the column header or
-# the cell at it, the reference that an Alt+double click there selects. A path into the
-# canvas of a list names a row by no fixed index, so it maps to no path into the
-# table.
+# the cell at it, the part itself, which an Alt+double click selects on its
+# padding; a move names the part in its content first (`_read_table_parts_move`).
+# A path into the canvas of a list names a row by no fixed index, so it maps to no
+# path into the table.
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                 reference)
     point = find_reference_point(reference)
@@ -1610,8 +1611,89 @@ function _read_table_header_press(found, steps::Tuple, g::MouseClick, x::Int, y:
     reroot_operation(op, steps)
 end
 
-# A left press. An Alt+double click selects the part itself: the corner, a header
-# or a cell, and in a header with levels the label of the level under the pointer.
+# What an Alt+double click selects in a part of a table, a header or a cell, with
+# `found` the IO map of its content and the place of its canvas, from the point
+# `(x, y)` in the same coordinates: the innermost whole part that the content
+# names under the point (`convert_to_whole_selection`), rooted under `steps`.
+# `nothing` when the point is off what the content drew, as on the padding of the
+# part, or the content names no part, so that the part itself is selected. An
+# action that the content answers is dropped, because an Alt+double click never
+# acts.
+function _read_whole_part_press(found, steps::Tuple, g::MouseClick, x::Int, y::Int)
+    (found === nothing || !_is_on_part_content(found, x, y)) && return nothing
+    cim, left, top = found
+    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                     g.modifiers; time = g.time))
+    op isa ReplaceSelectionOperation || return nothing
+    reroot_operation(convert_to_whole_selection(op, get_iomap_input(cim)), steps)
+end
+
+# What a move of the pointer names in a part of a table, with `found` and the point
+# as for `_read_whole_part_press`: the part that the move reader of the content
+# names under the pointer, cut to its whole part (`find_whole_part`) and rooted
+# under `steps`, the part that an Alt+double click there selects. Only that mouse
+# target comes back, so no part in the content answers the move. `nothing` off
+# what the content drew, or when the content names no part, so that the backward
+# map of the point names the part itself.
+function _read_whole_part_move(found, steps::Tuple, g::MouseMove, x::Int, y::Int)
+    (found === nothing || !_is_on_part_content(found, x, y)) && return nothing
+    cim, left, top = found
+    path = _find_mouse_target_path(read_child_move(cim, MouseMove(x - left, y - top, g.buttons, g.modifiers;
+                                                                  time = g.time)))
+    path === nothing && return nothing
+    reroot_operation(ReplaceMouseTargetOperation(find_whole_part(get_iomap_input(cim), path)), steps)
+end
+
+# Whether the point `(x, y)` lies on what the content of a part of a table drew,
+# with `found` the IO map of the content and the place of its canvas in the
+# coordinates of the point (`_is_point_on_canvas`).
+function _is_on_part_content(found, x::Int, y::Int)
+    cim, left, top = found
+    _is_point_on_canvas(cim.output, (x = x - left, y = y - top))
+end
+
+# The path of the mouse target that `operation` sets, also inside a compound and a
+# wrapping operation; `nothing` when it sets none.
+_find_mouse_target_path(::Any) = nothing
+_find_mouse_target_path(operation::ReplaceMouseTargetOperation) = operation.path
+_find_mouse_target_path(operation::WrappingOperation) = _find_mouse_target_path(get_wrapped_operation(operation))
+function _find_mouse_target_path(operation::CompoundOperation)
+    for inner in operation.operations
+        path = _find_mouse_target_path(inner)
+        path === nothing || return path
+    end
+    nothing
+end
+
+# A move of the pointer names the innermost part that the content of the part
+# under it names there (`_read_whole_part_move`): a header, with levels the label
+# of the level under the pointer, or a cell. `nothing` elsewhere, on the corner
+# and on the edge of a column, so that the backward map of the point names the
+# part.
+function _read_table_parts_move(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MouseMove)
+    st = iomap.state
+    found = _find_table_part_at(p, iomap, g.x, g.y)
+    found === nothing && return nothing
+    part, x, y = found
+    part === :corner && return nothing
+    if part === :row_header
+        k = _find_table_row_at(st, y)
+        k === nothing && return nothing
+        return _read_whole_part_move(_find_row_header_label_at(st, k, x)..., g, x, y)
+    end
+    part === :header && _find_table_column_edge_at(st, x) !== nothing && return nothing
+    c = _find_table_column_at(st, x)
+    c === nothing && return nothing
+    part === :header && return _read_whole_part_move(_find_column_header_label_at(st, c, y)..., g, x, y)
+    k = _find_table_row_at(st, y)
+    k === nothing && return nothing
+    _read_whole_part_move(_find_table_cell(st, k, c), _wt_get_cell_steps(iomap.input, k, c), g, x, y)
+end
+
+# A left press. An Alt+double click selects the innermost part that the content
+# of the part under the pointer names there (`_read_whole_part_press`), else the
+# part itself: the corner, a header or a cell, and in a header with levels the
+# label of the level under the pointer.
 # An Alt+click gives the caret in the text of the part and no action, also in a
 # header. A plain press goes to the part first: the corner, a header or a cell, and in a
 # header with levels the label of that level. The corner and a header are
@@ -1637,7 +1719,8 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
         k === nothing && return nothing
         if is_whole_selection_press(g)
             level = _find_level_row_header_reference(iomap.input, st, k, x)
-            return ReplaceSelectionOperation(level === nothing ? _wt_row_header_ref(k) : level)
+            whole = ReplaceSelectionOperation(level === nothing ? _wt_row_header_ref(k) : level)
+            return something(_read_whole_part_press(_find_row_header_label_at(st, k, x)..., g, x, y), whole)
         end
         op = _read_table_header_press(_find_row_header_label_at(st, k, x)..., g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
@@ -1647,14 +1730,18 @@ function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTa
     if part === :header
         if is_whole_selection_press(g)
             level = _find_level_column_header_reference(st, c, y)
-            return ReplaceSelectionOperation(level === nothing ? _wt_column_header_ref(c) : level)
+            whole = ReplaceSelectionOperation(level === nothing ? _wt_column_header_ref(c) : level)
+            return something(_read_whole_part_press(_find_column_header_label_at(st, c, y)..., g, x, y), whole)
         end
         op = _read_table_header_press(_find_column_header_label_at(st, c, y)..., g, x, y)
         return op === nothing ? ReplaceSelectionOperation(_wt_col_ref(c)) : op
     end
     k = _find_table_row_at(st, y)
     k === nothing && return nothing
-    is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c))
+    is_whole_selection_press(g) &&
+        return something(_read_whole_part_press(_find_table_cell(st, k, c), _wt_get_cell_steps(iomap.input, k, c),
+                                                g, x, y),
+                         ReplaceSelectionOperation(_wt_cell_ref(iomap.input, k, c)))
     op = _read_table_cell_press(iomap.input, st, k, c, g, x, y)
     is_caret_press(g) && (op = convert_to_caret_selection(op))
     op === nothing ? ReplaceSelectionOperation(_wt_row_ref(k)) : op
@@ -2207,9 +2294,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent,
             op === nothing || return Intent(g, op)
         end
         g isa MouseClick && g.button === :left && return Intent(g, _read_table_parts_press(p, iomap, g))
-        # A pointer motion does not go into the cells: the part under the pointer
-        # is the backward map of the point. A dwell goes to the cell under it.
-        g isa MouseMove && return Intent(g, nothing)
+        # A pointer motion names the innermost part under the pointer, which the
+        # content of the part there names, else the backward map of the point
+        # names the part. A dwell goes to the cell under it.
+        g isa MouseMove && return Intent(g, _read_table_parts_move(p, iomap, g))
         g isa MouseScroll && return Intent(g, _read_table_parts_wheel(p, iomap, g))
         if g isa KeyDown || g isa KeyPress
             op = _read_open_cell_key(iomap.input, g)

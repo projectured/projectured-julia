@@ -56,7 +56,10 @@ cell_path(outer, inner) = ConcreteReference(FieldReferenceStep("cells"),
         ConcreteReference(RangeReferenceStep(inner - 1, inner), EmptyReference())))
 outer_of(path) = path.tail.head.start + 1
 inner_of(path) = path.tail.tail.head.start + 1
-# The cell that an Alt+double click on the text of a cell selects.
+# The text field of the cell on `path`.
+text_path(path) = concat_references(path, ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
+# What an Alt+double click on the text of a cell selects: the text of the cell,
+# the innermost part, so the path names the cell that holds it.
 function press(io, text)
     (x, y) = text_at(io, text)
     read(io, MouseClick(:left, x + 2, y + 2, 2, alt; time = 0.0)).path
@@ -120,8 +123,8 @@ sized(; kw...) = WidgetTable(; column_policy = Fixed(60), row_policy = Fixed(16)
     column_io = print_document(rec, nothing, by_columns, context())
     @test !(column_io isa WidgetTableListIoMap)
     @test drawn(column_io.output) == drawn(row_io.output)
-    @test press(row_io, name(2, 3)) == cell_path(2, 3)
-    @test press(column_io, name(2, 3)) == cell_path(3, 2)
+    @test press(row_io, name(2, 3)) == text_path(cell_path(2, 3))
+    @test press(column_io, name(2, 3)) == text_path(cell_path(3, 2))
     @test place(column_io, cell_path(3, 2)) == place(row_io, cell_path(2, 3))
     @test try_evaluate_reference(by_columns, cell_path(3, 2)).content == name(2, 3)
     # The band of a selected cell is where the cell is.
@@ -166,8 +169,8 @@ end
         @test built[] < 200
         row_io = print_document(rec, nothing, by_rows, context())
         @test sort(texts(column_io)) == sort(texts(row_io))
-        @test press(column_io, name(2, 3)) == cell_path(3, 2)
-        @test press(row_io, name(2, 3)) == cell_path(2, 3)
+        @test press(column_io, name(2, 3)) == text_path(cell_path(3, 2))
+        @test press(row_io, name(2, 3)) == text_path(cell_path(2, 3))
         @test place(column_io, cell_path(3, 2)) == place(row_io, cell_path(2, 3))
     end
 end

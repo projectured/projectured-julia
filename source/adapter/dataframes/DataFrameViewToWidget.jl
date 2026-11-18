@@ -489,7 +489,7 @@ function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::Rep
     target = _find_view_path(iomap, path, head)
     target === nothing && return nothing
     view = iomap.input
-    target = _find_whole_read_only_cell(view, target)
+    target = _find_whole_read_only_cell(view, _drop_whole_cell_value(target))
     open = _make_open_cell_operation(view, target)
     selection = ReplaceSelectionOperation(open === nothing && _find_cell_tail(target) === nothing ?
                                           annotate_reference_types(view, target) : target)
@@ -508,6 +508,18 @@ function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::Rep
     (commit.edits && row !== nothing) &&
         _push_anchor_write!(operations, view, row, _compute_kept_rows_after_write(view, left[1], left[2], commit.value))
     _make_cell_step(operations, commit.edits)
+end
+
+# `path`, a path of the view, or the cell `rows[r][c]` when `path` selects
+# `rows[r][c].value`, the whole value of the primitive document that shows the
+# value of the cell: that value is the cell itself, so the selection opens no
+# cell. A place inside the value, such as a caret, stays.
+function _drop_whole_cell_value(path)
+    found = _find_cell_tail(path)
+    (found !== nothing && found[3] == ConcreteReference(FieldReferenceStep("value"), EmptyReference())) ||
+        return path
+    _make_element_reference("rows", found[1], ConcreteReference(RangeReferenceStep(found[2] - 1, found[2]),
+                                                                 EmptyReference()))
 end
 
 # The row of the frame that `path`, a path of the view, goes into, `rows[r]…`, or
@@ -602,8 +614,9 @@ end
 # rest of its corner, `columns[c]` of the frame for a column and for its header,
 # `rows[r]` for a row and for its header, which hold no state of their own in the
 # view, `rows[r][c]` for a cell with the rest of the path in it, and `nothing`
-# for any other place. The rows of the table count from the head at the place
-# `head` among the kept rows.
+# for any other place. A whole part of the label of a header, such as the text of
+# its name, names the column or the row of the header. The rows of the table
+# count from the head at the place `head` among the kept rows.
 function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _get_head_place(iomap.input))
     path isa EmptyReference && return EmptyReference()
     (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
@@ -615,13 +628,16 @@ function _find_view_path(iomap::DataFrameViewToWidgetIoMap, path, head::Int = _g
     (tail isa ConcreteReference && tail.head isa RangeReferenceStep) || return nothing
     name = path.head.name
     if name in ("columns", "column_headers")
-        tail.tail isa EmptyReference || return nothing
+        (tail.tail isa EmptyReference || name == "column_headers" && is_whole_selection(iomap.table, path)) ||
+            return nothing
         return _find_frame_column_path(iomap, tail.head.stop, EmptyReference())
     end
     name in ("rows", "cells", "row_headers") || return nothing
     r = _find_frame_row(view, tail.head.stop, head)
     r === nothing && return nothing
     rest = tail.tail
+    name == "row_headers" && is_whole_selection(iomap.table, path) &&
+        return _make_element_reference("rows", r, EmptyReference())
     rest isa EmptyReference && name != "cells" && return _make_element_reference("rows", r, rest)
     name == "cells" || return nothing
     (rest isa ConcreteReference && rest.head isa RangeReferenceStep) || return nothing

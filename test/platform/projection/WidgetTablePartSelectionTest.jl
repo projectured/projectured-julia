@@ -1,7 +1,8 @@
 # A table selects each part the same way, in its eager form and in the form that
 # scrolls its own parts: a plain press goes to the content of a part first and
 # one that the content declines selects its row or its column, an Alt+double click
-# selects the part itself, the header row and the header column are parts too,
+# selects the innermost part under the pointer, the text in a part, and on the
+# padding the part itself, the header row and the header column are parts too,
 # and the keys move along a strip of headers and step into the cells.
 
 using ProjecturedKernel.CellModule: Cell, set_cell_computation!, set_cell_value!
@@ -61,8 +62,10 @@ text_at(io, text) = only((t[2], t[3]) for t in drawn(io.output) if t[1] === :tex
 press_text(io, text, modifiers, count = 1) = ((x, y) = text_at(io, text);
                                    read(io, MouseClick(:left, x + 2, y + 2, count, modifiers; time = 0.0)))
 # A press on the padding left of the text `text`, where no text is drawn.
-press_padding(io, text, modifiers) = ((x, y) = text_at(io, text);
-                                      read(io, MouseClick(:left, x - 1, y + 2, modifiers; time = 0.0)))
+press_padding(io, text, modifiers, count = 1) = ((x, y) = text_at(io, text);
+                                      read(io, MouseClick(:left, x - 1, y + 2, count, modifiers; time = 0.0)))
+# The text field of the part on `path`.
+content_of(path) = concat_references(path, ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
 box(io, path) = find_reference_box(io.output, map_reference_forward(io.projection, io, path))
 # The rectangles that the selection `path` adds to what the table draws.
 function band_of(table, io, path)
@@ -103,7 +106,7 @@ listed(check, field) = WidgetTable(; column_headers = Any["a", "b", "c"],
                                    row_policy = Fixed(24))
 
 for (form, make) in (("eager", eager), ("list", listed))
-    @testset "$(form): a plain press goes to the part first, and an Alt+double click selects the part" begin
+    @testset "$(form): a plain press goes to the part first, and an Alt+double click selects the innermost part" begin
         check, field = WidgetCheckbox("x"), WidgetText("abc")
         table = make(check, field)
         io = print_document(rec, nothing, table, context())
@@ -128,10 +131,14 @@ for (form, make) in (("eager", eager), ("list", listed))
         @test get_reference_steps(strip_reference_types(typed.reference))[1:2] ==
               [FieldReferenceStep("row_headers"), RangeReferenceStep(1, 2)]
         getfield(table, :selection)[] = nothing
-        # An Alt+double click selects the header itself, of a row as of a column, and the cell.
-        @test path_of(press_text(io, "#3", alt, 2)) == part("row_headers", 3)
-        @test path_of(press_text(io, "b", alt, 2)) == part("column_headers", 2)
-        @test path_of(press_text(io, name(2, 3), alt, 2)) == cell(2, 3)
+        # An Alt+double click on the text of a header, of a row as of a column, or
+        # of a cell selects the text, the innermost part, and on the padding it
+        # selects the header or the cell itself.
+        @test path_of(press_text(io, "#3", alt, 2)) == content_of(part("row_headers", 3))
+        @test path_of(press_text(io, "b", alt, 2)) == content_of(part("column_headers", 2))
+        @test path_of(press_text(io, name(2, 3), alt, 2)) == content_of(cell(2, 3))
+        @test path_of(press_padding(io, "b", alt, 2)) == part("column_headers", 2)
+        @test path_of(press_padding(io, name(2, 3), alt, 2)) == cell(2, 3)
         @test path_of(press_padding(io, name(2, 3), mods)) == part("rows", 2)
         @test path_of(press_text(io, name(2, 3), mods)) ==
               concat_references(cell(2, 3), extend_reference(EmptyReference(), FieldReferenceStep("content"),

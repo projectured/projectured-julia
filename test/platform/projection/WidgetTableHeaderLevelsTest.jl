@@ -48,6 +48,8 @@ level_path(field, index, l) = ConcreteReference(FieldReferenceStep(field),
         ConcreteReference(RangeReferenceStep(l - 1, l), EmptyReference())))
 element_path(field, index) = ConcreteReference(FieldReferenceStep(field),
     ConcreteReference(RangeReferenceStep(index - 1, index), EmptyReference()))
+# The text field of the label on `path`.
+text_path(path) = concat_references(path, ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
 
 regions = ["EU", "EU", "US", "US"]
 countries = ["DE", "FR", "CA", "NY"]
@@ -103,19 +105,22 @@ rule_at(x) = [r for r in header_graphics if r isa GraphicsRect && Int(r.x) == x 
 
 # ── A press ──────────────────────────────────────────────────────────────────
 
-# An Alt+double click on the label of an outer level selects the label of its run. A
+# An Alt+double click on the text of the label of an outer level selects that
+# text, the innermost part, and on the empty cell of a run the label of the run. A
 # plain press goes to the label, and the header keeps no caret in the text of a
 # label, so the press selects the column or the row under the pointer.
 alt = ModifierKeys(alt = true)
 op = press(io, year_2025[1] + 2, year_2025[2] + 2; modifiers = alt, count = 2)
-@test op isa ReplaceSelectionOperation && op.path == level_path("column_headers", 3, 1)
+@test op isa ReplaceSelectionOperation
+@test strip_reference_types(op.path) == text_path(level_path("column_headers", 3, 1))
 op = press(io, year_2025[1] + 2, year_2025[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 op = press(io, quarters[3][1] + 2, quarters[3][2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("columns", 3)
 us = place_of(io, "US")
 op = press(io, us[1] + 2, us[2] + 2; modifiers = alt, count = 2)
-@test op isa ReplaceSelectionOperation && op.path == level_path("row_headers", 3, 1)
+@test op isa ReplaceSelectionOperation
+@test strip_reference_types(op.path) == text_path(level_path("row_headers", 3, 1))
 op = press(io, us[1] + 2, us[2] + 2)
 @test op isa ReplaceSelectionOperation && op.path == element_path("rows", 3)
 # The empty cell of the outer level of the last row is in the run of US.

@@ -699,10 +699,13 @@ end
     end
     band_width(k, band) = Int(graphics_of(k).elements[band].w)
     (x, y) = place(io, 3, 1)
-    # A move names no part by itself: the point maps to the cell, and the light
-    # follows the mouse target of the table.
-    @test read(io, MouseMove(x + 2, y + 2, MouseButtons(), mods; time = 0.0)) === nothing
-    getfield(table, :mouse_target)[] = compute_part_at_point(io, x + 2, y + 2)
+    # A move on the text of a cell names the text, the part that an Alt+double
+    # click there selects, and the light of the row follows that mouse target.
+    move = read(io, MouseMove(x + 2, y + 2, MouseButtons(), mods; time = 0.0))
+    @test move isa ReplaceMouseTargetOperation
+    @test strip_reference_types(move.path) == concat_references(cell_reference(3, 1),
+        ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
+    getfield(table, :mouse_target)[] = move.path
     @test band_width(3, 1) > 0
     @test band_width(2, 1) == 0
     getfield(table, :selection)[] = make_widget_table_row_selection(2)
@@ -883,14 +886,15 @@ end
     @test get_reference_steps(strip_reference_types(key.reference))[1:2] ==
           [FieldReferenceStep("column_headers"), RangeReferenceStep(1, 2)]
     # A press on a label in a header, which is no control, selects its column,
-    # and an Alt+double click selects the header itself.
+    # and an Alt+double click selects the text of the label, the innermost part.
     (x, y) = text_at(io, "name")
     path = read(io, MouseClick(:left, x + 2, y + 2, mods; time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("columns"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
     path = read(io, MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(alt = true); time = 0.0)).path
     @test strip_reference_types(path) == ConcreteReference(FieldReferenceStep("column_headers"),
-        ConcreteReference(RangeReferenceStep(0, 1), EmptyReference()))
+        ConcreteReference(RangeReferenceStep(0, 1),
+            ConcreteReference(FieldReferenceStep("content"), EmptyReference())))
 end
 
 @testset "a drag of the right edge of a header sets the width of its column" begin

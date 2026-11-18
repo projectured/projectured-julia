@@ -13863,7 +13863,8 @@ function _find_wt_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphi
 end
 
 # A point maps to the cell, the row header, the column header or the corner at
-# it: the reference that an Alt+double click there selects.
+# it: the part itself, which an Alt+double click selects on its padding. A move
+# names the part in its content first (`_wt_read_part_move`).
 function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, point)
     _is_point_on_canvas(iomap.output, point) || return nothing
     hit = _find_wt_hit(p, iomap, point.x, point.y)
@@ -13891,8 +13892,10 @@ _wt_get_cell_steps(w::WidgetTable, r::Int, c::Int) =
 # content of a cell or a header first. A header keeps every answer but a caret
 # in a label (`_find_control_answer`); a click that the header does not keep
 # selects its row or its column, and a click that a cell declines selects its
-# row. The corner selects the table; an Alt+double click selects the cell or the
-# header itself, and an Alt+click gives the caret in its text. Keyboard grid navigation (the arrows,
+# row. The corner selects the table; an Alt+double click selects the innermost
+# part that the content of the cell or the header names under the point, else the
+# cell or the header itself, and an Alt+click gives the caret in its text.
+# Keyboard grid navigation (the arrows,
 # Ctrl+Alt+Home, Shift/Ctrl+Space, Enter, also on a selected header) is resolved
 # against the live table. A turn of the wheel scrolls the parts. Every other event goes to a
 # cell (`_wt_route_event`). An operation from below finds no cell to go to.
@@ -13903,9 +13906,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     _is_table_bar_event(iomap.parts.cells_pane, place, g) &&
         return Intent(g, _read_table_bar_event(iomap.parts.cells_pane, place, g))
     g isa MouseClick && g.button === :left && return Intent(g, _wt_mouse_select(p, iomap, g))
-    # A pointer motion does not go into the cells: the part under the pointer is the
-    # backward map of the point. A dwell goes to the cell under it.
-    g isa MouseMove && return Intent(g, nothing)
+    # A pointer motion names the innermost part under the pointer, which the content
+    # of the cell or the header there names (`_wt_read_part_move`), else the
+    # backward map of the point names the part. A dwell goes to the cell under it.
+    g isa MouseMove && return Intent(g, _wt_read_part_move(p, iomap, g))
     if g isa MouseScroll
         (region_x, region_y), _ = _wt_get_part_places(iomap, iomap.parts.cells_pane)
         content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
@@ -13922,6 +13926,27 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     Intent(g, op isa Operation ? op : something(_read_whole_cell_key(iomap.input, g), Some(op)))
 end
 
+# What a move of the pointer names: the innermost part that the content of the
+# cell or the header under the pointer names there (`_read_whole_part_move`), the
+# part that an Alt+double click there selects. `nothing` off the grid and on the
+# corner, so that the backward map of the point names the part.
+function _wt_read_part_move(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MouseMove)
+    _is_point_on_canvas(iomap.output, (x = Int(g.x), y = Int(g.y))) || return nothing
+    geom = iomap.geometry
+    x, y = _wt_get_unscrolled_point(p, iomap, g.x, g.y)
+    (0 <= x < geom.total_w && 0 <= y < geom.total_h) || return nothing
+    hit = _wt_hit_test(geom, x, y)
+    kind = hit[1]
+    part = kind === :row ? _wt_row_header_ref(hit[2]) :
+           kind === :col ? _wt_column_header_ref(hit[2]) :
+           kind === :cell ? _wt_cell_ref(iomap.input, hit[2], hit[3]) : nothing
+    part === nothing && return nothing
+    found = _wt_find_part_entry(iomap, part)
+    found === nothing && return nothing
+    pane, i, steps, _ = found
+    _read_whole_part_move(_wt_find_part_cell(iomap, pane, i), steps, g, x, y)
+end
+
 # Resolve a left click into a selection operation (or nothing). The margin,
 # the border and the padding belong to the table, so a press there is clamped
 # into the grid.
@@ -13936,19 +13961,31 @@ function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGr
         return ReplaceSelectionOperation(EmptyReference())
     elseif kind === :row
         r = hit[2]
-        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_row_header_ref(r))
+        is_whole_selection_press(g) && return _wt_route_whole_press(iomap, _wt_row_header_ref(r), g, x, y)
         return _wt_route_header_click(iomap, _wt_row_header_ref(r), _wt_row_ref(r), g, x, y)
     elseif kind === :col
         c = hit[2]
-        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_column_header_ref(c))
+        is_whole_selection_press(g) && return _wt_route_whole_press(iomap, _wt_column_header_ref(c), g, x, y)
         return _wt_route_header_click(iomap, _wt_column_header_ref(c), _wt_col_ref(c), g, x, y)
     elseif kind === :cell
         r, c = hit[2], hit[3]
-        is_whole_selection_press(g) && return ReplaceSelectionOperation(_wt_cell_ref(iomap.input, r, c))
+        is_whole_selection_press(g) && return _wt_route_whole_press(iomap, _wt_cell_ref(iomap.input, r, c), g, x, y)
         op = _wt_route_cell_click(iomap, r, c, g, x, y)
         return is_caret_press(g) ? convert_to_caret_selection(op) : op
     end
     return nothing
+end
+
+# Route an Alt+double click at `(x, y)`, in the coordinates of the geometry, into
+# the content of the header or the cell that `part` names: the innermost part that
+# the content names under the point (`_read_whole_part_press`), else `part` itself.
+function _wt_route_whole_press(iomap::WidgetTableToGraphicsCanvasIoMap, part::Reference, g::MouseClick,
+                               x::Int, y::Int)
+    whole = ReplaceSelectionOperation(part)
+    found = _wt_find_part_entry(iomap, part)
+    found === nothing && return whole
+    pane, i, steps, _ = found
+    something(_read_whole_part_press(_wt_find_part_cell(iomap, pane, i), steps, g, x, y), whole)
 end
 
 # Route a plain click at `(x, y)`, in the coordinates of the geometry, into the

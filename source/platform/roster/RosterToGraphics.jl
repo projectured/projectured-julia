@@ -85,9 +85,10 @@ there. The glyph shows the sort of the column, and a click or a Shift+click writ
 the keys that [`compute_clicked_sort_keys`](@ref) gives. The menu of the key and the
 glyph has "Filter by values…", which lists the values of the column over every row
 of the roster. Each edit is an `ArrangeCollectionOperation` at the rows, which the
-readers around the table carry to the arrangement. The caret of a field is a path
-in the table that the table introduced (`‹column_headers[c]…›`). A table that does
-not print inside an arrangement has a plain header of labels.
+readers around the table carry to the arrangement. A table that does not print
+inside an arrangement has a plain header of labels. A part of a header, such as
+the caret of a field or the text of a key, is a path in the table that the table
+introduced (`‹column_headers[c]…›`).
 
 With `cells` set to `nothing`, a cell whose value is a picture, an `ImageDocument` or an
 `ImageFile`, shows the picture ([`make_roster_value_cell`](@ref)), at most
@@ -176,7 +177,9 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     columns = _find_roster_columns(rows, ctx)
     made = IdDict{Any,Any}()
     entry = is_arranged_place(ctx) ? Cell(@computation find_arranged_entry(ctx)) : nothing
-    headers = entry === nothing ? CellVector(Cell[Cell(WidgetLabel(format_roster_column_label(key))) for key in columns]) :
+    headers = entry === nothing ?
+              CellVector(Cell[Cell(_follow_header_selection!(WidgetLabel(format_roster_column_label(key)), rows, c))
+                              for (c, key) in enumerate(columns)]) :
               CellVector(@computation Any[_make_filter_header(p, rows, entry, ctx, key, c)
                                           for (c, key) in enumerate(columns)])
     roster = ctx === nothing ? nothing : get_property(ctx, :roster, nothing)
@@ -193,7 +196,8 @@ function print_document(p::RosterRowsToWidget, recursion, rows::CellVector, ctx)
     _set_column_shares!(table, roster, length(columns))
     # The layout and the table hold their part of the selection and of the part
     # under the pointer. The walk stops at the table: a cell can hold a document
-    # of an item, which keeps its own selection.
+    # of an item, which keeps its own selection. Each header holds its part through
+    # a walk of its own (`_follow_header_selection!`).
     is_followed = node -> node isa GridLayout || node isa WidgetTable
     follow_output_selection!(layout, () -> _map_selection_or_mark(iomap, roster);
                              forward_mouse_target = () -> map_mouse_target_forward(rows,
@@ -243,18 +247,30 @@ function _retarget_header_operation(operation)
     operation isa WrappingOperation ? rewrap_operation(operation, moved) : moved
 end
 
-# The range `(start, stop)` of the caret in the filter field of header `c`, or
+# The part of the selection of `rows` in header `c`, a path from the header, or
 # `nothing`: the selection of `rows` is the step that the table introduced.
-function _find_header_range(rows, c::Int)
+function _find_header_part(rows, c::Int)
     selection = getfield(rows, :selection)[]
     (selection isa ConcreteReference && selection.head isa ProjectionReferenceStep &&
      selection.head.projection isa RosterRowsToWidget) || return nothing
-    found = _find_header_field(get_reference_steps(strip_reference_types(selection.head.output_path)))
-    (found === nothing || found[1] != c) ? nothing : (found[2], found[3])
+    steps = get_reference_steps(strip_reference_types(selection.head.output_path))
+    n = length(_TABLE_STEPS)
+    (length(steps) >= n + 2 && all(steps[k] == _TABLE_STEPS[k] for k in 1:n) &&
+     steps[n + 1] == FieldReferenceStep("column_headers") && _is_index_step(steps[n + 2]) &&
+     steps[n + 2].start + 1 == c) || return nothing
+    extend_reference(EmptyReference(), steps[(n + 3):end]...)
 end
 
+# `header`, the header of column `c`, after each document in it holds its part of
+# the selection of `rows`, so the label, the field and the layouts around them
+# draw it. The roster makes the header, which holds no document of an item, so
+# the walk goes into all of it.
+_follow_header_selection!(header, rows, c::Int) =
+    follow_output_selection!(header, () -> _find_header_part(rows, c))
+
 # The header of column `key`, number `c`: the key and the sort glyph above the
-# field of the filter. The key and the glyph have the menu of the column.
+# field of the filter. The key and the glyph have the menu of the column. The walk
+# of the header gives the field its caret, so the field reads no range of its own.
 function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::String, c::Int)
     style(name) = unwrap_cell(get_widget_style(p.widget, name))
     text() = find_column_filter_text(entry[], key)
@@ -270,9 +286,8 @@ function _make_filter_header(p::RosterRowsToWidget, rows, entry, ctx, key::Strin
     header = WidgetLabel(format_roster_column_label(key);
                          text_style = StyleText(style(:column_font), style(:muted_foreground)))
     label = WidgetContextMenu(HorizontalLayout(Any[header, glyph...]; gap = Int(style(:header_gap))), menu)
-    make_labeled_field(label, make_filter_field(text, () -> _find_header_range(rows, c), reason,
-                                                0, style(:invalid_filter)),
-                       Int(style(:header_field_minimum_width)))
+    field = make_filter_field(text, () -> nothing, reason, 0, style(:invalid_filter))
+    _follow_header_selection!(make_labeled_field(label, field, Int(style(:header_field_minimum_width))), rows, c)
 end
 
 # The edit of a click on the glyph of column `key`: the new sort of the entry.
@@ -550,9 +565,9 @@ function map_reference_backward(::RosterRowsToWidget, iomap::RosterRowsToWidgetI
         return nothing
     rest = steps[(length(_TABLE_STEPS) + 1):end]
     isempty(rest) && return EmptyReference()
-    # A part of the header is a part that the table drew, which a gesture routes to
-    # and a caret in a field holds, by the introduced step.
-    iomap.is_filtering && rest[1] == FieldReferenceStep("column_headers") &&
+    # A part of a header is a part that the table drew: a gesture routes to it, and
+    # a caret in a field or the whole text of a key holds it, by the introduced step.
+    rest[1] == FieldReferenceStep("column_headers") &&
         return make_introduced_reference(get_iomap_projection(iomap), iomap.input, extend_reference(EmptyReference(), steps...))
     rows = iomap.input
     head = _get_roster_head_row(iomap)

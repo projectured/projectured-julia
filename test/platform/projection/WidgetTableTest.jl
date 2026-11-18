@@ -55,9 +55,12 @@ end
     _mtt_move!(driver, _bx(g), _rowy(g, 2), 1.2)
     row2 = WidgetModule._find_wt_lit_reference(w, get_mouse_target(w))
     @test row2 !== nothing && row2 != row1
-    # The table's own reader never answers a motion: the light comes only from
-    # the mouse target that a move writes.
-    @test _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0)) === nothing
+    # A move on the text of a cell names the text, the part that an Alt+double
+    # click there selects, and the light of the row comes from that mouse target.
+    move = _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0))
+    @test move isa ReplaceMouseTargetOperation
+    @test last(get_reference_steps(strip_reference_types(move.path))) == FieldReferenceStep("content")
+    @test WidgetModule._find_wt_lit_reference(w, move.path) == row2
     # The leave of the window clears the light.
     _mtt_leave!(driver, 1.3)
     @test get_mouse_target(w) === nothing

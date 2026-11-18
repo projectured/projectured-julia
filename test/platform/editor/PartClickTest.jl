@@ -118,6 +118,23 @@ function _pc_is_caret_at_mark(session, x, y, caret_x)
     end
 end
 
+# Whether `part`, the part of the caret, which the selected part `whole` holds,
+# draws a mark that holds the point when it is selected. Then the character under
+# the point is in `part`, so an Alt+double click there must select `part`, the
+# innermost part, and not `whole` around it, as a table around the text of a
+# cell. A part around a character of its own, as a node around its separator,
+# holds the part of the caret beside that character, which draws no mark at the
+# point. The selection is `whole` again after the check.
+function _pc_is_caret_part_at_point(session, whole, part, x, y)
+    (_pc_is_part_within(whole, part) && !_pc_is_same_part(whole, part)) || return false
+    _pc_select!(session, part)
+    run_frame!(session.editor)
+    held = _pc_is_selection_drawn(session, x, y)
+    _pc_select!(session, whole)
+    run_frame!(session.editor)
+    held
+end
+
 # The marks of the selection that the output draws now.
 function _pc_collect_selection_marks(session)
     output = _pc_read_value(get_iomap_output(session.editor.iomap))
@@ -465,7 +482,8 @@ function _pc_check_point!(session, element)
             push!(session.failures, "$at: an Alt+double click selects $(format(whole)), outside $(format(deepest))")
         caret === nothing || _pc_is_same_part(_pc_cut_place(caret), whole) ||
             blank && _pc_is_part_within(whole, _pc_cut_place(caret)) ||
-            caret_x !== nothing && _pc_is_caret_at_mark(session, x, y, caret_x) ||
+            caret_x !== nothing && _pc_is_caret_at_mark(session, x, y, caret_x) &&
+                !_pc_is_caret_part_at_point(session, whole, _pc_cut_place(caret), x, y) ||
             push!(session.failures, "$at: an Alt+double click selects $(format(whole)), not " *
                                     "$(format(_pc_cut_place(caret))), the part of the caret")
         _pc_is_selection_drawn(session, x, y; anywhere = blank) ||

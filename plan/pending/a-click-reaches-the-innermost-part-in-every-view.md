@@ -1752,6 +1752,67 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   reads no move, so in that view an Alt+double click selects no character. The
   syntax views use `TextToGraphics` and are not affected. That view belongs to
   another workstream, so D8 leaves it as it is.
+
+  **The table rule taken up (2026-11-17).** To "land and continue" after D8, the
+  next cause of run 6 is the table: an Alt+double click on the text of a cell or
+  a header selected the whole cell or header (323 lines). The design of the work:
+  - An Alt+double click on a cell or a header goes to the content of the part
+    (`_read_whole_part_press` in `WidgetTableParts.jl`, for the plain table
+    through `_wt_route_whole_press` and for the table of a list in
+    `_read_table_parts_press`). The answer of the content becomes the whole part
+    (`convert_to_whole_selection`), rooted under the part. An action of the
+    content is dropped.
+  - On the padding around the content, an empty area, the Alt+double click
+    selects the part itself, as today (P4). The point must be on the canvas of
+    the content (`_is_on_part_content`). An Alt+click there still puts the caret
+    at the nearest edge of the text.
+  - A move names the same part as its mouse target (`_read_whole_part_move`,
+    `_wt_read_part_move`, `_read_table_parts_move`): the whole part of the move
+    answer of the content, else nothing, so that the backward map names the cell
+    or the header. The light of the row or the column takes the cell from the
+    start of the path, so a target in the text of a cell lights its row.
+  - The data frame view maps a whole part in the label of a header to its column
+    or row (`_find_view_path`), and the whole value of a read-only cell to the
+    cell (`_drop_whole_cell_value` in `_read_table_selection`). A first version
+    put this rule in `_find_view_path`, and then a write of a Bool cell through
+    `.value` became a write of the whole cell (`DataFrameCellTest.jl:361`, `:467`).
+  - The pivot: an Alt+double click on the label of a run selects the text of the
+    label, and Alt+Up widens it to the run. Enter on that text still opens or
+    closes the run, because `_find_pivot_row_run` reads only the row and the level.
+  - The roster: its walk of the output selection stops at the table, because a
+    cell can hold a document of an item. So no widget in a header held its part,
+    and the text of a key or of a filter field, which the Alt+double click now
+    selects, drew no band (the first walk of the change: 79 lines in
+    `backgroundwork/log`, `task/group`, `task/group_list` and `workflow/list`,
+    against 14 on main). Each header that the roster makes now follows the
+    selection of the rows below `column_headers[c]` (`_follow_header_selection!`,
+    `_find_header_part`), as D6 says. The walk gives the field its caret, so the
+    field reads no range of its own, and `_find_header_range` is gone.
+  - The click test had a leniency of D8 that hid this cause: an Alt+double click
+    whose mark holds the caret passed, also when the part of the caret drew a mark
+    at the point. `_pc_is_caret_part_at_point` now fails that case.
+  - The tests that expected the cell or the header from an Alt+double click on a
+    text, or no answer from a move over a cell, follow the rule:
+    `WidgetTablePartSelectionTest`, `WidgetTablePartsTest`,
+    `WidgetTableCellOrderTest`, `WidgetTableHeaderLevelsTest`, `WidgetTableTest`,
+    `PivotTableToWidgetTest` and `TableNavigationTest`. The last one clicked the
+    centre of a header, which is on the empty area beside the one character of
+    the header, so it now checks both: the centre selects the header, and the 10
+    points of the character select its value.
+  - Suites: the 17 table and selection tests of the platform pass (with
+    `test_widget_table_list` 268, `test_widget_selection` 120,
+    `test_part_pointer_shape` 32), `test_dataframes` 622 and
+    `test_table_navigation` 68 pass. The pivot suite gives 335 passes and only the
+    3 known failures of main. `test_platform` gives the 15 known failures of main
+    and no other. The 7 roster suites pass.
+  - The click walk of the same examples: 632 lines on main, 365 lines with the
+    table rule, 300 lines with the roster fix. The table cause falls from 311 to
+    32 lines, and the 65 lines of the roster headers go: `alt2:not-drawn` 119 →
+    54. No new line comes.
+  - The new roster testset first sent the presses and releases of a double
+    click. The editor of the test has no gesture tracker, so it got no click of
+    count 2, only the caret of the Alt+press. The test now sends the two clicks,
+    as the tracker gives them and as `press!` of the same file does.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,

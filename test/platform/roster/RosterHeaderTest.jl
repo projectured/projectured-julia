@@ -182,8 +182,37 @@ function test_roster_header()
         @test shown_ids(rows) == [1, 2, 3, 4]
     end
 
+    # An Alt+double click as the gesture tracker gives it: a click, and then a click
+    # of count 2 at the same point. The editor of the test has no gesture tracker.
+    function alt_double_press!(editor, backend, x, y)
+        alt = ModifierKeys(alt = true)
+        _arrangement_press!(editor, backend, MouseMove(x, y; time = 0.0), MouseClick(:left, x, y, 1, alt; time = 0.0))
+        frame!(editor)
+        _arrangement_press!(editor, backend, MouseClick(:left, x, y, 2, alt; time = 0.0))
+        frame!(editor)
+    end
+    content = ConcreteReference(FieldReferenceStep("content"), EmptyReference())
+    part_of(document) = (path = getfield(document, :selection)[]; path === nothing ? nothing : strip_reference_types(path))
+
+    @testset "an Alt+double click on the key of a column selects its text, and the label holds it" begin
+        (editor, backend, rows) = setup()
+        alt_double_press!(editor, backend, _arrangement_place(backend, "status")...)
+        header = _find_roster_iomap_of(editor.iomap, RosterRowsToWidgetIoMap).table.column_headers[2]
+        key = header.children[1].child.children[1]
+        @test key isa WidgetLabel && key.content == "status"
+        @test part_of(key) == content
+        @test part_of(header.children[2]) === nothing
+        # The box of the field, beside its text, selects the whole text of the field.
+        alt_double_press!(editor, backend, field_place(backend, "status")...)
+        @test part_of(header.children[2]) == content
+        @test part_of(key) === nothing
+    end
+
     @testset "a roster that is not in an arrangement has a plain header" begin
         (editor, backend, rows) = setup(; filter = Any[])
+        alt_double_press!(editor, backend, _arrangement_place(backend, "status")...)
+        header = _find_roster_iomap_of(editor.iomap, RosterRowsToWidgetIoMap).table.column_headers[2]
+        @test header isa WidgetLabel && part_of(header) == content
         iomap = _find_roster_iomap_of(editor.iomap, RosterRowsToWidgetIoMap)
         @test iomap !== nothing && !iomap.is_filtering
         @test all(text -> text in _arrangement_texts(backend), ["id", "status", "delay"])
