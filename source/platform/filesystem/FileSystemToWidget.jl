@@ -208,27 +208,26 @@ function _is_open_rows_write(operation, widget)
     length(steps) == 1 && steps[1] == FieldReferenceStep("expanded")
 end
 
-# The answer of a view of folders to `payload`: what `read` made of a write of the
-# open nodes, with the other parts mapped as through any projection, or else the
-# payload mapped so.
-function _map_open_folder_answer(p, iomap, payload, read)
-    map_answer(answer) = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, answer)
-    read === nothing && return map_answer(payload)
+# The answer of a view of folders to `operation`, the answer of its output: what
+# `read` made of a write of the open nodes, with the other parts mapped as through
+# any projection, or else the operation mapped so.
+function _map_open_folder_answer(p, iomap, operation, read)
+    map_answer(answer) = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, answer)
+    read === nothing && return map_answer(operation)
     (held, others) = read
     mapped = isempty(others) ? nothing :
              map_answer(length(others) == 1 ? only(others) : CompoundOperation(others))
     mapped === nothing ? held : CompoundOperation(Any[held, mapped])
 end
 
-function read_intent(p::FileSystemToWidgetTree, recursion, change::Intent, iomap::SimpleIoMap)
-    (change.route === nothing && iomap.input isa WorkspaceExplorer) ||
-        return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    payload = change.operation === nothing ? change.gesture : change.operation
+# A chevron of the tree of the explorer writes the open folders of the explorer and
+# changes what it holds; every other answer maps back as through any projection.
+function map_operation_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, operation)
     explorer = iomap.input
-    folders = _get_explorer_folders(explorer)
-    read = _read_open_folder_write(explorer, folders, iomap.output, payload)
-    answer = _map_open_folder_answer(p, iomap, payload, read)
-    Intent(change.gesture, answer, change.description, change.domain)
+    explorer isa WorkspaceExplorer ||
+        return invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    read = _read_open_folder_write(explorer, _get_explorer_folders(explorer), iomap.output, operation)
+    _map_open_folder_answer(p, iomap, operation, read)
 end
 
 # The path of the explorer `workspace.folders[k].directory.elements[a]…` is the

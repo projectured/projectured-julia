@@ -494,26 +494,15 @@ end
 
 # A chevron writes the open nodes of the tree document. Every other answer maps
 # back as through any projection: the path of a node to the path of its document.
-function read_intent(p::DocumentTreeToWidgetTree, recursion, change::Intent,
-                     iomap::DocumentTreeToWidgetTreeIoMap)
-    change.route === nothing ||
-        return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    payload = change.operation === nothing ? change.gesture : change.operation
-    map_answer(answer) = invoke(read_intent, Tuple{Projection,Any,Any}, p, iomap, answer)
-    read = _read_open_node_write(iomap, payload)
-    answer = if read === nothing
-        map_answer(payload)
-    else
-        (held, others) = read
-        rest = length(others) == 1 ? only(others) : CompoundOperation(others)
-        mapped = isempty(others) ? nothing : map_answer(rest)
-        mapped === nothing ? held : CompoundOperation(Any[held, mapped])
-    end
-    Intent(change.gesture, answer, change.description, change.domain)
+function map_operation_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTreeToWidgetTreeIoMap, operation)
+    map_answer(answer) = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, answer)
+    read = _read_open_node_write(iomap, operation)
+    read === nothing && return map_answer(operation)
+    (held, others) = read
+    rest = length(others) == 1 ? only(others) : CompoundOperation(others)
+    mapped = isempty(others) ? nothing : map_answer(rest)
+    mapped === nothing ? held : CompoundOperation(Any[held, mapped])
 end
-
-read_intent(p::DocumentTreeToWidgetTree, iomap::DocumentTreeToWidgetTreeIoMap, payload) =
-    read_intent(p, nothing, Intent(payload), iomap).operation
 
 # ── Reference mapping ────────────────────────────────────────────────────────
 

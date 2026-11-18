@@ -904,3 +904,57 @@ other containers and wrappers.
 **2026-11-18, R5: the owner approves step 5 as built.** "yes" to: "Do you approve step 5 as
 built, with the walk of a stage and the plain rule in the kernel? If yes, I convert the
 remaining readers in the same way, rebase onto main, run the suites again, and land step 5."
+
+**2026-11-18, step 5 after R5: the remaining readers.**
+
+- **The stages that read the answer of a later stage with their own rules lose their reader.**
+  Each rule on the answer becomes a method of `read_gesture`, and each map of the answer a
+  method of `map_operation_backward`, as R5 approved for the stages before:
+  - the terminal: a plain click whose answer is a caret outside the input line puts the caret
+    in the input line; the rule reads the mapped answer, a path of the terminal;
+  - the lines of a stream of a task: the turn of the wheel scrolls whatever a part answers, and
+    a write of the value of the scroll bar maps to the line at that value;
+  - the group of tasks: the held arrangement, the open of a held row and the open of a task are
+    maps; the selection of a row and the write of the head of a list of a group are a rule on
+    the answer (`_convert_table_answer`);
+  - the tree of the explorer, the chooser of files and the tree of documents: the write of the
+    open nodes is a map (`_map_open_folder_answer`, `_read_open_node_write`), and the
+    3-to-4 wrapper of the tree of documents goes with its reader;
+  - the rows of a roster and the view of a data frame: the double click that opens the item or
+    the row, and the press that keeps the drag of the thumb, are rules on the answer; each
+    keeps a reader only for an operation that a route brings to its place, which no child
+    takes;
+  - the pivot table: the press, the drag and the drop of a badge are rules, and so are the
+    start of the drag past the threshold, with the answer of the table, and the right click
+    and the dwell on an item. The write of the version of the source for an edit of the data
+    stays in a reader, because it is for the answer as a whole: the default map gives each
+    member of a compound and the write inside a write of view state to the map of the stage
+    alone, so a map method wrote a version for the drag state of a chart in a cell, and the
+    pivot printed the chart again (`PivotChartViewTest.jl:102`, `:105`);
+  - the transcript of a conversation: the Alt+arrow walk, the Alt+double click and the plain
+    click are rules on the answer. It now follows a route into its children as every container
+    does; before, its reader read a change with a route as a change with none.
+- **A stage whose map drops the answer reads the raw gesture again.** The chain does it
+  (`_read_chain_from`), so the rules of a level that answered with no answer before (the turn
+  of the wheel of the stream, the start of a drag of the pivot) still answer: the walk of a
+  stage needs no change for it.
+- **Kept, with a reason each:**
+  - the syntax compound reads the path of a click in the frame of its output, before the map,
+    to find a fold marker or a character place (`_resolve_click`, `_read_character_place`), and
+    the leaf cuts the answer to a move in the same way as the compound;
+  - the choice list drops the answer of the field of its typed text for a key that it does not
+    take, and a rule of a level can only replace an answer;
+  - the pane tree joins the layers of a dwell of the pane documents to an answer that collects,
+    which the walk of a stage only maps, and a press on a tab reads the operation before the map;
+  - the screen and its window give the content the event inside a `WindowInput` that names its
+    window, and a move reads the window that the pointer leaves too;
+  - the window manager closes windows while it reads (`_apply_close!`,
+    `_close_popup_windows!`), and a modal window takes all input, so it does not ask its child
+    first;
+  - the formula reads the table of the formula in edit mode, a document inside its input;
+  - the workspace reads a change with a route as a change in the tree of its view;
+  - drag tracking, gesture tracking, the tooltip window and the context menu window make new
+    gestures and read the child more than once; each passes the content with the helper;
+  - the graph and the copying projection pass a change to a child with the 3-argument form
+    (`read_intent(child.projection, child, payload)`), so they change in step 6, which removes
+    that form.

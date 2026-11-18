@@ -110,14 +110,10 @@ end
 
 # A chevron writes the open folders of the chooser and changes what it holds;
 # every other answer maps back as through any projection.
-function read_intent(p::FileSystemChooserToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    change.route === nothing ||
-        return invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    payload = change.operation === nothing ? change.gesture : change.operation
+function map_operation_backward(p::FileSystemChooserToWidget, iomap::SimpleIoMap, operation)
     chooser = iomap.input
-    read = _read_open_folder_write(chooser, Any[chooser.directory], nothing, payload)
-    answer = _map_open_folder_answer(p, iomap, payload, read)
-    Intent(change.gesture, answer, change.description, change.domain)
+    read = _read_open_folder_write(chooser, Any[chooser.directory], nothing, operation)
+    _map_open_folder_answer(p, iomap, operation, read)
 end
 
 # The renderer draws a chooser with this view and draws the layout of the view

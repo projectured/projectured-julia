@@ -40,7 +40,8 @@ using ..WidgetModule
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..DomainModule: acquire_document!, release_document!
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward,
+                           map_operation_backward
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..WidgetModule: make_graphics_projection
 

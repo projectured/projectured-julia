@@ -432,27 +432,28 @@ function print_document(p::TaskStreamLinesToWidget, recursion, lines::TaskStream
     iomap
 end
 
-# A turn of the wheel moves the line at the top by three lines a notch, and a
-# write of the value of the scroll bar is a jump to the line at that value; at the
-# last lines the page follows the end again, and above them it stops. Every other
-# answer passes on, and so does a turn with Ctrl, which zooms and never scrolls.
-function read_intent(p::TaskStreamLinesToWidget, recursion, change::Intent, iomap::TaskStreamLinesToWidgetIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+# A turn of the wheel moves the line at the top by three lines a notch, whatever a
+# part of the page answers; at the last lines the page follows the end again, and
+# above them it stops. A turn with Ctrl zooms and never scrolls.
+function read_gesture(p::TaskStreamLinesToWidget, iomap::TaskStreamLinesToWidgetIoMap, scroll::MouseScroll;
+                      answer = nothing)
+    scroll.dy != 0 && !scroll.modifiers.ctrl ||
+        return invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, scroll; answer)
     lines = iomap.input
     count = length(iomap.rows)
     visible = iomap.visible
-    top = _compute_stream_top_row(lines, count, visible)
-    gesture = change.gesture
-    if gesture isa MouseScroll && gesture.dy != 0 && !gesture.modifiers.ctrl
-        return Intent(gesture, _make_stream_scroll_operation(lines, top - 3 * gesture.dy, count, visible),
-                      change.description, change.domain)
-    end
-    operation = answer isa Intent ? answer.operation : answer
+    _make_stream_scroll_operation(lines, _compute_stream_top_row(lines, count, visible) - 3 * scroll.dy,
+                                  count, visible)
+end
+
+# A write of the value of the scroll bar is a jump to the line at that value.
+# Every other answer maps as through any projection.
+function map_operation_backward(p::TaskStreamLinesToWidget, iomap::TaskStreamLinesToWidgetIoMap, operation)
     value = _find_scroll_bar_value(iomap.bar, operation)
-    value === nothing && return answer
-    Intent(answer isa Intent ? answer.gesture : gesture,
-           _make_stream_scroll_operation(lines, compute_scroll_bar_top_row(value, count, visible), count, visible),
-           change.description, change.domain)
+    value === nothing && return invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    count = length(iomap.rows)
+    visible = iomap.visible
+    _make_stream_scroll_operation(iomap.input, compute_scroll_bar_top_row(value, count, visible), count, visible)
 end
 
 function _make_stream_scroll_operation(lines::TaskStreamLines, top::Int, count::Int, visible::Int)

@@ -460,44 +460,61 @@ end
 # writes the place where a drop puts the item, which the bar shows; the release
 # makes the edit of the drop, and a cancel drops nothing. A right click or a dwell
 # that the table and the bar do not answer goes to the item under the pointer.
-function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::PivotTableToWidgetIoMap)
+function read_gesture(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap,
+                      gesture::Union{DragMove,DragEnd,DragCancel}; answer = nothing)
     pivot = iomap.input
-    gesture = change.gesture
     drag = pivot.drag
-    if drag !== nothing && gesture isa Union{DragMove,DragEnd,DragCancel}
-        gesture isa DragCancel && return Intent(gesture, _write_pivot_drag(pivot, nothing))
-        target = _find_pivot_drop_target(pivot, get_mouse_target(pivot), drag.target)
-        gesture isa DragMove &&
-            return Intent(gesture, target == drag.target ? nothing :
-                                       _write_pivot_drag(pivot, merge(drag, (target = target,))))
-        return Intent(gesture, _join_pivot_operations(_make_pivot_drop_operation(pivot, drag.source, target),
-                                                      _write_pivot_drag(pivot, nothing)))
-    end
-    if gesture isa MouseDown && gesture.button === :left && !gesture.modifiers.alt && drag === nothing
-        source = _find_pivot_zone_item(get_mouse_target(pivot))
-        source === nothing ||
-            return Intent(gesture, _join_pivot_operations(
-                _write_pivot_drag(pivot, (source = source, x = gesture.x, y = gesture.y, started = false,
-                                          target = nothing)),
-                ReplaceSelectionOperation(_make_pivot_zone_item_path(source...))))
-    end
-    (drag !== nothing && !drag.started && gesture isa MouseUp) &&
-        return Intent(gesture, _write_pivot_drag(pivot, nothing))
-    change.operation === nothing && is_outward_gesture(gesture) &&
-        return Intent(gesture, _read_pivot_part_gesture(pivot, gesture))
+    drag === nothing && return invoke(read_gesture, Tuple{Projection,Any,Any}, p, iomap, gesture; answer)
+    gesture isa DragCancel && return _write_pivot_drag(pivot, nothing)
+    target = _find_pivot_drop_target(pivot, get_mouse_target(pivot), drag.target)
+    gesture isa DragMove &&
+        return target == drag.target ? nothing : _write_pivot_drag(pivot, merge(drag, (target = target,)))
+    _join_pivot_operations(_make_pivot_drop_operation(pivot, drag.source, target), _write_pivot_drag(pivot, nothing))
+end
+
+function read_gesture(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, press::MouseDown; answer = nothing)
+    pivot = iomap.input
+    source = (press.button === :left && !press.modifiers.alt && pivot.drag === nothing) ?
+             _find_pivot_zone_item(get_mouse_target(pivot)) : nothing
+    source === nothing && return invoke(read_gesture, Tuple{Projection,Any,Any}, p, iomap, press; answer)
+    _join_pivot_operations(
+        _write_pivot_drag(pivot, (source = source, x = press.x, y = press.y, started = false, target = nothing)),
+        ReplaceSelectionOperation(_make_pivot_zone_item_path(source...)))
+end
+
+# A release before the drag starts ends the press.
+function read_gesture(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, release::MouseUp; answer = nothing)
+    drag = iomap.input.drag
+    (drag !== nothing && !drag.started) ||
+        return invoke(read_gesture, Tuple{Projection,Any,Any}, p, iomap, release; answer)
+    _write_pivot_drag(iomap.input, nothing)
+end
+
+# A held move past the threshold starts the drag, together with what the table and
+# the bar answer to the move.
+function read_gesture(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, move::MouseMove; answer = nothing)
+    pivot = iomap.input
+    drag = pivot.drag
+    (drag !== nothing && !drag.started && !is_move_without_button(move) &&
+     hypot(move.x - drag.x, move.y - drag.y) >= _PIVOT_DRAG_THRESHOLD) ||
+        return invoke(read_gesture, Tuple{Projection,Any,Any}, p, iomap, move; answer)
+    start = _join_pivot_operations(_write_pivot_drag(pivot, merge(drag, (started = true,))),
+                                   StartDragOperation(EmptyReference(), _make_pivot_zone_item_path(drag.source...)))
+    _join_pivot_operations(start, answer)
+end
+
+# An answer that edits the data in a cell writes the version of the source too,
+# because no cell of the pivot reads the source (`_is_pivot_source_edit`). The
+# answer gets one write as a whole: the map of a stage gets each member of a
+# compound and the write inside a write of view state alone, and such a write edits
+# no data.
+function read_intent(p::PivotTableToWidget, recursion, change::Intent, iomap::PivotTableToWidgetIoMap)
     answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    operation = answer isa Intent ? answer.operation : answer
-    if operation !== nothing && _is_pivot_source_edit(operation)
-        version = ReplaceReferencedValueOperation(pivot, "source_version", pivot.source_version + 1)
-        answer = Intent(gesture, _join_pivot_operations(operation, version))
-    end
-    if drag !== nothing && !drag.started && gesture isa MouseMove && !is_move_without_button(gesture) &&
-       hypot(gesture.x - drag.x, gesture.y - drag.y) >= _PIVOT_DRAG_THRESHOLD
-        start = _join_pivot_operations(_write_pivot_drag(pivot, merge(drag, (started = true,))),
-                                       StartDragOperation(EmptyReference(), _make_pivot_zone_item_path(drag.source...)))
-        return Intent(gesture, _join_pivot_operations(start, answer isa Intent ? answer.operation : answer))
-    end
-    answer
+    operation = answer.operation
+    (operation !== nothing && _is_pivot_source_edit(operation)) || return answer
+    pivot = iomap.input
+    version = ReplaceReferencedValueOperation(pivot, "source_version", pivot.source_version + 1)
+    Intent(answer.gesture, _join_pivot_operations(operation, version), answer.description, answer.domain)
 end
 
 # A right click or a dwell that the table and the bar do not answer: the item
@@ -508,6 +525,12 @@ function _read_pivot_part_gesture(pivot::PivotTable, gesture)
     found = _find_pivot_zone_item(get_mouse_target(pivot))
     steps = found === nothing ? () : (FieldReferenceStep(found[1]), ElementReferenceStep(found[2]))
     read_gesture_outward(nothing, gesture, pivot; steps, with_part = true)
+end
+
+function read_gesture(p::PivotTableToWidget, iomap::PivotTableToWidgetIoMap, gesture::Union{MouseClick, MouseDwell};
+                      answer = nothing)
+    answer === nothing && is_outward_gesture(gesture) && return _read_pivot_part_gesture(iomap.input, gesture)
+    invoke(read_gesture, Tuple{Projection,Any,Any}, p, iomap, gesture; answer)
 end
 
 # A key that the table and the bar do not take: the gestures of the pivot answer it.

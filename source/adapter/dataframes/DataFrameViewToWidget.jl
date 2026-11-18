@@ -423,25 +423,25 @@ _get_column_align(type::Type) =
 # with a route into the view from the menu of a row or of a column, becomes the
 # step that it makes in the view: the selection, the entries and the place of
 # the view with it.
-#
-# A double click that selects a row whole, on its header, opens the row as a page
-# too, as a double click on a file of the Files pane opens the file: the navigator
-# around the view shows it, or a new tab does when there is none.
 function read_intent(p::DataFrameViewToWidget, recursion, change::Intent, iomap::DataFrameViewToWidgetIoMap)
     operation = change.operation
     step = (change.route === nothing || !(operation isa _DataFrameShapeOperation) ||
             operation.view !== iomap.input) ? nothing : _make_shape_step(operation)
     step === nothing || return Intent(change.gesture, step, change.description, change.domain)
-    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    # The view keeps the drag of the thumb of its bar, so it keeps the press in
-    # its own frame, the frame of the parts of the drag that come to it.
-    change.gesture isa MouseDown &&
-        (answer = Intent(answer.gesture, make_owned_scroll_bar_drag(answer.operation, iomap.bar, change.gesture),
-                         answer.description, answer.domain))
-    _is_double_click(change.gesture) && _is_whole_row_selection(answer.operation) || return answer
-    Intent(answer.gesture, CompoundOperation(Any[answer.operation,
-                                                 OpenPageOperation(nothing, answer.operation.path)]),
-           answer.description, answer.domain)
+    invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
+end
+
+# The view keeps the drag of the thumb of its bar, so it keeps the press in its own
+# frame, the frame of the parts of the drag that come to it.
+read_gesture(::DataFrameViewToWidget, iomap::DataFrameViewToWidgetIoMap, press::MouseDown; answer = nothing) =
+    answer === nothing ? nothing : make_owned_scroll_bar_drag(answer, iomap.bar, press)
+
+# A double click that selects a row whole, on its header, opens the row as a page
+# too, as a double click on a file of the Files pane opens the file: the navigator
+# around the view shows it, or a new tab does when there is none.
+function read_gesture(::DataFrameViewToWidget, ::DataFrameViewToWidgetIoMap, click::MouseClick; answer = nothing)
+    _is_double_click(click) && _is_whole_row_selection(answer) || return nothing
+    CompoundOperation(Any[answer, OpenPageOperation(nothing, answer.path)])
 end
 
 _is_double_click(gesture) =

@@ -1188,27 +1188,28 @@ end
 # And Alt with an arrow walks the objects: a message, its parts, and the form and
 # the result of an evaluation. The transcript is read, so no widget inside it has
 # a use for these keys, and the walk answers them whatever a widget said.
-function read_intent(p::ConversationConversationToWidgetComposite, recursion,
-                     change::Intent, iomap)
-    gesture = change.gesture
-    direction = get_selection_walk_direction(gesture)
-    if direction !== nothing
-        path = compute_transcript_walk(iomap.input, iomap.input.selection, direction)
-        return Intent(gesture, path === nothing ? nothing : ReplaceSelectionOperation(path))
-    end
-    payload = change.operation === nothing ? gesture : change.operation
-    answer = read_intent(p, iomap, payload)
-    if answer isa ReplaceSelectionOperation && is_whole_selection_press(gesture)
-        answer = convert_to_whole_selection(answer, iomap.input)
-    elseif answer isa ReplaceSelectionOperation && gesture isa MouseClick
-        steps = _steps(strip_reference_types(answer.path))
-        # A press in the live field of a part keeps its place, as the caret of
-        # a person who types there, and so does a plain press in a text.
-        keeps = steps !== nothing &&
-                (_is_text_path(iomap.input, steps) || _is_live_path(iomap.input, steps))
-        keeps || (answer = ReplaceSelectionOperation(_get_part_prefix(answer.path)))
-    end
-    Intent(gesture, answer)
+function read_gesture(p::ConversationConversationToWidgetComposite, iomap::ChildrenIoMap, key::KeyDown;
+                      answer = nothing)
+    direction = get_selection_walk_direction(key)
+    direction === nothing &&
+        return invoke(read_gesture, Tuple{ConversationConversationToWidgetComposite, Any, Any}, p, iomap, key;
+                      answer)
+    path = compute_transcript_walk(iomap.input, iomap.input.selection, direction)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+function read_gesture(p::ConversationConversationToWidgetComposite, iomap::ChildrenIoMap, click::MouseClick;
+                      answer = nothing)
+    selection = answer !== nothing ? answer :
+        invoke(read_gesture, Tuple{ConversationConversationToWidgetComposite, Any, MouseClick}, p, iomap, click)
+    own(operation) = answer === nothing ? operation : nothing
+    selection isa ReplaceSelectionOperation || return own(selection)
+    is_whole_selection_press(click) && return convert_to_whole_selection(selection, iomap.input)
+    steps = _steps(strip_reference_types(selection.path))
+    # A press in the live field of a part keeps its place, as the caret of a person
+    # who types there, and so does a plain press in a text.
+    keeps = steps !== nothing && (_is_text_path(iomap.input, steps) || _is_live_path(iomap.input, steps))
+    keeps ? own(selection) : ReplaceSelectionOperation(_get_part_prefix(selection.path))
 end
 
 # `turns[i].parts[j]` when `path` goes into a part, else `path` itself.

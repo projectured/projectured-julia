@@ -1346,19 +1346,28 @@ function _convert_table_answer(doc::TaskGroupDocument, operation, gesture)
     operation
 end
 
-# The generic bridge maps the answer of the output back. The removal of the last
-# entry of the arrangement of the table leaves the arrangement with no entry, so the
-# next filter or sort has an arrangement to go to, and the open of a row names its
-# task by its place in the group.
-function read_intent(p::TaskGroupDocumentToWidgetPane, recursion, change::Intent, iomap)
-    answer = invoke(read_intent, Tuple{Projection,Any,Intent,Any}, p, recursion, change, iomap)
-    answer isa Intent || return answer
+# The answer of the output maps back as through any projection. The removal of the
+# last entry of the arrangement of the table leaves the arrangement with no entry, so
+# the next filter or sort has an arrangement to go to, and the open of a row names
+# its task by its place in the group.
+function map_operation_backward(p::TaskGroupDocumentToWidgetPane, iomap, operation)
+    mapped = invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
+    # The default map gives each member of a compound to this method.
+    operation isa CompoundOperation && return mapped
     doc = iomap.input
-    operation = keep_held_arrangement(answer.operation, getfield(doc, :table)[], _TABLE_STEP)
-    operation = retarget_held_row_open(operation, doc, _TABLE_STEP)
-    operation = _retarget_task_open(doc, operation)
-    operation = _convert_table_answer(doc, operation, change.gesture)
-    operation === answer.operation ? answer : Intent(answer.gesture, operation, answer.description, answer.domain)
+    mapped = keep_held_arrangement(mapped, getfield(doc, :table)[], _TABLE_STEP)
+    mapped = retarget_held_row_open(mapped, doc, _TABLE_STEP)
+    _retarget_task_open(doc, mapped)
+end
+
+# The selection of a row of a table of a group, and the write of the head of the
+# list of one, are the answers of the pane (`_convert_table_answer`).
+function read_gesture(p::TaskGroupDocumentToWidgetPane, iomap, gesture; answer = nothing)
+    if answer !== nothing
+        converted = _convert_table_answer(iomap.input, answer, gesture)
+        converted === answer || return converted
+    end
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
 end
 
 # ── The Tasks pane ───────────────────────────────────────────────────────────
