@@ -695,3 +695,7 @@ rows that are no walk and no wrapper) by the four rules.
   `MathToGraphicsTest.jl:346` (the depth limit of the walk of the printer) on both. One run of
   `test_process()` hung in the race of `ProcessDebugTest.jl:185`, as the base did, and a second
   run passed 316. The precompile gives no warning.
+- **Step 4 before its landing.** The five guards give the failures of the base `24536d808`, the
+  line numbers aside (the modules have new import lines). `Pkg.precompile()` of omnet-julia, its
+  main checkout `f58aa51b4` with the branch of projectured-julia in the environment
+  `/var/tmp/projectured-julia-reader-split-depot/env-omnet`: 89 packages, no error and no warning.
