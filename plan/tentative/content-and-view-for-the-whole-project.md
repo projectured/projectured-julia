@@ -863,6 +863,22 @@ Two rules make this order possible:
    two selection walks of the kernel get one answer for a document with no
    selection field. **This point ends with the review of the JSON domain by the
    owner.**
+   **This point is three plans** (the owner on 2026-11-18: "Yes"). The reason is
+   in the code: a content can lose its caret only when the editor shows it
+   through views, and the editor uses no JSON view now. A tab holds a JSON file
+   through a file and an undo buffer, and these have no view.
+   - **4a. Each JSON node has a view.** Views for the object, the entry, the
+     place for a new value and the empty place. The rule of `@content_view` for
+     a field that takes any document. The keys of JSON in the key tables of the
+     views. The editor does not change. The plan is
+     `plan/pending/each-json-node-has-a-view.md`.
+   - **4b. A file tab shows a content through its views.** The views of the
+     file, of the undo buffer, and of the place for a new value of every
+     domain. The JSON content keeps its selection field, with no use in a tab.
+   - **4c. The JSON content keeps no selection.** The kernel hook, the step
+     `.viewed`, the caret place in an operation, the key tables of the content,
+     and the tests that put a caret into a JSON content. Then the review of the
+     owner.
 5. **The state to keep, and the store of the editor.** The store writes the views.
    A printer gives a widget the cell of the view for each state to keep. The
    eighteen types with `get_view_state_fields` move that state to a view.
