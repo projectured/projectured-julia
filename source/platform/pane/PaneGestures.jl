@@ -98,6 +98,21 @@ function _rename(tree::PaneTree)
     make_pane_title_caret_operation(tree, group, index)
 end
 
+# Leave the content of the focused tab: the selection goes to the tab as a whole,
+# the top of the walk. A selection that is not in the content, such as a whole tab
+# or its name, answers `nothing`.
+function _leave_content(tree::PaneTree)
+    focus = get_pane_focus(tree)
+    focus === nothing && return nothing
+    group, index = focus
+    index == 0 && return nothing
+    content = get_pane_content_path(tree, group, index)
+    content === nothing && return nothing
+    _find_path_after(strip_reference_types(get_selection(tree)), strip_reference_types(content)) === nothing &&
+        return nothing
+    make_pane_focus_operation(tree, group, index)
+end
+
 # Leave the title: the selection goes back to the tab it names.
 function _leave_title(tree::PaneTree)
     found = get_pane_focus_title(tree)
@@ -194,8 +209,11 @@ end
     KeyDown(:f; ctrl) => "Find in the collection that holds the selection" => _make_first_find(doc)
     nothing => "Add the tab to the explorer" => _make_add_tab_operation(doc)
     splice(_PANE_TAB_MENU_BINDINGS)
-    # It answers `nothing` unless the caret is in a name, so Escape keeps its
-    # meaning elsewhere: the rule body is the guard, because a `when(…)` guard sees
-    # only the event's own fields.
+    # The two rules of Escape answer `nothing` unless the caret is in a name or the
+    # selection is in the content of a tab: the rule body is the guard, because a
+    # `when(…)` guard sees only the event's own fields. They are plain rules, so a
+    # part inside that takes Escape, such as a popup, a find bar or a type-in,
+    # answers first.
     KeyDown(:escape;) => "Leave the tab name" => _leave_title(doc)
+    KeyDown(:escape;) => "Select the whole tab" => _leave_content(doc)
 end

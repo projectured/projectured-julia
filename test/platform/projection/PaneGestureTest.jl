@@ -251,6 +251,37 @@ end
     @test whole_content(1)
 end
 
+@testset "Escape from the content of a tab selects the whole tab" begin
+    group = PaneGroup(PaneTab[PaneTab("a", PrimitiveString("hello")),
+                              PaneTab("b", PrimitiveString("world"))])
+    tree = PaneTree(group)
+    editor = _PaneGestureMockEditor(tree)
+    escape = KeyDown(:escape, ModifierKeys(); time = 0.0)
+    whole_tab(i) = strip_reference_types(get_selection(tree)) ==
+                   strip_reference_types(get_pane_tab_reference(tree, group, i))
+    caret = @reference ::PaneTree.root::PaneGroup.tabs::CellVector[2]::PaneTab.content::PrimitiveString.value::String{2}::Position
+    evaluate_operation(editor, ReplaceSelectionOperation(caret))
+    @test _press!(editor, escape) !== nothing
+    @test whole_tab(2)
+    # A whole tab is the top of the walk, so a second Escape answers nothing.
+    @test _press!(editor, escape) === nothing
+    @test whole_tab(2)
+    # The content as a whole goes to its tab too.
+    evaluate_operation(editor, ReplaceSelectionOperation(get_pane_content_path(tree, group, 1)))
+    @test _press!(editor, escape) !== nothing
+    @test whole_tab(1)
+    # With the caret in the name of the tab, Escape leaves the name.
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    @test get_pane_focus_title(tree) == (group, 1)
+    @test _press!(editor, escape) !== nothing
+    @test get_pane_focus_title(tree) === nothing
+    @test whole_tab(1)
+    # A modified Escape is not the rule.
+    evaluate_operation(editor, ReplaceSelectionOperation(caret))
+    _press!(editor, KeyDown(:escape, ModifierKeys(shift = true); time = 0.0))
+    @test !whole_tab(2)
+end
+
 @testset "Ctrl+M maximizes the focused group, and Ctrl+M again gives back the layout" begin
     tree, group, editor = _seeded()
     _press!(editor, _ctrl(:backslash))             # a second group, on the right

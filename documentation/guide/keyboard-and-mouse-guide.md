@@ -50,7 +50,7 @@ The part under the pointer is lit. When the view changes under a pointer that do
 | Alt + Delete | remove the selected part, where a domain takes it, such as a part of a chart or a version |
 | Insert | insert a new element beside the selected one |
 | Enter | finish the part you are typing |
-| Escape | leave what you are typing; in an example window of the REPL it also closes the window |
+| Escape | leave what you are typing; in a tab, an Escape that no part takes selects the whole tab; in an example window of the REPL, an Escape that nothing takes closes the window |
 | Ctrl + Z | take the last change back |
 | Ctrl + Y, Ctrl + Shift + Z | put it back |
 
@@ -81,6 +81,7 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | Ctrl + Page Down, Ctrl + Page Up | the next or the previous tab |
 | Ctrl + Tab, Ctrl + Shift + Tab | the next or the previous group of tabs |
 | F2 | put the caret in the name of the tab, Escape leaves it; while a tooltip or a menu is open, F2 goes to it |
+| Escape | from the content of the focused tab, select the whole tab; Alt + Down goes back into the content |
 
 ## Pages of a navigator
 

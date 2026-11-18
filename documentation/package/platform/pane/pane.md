@@ -110,11 +110,12 @@ The `@gestures PaneTree` table is in `PaneGestures.jl`:
 | `Alt+Left` and `Alt+Right` | from a whole tab, select the tab beside it |
 | `Alt+Down` | from a whole tab, select its content as a whole |
 | `F2` and `Escape` | put the caret in the tab name, and take it out |
+| `Escape` | from the content of the focused tab, select the whole tab, when no part of the content takes the key |
 | the command "Add the tab to the explorer", with no key | add the document of the focused tab to the explorer of the editor |
 
 The command "Add the tab to the explorer" is a rule with no key. It adds the document of the focused tab (`_get_tab_document`) as an entry of the explorer. The document is read through the history of the tab and is not the file: a tab of a file adds the file document, not the data in it.
 
-Every chord has a modifier, because a plain key belongs to the content of the focused tab. Plain Alt and an arrow walk the structure of a document, so the moves between groups take Ctrl+Alt. Ctrl+Tab is an `override`, because the widget split pane answers every Tab with its own focus traversal.
+Every chord has a modifier, because a plain key belongs to the content of the focused tab. Escape is the one plain key of the pane. It is a plain rule, so it acts only when no part of the content takes it: a popup, a find bar, a type-in or a drag takes Escape first. From the whole tab, Alt+Down goes back into the content. Plain Alt and an arrow walk the structure of a document, so the moves between groups take Ctrl+Alt. Ctrl+Tab is an `override`, because the widget split pane answers every Tab with its own focus traversal.
 
 With the mouse, a click on a tab focuses it. The `x` of a tab closes it, and so does a middle click on the tab. The open tab of each group always shows its `x`, and another tab shows it only while the pointer is on the tab. The `x` is a toolbar button: it shows the surface of a button while the pointer is on it, and a press beside it in the tab opens the tab. The button after the last tab opens a tab.
 

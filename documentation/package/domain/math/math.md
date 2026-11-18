@@ -96,7 +96,7 @@ A key goes to the selected child first, and a node acts only when the child retu
 | --- | --- |
 | Left, Right | select the previous or the next sibling |
 | Down, Enter | select the first child |
-| Up, Escape | select the parent |
+| Up | select the parent |
 | Ctrl+Home, Ctrl+End | select the first or the last part of the formula |
 | `/` | wrap the selection in a fraction, and select the denominator |
 | `^`, `_` | give the selection a superscript or a subscript, and select it |

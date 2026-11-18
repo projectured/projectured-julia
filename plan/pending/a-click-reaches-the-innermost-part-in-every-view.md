@@ -1577,7 +1577,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   The landing of 2026-11-13 (main 55e3de361, not pushed) holds steps 6a and
   the causes before it. The omnet follow-up of the Alt+double click is on the
   omnet branch `innermost-click` (b8a8d2c21), not landed.
-- [ ] 6b. **Escape leaves the selection.** The owner asked for it on 2026-11-18,
+- [x] 6b. **Escape leaves the selection.** The owner asked for it on 2026-11-18,
   after the chart texts landed: "Shouldn't we add something like ESC to remove
   the current selection? Where should this behavior be added? Some widgets? For
   example, pressing ESC in a JSON file editor could remove the selection up to
@@ -1606,9 +1606,33 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   Test: in `PaneGestureTest.jl`, with the caret in a text in a tab, Escape
   selects the tab, and a second Escape answers nothing; with the caret in the
   name of the tab, Escape leaves the name as before. In `ApplicationTest.jl`, a
-  JSON file in a tab of the application: Escape with the caret in a string
-  selects the tab, and with the find bar open, Escape first hides the bar. The
-  guides `pane.md` and `keyboard-and-mouse-guide.md` say the rule.
+  JSON file in a tab of the application: with a menu open, Escape closes the
+  menu and the caret stays; the next Escape selects the tab, and Alt+Down goes
+  back into the content. The guides `pane.md`, `keyboard-and-mouse-guide.md`
+  and `math.md` say the rule.
+
+  Found in the work:
+  - The find of a tab (Ctrl+F, an arrangement of the content) has no rule for
+    Escape. So Escape in its field selects the whole tab, and the find stays.
+    The find bar that closes on Escape is the widget `FindBarView`, which the
+    tab does not use.
+  - The rule of the title and the rule of the content are two plain rules
+    with the same pattern. The table tries the next rule when a rule answers
+    `nothing`, so the body of each rule is its guard.
+  - The focus of a tab is only a change of the selection, so Escape makes no
+    step of the undo.
+
+  Result: `test_pane_gestures` 128 pass; `test_escape_quitting` 12 pass;
+  `test_gallery_wrappers` 15 pass, so the second Escape still quits an example
+  window; `test_document_insertion` 144, `test_command_palette` 13 and
+  `test_command_palette_decorator` 36 pass; `test_dataframes` 622 pass. The
+  known failures stay as on main: `test_math` the depth failure at
+  `MathToGraphicsTest.jl:346`; `test_application` the usage label at
+  `ApplicationTest.jl:1050`, and the new testset passes 8 of 8;
+  `test_history_sweep` the step of the palette at `HistorySweepTest.jl:111`,
+  the same value (1, 0) as before this step; `test_platform` the 15 failure
+  lines of the base, with `TaskVerbsTest.jl:102` and `TaskWorkItemTest.jl:171`,
+  which fail under load and pass alone.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.

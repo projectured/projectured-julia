@@ -1987,7 +1987,7 @@ function _move_from(iomap::MathIoMap, index::Int, event)
         index > 1 && return _select_child(iomap, children[index - 1])
     elseif event.key === :right
         index < length(children) && return _select_child(iomap, children[index + 1])
-    elseif event.key === :up || event.key === :escape
+    elseif event.key === :up
         # Out of the child and onto this node.
         return ReplaceSelectionOperation(EmptyReference())
     end

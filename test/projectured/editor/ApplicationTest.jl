@@ -933,6 +933,40 @@ function test_application()
                 write_document_file!(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
             end
 
+            @testset "Escape in a file selects its tab as a whole, after an open menu closes" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir; focus_file = true)
+                editor = _app_make_editor(scene, composed, iomap)
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
+                escape = KeyDown(:escape, ModifierKeys(); time = 0.0)
+                is_file_tab(value) = value isa PaneTab && get_pane_tab_title_string(value) == "a.json"
+                # The caret in the JSON string of the file.
+                (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
+                press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                caret = getfield(scene, :selection)[]
+                @test caret !== nothing && !(selected() isa PaneTab)
+                # An open menu takes Escape first, and the caret stays.
+                (fx, fy) = only((x, y) for (text, x, y) in drawn() if text == "File")
+                press!(MouseClick(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
+                @test length(scene.windows) == 2
+                press!(escape)
+                @test length(scene.windows) == 1
+                @test string(getfield(scene, :selection)[]) == string(caret)
+                # Then Escape selects the tab as a whole, and a second one does nothing.
+                press!(escape)
+                @test is_file_tab(selected())
+                @test _app_plain(press!(escape)) === nothing
+                @test is_file_tab(selected())
+                # Alt+Down goes back into the content of the tab.
+                press!(KeyDown(:down, ModifierKeys(alt = true); time = 0.0))
+                @test !(selected() isa PaneTab)
+            end
+
             @testset "the window is filled by its chrome and its panes" begin
                 # The shell has no size of its own and takes the window's, so the
                 # panes share the whole window, every menu of the menu bar is
