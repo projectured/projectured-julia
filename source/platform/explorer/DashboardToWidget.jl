@@ -55,7 +55,7 @@ const _DASHBOARD_SCROLL_STEPS = (FieldReferenceStep("children"), RangeReferenceS
 const _DASHBOARD_GRID_STEPS = (_DASHBOARD_SCROLL_STEPS..., FieldReferenceStep("content"))
 
 function print_document(p::DashboardToWidget, recursion, dashboard::Dashboard, context)
-    width = context === nothing ? nothing : get_exact_width(context)
+    width = _get_page_width(context)
     # The count reads the cell of the width of the slot, and a width that keeps the
     # count leaves the grid as it is.
     columns = Cell(@computation _count_card_columns(p, unwrap_cell(width)))
@@ -85,6 +85,15 @@ function print_document(p::DashboardToWidget, recursion, dashboard::Dashboard, c
                           () -> _build_card_grid(p, dashboard, columns[], root, width !== nothing, visible))
     iomap
 end
+
+# The width that the page fills: the exact width that its parent gives, or else the
+# edge of a bounded range, as a stack divides its edge whether it is exact or bounded
+# (`layout-rules.md` §3). A scroll pane whose content fits its width, such as the pane
+# of a file view, gives its content the view as a minimum and an edge in two cells,
+# and the page lays its cards out in that edge. `nothing` with a free range or with
+# no context: the page is one column of `card_width` then.
+_get_page_width(context) =
+    context === nothing ? nothing : something(get_exact_width(context), Some(context.maximum_width))
 
 # How many cards of at least `card_width` fit in `width`, with the gaps between
 # them; one with no width.

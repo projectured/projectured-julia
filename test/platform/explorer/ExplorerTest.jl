@@ -1313,6 +1313,16 @@ function test_explorer()
             print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
                            PrinterContext(EmptyReference(), Cell(width), Cell(600), Dict{Symbol,Any}())).output)
         @test columns_of(430) == 3 && columns_of(205) == 1 && columns_of(220) == 2
+        # A bounded range, an edge with no slot, as the scroll pane of a file view gives
+        # its content, lays the cards out in the edge; a free range gives one column.
+        bounded_columns_of(width) = ExplorerModule._get_grid_columns(
+            print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
+                           with_bounded_size(PrinterContext(EmptyReference(), nothing, Cell(600), Dict{Symbol,Any}());
+                                             width = Cell(width))).output)
+        @test bounded_columns_of(430) == 3 && bounded_columns_of(205) == 1
+        @test ExplorerModule._get_grid_columns(
+            print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
+                           PrinterContext(EmptyReference(), nothing, Cell(600), Dict{Symbol,Any}())).output) == 1
         # The count follows the cell of the width while the page shows.
         width_cell = Cell(430)
         follow_page = print_document(DashboardToWidget(; gap = 10, card_width = 100), nothing, dashboard,
