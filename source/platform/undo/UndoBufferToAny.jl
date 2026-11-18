@@ -74,6 +74,22 @@ _get_shown_content(view::UndoBufferView) =
 _get_content_steps(::UndoBuffer) = _CONTENT_STEPS
 _get_content_steps(view::UndoBufferView) = view.content === nothing ? _VIEWED_CONTENT_STEPS : _CONTENT_STEPS
 
+# The context of the print of `shown`, what `input` shows. A view of a buffer holds
+# the place of the view that it shows: the document of that view is in the field
+# `content` of the buffer, and the reader writes it there.
+function _make_content_context(ctx, input, shown)
+    child = make_child_context(ctx, _get_content_steps(input)...)
+    (input isa UndoBufferView && shown isa ContentView && shown === input.content) ?
+        with_view_place_holder(child) : child
+end
+
+# An answer of what `input` shows, in the frame of `input`, as an edit of the content
+# when `input` is a view: a write of the node of the view that it shows goes to the
+# field `content` of the buffer.
+_make_shown_edit(::UndoBuffer, operation) = operation
+_make_shown_edit(view::UndoBufferView, operation) =
+    operation isa Operation ? make_content_edit(view, operation) : operation
+
 # `reference` without the steps from `input` to what it shows, or `nothing` when it
 # does not start with them.
 function _drop_content_steps(input, reference)
@@ -95,7 +111,7 @@ function print_document(p::UndoBufferToAnyProjection, recursion, input::_ShownBu
     # document, which follows the document too.
     child = make_reconciled_child_iomap_cell(
         () -> _get_shown_content(input),
-        v -> print_child(recursion, v, make_child_context(ctx, _get_content_steps(input)...)))
+        v -> print_child(recursion, v, _make_content_context(ctx, input, v)))
     UndoBufferToAnyIoMap(p, input, Cell(@computation child[].output), Cell(@computation child[]))
 end
 
@@ -149,12 +165,16 @@ end
 
 # The content reads a change first, and the keys of the buffer answer what the
 # content declines: the passing fires the table of the buffer last, so with a buffer
-# inside a buffer, the inner one wins. The buffer records each operation that it
-# answers, except the answer to a collection (`_record_operation`).
+# inside a buffer, the inner one wins. The answer through the view of a buffer is an
+# edit of the content (`_make_shown_edit`). The buffer records each operation that
+# it answers, except the answer to a collection (`_record_operation`).
 function read_intent(p::UndoBufferToAnyProjection, recursion, change::Intent,
                      iomap::UndoBufferToAnyIoMap)
     answer = read_child_intent(p, recursion, change, iomap, iomap.content_iomap,
                                _get_content_steps(iomap.input))
+    shown = _make_shown_edit(iomap.input, answer.operation)
+    shown === answer.operation ||
+        (answer = Intent(answer.gesture, shown, answer.description, answer.domain))
     (change.gesture isa CollectIntents || !(answer.operation isa Operation)) && return answer
     Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer.operation),
            answer.description, answer.domain)

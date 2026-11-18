@@ -75,7 +75,34 @@ puts each view at the index of its content; any other content takes no children.
 make_content_view(content, children) = make_content_view(content)
 
 """
-    make_content_edit(view::ContentView, operation) -> Operation or nothing
+    with_view_place_holder(ctx) -> PrinterContext
+
+`ctx`, the context of the print of a view, with the fact that the printer that
+prints the view with it holds the place of the node of that view. That printer
+prints a view of its own, and the content of its view holds the node. The step of
+the view then passes a write of its own node up as it is, and that printer makes
+the edit of it with [`make_content_edit`](@ref), in the content of its view. The
+fact is for the place of `ctx` only: the context of a place below it does not have
+it.
+
+The printer of the view of an undo buffer gives it to the view of the document that
+the buffer holds.
+
+See also `has_view_place_holder`.
+"""
+with_view_place_holder(ctx::PrinterContext) = with_property(ctx, :view_place_holder, ctx.reference)
+
+"""
+    has_view_place_holder(ctx) -> Bool
+
+Whether the printer that prints a view with the context `ctx` holds the place of
+the node of that view ([`with_view_place_holder`](@ref)).
+"""
+has_view_place_holder(ctx::PrinterContext) = get_property(ctx, :view_place_holder, nothing) === ctx.reference
+has_view_place_holder(::Nothing) = false
+
+"""
+    make_content_edit(view::ContentView, operation; held = false) -> Operation or nothing
 
 `operation`, whose paths are paths of the tree of views from `view`, as an edit of
 the content that the views show. A write of a value goes to the same place of the
@@ -87,7 +114,10 @@ view of the new part takes. A write of a field of state of a view, such as a fol
 stays a write of the view.
 
 `nothing` when a write has no view above its place: the content of `view` itself
-has its place in what holds that content, above `view`.
+has its place in what holds that content, above `view`. With `held`, the printer
+that printed `view` holds that place ([`with_view_place_holder`](@ref)), so a write
+of the node of `view` stays as it is, at the empty path, and that printer makes the
+edit of it.
 
 The step of a view applies it to each operation that it answers. So a row of the
 key table of a view answers with a path from its view, as a row of a content
@@ -100,39 +130,39 @@ answers with a path from its document.
     # the write of `edit` is at `.elements.viewed[2]`, and its caret is at `.elements[2]`
 """
 function make_content_edit end
-make_content_edit(view::ContentView, operation) = operation
+make_content_edit(view::ContentView, operation; held::Bool = false) = operation
 
-function make_content_edit(view::ContentView, operation::CompoundOperation)
+function make_content_edit(view::ContentView, operation::CompoundOperation; held::Bool = false)
     members = Any[]
     for member in operation.operations
-        edit = make_content_edit(view, member)
+        edit = make_content_edit(view, member; held)
         edit === nothing && return nothing
         push!(members, edit)
     end
     CompoundOperation(members)
 end
 
-function make_content_edit(view::ContentView, operation::WrappingOperation)
-    edit = make_content_edit(view, get_wrapped_operation(operation))
+function make_content_edit(view::ContentView, operation::WrappingOperation; held::Bool = false)
+    edit = make_content_edit(view, get_wrapped_operation(operation); held)
     edit === nothing ? nothing : rewrap_operation(operation, edit)
 end
 
 # Each row of a list of rows, as a palette collects them. A row whose write has no
 # place can not act, so the list leaves it out.
-function make_content_edit(view::ContentView, operation::CollectedIntentsOperation)
+function make_content_edit(view::ContentView, operation::CollectedIntentsOperation; held::Bool = false)
     intents = Intent[]
     for intent in operation.intents
-        edit = make_content_edit(view, intent.operation)
+        edit = make_content_edit(view, intent.operation; held)
         (edit === nothing && intent.operation !== nothing) && continue
         push!(intents, Intent(intent.gesture, edit, intent.description, intent.domain, intent.route))
     end
     CollectedIntentsOperation(intents)
 end
 
-function make_content_edit(view::ContentView, operation::ReplaceReferencedValueOperation)
+function make_content_edit(view::ContentView, operation::ReplaceReferencedValueOperation; held::Bool = false)
     operation.document === nothing || return operation
     steps = get_reference_steps(strip_reference_types(operation.reference))
-    isempty(steps) && return nothing
+    isempty(steps) && return held ? operation : nothing
     holder, count = _find_deepest_view(view, steps)
     step = steps[count + 1]
     # The path names a place of a content already, or a field of state of a view.
@@ -300,13 +330,15 @@ end
     ViewingIoMap
 
 IoMap for `ViewingProjection` of a view: `content` is the IO map of the print of
-the content of the view.
+the content of the view. `is_place_held` says whether the printer that printed the
+view holds the place of its node ([`with_view_place_holder`](@ref)).
 """
 @iomap struct ViewingIoMap
     projection::Any
     input::ContentView
     output::Any
     content::Any
+    is_place_held::Bool
 end
 
 function print_document(p::ViewingProjection, recursion, input, ctx)
@@ -325,7 +357,7 @@ function print_document(p::ViewingProjection, recursion, input, ctx)
                                   path -> map_reference_forward(content.projection, content, get_content_path(input, path));
                                   context = ctx)
     map_view_state!(output, input, get_content_iomap(content))
-    ViewingIoMap(p, input, output, content)
+    ViewingIoMap(p, input, output, content, has_view_place_holder(ctx))
 end
 
 """
@@ -465,13 +497,16 @@ map_reference_backward(p::ViewingProjection, iomap, reference) =
 # A gesture that no later stage took goes to the key tables of the views on the
 # live caret of the view, the deepest first. An operation goes back through the
 # readers of the content print, as an operation of the printed content. Each answer
-# is an edit of the content that the views show (`make_content_edit`).
+# is an edit of the content that the views show (`make_content_edit`). A write of
+# the node of the view itself goes up as it is when the printer of the view holds
+# the place of that node.
 function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::ViewingIoMap)
     view = iomap.input
     if change.operation === nothing && change.route === nothing
         operation = read_gesture_outward(nothing, change.gesture, view;
                                          steps = _find_caret_view_steps(view), with_part = true)
-        return Intent(change.gesture, make_content_edit(view, operation), change.description, change.domain)
+        return Intent(change.gesture, make_content_edit(view, operation; held = iomap.is_place_held),
+                      change.description, change.domain)
     end
     if change.operation !== nothing
         operation = read_view_operation(view, get_content_iomap(iomap.content), change.operation)
@@ -481,8 +516,8 @@ function read_intent(p::ViewingProjection, recursion, change::Intent, iomap::Vie
                         change.description, change.domain, change.route)
     end
     answer = read_intent(p.content, recursion, change, iomap.content)
-    Intent(answer.gesture, make_content_edit(view, answer.operation), answer.description, answer.domain,
-           answer.route)
+    Intent(answer.gesture, make_content_edit(view, answer.operation; held = iomap.is_place_held),
+           answer.description, answer.domain, answer.route)
 end
 
 read_intent(p::ViewingProjection, recursion, change::Intent, iomap) =

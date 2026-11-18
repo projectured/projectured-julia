@@ -130,9 +130,9 @@ They are approved with this plan.
    keeps that fact in its IO map. Its reader then passes a write of its own
    node up, and the printer of `UndoBufferView` writes it at `.viewed.content`
    with `make_content_edit`. The live place of a print is said in the context
-   in the same way now (`with_live_place`). The step of a view takes the fact
-   away for a child that prints as content. A view that no view holds still
-   gives no operation, as plan 4a decided.
+   in the same way now (`with_live_place`). The fact is for the place of that
+   context only. A view that no view holds still gives no operation, as plan 4a
+   decided.
 6. **A caret into a part that has no view takes the step `.viewed`.** A part
    that has no view is an element of a list or the document in a slot, of a
    type with no view type. The path of a caret into it is: the steps to the
@@ -280,7 +280,7 @@ They are approved with this plan.
   declaration of a content type for a field that gets no child field is
   `is_child_view_field(content, field)`. The field of `RecordUndoOperation` is
   `caret_holder`.
-- [ ] **3. The write of the node of a view that a view holds.** Proposed
+- [x] **3. The write of the node of a view that a view holds.** Proposed
   decision 5.
   The step starts with a test of one fact: a key on the place for a new value
   that an undo buffer holds gives no operation through views now.
@@ -288,6 +288,18 @@ They are approved with this plan.
   name with Return, for Escape, and for the key `[` on a null, each at the root
   of an undo buffer; the undo of each; a view that no view holds gives no
   operation, and the tests of plan 4a keep their counts.
+  **Done on 2026-11-18.** The new test is `test_json_view_root_write`, with 130
+  of 130 at its first run. The two sides of each comparison print through the
+  general renderer: an undo buffer with no view, and an equal buffer through
+  its view. The fact of this step is in the last test set: with no view above
+  it, a typed digit in the place for a new value gives no operation, as plan 4a
+  decided. Before this step the same was true below the view of an undo buffer,
+  because the step of a view gave no operation for a write at the empty path.
+  The two functions of the context are `with_view_place_holder` and
+  `has_view_place_holder`. The fact is true only for the place of that context:
+  the function compares the cell of the path of the context, so a context below
+  it does not have the fact, and no code takes it away. `make_content_edit` has
+  the keyword `held`. The narrow tests keep the counts of the base commit.
 - [ ] **4. A caret in a part that has no view.** Proposed decision 6.
   The step starts with a test of two facts: a click in such a part gives no
   caret through a view now, and a key with a route reaches the printer of such
