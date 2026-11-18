@@ -300,7 +300,7 @@ They are approved with this plan.
   the function compares the cell of the path of the context, so a context below
   it does not have the fact, and no code takes it away. `make_content_edit` has
   the keyword `held`. The narrow tests keep the counts of the base commit.
-- [ ] **4. A caret in a part that has no view.** Proposed decision 6.
+- [x] **4. A caret in a part that has no view.** Proposed decision 6.
   The step starts with a test of two facts: a click in such a part gives no
   caret through a view now, and a key with a route reaches the printer of such
   a part through the readers of the content print.
@@ -310,6 +310,16 @@ They are approved with this plan.
   for a key of the key table of the part; the caret moves from a view into the
   part and back with the arrow keys; the part as an element of an array, as the
   value of an entry, and as the content of an undo buffer.
+  **Done on 2026-11-18.** The new test is `test_json_view_part_without_view`,
+  with 216 of 216. The two facts, before the change: a click in such a part
+  gave a caret that stayed in the views above the part, and no key of the part
+  answered; a key with a route reached the key table of the part, and the keys
+  of the printer of the part, through the readers of the content print. So no
+  file of the kernel changed. The parts of the tests are a `PrimitiveString`, a
+  document type of the test with one key of its own, and a `DocumentInsertion`.
+  The narrow tests keep the counts of the base commit. The first run of the
+  whole list had one failure in `test_json_view_keys` of plan 4a (found fact
+  9).
 - [ ] **5. The file view holds the view of what its file holds.** Proposed
   decision 7.
   The step starts with a test of one fact: which reader gets a key that
@@ -382,6 +392,37 @@ They are approved with this plan.
    content, and the way back now does the same (`_make_range_inverse` in
    `source/platform/primitive/PrimitiveDocument.jl`). No test of plan 4a
    pressed Ctrl+Z through a view.
+
+7. **A part with no view can be in the output of a stage too.** The stage from
+   any domain to syntax prints a document by reflection as a node of a type
+   that has no view type. So the tree of the views of the syntax has a part
+   with no view, and its caret has the step `viewed` there. The step of a view
+   now changes a path on its two sides: a path of its view, and a path of the
+   view that it gives.
+8. **The caret after a write takes the form of the new document.** An edit that
+   puts a new document in is one operation with two members: the write, and the
+   caret in the new document. The document is not in the tree when the path of
+   the caret gets its form. So the function reads the writes of the same
+   operation that run before the caret: the document that a write puts at a
+   place decides the form, and a write of a range of a list moves the elements
+   after it (`_find_written_child` in `Viewing.jl`). A new part with no view
+   gets the caret below `viewed`, and a new document with a view gets it on its
+   view.
+9. **A document with a view type can be at a place that holds no view.** The
+   print of an entry makes the leaf of its key itself, with no step of a view,
+   so the list of the views of the node of the entry holds nothing for it. That
+   leaf is no part with no view: its type has a view type, and its caret stays
+   on the view of the node of the entry, as in plan 4a. The rule reads the type
+   of the document, as proposed decision 6 says.
+10. **The content that holds a part holds the caret from itself.** The step
+    `viewed` names the list of an array, or the entry of an object. The
+    selection walk writes the rest of the path there, and then into the part.
+    So the list of the elements, or the entry, keeps a caret while the caret is
+    in a part with no view. The array and the object above keep none. Plan 4c
+    decides this case, because there the JSON content has no selection field.
+11. **A route of a gesture exists in the kernel.** An intent with a route and
+    no operation is a gesture for one part, and the readers pass it to that
+    part. A leave of the pointer uses it now.
 
 ## After this plan
 
