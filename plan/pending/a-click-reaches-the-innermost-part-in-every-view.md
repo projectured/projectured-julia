@@ -1201,6 +1201,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `get_content_iomap`, and stops at `WindowManagingIoMap`, which gives no
     children; its forward map answers `nothing` for the path.
 
+    The owner on 2026-11-19, about the value of today (the output path of the
+    step for a stored selection, `nothing` for a new path): "that sounds a bad
+    design, a quite random return value. We should clean this up. I'm not sure
+    allowing the projection step to be evaluated is always a good idea, maybe it
+    should be an option." And about R3: "it would be a search and not just going
+    down the fields and indices, right? Not sure that's a good idea either." So
+    R2, R3 and R4 are open again: the evaluation of the step is an option, and
+    the IO map form must go down by the steps of the path, with no search.
+
     The decisions as first proposed:
     - **S1. The step holds the IO map of the view that drew the part.** The
       fields are `projection`, `iomap` and `output_path`. It evaluates to the
