@@ -1,7 +1,7 @@
 # Each JSON node has a view
 
-**Status:** in work on the branch `json-views`. The owner approved the plan on
-2026-11-18 ("Yes").
+**Status:** done on 2026-11-18, on the branch `json-views`. The owner approved the
+plan on 2026-11-18 ("Yes").
 
 This plan is the first of the three plans of point 4 of the order in section
 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`. The owner
@@ -306,7 +306,7 @@ They are approved with this plan.
   **Done on 2026-11-18.** The example is `json_object_view`. The test of its
   printer has 7496 passes and no failure. The 116 other examples of the platform
   and of the JSON and the Markdown domains have the counts of the base commit.
-- [ ] **7. The wide check and the guides.** `test_platform()`, the suites of
+- [x] **7. The wide check and the guides.** `test_platform()`, the suites of
   the JSON and the Markdown domains, and the examples, against the same runs at
   the base commit. The six guard scripts. The recorded precompile calls, if a
   list goes above its limit. `Pkg.precompile` of `omnet-julia` against the
@@ -316,6 +316,37 @@ They are approved with this plan.
   that an edit through a view writes below `viewed`. The package documents of
   JSON and of the syntax. The plan moves to `plan/done/`. Then the session asks
   for the landing, and for the push apart.
+  **Done on 2026-11-18.** The base commit is `f7c6d4339`.
+  - `test_platform()` at the base: 236427 passes, 16 failures, 1 error, 21
+    broken. On the branch: 236480 passes, 16 failures, 1 error, 21 broken. The 17
+    lines of the failures and of the error are the same. The 53 more passes are
+    the new tests: 22 in `test_content_view_declaration` and 31 in
+    `test_content_edit`.
+  - The JSON suite: 418 of 418 at the base, 832 of 832 on the branch. The 414
+    more are the new tests: 52, 215 and 147. The Markdown suite: 358 of 358 at
+    the base and on the branch.
+  - The test of the printer of each example of the platform and of the JSON and
+    the Markdown domains: 116 examples with the same counts, and the new example
+    with 7496 passes.
+  - The eighteen narrow tests have the counts of the branch before the change.
+    The layering guard of the platform has the two failures of `main`, with the
+    same text.
+  - The six guard scripts of `test/suite/` give the same output at the base and
+    on the branch, except one finding of the documentation guard that moved to
+    another line of `json.md`. The arguments guard had one new finding in the
+    first run: an optional positional argument of `make_completion_operation`.
+    The argument is a keyword now.
+  - No recorded list of precompile calls names a function that this plan changed
+    or removed.
+  - `Pkg.precompile` of `omnet-julia` (`main` at `64014ec5d`) against the branch:
+    295 packages compiled, 199 were compiled before, and none failed. All 68
+    paths of the manifest into this repository lead to the branch. The 295 hold
+    all 75 packages of the environment. The log has no warning. `omnet-julia`
+    and `inet-julia` use no name that this plan added or changed.
+  - The documents: `documentation/design/content-and-view.md` ("The code now"
+    and open point 2), `documentation/rule/architecture-rules.md`,
+    `documentation/package/kernel/projection-system.md`, and the package
+    documents of JSON and of the syntax.
 
 ## Found during the work
 
@@ -367,6 +398,12 @@ They are approved with this plan.
    calls it with the caret of the content, and the Tab row of the view calls it
    with the caret of the view. `find_value_range` reads the caret, as it did for
    an operation.
+
+10. **Two starts of one job were in the queue.** A second start of a run with
+    the same name does not replace a start that still waits for memory. The
+    start that got memory first ran the job, and the other start ended. The job
+    ran the state of the worktree at that time, which was the state that the
+    second start was for.
 
 ## Risks
 

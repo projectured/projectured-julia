@@ -871,7 +871,10 @@ Two rules make this order possible:
      place for a new value and the empty place. The rule of `@content_view` for
      a field that takes any document. The keys of JSON in the key tables of the
      views. The editor does not change. The plan is
-     `plan/pending/each-json-node-has-a-view.md`.
+     `plan/done/each-json-node-has-a-view.md`, done on 2026-11-18 on the branch
+     `json-views`. It found two places where a print reads the caret of its
+     content, which plan 4c and point 11 must take: the reader of a node in
+     `SyntaxToText.jl`, and the Tab of the printer of the place for a new value.
    - **4b. A file tab shows a content through its views.** The views of the
      file, of the undo buffer, and of the place for a new value of every
      domain. The JSON content keeps its selection field, with no use in a tab.
