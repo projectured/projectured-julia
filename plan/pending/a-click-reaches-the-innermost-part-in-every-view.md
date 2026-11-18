@@ -1803,8 +1803,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `test_widget_table_list` 268, `test_widget_selection` 120,
     `test_part_pointer_shape` 32), `test_dataframes` 622 and
     `test_table_navigation` 68 pass. The pivot suite gives 335 passes and only the
-    3 known failures of main. `test_platform` gives the 15 known failures of main
-    and no other. The 7 roster suites pass.
+    3 known failures of main. On the old base, `test_platform` gave the 15 known
+    failures of main and the 4 of the new roster testset, which the fault of the
+    test below explains.
   - The click walk of the same examples: 632 lines on main, 365 lines with the
     table rule, 300 lines with the roster fix. The table cause falls from 311 to
     32 lines, and the 65 lines of the roster headers go: `alt2:not-drawn` 119 →
@@ -1813,6 +1814,25 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     click. The editor of the test has no gesture tracker, so it got no click of
     count 2, only the caret of the Alt+press. The test now sends the two clicks,
     as the tracker gives them and as `press!` of the same file does.
+  - The plain header of a roster, with no arrangement, then still selected the
+    whole roster. `map_reference_backward` of `RosterRowsToWidget` gave the
+    introduced step to a path in a header only for a filter header
+    (`iomap.is_filtering`), because on 2026-10-29 only that header had a part
+    that a gesture routes to. Now the text of a plain key is a part too, so the
+    condition is gone, and both headers map a path in the same way.
+  - The branch is rebased onto main `31c803857`, which brought the view type, the
+    list view and the split of the readers. No file is changed on both sides.
+  - On the rebased branch: `test_platform` gives the 15 known failures of main
+    and no other, the 7 roster suites pass (`test_roster_header` 47),
+    `test_dataframes` 622 and `test_table_navigation` 68 pass, and the pivot
+    suite gives 335 passes and only the 3 known failures of main.
+  - The walk of the plain roster examples (`roster/roster`, `collection/table`,
+    `dbcatalog/table`): 5 lines on main, 4 with the change. A plain click and an
+    Alt+click on the text of a plain key now work. One line is new: on the
+    padding of the plain header, the Alt+double click selects the whole header
+    (P4), and no ring or band draws it. The filter header has the same gap on
+    main (for example `backgroundwork/log` at (600, 57)), with the moves there
+    that name the table and not the header. This cause stays open.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
