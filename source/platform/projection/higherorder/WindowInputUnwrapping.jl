@@ -45,13 +45,18 @@ function print_document(p::WindowInputUnwrappingProjection, recursion, input, ct
     WindowInputUnwrappingIoMap(p, input, Cell(@computation inner.output), inner)
 end
 
+# The inner stage reads the event of a window input, and the change keeps its
+# operation, its route, its description and its domain. The answer keeps the
+# window input, so an outer stage sees the gesture that it sent.
 function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingIoMap)
     window_input = change.gesture
-    inner_change = window_input isa WindowInput ? Intent(window_input.event, change.operation) : change
-    out = read_intent(p.inner, recursion, inner_change, iomap.inner_iomap)
-    # Preserve the original (still-wrapped) gesture in the returned change so any
-    # outer layer continues to see the window input it sent.
-    return Intent(change.gesture, out.operation)
+    window_input isa WindowInput ||
+        return read_child_intent(p, recursion, change, iomap, iomap.inner_iomap)
+    inner = read_child_intent(p, recursion,
+                              Intent(window_input.event, change.operation, change.description,
+                                     change.domain, change.route),
+                              iomap, iomap.inner_iomap)
+    Intent(change.gesture, inner.operation, inner.description, inner.domain)
 end
 
 read_intent(p::WindowInputUnwrappingProjection, iomap::WindowInputUnwrappingIoMap, payload) =

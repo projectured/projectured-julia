@@ -57,7 +57,7 @@ export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,
        with_visible_size, get_visible_width, get_visible_height
-export read_child_event, make_layout_selection_ring
+export read_child_event, read_entry_child, make_layout_selection_ring
 export PlaceBlocks, get_block_total, get_total_before, find_place_at
 export KeepPointOperation, RevealPartOperation
 

@@ -405,16 +405,24 @@ function read_gesture_outward(answer, gesture, document; steps, with_part::Bool 
 end
 
 """
-    read_child_intent(projection, recursion, change, iomap, child, steps = ()) -> Intent
+    read_child_intent(projection, recursion, change, iomap, child, steps = ();
+                      read_child = read_routed_intent) -> Intent
 
 The one passing of `change` from a container to `child`, the IoMap of the child
 that the container chose for it, and back: what a container reader calls once it
 knows which child the change goes to. `projection` and `iomap` are the container's,
 and `steps` lead from the input of the container to the input of the child.
 
-- The child reads `change` with its own `read_intent`, with the route that remains
-  below `steps` ([`follow_intent_route`](@ref)). A change whose route does not start
-  with `steps` does not reach the child, and the answer is no operation.
+- The child reads `change` with `read_child(child_projection, recursion, routed,
+  child)`, where `routed` has the route that remains below `steps`
+  ([`follow_intent_route`](@ref)). By default the child reads with its own
+  `read_intent` ([`read_routed_intent`](@ref)). A container that draws its children
+  in frames of their own gives a `read_child` that moves the point of a pointer
+  gesture into the frame of the child and the positions of the answer back, because
+  the kernel knows no position. A change whose route does not start with `steps`
+  does not reach the child, and the answer is no operation.
+- With `child === nothing`, no child reads, and the container is the part: only the
+  rules of the container answer.
 - The answer of the child comes back rerooted by `steps`, with the description and
   the domain of the answer, or of `change` when the answer has none.
 - For a gesture, the answer then goes up level by level: through the documents on
@@ -443,12 +451,12 @@ gesture, by its selection for a key, or by the route of an operation.
 See also `read_intent`, which the child reads with, and `read_gesture`, which the
 rules of each level answer with.
 """
-function read_child_intent(projection, recursion, change::Intent, iomap, child, steps::Tuple = ())
+function read_child_intent(projection, recursion, change::Intent, iomap, child, steps::Tuple = ();
+                           read_child = read_routed_intent)
     routed = change.route === nothing ? change : follow_intent_route(change, steps...)
     routed === nothing && return Intent(change.gesture, nothing, change.description, change.domain)
-    child_projection = get_iomap_projection(child)
-    inner = routed.route === nothing ? read_intent(child_projection, recursion, routed, child) :
-                                       read_routed_intent(child_projection, recursion, routed, child)
+    inner = child === nothing ? Intent(change.gesture, nothing) :
+            read_child(get_iomap_projection(child), recursion, routed, child)
     answer = inner.operation isa Operation ? inner.operation : nothing
     description = isempty(inner.description) ? change.description : inner.description
     domain = isempty(inner.domain) ? change.domain : inner.domain
@@ -467,7 +475,7 @@ function read_child_intent(projection, recursion, change::Intent, iomap, child, 
                 read_gesture(document, gesture; answer = given)
             end
         end
-        shares_input = get_iomap_input(child) === get_iomap_input(iomap)
+        shares_input = child !== nothing && get_iomap_input(child) === get_iomap_input(iomap)
         answer = _read_level(answer, gesture) do given
             shares_input ? read_projection_gesture(projection, iomap, gesture; answer = given) :
                            read_gesture(projection, iomap, gesture; answer = given)

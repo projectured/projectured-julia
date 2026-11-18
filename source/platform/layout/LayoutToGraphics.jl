@@ -250,7 +250,26 @@ it names no part.
 """
 function read_child_event(child_iomap, event)
     event isa MouseMove && return read_child_move(child_iomap, event)
-    answer = read_intent(child_iomap.projection, child_iomap, event)
+    _apply_child_event_rules(child_iomap, event, read_intent(child_iomap.projection, child_iomap, event))
+end
+
+"""
+    read_child_event(recursion, change::Intent, child_iomap) -> Intent
+
+The same for a `change` whose gesture is a pointer event in the child's frame: the
+child reads `change` with its own `read_intent`, with the route, the description
+and the domain of `change`, and the rules above apply to its answer.
+"""
+function read_child_event(recursion, change::Intent, child_iomap)
+    event = change.gesture
+    event isa MouseMove && return Intent(event, read_child_move(child_iomap, event))
+    inner = read_routed_intent(get_iomap_projection(child_iomap), recursion, change, child_iomap)
+    Intent(event, _apply_child_event_rules(child_iomap, event, inner.operation),
+           inner.description, inner.domain)
+end
+
+# The rules of `read_child_event` on the answer of the child to `event`.
+function _apply_child_event_rules(child_iomap, event, answer)
     if is_outward_gesture(event) && !(answer isa Operation)
         own = read_child_part_gesture(child_iomap, event)
         own === nothing || (answer = own)
@@ -269,6 +288,39 @@ end
 function _is_event_on_child(child_iomap, event)
     canvas = child_iomap.output
     canvas isa GraphicsCanvas && hit_element_at(canvas, event.x, event.y) !== nothing
+end
+
+"""
+    read_entry_child(projection, recursion, change, iomap, entry, steps) -> Intent
+
+The passing of `change` from a container to the child of `entry`, an
+`(x, y, child_iomap)` triple that places the child, and back. The point of a
+pointer gesture goes into the frame of the child ([`get_child_frame_offset`](@ref)),
+the child reads it by the rules of [`read_child_event`](@ref), and each position of
+the answer comes back into the frame of the container. Then the answer goes up by
+`steps` level by level, and the rules of each level read it
+([`read_child_intent`](@ref)). `projection` and `iomap` are the container's, and
+`steps` lead from its input to the input of the child. A change that carries an
+operation, or a gesture with no point, goes to the child as it is.
+
+Use it in a container that draws its children at places of its own, after it
+chose the child at the point of the gesture.
+"""
+function read_entry_child(projection, recursion, change::Intent, iomap, entry, steps::Tuple)
+    dx, dy = get_child_frame_offset(entry)
+    read_child_intent(projection, recursion, change, iomap, last(entry), steps;
+                      read_child = (_, r, c, child) -> _read_child_in_frame(r, c, child, dx, dy))
+end
+
+function _read_child_in_frame(recursion, change::Intent, child, dx::Int, dy::Int)
+    gesture = change.gesture
+    (change.operation === nothing && gesture isa Union{Event, Gesture}) ||
+        return read_routed_intent(get_iomap_projection(child), recursion, change, child)
+    moved = Intent(shift_event_position(gesture, -dx, -dy), nothing, change.description,
+                   change.domain, change.route)
+    inner = read_child_event(recursion, moved, child)
+    Intent(gesture, shift_operation_position(inner.operation, dx, dy), inner.description,
+           inner.domain)
 end
 
 """

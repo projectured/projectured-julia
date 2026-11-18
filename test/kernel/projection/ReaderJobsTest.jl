@@ -293,6 +293,21 @@ function test_reader_jobs()
         @test off_way.operation === nothing
     end
 
+    @testset "a container can give the read of the child, and with no child only its own rules answer" begin
+        iomap = _job_box_iomap(JobProbeLeafProjection())
+        p = get_iomap_projection(iomap)
+        child = only(get_child_iomaps(iomap))
+        # The read that the container gives answers for the child, and the levels
+        # read that answer: no rule of `q` replaces it.
+        given = read_child_intent(p, p, Intent(_job_key('q')), iomap, child, _JOB_STEPS;
+                                  read_child = (_, _, change, _) -> Intent(change.gesture, JobProbeText("given")))
+        @test given.operation == JobProbeText("given")
+        # With no child, the box is the part: the middle document does not read, and
+        # the plain rule of the box answers.
+        @test read_child_intent(p, p, Intent(_job_key('>')), iomap, nothing).operation ==
+              JobProbeOperation("box >")
+    end
+
     @testset "a wrapper of the same input reads only its own table, and the child reads the document" begin
         p = JobProbeWrapProjection(JobProbeLeafProjection())
         iomap = print_document(p, p, JobProbeTabled(), PrinterContext())

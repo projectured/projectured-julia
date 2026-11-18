@@ -4329,69 +4329,87 @@ map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIo
 map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
     _map_child_point(iomap, reference)
 
-# Route events to composite children and re-root the returned op. A MouseClick
-# and a dwell are hit-tested against each child canvas; a coordless event
-# (KeyPress/KeyDown) goes to the child the composite's selection points at, falling
-# back to trying each child. The op a child returns is re-rooted by prepending
-# `elements[i]` — the same scheme WidgetSplitPane uses. Identity-bearing ops
-# (ReplaceReferencedValueOperation from a control) pass through `reroot_operation`
-# unchanged. For a dwell and a right click the composite then reads its own stretch.
-function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap, evt)
-    # A move that is off the composite still goes to the child the pointer leaves.
-    _outside_widget(iomap, evt) && !(evt isa MouseMove) && return nothing
+# A change goes to one child of the composite and back by the one passing of a
+# child (`read_child_intent`, and `read_entry_child` for a child at a point), and
+# the composite keeps only its own rules:
+#
+# - a key, a gesture with no point, and an operation go to the child that the
+#   selection of the composite names (`elements[i].<rest>`), and to no child when
+#   the selection is not inside the composite;
+# - a pointer gesture goes to the topmost child that drew at its point, the child
+#   that the point maps to (`_map_point_to_child`), and a pointer off the
+#   composite answers nothing;
+# - a move goes to the child that the pointer leaves as well (`_read_composite_move`);
+# - a press over no child goes to the first child that takes it
+#   (`_read_unhit_composite_press`);
+# - Tab moves the selection to the next focusable child when the selected child
+#   declines it (`read_gesture` below).
+#
+# A change with a route goes to the child that the route names, as by default.
+function read_intent(p::WidgetCompositeToGraphicsCanvas, recursion, change::Intent,
+                     iomap::WidgetChildrenIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    # The older form of the reader puts an operation in the place of the gesture.
+    change.operation === nothing && change.gesture isa Operation &&
+        (change = Intent(nothing, change.gesture, change.description, change.domain))
+    evt = change.gesture
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MouseMove && return _read_composite_move(iomap.input, child_iomaps, evt)
-    # Tab traversal (Stage 2): distributed focus advance. Handle before the generic
-    # selection-only routing so a Tab the selected child declines can advance my
-    # own selection to the next focusable sibling.
-    if iomap.input isa WidgetComposite && evt isa KeyPress && evt.char == '\t'
-        return _composite_tab(iomap.input, child_iomaps, evt)
-    end
-    res = @gesture_case evt begin
-        MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-        MouseClick => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
-                                 time = evt.time))
-        MouseDwell => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> shift_event_position(evt, x - evt.x, y - evt.y))
-        MouseDown => _route_composite_press(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
-        MouseUp => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
-        _ => begin
-            # Coordless (keyboard) events route to the child the selection points
-            # at, or to nothing when the selection is not inside this composite.
-            # Selection is authoritative — no broadcast/first-answer fallback.
-            # See package/visual/doc/widget.md.
-            slot = iomap.input isa WidgetComposite ?
-                   _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
-            slot == 0 ? nothing :
-                        _forward_composite_event_slot(child_iomaps, evt, slot)
+    if change.operation === nothing && _positioned_event(evt)
+        _outside_widget(iomap, evt) && !(evt isa MouseMove) && return Intent(evt, nothing)
+        evt isa MouseMove && return Intent(evt, _read_composite_move(iomap.input, child_iomaps, evt))
+        slot = _find_composite_slot_at(child_iomaps, evt.x, evt.y)
+        slot == 0 || return read_entry_child(p, recursion, change, iomap, child_iomaps[slot],
+                                             _get_composite_slot_steps(slot))
+        if evt isa MouseDown
+            answer = _read_unhit_composite_press(p, recursion, change, iomap, child_iomaps)
+            answer === nothing || return answer
         end
+        return read_child_intent(p, recursion, change, iomap, nothing)
     end
-    res === nothing && return read_container_gesture(nothing, evt, iomap.input)
-    op, slot_idx = res
-    steps = _get_composite_slot_steps(slot_idx)
-    read_container_gesture(reroot_operation(op, steps), evt, iomap.input; steps)
+    slot = iomap.input isa WidgetComposite ?
+           _selected_composite_slot(iomap.input, length(child_iomaps)) : 0
+    entry = slot == 0 ? nothing : child_iomaps[slot]
+    entry === nothing && return read_child_intent(p, recursion, change, iomap, nothing)
+    read_child_intent(p, recursion, change, iomap, last(entry), _get_composite_slot_steps(slot))
 end
 
-# A press routes to the hit child first, exactly as a click does — but when the
-# pointer is over nothing, it is offered to the children anyway, in order: a split
-# pane draws its divider in the gap between its slots, which is no hit, and the
-# press there must still grab it. The rest of a drag comes by the path of the part
-# whose drag is on.
-function _route_composite_press(child_iomaps::Vector, x::Int, y::Int, make_evt)
-    hit = _route_composite_event(child_iomaps, x, y, make_evt)
-    hit === nothing || return hit
+read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# Tab, when the selected child declines it or no child is selected: the selection
+# goes to the next focusable child (Shift: the previous one), or from no selected
+# child to the first (last) focusable leaf of the composite. With no such child the
+# composite declines too, so its parent moves on.
+function read_gesture(p::WidgetCompositeToGraphicsCanvas, iomap::WidgetChildrenIoMap,
+                      evt::KeyPress; answer = nothing)
+    if answer === nothing && evt.char == '\t' && iomap.input isa WidgetComposite
+        return _advance_composite_tab(iomap.input,
+                                      length(getfield(iomap, :child_iomaps)[]::Vector), evt)
+    end
+    invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, evt; answer)
+end
+
+# The slot of the topmost child of the composite that drew at the point `(x, y)`
+# (the one drawn last), the child that the point maps to; 0 when no child did.
+function _find_composite_slot_at(child_iomaps::Vector, x::Int, y::Int)
+    for i in reverse(eachindex(child_iomaps))
+        _find_widget_child_point(child_iomaps[i], x, y) === nothing || return i
+    end
+    0
+end
+
+# A press over no child goes to each child in turn, in its own frame, and the
+# first child that answers takes it: a split pane draws its divider in the gap
+# between its slots, which is no hit, and the press there must still grab it. The
+# rest of a drag comes by the path of the part whose drag is on.
+function _read_unhit_composite_press(p, recursion, change::Intent, iomap, child_iomaps::Vector)
     for (i, entry) in enumerate(child_iomaps)
         entry === nothing && continue
-        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        result = read_intent(cim.projection, cim,
-                             make_evt(x - ox - Int(canvas.x), y - oy - Int(canvas.y)))
-        result === nothing || return (result, i)
+        last(entry).output isa GraphicsCanvas || continue
+        inner = read_routed_entry_child(recursion, change, last(entry); entries = (entry,))
+        inner.operation isa Operation || continue
+        return read_child_intent(p, recursion, change, iomap, last(entry),
+                                 _get_composite_slot_steps(i); read_child = (_...) -> inner)
     end
     nothing
 end
@@ -4410,16 +4428,6 @@ function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         result !== nothing && return (result, i)
     end
     nothing
-end
-
-# Forward a coordless event to the single child the selection points at.
-function _forward_composite_event_slot(child_iomaps::Vector, evt, slot::Int)
-    (1 <= slot <= length(child_iomaps)) || return nothing
-    entry = child_iomaps[slot]
-    entry === nothing && return nothing
-    (_, _, cim) = entry::Tuple{Int,Int,Any}
-    result = read_intent(cim.projection, cim, evt)
-    result isa Operation ? (result, slot) : nothing
 end
 
 # The child slot the composite's selection (`elements[slot].<rest>`) points at,
@@ -4465,10 +4473,11 @@ end
 
 # ── Distributed Tab traversal (Stage 2, composite) ──────────────────────────
 #
-# Tab handling for `WidgetComposite`. Each container participates: it delegates
-# Tab to the selected child and, if the child declines (returns nothing — it ran
-# off its own end), advances the selection to its next focusable sibling; if it
-# has no next sibling it declines too, so its parent advances. The selection move
+# Tab handling for `WidgetComposite`. Each container participates: the reader gives
+# Tab to the selected child, and when the child declines (it ran off its own end),
+# the rule of the composite (`read_gesture`) advances the selection to its next
+# focusable sibling; if it has no next sibling it declines too, so its parent
+# advances. The selection move
 # is a `ReplaceSelectionOperation` *relative to this composite*; the parent's
 # `reroot_operation` makes it absolute as it bubbles up (the same re-rooting
 # applied to edit ops). With selection-only routing (Step 1) a non-root container
@@ -4480,8 +4489,7 @@ end
 # non-local case and is not handled here — a container only advances or
 # declines. The single top-level rule that wraps a declined Tab lives at the
 # outer widget seam, in `FocusCyclingProjection` (`source/platform/focus/FocusCycling.jl`).
-function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
-    n = length(child_iomaps)
+function _advance_composite_tab(w::WidgetComposite, n::Int, evt)
     reverse = evt.modifiers.shift
     i = _selected_composite_slot(w, n)
     if i == 0
@@ -4490,13 +4498,8 @@ function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
         sub = reverse ? get_last_focusable_path(w) : get_first_focusable_path(w)
         return sub === nothing ? nothing : ReplaceSelectionOperation(sub)
     end
-    # Delegate to the selected child; an internal advance re-roots through me.
-    deleg = _forward_composite_event_slot(child_iomaps, evt, i)
-    if deleg !== nothing
-        op, slot = deleg
-        return reroot_operation(op, (FieldReferenceStep("elements"), RangeReferenceStep(slot - 1, slot)))
-    end
-    # Child declined: advance to my next focusable sibling, entering its first leaf.
+    # The selected child declined: advance to my next focusable sibling, entering
+    # its first leaf.
     j = get_next_focusable_index(w.elements, i, reverse)
     j == 0 && return nothing                      # no next sibling — I decline; parent advances.
     sub = reverse ? get_last_focusable_path(w.elements[j]) : get_first_focusable_path(w.elements[j])
@@ -5730,7 +5733,7 @@ function _read_split_slot_move(iomap::WidgetChildrenIoMap, w::WidgetSplitPane, e
     join_move_answers(reroot_operation(old_answer, _get_split_slot_steps(w, old)), new_answer)
 end
 
-# Tab traversal for a split pane (Stage 2), mirroring `_composite_tab` but with the
+# Tab traversal for a split pane (Stage 2), mirroring the Tab of the composite but with the
 # split's slot shape: slots live under `elements[i]`, optionally wrapped in a
 # `LayoutConstraint` (then the path walks through `.child`). `get_first_focusable_path`
 # descends through the LayoutConstraint's `child` field generically, so the advance
