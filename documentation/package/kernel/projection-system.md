@@ -610,14 +610,24 @@ first. `read_intent` of a `ViewingProjection` asks the key tables of the views o
 the live caret, from the deepest, with `read_gesture_outward`
 ([the recursive reading](#recursive-gesture-reading-ask-the-child-lift-its-answer-apply-the-rules)),
 so the view of a JSON array inside the view of a Markdown document answers its keys
-there. A key table belongs to a view type, such as `@gestures JsonArrayView`. An
-edit that the table makes with the helpers of the content goes through the view
-with `make_content_edit`, which writes below the field `viewed`. An operation that
+there. A key table belongs to a view type, such as `@gestures JsonArrayView`. A
+row answers with a path from its view. An operation that
 comes back from the next stage goes through `read_view_operation` first, which
 turns an operation of the next stage into an operation of the state of the view,
 such as a toggle of a fold of a text into a `ToggleFoldOperation` at the path of the
 view of the node. Any other operation goes back through the readers of the content
 print.
+
+The step applies `make_content_edit(view, operation)` to each operation that it
+answers, from a key table and from the readers of the content print. A write at a
+path of the tree of views becomes a write below the field `viewed` of the deepest
+view above the written place: a write of element 2 of `.elements` is a write of
+`.elements.viewed[2]`, because the view of a list is a view. A caret stays a path
+of the tree of views. A write that has no view above its place gives no
+operation, so a view that no view holds does not replace its own content. A
+write that comes from the next stage is a write below `viewed` of a view that the
+step gave, and the step takes that step out before the readers of the content
+print map the write back.
 
 **The view of a list.** A view keeps the view of each list of its content, a
 `CellVectorView`. The list view makes the view of an element at the first read of

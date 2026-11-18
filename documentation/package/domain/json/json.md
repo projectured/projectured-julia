@@ -57,9 +57,11 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 ### The views
 
-Five JSON types have a view ([JsonView.jl](../../../../source/domain/json/JsonView.jl)): `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView` and `JsonArrayView`, all subtypes of `JsonView <: ContentView`. A `JsonObject` and a `JsonObjectEntry` have none. The view keeps what it shows in `viewed`, and the caret is a path of the content, such as `.value{3}` in a string view. The caret and the fold are in the view, and the JSON document holds neither.
+Each JSON type has a view ([JsonView.jl](../../../../source/domain/json/JsonView.jl)): `JsonNullView`, `JsonBoolView`, `JsonNumberView`, `JsonStringView`, `JsonArrayView`, `JsonObjectView`, `JsonObjectEntryView`, `JsonInsertionView` and `JsonNothingView`, all subtypes of `JsonView <: ContentView`. The view keeps what it shows in `viewed`, and the caret is a path of the content, such as `.value{3}` in a string view. The caret and the fold are in the view, and the JSON document holds neither.
 
-`JsonArrayView(viewed, elements, collapsed)` holds the view of the list of its elements in `elements`, a `CellVectorView`. That list view gives the view of each element at the index of the element, makes it at the first read of the element, and follows the elements by identity. A path such as `.elements[2].value{3}` is a path of the array and of its view. `collapsed` is the fold of the view, which another view of the same array does not share. An element with no view, such as an object, has `nothing` in its place and prints as content.
+`JsonArrayView(viewed, elements, collapsed)` holds the view of the list of its elements in `elements`, a `CellVectorView`. That list view gives the view of each element at the index of the element, makes it at the first read of the element, and follows the elements by identity. A path such as `.elements[2].value{3}` is a path of the array and of its view. `collapsed` is the fold of the view, which another view of the same array does not share.
+
+`JsonObjectView(viewed, entries, collapsed)` holds the view of the list of its entries in `entries`, and a fold of its own. `JsonObjectEntryView(viewed, value)` holds the view of the value of the entry in `value`: the view of the document that the entry holds now. The key is a text of the entry, so a caret in a key is on the view of the entry, as `.entries[1].key{2}`, and a caret in a value is `.entries[1].value.value{3}`. `JsonInsertionView` is the view of the place where a person types a new value, and `JsonNothingView` the view of the empty place. A document of another domain inside a JSON tree takes the view of its own type. When its type has no view, its place holds `nothing`, and it prints as content.
 
 The chain of views wraps the stages that the chain has already:
 
@@ -71,7 +73,22 @@ ChainingProjection(RecursiveProjection(ViewingProjection(JsonToSyntax())),      
                        TextView => TextViewToGraphicsCanvas(), TextBlock => TextBlockToGraphicsCanvas(; measure))))
 ```
 
-No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the node of the array, whose children are the views of the nodes of the elements and whose fold is the fold of the array view. The key table `@gestures JsonView` replaces the node that the caret names with null, false, true, a string, an array, an object or a number (the keys `n`, `f`, `t`, `"`, `[`, `{` and a digit). `@gestures JsonArrayView` appends an element with `,` to the innermost array around the caret, as an edit of the content that goes through the view (`make_content_edit`). A JSON part inside a Markdown view takes a `JsonArrayView` with no code in either domain ([markdown.md](../markdown/markdown.md#views)). The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view.
+No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the node of an array or of an object, whose children are the views of the nodes of the elements or of the entries and whose fold is the fold of the JSON view. The view of the node of an entry holds the view of the node of its value at the second place; the leaf of the key has no view. The place for a new value prints as a `SyntaxDelimitationView`. A JSON part inside a Markdown view takes its JSON view with no code in either domain ([markdown.md](../markdown/markdown.md#views)).
+
+**The keys of the views.** A key that acts at the caret is a row of the key table of a view. The view at the end of the caret reads a key first, and its row acts for the node of that view. The row answers with a path from its view, and the step of the view makes the write of it below `viewed` (`make_content_edit`).
+
+| Key | Table | What it does |
+| --- | --- | --- |
+| `n`, `f`, `t`, `"`, `[`, `{`, `:`, a digit | `JsonView` | replace the node of the view with a null, a boolean, a string, an array, an object, an entry or a number |
+| `,` | `JsonArrayView` | append the place for a new value |
+| `,` | `JsonObjectView` | append a new entry, with the caret in its key |
+| Tab | `JsonObjectEntryView` | move the caret from the key to the value |
+| no key, by name | `JsonObjectEntryView` | move the caret from the value to the key |
+| no key, by name | `JsonObjectView` | sort the entries by key |
+| Return, Escape, Tab | `JsonInsertionView` | make the document that the typed text names, put the empty place back, take the completion |
+| Insert | `JsonNothingView` | make the place for a new value of the empty place |
+
+An entry of an object is not replaced, as with no view. A comma on the bracket that closes a node goes to the node around it. The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view. The editor shows a JSON file through such a chain.
 
 ### The text form
 
@@ -190,7 +207,9 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 
 ## Limits
 
-- The fold of an array is state of a `JsonArrayView`. In a chain with no view, such as `JsonToSyntax()` on a `JsonArray`, the fold that a person makes is a cell of the syntax node that the print makes, and a new print of the array loses it. A `JsonObject` and a `JsonObjectEntry` have no view, so no fold of theirs exists, and inside a view they print as content and take no caret in their text.
+- The fold of an array is state of a `JsonArrayView`, and the fold of an object is state of a `JsonObjectView`. In a chain with no view, such as `JsonToSyntax()` on a `JsonArray`, the fold that a person makes is a cell of the syntax node that the print makes, and a new print of the array loses it.
+- A view that no view holds does not replace its own content. A key that makes another kind of value answers nothing there, because the place of that content is not below a view.
+- Through a view, the place for a new value has no Insert key that makes it a place of every domain. A document inside a JSON tree whose type has no view takes no caret through a view.
 - `,` appends at the end of the container, not after the selected element.
 - The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

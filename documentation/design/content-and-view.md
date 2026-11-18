@@ -283,10 +283,17 @@ The code differs from this design in these places.
   keep one.
 - `ContentView` in `source/platform/projection/higherorder/Viewing.jl` sends a
   field step that a view does not have to the field `viewed`.
-- Twelve view types have the declaration: `TextView`, the two syntax views, five
-  JSON views and four Markdown views. `@content_view` makes a child field only
-  for a list that is declared as a `CellVector`. A field that takes any document,
-  a field of a document type and the lines of a text get no view of their own.
+- Seventeen view types have the declaration: `TextView`, three syntax views, nine
+  JSON views and four Markdown views. `@content_view` makes a child field for a
+  list that is declared as a `CellVector`, and for a field that is declared as
+  `Document`. A field that takes any value, a field of one document type and the
+  lines of a text get no view of their own.
+- Each node of a JSON document has a view. The editor uses these views in no
+  tab: a tab shows a JSON file as content with no view. Of all the view types,
+  only `TextView` shows in the editor, for the text of a widget.
+- A write through a view names its place below `viewed`, as in this design
+  (`make_content_edit`). A caret does not: it has the path of the content, with
+  no step `.viewed`.
 - `CellVectorView` is the one view of a list. No plain value has a view type, so
   no view follows an index.
 - A walk of a document reads each element of the view of a list, and so it makes
@@ -338,9 +345,9 @@ The code differs from this design in these places.
 
 1. **The name of the kernel hook.** `keeps_selection` is a working name.
 2. **The child fields that `@content_view` reads.** The macro reads the lists
-   that are declared as a `CellVector`. Its form is not written for a field that
-   takes any document, for a field of a document type and for the lines of a
-   text.
+   that are declared as a `CellVector`, and the fields that are declared as
+   `Document`. Its form is not written for a field that takes any value, for a
+   field of one document type and for the lines of a text.
 3. **The sort of each document type that is left.** About 180 document types of
    the widget domains and of the session are not sorted into content and view
    yet. The rules of this document decide each one.

@@ -305,8 +305,11 @@ content holds neither.
 - **A `ContentView` is the supertype of the views of a content.** A view keeps the
   content that it shows in the field `viewed`. Each view type has one child field
   for each list of its content, and that field holds the view of the list, such as
-  `JsonArrayView.elements`. A view is a tree with one node for each node of its
-  content, so a path of the content is a path of the view.
+  `JsonArrayView.elements`. It has one child field for each field of its content
+  that is declared as `Document`, and that field holds the view of the document
+  that the content holds there now, such as `JsonObjectEntryView.value`. A view is
+  a tree with one node for each node of its content, so a path of the content is a
+  path of the view.
 - **`@content_view` declares a view type.** It writes the field `viewed`, the child
   fields, the constructor and the methods of `make_content_view`. A person writes
   only the state of the view type and its key table.
@@ -316,9 +319,15 @@ content holds neither.
   its element when the list changes.
 - **A list view keeps each view that it made.** No view goes: the memory of a lazy
   structure has no general solution yet, and no printer frees memory.
+- **An edit through a view writes below `viewed`.** A row of the key table of a
+  view acts for the node of its view, and it answers with a path from that view,
+  as a row of a content answers with a path from its document. The step of a view
+  turns each write of the answer into a write below the field `viewed` of the
+  deepest view above the written place (`make_content_edit`). So a row writes no
+  child field of a view, and no row finds the view that holds a place by hand.
 - **The state of one view is in the view.** The caret, the part under the pointer,
-  the folds (`collapsed` of a `SyntaxNodeView` and of a `JsonArrayView`, `closed_folds`
-  of a `TextView`) and the look of a text (`wrap`, `line_spacing`) belong to one
+  the folds (`collapsed` of a `SyntaxNodeView`, of a `JsonArrayView` and of a
+  `JsonObjectView`, `closed_folds` of a `TextView`) and the look of a text (`wrap`, `line_spacing`) belong to one
   view. Two views of one content keep two carets and two folds. The content is
   shared, saved and compared with no state of a view.
 - **A view type has a method of `make_content_view`** for its content type. A
@@ -333,13 +342,14 @@ content holds neither.
   write into a view. The container that holds a view owns its place, and a paste
   replaces the whole view there.
 
-These types have views: `TextBlock` (`TextView`); `SyntaxLeaf` and `SyntaxNode`
-(`SyntaxLeafView`, `SyntaxNodeView`); the JSON types that `JsonView.jl` defines,
-which are `JsonNull`, `JsonBool`, `JsonNumber`, `JsonString` and `JsonArray`; and
-the four Markdown types that `MarkdownView.jl` defines: `MarkdownText`,
-`MarkdownParagraph`, `MarkdownHeading` and `MarkdownRoot`. A JSON object, an object
-entry and every other Markdown type print as content inside a view and take no
-caret in their text there.
+These types have views: `TextBlock` (`TextView`); `SyntaxLeaf`, `SyntaxNode` and
+`SyntaxDelimitation` (`SyntaxLeafView`, `SyntaxNodeView`,
+`SyntaxDelimitationView`); each type of the JSON domain, with the views that
+`JsonView.jl` defines; and the four Markdown types that `MarkdownView.jl`
+defines: `MarkdownText`, `MarkdownParagraph`, `MarkdownHeading` and
+`MarkdownRoot`. Every other Markdown type prints as content inside a view and
+takes no caret in its text there, and so does each document inside a JSON view
+whose type has no view.
 
 Every other type and every other chain has no view: the type keeps its caret in
 its own selection field. The widgets have no views. A
