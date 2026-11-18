@@ -50,7 +50,7 @@ export ConstantProjection
 export ChainingProjection, ChainingIoMap
 export TypeDispatchingProjection
 export RecursiveProjection
-export View, ContentView, CellVectorView, @content_view, find_child_view_type, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view,
+export View, ContentView, CellVectorView, @content_view, find_child_view_type, is_child_view_field, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view,
        get_content_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation,
        make_sibling_view
 export SwitchingProjection, SwitchingIoMap

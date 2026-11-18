@@ -67,7 +67,7 @@ import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 
 export make_history_wrap
-export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
+export UndoDocument, UndoBuffer, UndoBufferView, UndoEntry, is_undo_barrier,
        push_undo_entry!, clear_undo_history!, is_undo_step,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,
        TYPING_PAUSE, get_typing_caret,
@@ -82,12 +82,13 @@ include("UndoTheme.jl")
 include("UndoBufferToSyntax.jl")
 include("HistorySettings.jl")
 
-# The row that lets every renderer draw a history: what it holds, and nothing of
-# its own. The open of a file gives the file a history in every editor that has
+# The rows that let every renderer draw a history and the view of a history: what
+# it holds, and nothing of its own. The open of a file gives the file a history in every editor that has
 # settings, so no editor can be left without the row.
 function __init__()
     register_natural_graphics!(:undo, (; measure, appearance) -> Pair{Type,Any}[
-        UndoBuffer => UndoBufferToAnyProjection()])
+        UndoBuffer => UndoBufferToAnyProjection(),
+        UndoBufferView => UndoBufferToAnyProjection()])
 end
 
 end # module

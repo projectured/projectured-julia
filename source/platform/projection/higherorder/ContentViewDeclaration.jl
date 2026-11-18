@@ -17,6 +17,18 @@ function find_child_view_type end
 find_child_view_type(::Type) = nothing
 find_child_view_type(::Type{<:CellVector}) = CellVectorView
 
+"""
+    is_child_view_field(content::Type, field::Symbol) -> Bool
+
+Whether a view of the content type `content` gets a child field for the field
+`field` of the content. The default is `true`. A content type declares `false` for
+a field that no view of it shows, such as a list of the steps of an undo buffer.
+`@content_view` reads it when it expands, so the method stands before the
+declaration of the view type.
+"""
+function is_child_view_field end
+is_child_view_field(::Type, ::Symbol) = true
+
 # A field of a content type that takes any document: it is declared as `Document`,
 # or as the union of `Document` and `Nothing`.
 _is_document_slot_type(declared::Type) = declared === Document || declared === Union{Document, Nothing}
@@ -48,7 +60,9 @@ only the state that is specific to the view type. The macro writes the rest:
 
 - the field `viewed::Content`, which holds the content;
 - one child field for each list of `Content`, with the name of the field of that
-  list, which holds the view of the list ([`CellVectorView`](@ref));
+  list, which holds the view of the list ([`CellVectorView`](@ref)). A field that
+  `Content` declares as no field of a view gets none
+  ([`is_child_view_field`](@ref));
 - one child field for each field of `Content` that is declared as `Document`, or as
   the union of `Document` and `Nothing`, with the name of that field. It holds the
   view of the document that the field holds now, or `nothing` when that document
@@ -151,7 +165,7 @@ end
 function _find_child_view_fields(content::Type)
     found = @NamedTuple{name::Symbol, list_view::Union{Symbol, Nothing}}[]
     for field in fieldnames(content)
-        is_view_state_field(field) && continue
+        (is_view_state_field(field) || !is_child_view_field(content, field)) && continue
         declared = find_declared_field_type(content, field)
         declared === nothing && continue
         view_type = find_child_view_type(declared)

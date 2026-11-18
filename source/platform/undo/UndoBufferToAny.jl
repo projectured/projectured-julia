@@ -17,6 +17,12 @@
 Projects an `UndoBuffer`. The output is the projection of the document it holds;
 the buffer vanishes.
 
+It projects an `UndoBufferView` in the same way. The output is then the projection
+of the view of the document, so the caret stays in the views. A document that has
+no view prints as the buffer prints it, at the path `.viewed.content` of the view.
+The reader records each edit on the buffer of the view, and it reads the run of
+typing at the caret of the view.
+
 `filter(gesture, operation)` decides which operations enter the history. The
 default drops the bare selection moves — see `is_undo_step`.
 
@@ -38,7 +44,7 @@ UndoBufferToAnyProjection(; filter = is_undo_step) = UndoBufferToAnyProjection(f
 
 @iomap struct UndoBufferToAnyIoMap
     projection::Any
-    input::Any           # the UndoBuffer
+    input::Any           # the UndoBuffer, or the UndoBufferView
     output::Any          # computed: the content's own output
     content_iomap::Any   # computed: the content's child IoMap
 end
@@ -48,15 +54,48 @@ end
 # rerooted through it.
 const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 
+# The steps from the view of a buffer to a document that has no view: the buffer,
+# and its document.
+const _VIEWED_CONTENT_STEPS = (FieldReferenceStep("viewed"), FieldReferenceStep("content"))
+
+# What the projection prints: a buffer, or the view of a buffer.
+const _ShownBuffer = Union{UndoBuffer, UndoBufferView}
+
+_get_buffer(buffer::UndoBuffer) = buffer
+_get_buffer(view::UndoBufferView) = view.viewed
+
+# What the input shows: the document of a buffer. A view shows the view of that
+# document, or the document when it has no view.
+_get_shown_content(buffer::UndoBuffer) = buffer.content
+_get_shown_content(view::UndoBufferView) =
+    (shown = view.content; shown === nothing ? view.viewed.content : shown)
+
+# The steps from the input to what it shows.
+_get_content_steps(::UndoBuffer) = _CONTENT_STEPS
+_get_content_steps(view::UndoBufferView) = view.content === nothing ? _VIEWED_CONTENT_STEPS : _CONTENT_STEPS
+
+# `reference` without the steps from `input` to what it shows, or `nothing` when it
+# does not start with them.
+function _drop_content_steps(input, reference)
+    for step in _get_content_steps(input)
+        reference isa ConcreteReference || return nothing
+        head = get_reference_head(reference)
+        (head isa FieldReferenceStep && head.name == step.name) || return nothing
+        reference = get_reference_tail(reference)
+    end
+    reference
+end
+
 # ── Printer ──────────────────────────────────────────────────────────────────
 
-function print_document(p::UndoBufferToAnyProjection, recursion, input::UndoBuffer, ctx)
+function print_document(p::UndoBufferToAnyProjection, recursion, input::_ShownBuffer, ctx)
     # The child follows the `content` field by identity: a replacement of the document
     # that the buffer holds (`replace_wrapped_document!`) prints the new document, and
-    # the same document keeps its print.
+    # the same document keeps its print. The child of a view is the view of that
+    # document, which follows the document too.
     child = make_reconciled_child_iomap_cell(
-        () -> input.content,
-        v -> print_child(recursion, v, make_child_context(ctx, FieldReferenceStep("content"))))
+        () -> _get_shown_content(input),
+        v -> print_child(recursion, v, make_child_context(ctx, _get_content_steps(input)...)))
     UndoBufferToAnyIoMap(p, input, Cell(@computation child[].output), Cell(@computation child[]))
 end
 
@@ -67,17 +106,17 @@ end
 
 function map_reference_forward(::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
-    head = get_reference_head(reference)
-    (head isa FieldReferenceStep && head.name == "content") || return nothing
+    rest = _drop_content_steps(iomap.input, reference)
+    rest === nothing && return nothing
     child = iomap.content_iomap
-    map_reference_forward(child.projection, child, get_reference_tail(reference))
+    map_reference_forward(child.projection, child, rest)
 end
 
 function map_reference_backward(::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap, reference)
     child = iomap.content_iomap
     mapped = map_reference_backward(child.projection, child, reference)
     mapped === nothing && return nothing
-    ConcreteReference(FieldReferenceStep("content"), mapped)
+    foldr(ConcreteReference, _get_content_steps(iomap.input); init = mapped)
 end
 
 # ── Gestures ─────────────────────────────────────────────────────────────────
@@ -91,7 +130,7 @@ A binding answers `nothing` when its list is empty, so a key with nothing to do
 falls through instead of being swallowed.
 """
 function get_projection_gesture_bindings(p::UndoBufferToAnyProjection, iomap)
-    buffer = iomap.input
+    buffer = _get_buffer(iomap.input)
     undo = (document, event, _) -> length(buffer.undo_entries) == 0 ? nothing : UndoOperation(buffer)
     redo = (document, event, _) -> length(buffer.redo_entries) == 0 ? nothing : RedoOperation(buffer)
     GestureBinding[
@@ -114,7 +153,8 @@ end
 # answers, except the answer to a collection (`_record_operation`).
 function read_intent(p::UndoBufferToAnyProjection, recursion, change::Intent,
                      iomap::UndoBufferToAnyIoMap)
-    answer = read_child_intent(p, recursion, change, iomap, iomap.content_iomap, _CONTENT_STEPS)
+    answer = read_child_intent(p, recursion, change, iomap, iomap.content_iomap,
+                               _get_content_steps(iomap.input))
     (change.gesture isa CollectIntents || !(answer.operation isa Operation)) && return answer
     Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer.operation),
            answer.description, answer.domain)
@@ -127,7 +167,7 @@ read_intent(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap, payload) 
 # Whether this buffer records this operation, and how.
 function _record_operation(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyIoMap,
                            gesture, operation)
-    buffer = iomap.input
+    buffer = _get_buffer(iomap.input)
     # A step a buffer below already recorded is recorded here whatever this
     # filter says. That buffer decided, and two levels that disagree lose the
     # order they share — which is what lets an outer step name an inner one.
@@ -141,31 +181,32 @@ function _record_operation(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyI
         (run === :continues && !_is_copy_of_last_step(buffer, operation.buffer)) && (run = :starts)
         inner = run === operation.run ? operation :
                 RecordUndoOperation(operation.buffer, operation.operation, run)
-        return RecordUndoOperation(buffer, inner, run)
+        return RecordUndoOperation(buffer, inner, run, iomap.input)
     end
     # A buffer never records its own undo or redo.
     _is_own_history_step(buffer, operation) && return operation
     p.filter(gesture, operation) || return operation
-    RecordUndoOperation(buffer, operation, _compute_typing_run(buffer, gesture))
+    RecordUndoOperation(buffer, operation, _compute_typing_run(buffer, iomap.input, gesture), iomap.input)
 end
 
 # Whether a step is typing, and whether it joins the run of the last step. A
 # `KeyPress` of a printable character is typing. Return and Tab, which type a
 # character that shows nothing, and a key that types nothing make a step of their
 # own.
-_compute_typing_run(buffer::UndoBuffer, gesture) =
+_compute_typing_run(buffer::UndoBuffer, caret_holder, gesture) =
     !(gesture isa KeyPress) || any(iscntrl, gesture.text) ? :none :
-    _is_typing_run_open(buffer) ? :continues : :starts
+    _is_typing_run_open(buffer, caret_holder) ? :continues : :starts
 
 # A run is open while its last step is typing and has a way back, nothing was
 # taken back since, the caret is where the run left it, and the pause since is
-# shorter than `TYPING_PAUSE`.
-function _is_typing_run_open(buffer::UndoBuffer)
+# shorter than `TYPING_PAUSE`. The caret is the caret of `caret_holder`: the buffer,
+# or the view of the buffer that the projection printed.
+function _is_typing_run_open(buffer::UndoBuffer, caret_holder)
     entries = buffer.undo_entries
     (length(entries) > 0 && length(buffer.redo_entries) == 0) || return false
     last = entries[end]
     last.typing_caret !== nothing && !is_undo_barrier(last) &&
-        time() - last.time < TYPING_PAUSE && last.typing_caret == get_typing_caret(buffer)
+        time() - last.time < TYPING_PAUSE && last.typing_caret == get_typing_caret(caret_holder)
 end
 
 # Whether the last step of `buffer` is its copy of a step of `inner`.

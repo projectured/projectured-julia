@@ -260,10 +260,10 @@ They are approved with this plan.
   content, and a click at four places gives the same caret on the two. A fault
   in a value of one node costs that node, and the node prints again after the
   next operation. The fold of a view shows as `[…]` on one line. A JSON content
-  has no fold (found fact 3). The 26 narrow tests keep the counts of the base
+  has no fold (found fact 3). The 25 narrow tests keep the counts of the base
   commit, and the layering guard of the platform has its two failures of
   `main`, with the same text.
-- [ ] **2. The view of the undo buffer.** Proposed decisions 2, 3 and 4.
+- [x] **2. The view of the undo buffer.** Proposed decisions 2, 3 and 4.
   Tests, new, in a function `test_undo_buffer_view`: the view has the child
   field `content` and no field for the lists of steps; the child field gives
   the same view while the buffer holds the same document, and another view
@@ -273,6 +273,13 @@ They are approved with this plan.
   step; two views of one buffer keep two carets, and Ctrl+Z in one view takes
   back the edit of the other; the buffer and its content hold no caret. The
   tests of the undo buffer of today keep their counts.
+  **Done on 2026-11-18.** The new test is `test_json_undo_buffer_view`, with 39
+  of 39. Its first run had 7 failures, all from one cause: a typed character
+  through a view had no way back (found fact 6). `test_undo_buffer` has 141 of
+  141, and the other narrow tests keep the counts of the base commit. The
+  declaration of a content type for a field that gets no child field is
+  `is_child_view_field(content, field)`. The field of `RecordUndoOperation` is
+  `caret_holder`.
 - [ ] **3. The write of the node of a view that a view holds.** Proposed
   decision 5.
   The step starts with a test of one fact: a key on the place for a new value
@@ -354,6 +361,15 @@ They are approved with this plan.
 5. **A print of a document by reflection is no fault.** The general renderer
    prints a document of any type, so the test has no document that fails in
    the print itself. The test makes its fault in a value that a frame reads.
+6. **A typed character through a view had no way back.** The way back of an
+   edit of a string or of a number is a write of the whole field, in the
+   document that holds the field. The path of the edit names the view, and the
+   view has no such field, so the function gave no way back. The undo step was
+   then a step with no way back: Ctrl+Z did nothing, and each typed character
+   was a step of its own. The edit itself looked through the view to its
+   content, and the way back now does the same (`_make_range_inverse` in
+   `source/platform/primitive/PrimitiveDocument.jl`). No test of plan 4a
+   pressed Ctrl+Z through a view.
 
 ## After this plan
 

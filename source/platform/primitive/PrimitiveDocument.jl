@@ -356,6 +356,9 @@ function _make_range_inverse(document, op)
     target_path, field_name, _ = split
     target = try_evaluate_reference(document, target_path)
     target === nothing && return nothing
+    # The way back names the document that the edit writes: the content of a view,
+    # when the path names the view (`_get_field_holder`).
+    target = _get_field_holder(target, Symbol(field_name))
     hasproperty(target, Symbol(field_name)) || return nothing
     ReplaceReferencedValueOperation(target, field_name,
                                     getproperty(target, Symbol(field_name)))

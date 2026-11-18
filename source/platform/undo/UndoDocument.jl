@@ -108,6 +108,30 @@ is_field_walked(::UndoBuffer, name::Symbol) = name !== :undo_entries && name !==
 # A person edits the document that a history keeps the steps of.
 get_edited_field(::UndoBuffer) = :content
 
+# No view shows the lists of the steps, as no walk enters them, so a view of a buffer
+# has no child field for them.
+ProjectionAlgebraModule.is_child_view_field(::Type{<:UndoBuffer}, field::Symbol) =
+    field !== :undo_entries && field !== :redo_entries
+
+"""
+    UndoBufferView(viewed::UndoBuffer)
+
+A view of the undo buffer `viewed`. It keeps no state of its own. It is the link
+between the view that holds it, such as the view of a file, and the view of the
+document that the buffer holds, which is in `content`. So the caret of a place that
+shows the document is a path of the views, and the buffer and its document hold no
+caret. Two views of one buffer share the steps of the buffer, and each keeps its
+caret. `UndoBufferToAnyProjection` prints it as it prints the buffer.
+
+# Example
+
+    buffer = UndoBuffer(JsonArray([JsonString("a")]))
+    view = UndoBufferView(buffer)
+    view.content                 # the JsonArrayView of the array
+    make_content_view(buffer)    # a new UndoBufferView
+"""
+@content_view UndoBuffer struct UndoBufferView <: ContentView end
+
 # A tab that holds a history is called after the document in it.
 get_document_title(buffer::UndoBuffer) = get_document_title(buffer.content)
 
@@ -256,17 +280,25 @@ a history of a hundred steps is not filled by a hundred characters:
 A caret move, a key that is not a character and a pause of `TYPING_PAUSE`
 seconds end a run. The projection of a buffer decides it when it reads the
 step; see `UndoBufferToAnyProjection`.
+
+`caret_holder` is the document whose caret says where a run of typing stands:
+the buffer, or the view of the buffer when a view shows it. The form with no
+`caret_holder` names the buffer.
 """
 struct RecordUndoOperation <: WrappingOperation
     buffer::UndoBuffer
     operation::Any
     run::Symbol
+    caret_holder::Any
 end
 
 RecordUndoOperation(buffer::UndoBuffer, operation) = RecordUndoOperation(buffer, operation, :none)
+RecordUndoOperation(buffer::UndoBuffer, operation, run::Symbol) =
+    RecordUndoOperation(buffer, operation, run, buffer)
 
 get_wrapped_operation(op::RecordUndoOperation) = op.operation
-rewrap_operation(op::RecordUndoOperation, inner) = RecordUndoOperation(op.buffer, inner, op.run)
+rewrap_operation(op::RecordUndoOperation, inner) =
+    RecordUndoOperation(op.buffer, inner, op.run, op.caret_holder)
 
 """
     TYPING_PAUSE
@@ -321,7 +353,7 @@ function evaluate_operation(editor, op::RecordUndoOperation)
     # A step whose way back is to do nothing changed no document — a file that was
     # written, a zoom. It is not a step, so the history does not grow for it.
     inverse isa DoNothingOperation && return nothing
-    caret = op.run === :none ? nothing : get_typing_caret(op.buffer)
+    caret = op.run === :none ? nothing : get_typing_caret(op.caret_holder)
     buffer = op.buffer
     if op.run === :continues && _is_joinable(buffer)
         # The run grows: its way back takes back this character first, and it keeps
@@ -354,12 +386,13 @@ function _drop_selection_moves(operation::CompoundOperation)
 end
 
 """
-    get_typing_caret(buffer) -> String
+    get_typing_caret(holder) -> String
 
-The caret of `buffer` as text: what a step of typing keeps, and what the next
-typed character is compared with.
+The caret of `holder`, a buffer or the view of a buffer, as text: what a step of
+typing keeps, and what the next typed character is compared with.
 """
-get_typing_caret(buffer::UndoBuffer) = repr(strip_reference_types(get_selection(buffer)))
+get_typing_caret(holder::Union{UndoBuffer, UndoBufferView}) =
+    repr(strip_reference_types(get_selection(holder)))
 
 # Whether a step can join the last entry: there is one, and it is not a barrier.
 _is_joinable(buffer::UndoBuffer) =
