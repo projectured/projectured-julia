@@ -1157,7 +1157,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       and the route of a gesture (`Chaining.jl:191`). Today each of them stops at
       the step, because the step does not evaluate.
 
-    The decisions:
+    **The owner rejected S1 on 2026-11-18**: "An iomap is not a step in the
+    path, use the projection induced step if that fits as you said." The path
+    holds only steps. The drawn part keeps its name by
+    `ProjectionReferenceStep(projection, output_path)`, with no IO map, and S1,
+    S2, S3 and S6 below do not apply. A click, a caret and a selection of a
+    drawn part already work with this step. What is open is how a copy reads the
+    drawn value, which only the IO map of the view holds.
+
+    The decisions as first proposed:
     - **S1. The step holds the IO map of the view that drew the part.** The
       fields are `projection`, `iomap` and `output_path`. It evaluates to the
       part in the output of the IO map now:
