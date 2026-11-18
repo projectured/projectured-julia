@@ -1,11 +1,14 @@
 # Fragment of `JsonModule`.
 #
 # The views of JSON. A view keeps the state of one view of a JSON document: the
-# caret, and the fold of an array. A view of a leaf holds its content; its caret is
-# a path into the leaf, such as `.value{3}`, which the view reads through its
-# content. A view of an array also holds the views of its elements, at `elements`,
-# as the array holds its elements, so a path such as `.elements[2].value{3}` is a
-# path of the view and of its array.
+# caret, and the fold of an array or of an object. A view of a leaf holds its
+# content; its caret is a path into the leaf, such as `.value{3}`, which the view
+# reads through its content. A view of an array also holds the views of its
+# elements, at `elements`, as the array holds its elements, so a path such as
+# `.elements[2].value{3}` is a path of the view and of its array. A view of an
+# object holds the views of its entries, at `entries`, and the view of an entry
+# holds the view of its value, at `value`, so `.entries[1].value.value{3}` is a
+# path of the view and of its object.
 
 """
     JsonView
@@ -59,6 +62,32 @@ node of the array, whose children are the views of the nodes of the elements and
 whose fold is the fold of this view.
 """
 @content_view JsonArray struct JsonArrayView <: JsonView
+    collapsed::Bool = false
+end
+
+"""
+    JsonObjectEntryView(viewed::JsonObjectEntry)
+
+A view of the entry `viewed` of a JSON object. `value` holds the view of the value
+of the entry: the view of the document that the entry holds now. The key is a text
+of the entry, so a caret in the key is a path of the entry, such as `.key{2}`, and
+it ends at this view. A viewing step of `JsonToSyntax` prints it as the
+`SyntaxNodeView` of the node of the entry, whose second child is the view of the
+node of the value.
+"""
+@content_view JsonObjectEntry struct JsonObjectEntryView <: JsonView end
+
+"""
+    JsonObjectView(viewed::JsonObject)
+
+A view of the JSON object `viewed`. `entries` holds the view of the list of the
+entries (`CellVectorView`), which gives the view of each entry at the index of
+the entry. `collapsed` is the fold of this view, which another view of the object
+does not share. A viewing step of `JsonToSyntax` prints it as the `SyntaxNodeView`
+of the node of the object, whose children are the views of the nodes of the
+entries and whose fold is the fold of this view.
+"""
+@content_view JsonObject struct JsonObjectView <: JsonView
     collapsed::Bool = false
 end
 

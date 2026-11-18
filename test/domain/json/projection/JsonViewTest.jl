@@ -119,8 +119,8 @@ end
     @test fieldnames(JsonArrayView)[1:3] == (:viewed, :elements, :collapsed)
     @test array_view.elements isa CellVectorView && array_view.elements.viewed === array.elements
     @test make_content_view(array) isa JsonArrayView
-    given = CellVector(Any[nothing])
-    @test make_content_view(array, given).elements.given === given
+    over_given = make_content_view(array, CellVector(Any[array_view.elements[1]]))
+    @test over_given.elements[1] === array_view.elements[1]
     @test array_view.collapsed == false
 end
 

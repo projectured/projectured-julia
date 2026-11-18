@@ -41,7 +41,8 @@ export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme
 export JsonToSyntax, JsonInsertionToSyntaxLeaf
 export JsonFileFormat, JsonFile
-export JsonView, JsonNullView, JsonBoolView, JsonNumberView, JsonStringView, JsonArrayView
+export JsonView, JsonNullView, JsonBoolView, JsonNumberView, JsonStringView, JsonArrayView,
+       JsonObjectView, JsonObjectEntryView
 
 
 include("JsonDocument.jl")
