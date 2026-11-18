@@ -1165,6 +1165,42 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     drawn part already work with this step. What is open is how a copy reads the
     drawn value, which only the IO map of the view holds.
 
+    **The design again** (2026-11-19). The owner asked to go back to the design,
+    because the step holds the projection and the place in its drawing, but not
+    the drawing. The owner decided on 2026-11-19: "Both are valid
+    interpretations. When you only have the document and the path then it's ok
+    to return a new one but when you have the IoMap then it should be the one
+    that's there."
+    - **R1. Two forms of the evaluation** (the owner).
+      `evaluate_reference(document, path)` makes the drawn part again and gives
+      a new object. The form with an IO map gives the drawn part that is in the
+      drawing of the IO map, the same object.
+    - **R2. The document form prints again** (proposed by the assistant). At an
+      introduced step `‹P .x›` on the node `D`, it prints `D` with `P` and
+      evaluates `.x` in that output.
+    - **R3. The IO map form walks the IO maps** (proposed by the assistant, on
+      the idea of the owner to combine `evaluate_reference`,
+      `map_reference_forward` and the IO map). It walks the path in the input of
+      the IO map. It gives the rest of the path to the child IO map whose input
+      the walk reaches (`get_child_iomaps`, as `read_routed_child` does), or to
+      the IO map that a wrapper shows through (`get_content_iomap`). At the IO
+      map of `P` on `D`, it maps the rest forward (`map_reference_forward`) and
+      evaluates it in the output of that IO map. An IO map that holds children
+      and gives none gets a method of `get_child_iomaps`.
+    - **R4. The code in the editor uses the IO map form** (proposed by the
+      assistant). The copy, the note and the whole-part rule run in readers,
+      which have their IO map. The document form, which prints, runs only where
+      no IO map is: a test, the assistant, a check of a saved selection.
+    - **R5. A write stops before the step** (S4 below), and
+      **`OutputReferenceStep` goes** (S5 below).
+
+    Found in the probe of R3 (`/var/tmp/ic-scratch/step11/probe-eval.jl`, the
+    button "Save"): the walk passes six wrappers by `get_child_iomaps`
+    (appearance, settings, gesture tracking, drag tracking, context menu,
+    tooltip), then goes through `ReferenceDispatchingIoMap` by
+    `get_content_iomap`, and stops at `WindowManagingIoMap`, which gives no
+    children; its forward map answers `nothing` for the path.
+
     The decisions as first proposed:
     - **S1. The step holds the IO map of the view that drew the part.** The
       fields are `projection`, `iomap` and `output_path`. It evaluates to the
