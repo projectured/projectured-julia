@@ -1,10 +1,10 @@
 # Fragment of `ProjectionAlgebraModule`.
 #
 # The declaration of a view type. A view type of a content type has the field
-# `viewed`, one child field for each list of the content, a constructor that takes
-# the content, and the methods that make it the view of its content type. The
-# macro writes them, so a person writes only the state that is specific to the view
-# type.
+# `viewed`, one child field for each list of the content and for each field of the
+# content that takes any document, a constructor that takes the content, and the
+# methods that make it the view of its content type. The macro writes them, so a
+# person writes only the state that is specific to the view type.
 
 """
     find_child_view_type(declared::Type) -> Type or nothing
@@ -17,6 +17,27 @@ function find_child_view_type end
 find_child_view_type(::Type) = nothing
 find_child_view_type(::Type{<:CellVector}) = CellVectorView
 
+# A field of a content type that takes any document: it is declared as `Document`,
+# or as the union of `Document` and `Nothing`.
+_is_document_slot_type(declared::Type) = declared === Document || declared === Union{Document, Nothing}
+
+# The computation of the child field of a view for the field `field` of `content`,
+# a field that takes any document: the view of the document that the field holds
+# now, or `nothing` when the field holds no document or a document that has no view
+# type. It gives the same view while the field holds the same document.
+function _make_slot_view_computation(content, field::Symbol)
+    shown = nothing
+    view = nothing
+    function ()
+        document = getproperty(content, field)
+        if document !== shown
+            view = make_content_view(document)
+            shown = document
+        end
+        view
+    end
+end
+
 """
     @content_view Content struct Name <: Supertype
         state::Type = default
@@ -28,9 +49,15 @@ only the state that is specific to the view type. The macro writes the rest:
 - the field `viewed::Content`, which holds the content;
 - one child field for each list of `Content`, with the name of the field of that
   list, which holds the view of the list ([`CellVectorView`](@ref));
+- one child field for each field of `Content` that is declared as `Document`, or as
+  the union of `Document` and `Nothing`, with the name of that field. It holds the
+  view of the document that the field holds now, or `nothing` when that document
+  has no view type. While the field holds the same document, the child field gives
+  the same view;
 - the constructor `Name(content)`;
 - the method of [`make_content_view`](@ref) for `Content`, and the method that
-  takes the views that a viewing step gives, when `Content` has one list.
+  takes the views that a viewing step gives, when `Content` has one list. That
+  method puts each given view at the index of its content in the list.
 
 `Content` is a type that `@document` declared before this declaration.
 
@@ -44,6 +71,11 @@ only the state that is specific to the view type. The macro writes the rest:
     view.viewed === array            # true
     view.elements                    # the view of the list `array.elements`
     make_content_view(array)         # a new JsonArrayView
+
+    @content_view JsonObjectEntry struct JsonObjectEntryView <: JsonView end
+
+    entry_view = JsonObjectEntryView(entry)
+    entry_view.value                 # the view of the document `entry.value`
 """
 macro content_view(content, declaration)
     esc(_make_content_view_declaration(__module__, __source__, content, declaration))
@@ -60,13 +92,14 @@ function _make_content_view_declaration(mod::Module, source, content, declaratio
     state_lines = declaration.args[3].args
     child_fields = _find_child_view_fields(content_type)
     for field in _find_declared_field_names(state_lines)
-        (field === :viewed || any(child -> child[1] === field, child_fields)) && throw(ArgumentError(
+        (field === :viewed || any(child -> child.name === field, child_fields)) && throw(ArgumentError(
             "@content_view: $name declares the field `$field`, which the declaration writes for $content"))
     end
 
     fields = Any[:(viewed::$content)]
-    for (field, view_type) in child_fields
-        push!(fields, :($field::$view_type))
+    for child in child_fields
+        push!(fields, child.list_view === nothing ? :($(child.name)::Union{ContentView, Nothing}) :
+                                                    :($(child.name)::$(child.list_view)))
     end
     append!(fields, state_lines)
     struct_expr = Expr(:struct, declaration.args[1], header, Expr(:block, fields...))
@@ -75,32 +108,58 @@ function _make_content_view_declaration(mod::Module, source, content, declaratio
     make = Expr(:., ProjectionAlgebraModule, QuoteNode(:make_content_view))
     # The view of a list follows the field of the content, so it shows the list
     # that the content holds now.
-    make_list_view(field, view_type, given...) =
-        :($view_type($(Cell)($(Computation)(() -> $(getproperty)(viewed, $(QuoteNode(field))))), $(given...)))
+    make_list_view(child, given...) =
+        :($(child.list_view)($(Cell)($(Computation)(() -> $(getproperty)(viewed, $(QuoteNode(child.name))))),
+                             $(given...)))
+    # The view in the child field of a slot follows the document that the slot holds.
+    make_slot_view(child) =
+        :($(Cell)($(Computation)($(_make_slot_view_computation)(viewed, $(QuoteNode(child.name))))))
+    make_child(child) = child.list_view === nothing ? make_slot_view(child) : make_list_view(child)
     if !isempty(child_fields)
-        children = [make_list_view(field, view_type) for (field, view_type) in child_fields]
-        push!(result.args, source, :($name(viewed::$content) = $name(viewed, $(children...))))
+        push!(result.args, source, :($name(viewed::$content) = $name(viewed, $(map(make_child, child_fields)...))))
     end
     push!(result.args, source, :($make(viewed::$content) = $name(viewed)))
-    if length(child_fields) == 1
-        (field, view_type) = only(child_fields)
-        push!(result.args, source,
-              :($make(viewed::$content, children) = $name(viewed, $(make_list_view(field, view_type, :children)))))
+    lists = filter(child -> child.list_view !== nothing, child_fields)
+    if length(lists) == 1
+        list = only(lists)
+        given = :($(_make_given_views)(() -> $(getproperty)(viewed, $(QuoteNode(list.name))), children))
+        children = [child === list ? make_list_view(child, given) : make_child(child) for child in child_fields]
+        push!(result.args, source, :($make(viewed::$content, children) = $name(viewed, $(children...))))
     end
     push!(result.args, nothing)
     result
 end
 
-# The fields of the content type `content` that get a child field in a view, each
-# with the name of the view type that the child field holds.
+# The views that a viewing step gave for the children of a printed node, as a list
+# with one place for each element of the list that `read_list` answers. The place of
+# an element holds the view of that element, or `nothing` when the step gave none.
+# A print can make a child with no step of its own, such as the leaf of the key of
+# an entry, so each view is found by its content, and not by its place in `views`.
+function _make_given_views(read_list, views)
+    CellVector(Computation(function ()
+        by_content = IdDict{Any,Any}()
+        for view in views
+            view === nothing || (by_content[getproperty(view, :viewed)] = view)
+        end
+        Any[get(by_content, element, nothing) for element in read_list()]
+    end))
+end
+
+# The fields of the content type `content` that get a child field in a view, in the
+# order of the fields of the content. `list_view` is the name of the view type of a
+# list, or `nothing` for a field that takes any document.
 function _find_child_view_fields(content::Type)
-    found = Tuple{Symbol,Symbol}[]
+    found = @NamedTuple{name::Symbol, list_view::Union{Symbol, Nothing}}[]
     for field in fieldnames(content)
         is_view_state_field(field) && continue
         declared = find_declared_field_type(content, field)
         declared === nothing && continue
         view_type = find_child_view_type(declared)
-        view_type === nothing || push!(found, (field, nameof(view_type)))
+        if view_type !== nothing
+            push!(found, (name = field, list_view = nameof(view_type)))
+        elseif _is_document_slot_type(declared)
+            push!(found, (name = field, list_view = nothing))
+        end
     end
     found
 end

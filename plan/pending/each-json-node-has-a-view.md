@@ -1,6 +1,7 @@
 # Each JSON node has a view
 
-**Status:** written on 2026-11-18. Not approved, and not started.
+**Status:** in work on the branch `json-views`. The owner approved the plan on
+2026-11-18 ("Yes").
 
 This plan is the first of the three plans of point 4 of the order in section
 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`. The owner
@@ -219,7 +220,7 @@ They are approved with this plan.
 
 ## Steps
 
-- [ ] **1. The slot rule.** `@content_view` writes the child field of a field
+- [x] **1. The slot rule.** `@content_view` writes the child field of a field
   that is declared as `Document`, or as the union of `Document` and `Nothing`.
   The child field keeps one view (proposed decision 3). The copy of the state of
   a view goes through the view in a slot, as it goes through the view of a
@@ -230,6 +231,13 @@ They are approved with this plan.
   the slot; it gives `nothing` for an empty slot and for a document with no
   view type; a copy of a view copies the state of the view in the slot and
   shares no view. The twelve view types of `main` keep their fields.
+  **Done on 2026-11-18.** `test_content_view_declaration` has 49 of 49, and it
+  had 27 before. The child field is a cell with a computation that keeps the
+  document that it saw last and the view of that document. The copy of the
+  state of a view takes each field that holds a view as a child field, and it
+  writes no field whose value is equal already, so an empty child field of a
+  copy still follows its content. The eighteen narrow tests keep their counts of
+  the branch before the change.
 - [ ] **2. The views of the object and of its entry.** `JsonObjectView` and
   `JsonObjectEntryView`, by the declaration. The output view of a step holds
   the view of each child at the index of that child in the printed node.
@@ -278,6 +286,20 @@ They are approved with this plan.
   that an edit through a view writes below `viewed`. The package documents of
   JSON and of the syntax. The plan moves to `plan/done/`. Then the session asks
   for the landing, and for the push apart.
+
+## Found during the work
+
+1. **The views that a step gives are placed by their content.** The method of
+   `make_content_view` that takes the views of a step is written by the macro,
+   and only that method knows the list of the printed node. So the macro puts
+   each given view at the index of its content in that list
+   (`_make_given_views`), and `_make_output_children` stays as it is. A given
+   view at a wrong place of the given list is found too. The change is in the
+   commit of step 1, because it is in the file of the macro.
+2. **A test can not find the step of the view of a child in the IO map of a
+   print.** The recursion of a view keeps the steps of the children in a table
+   of its own. The tests read the output view of the step of the whole view,
+   and the views below it.
 
 ## Risks
 

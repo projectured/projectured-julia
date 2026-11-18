@@ -21,9 +21,10 @@ abstract type View <: Document end
     ContentView
 
 The supertype of every view of a content. A view holds its content in the field
-`viewed`, and it has a child field for each list of its content, which holds the
-view of that list ([`CellVectorView`](@ref)). What every view does is written
-here once:
+`viewed`. It has a child field for each list of its content, which holds the view
+of that list ([`CellVectorView`](@ref)), and a child field for each field of its
+content that takes any document, which holds the view of that document. What
+every view does is written here once:
 
 - a field step that the view does not have reads that field of its content, so a
   path into the content, such as `.value{3}`, is a path of the view, and the
@@ -66,9 +67,9 @@ make_content_view(content) = nothing
     make_content_view(content, children) -> ContentView or nothing
 
 The view of `content` that a viewing step gives over a content with children:
-`children` holds the views of the next domain that the steps of the children gave,
-in the order of the children of `content`. A content type whose view holds the
-views of its children declares a method; any other content takes no children.
+`children` holds the views of the next domain that the steps of the children gave.
+A content type whose view holds the views of its children declares a method, which
+puts each view at the index of its content; any other content takes no children.
 """
 make_content_view(content, children) = make_content_view(content)
 
@@ -117,15 +118,17 @@ make_sibling_view(view::ContentView) =
 
 # Copy the state of `view` to `copy`, a new view of the same kind over the same
 # content or over a copy of it: each field of state, and the stored caret as a
-# dormant one, which the next selection of the copy wakes. The list view of each
-# list of children takes the state of the list view of `view`.
+# dormant one, which the next selection of the copy wakes. A child field holds a
+# view, of a list or of a document: the view in the same field of `copy` takes its
+# state, and the child field of `copy` keeps the view that it follows.
 function _copy_view_state!(copy::ContentView, view::ContentView)
     for name in fieldnames(typeof(view))
         (name === :viewed || is_view_state_field(name)) && continue
         value = getproperty(view, name)
-        if value isa CellVectorView
-            _copy_view_state!(getproperty(copy, name), value)
-        else
+        if value isa ContentView
+            child = getproperty(copy, name)
+            child isa ContentView && _copy_view_state!(child, value)
+        elseif value !== getproperty(copy, name)
             setproperty!(copy, name, value)
         end
     end
