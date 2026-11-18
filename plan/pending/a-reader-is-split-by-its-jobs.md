@@ -974,3 +974,57 @@ against main 3d8a0402a, each of the 25 suites in a process of its own:
   measured the same time on both sides: reader 26.5 ms and print 21.5 ms on the branch, 27.0 ms
   and 22.2 ms on main. Under load the time goes above the limit, so the failure is not a change
   of the branch. It failed once before on the branch at step 4 and passed in the runs after.
+
+**2026-11-19, steps 6 and 7 as built (for R6).** A parser of the files found each use of
+`read_intent` and counted its arguments, so a nested call or a call over two lines is not
+missed. A tool on the same parser made the mechanical changes at the lines that it found.
+
+- **The 3-argument form goes.** The bridge, 76 wrappers of the form
+  `read_intent(p::X, iomap, payload) = read_intent(p, nothing, Intent(payload), iomap).operation`,
+  the key wrapper of the template, the resolver of a clash between that wrapper and the
+  recursive projection, and the 3-argument forward of the reference dispatch. No
+  3-argument definition, call or `invoke` is left in the source, the tests, the packages and
+  the examples of the three repositories.
+- **The default reader** gives the operation of a change to `map_operation_backward` and
+  otherwise the gesture to `read_gesture`, as the bridge did. **The default map** gives each
+  member of a compound, the inner operation of a wrapper and each operation of a collection to
+  `map_operation_backward` of the projection, and `read_move_answer` does the same.
+- **The 56 calls of the source.** 16 map an operation of the stage itself and call
+  `map_operation_backward`. 11 read the operation of the change, or its gesture when it has
+  none, and call the function of that kind. 29 pass a change to a child and take the
+  4-argument form `read_intent(child.projection, nothing, Intent(x), child).operation`, which
+  is what each wrapper did.
+- **Three readers of the older form change shape.** The graph canvas gives its payload to a
+  private helper of its 4-argument reader (`_read_graph_payload`), so its choice of the vertex
+  and the drag of a vertex stay. The copying projection reads with a 4-argument reader that
+  routes as before and hands the answer of a stage nearer the screen to the default, so the
+  rules of its level read it as before. The two text edits of the syntax compound are methods
+  of `map_operation_backward`.
+- **The tests.** 976 calls take the 4-argument form. Of the 9 test definitions of the older
+  form, two probes of a click become `read_gesture` methods with a decline of each operation,
+  two become `map_operation_backward` methods, the timer probe becomes a 4-argument reader
+  (a `WindowInput` is not an `Event`, so the default gives it to no job function), a forward
+  goes, and the test of the bridge in `ReaderJobsTest.jl` tests the default map instead.
+- **Found: an operation travels in the gesture field.** `Intent(x)` puts `x` in the gesture
+  field, also an operation, and the default reader maps an operation from that field. The
+  wrappers did the same, so the 4-argument calls keep `Intent(x)` and give the same results.
+  A later change can put an operation in the operation field (`Intent(nothing, op)`).
+- **Found: a 3-argument call skipped a reader.** 17 types and the template types have a
+  4-argument reader and had no wrapper, so a 3-argument call of them went to the bridge and
+  not to their reader. Examples are the navigator, the explorer, the pivot, the screen and the
+  pane tree. Now a test that reads one of them reaches its reader, as the editor does.
+- **The text.** The docstrings of `ProjectionInterface.jl`, `ProjectionDefaults.jl` and
+  `ProjectionTemplate.jl`, the guide of the projection system, the naming rules, the rule
+  "write a method of a job only when re-targeting a reference is not enough", the guides of
+  the navigator, the explorer, the video recorder, the mouse target and the tests say the two
+  jobs. PAR-FOUR-FUNCTIONS has the sentence of the owner: `read_gesture` and
+  `map_operation_backward` are the two jobs of `read_intent` for one stage, as `print_child`
+  is a helper of the printer; they call no child, and only `read_intent` passes a change to
+  the `read_intent` of a child.
+- **omnet-julia (step 7)**, worktree `omnet-julia-reader-split`, branch `reader-split`: 88
+  definitions are methods of `map_operation_backward` now; the identity one-liners keep any
+  operation as it is (`op isa Operation ? op : nothing` reads as `op` for an operation). The
+  double click of the result frame and the click of the module canvas are rules of
+  `read_gesture` that answer only with no answer; the module canvas declines any other gesture
+  and any operation, as its reader did. Each file imports the function that it extends.
+  **inet-julia**, worktree `inet-julia-reader-split`: one test call takes the 4-argument form.
