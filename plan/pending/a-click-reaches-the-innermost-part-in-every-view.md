@@ -1633,6 +1633,10 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   the same value (1, 0) as before this step; `test_platform` the 15 failure
   lines of the base, with `TaskVerbsTest.jl:102` and `TaskWorkItemTest.jl:171`,
   which fail under load and pass alone.
+  After the rebase over main 93d8ab5d7, which gives each JSON node a view and
+  gives the place for a new value its own Escape row, the checks are the same:
+  `test_pane_gestures` 128, `test_escape_quitting` 12, `test_gallery_wrappers`
+  15, `test_json` 832 pass, and `test_application` has only the usage label.
 - [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
