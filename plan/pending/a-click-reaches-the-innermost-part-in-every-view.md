@@ -1563,12 +1563,31 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         (`_read_selected_leaf`), and the table moves the point of a
         positioned event into its cell (`_wt_route_to_cell_under`). Which
         container on the route forgets the frame is open.
-    - Not in the clicks: examples/json_sorted does not build. The copy of a
-      `JsonObject` gives its field `entries` a `CellVector{Any}`, and the field
-      is declared `CellVector{Document}`. Five generic views build their output
-      by `CellVector(@computation …)`, which is always `CellVector{Any}`: copy,
-      sort, reverse, filter and search. The example workload fails on this
-      example since 2026-10-30 too.
+    - The element type of the generic views (examples/json_sorted does not
+      build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
+      plan". The copy of a `JsonObject` gives its field `entries` a
+      `CellVector{Any}`, and the field is declared `CellVector{Document}`. Five
+      generic views build their output by `CellVector(@computation …)`, which is
+      always `CellVector{Any}`: copy, sort, reverse, filter and search. The
+      example workload fails on this example since 2026-10-30 too. The rule: a
+      view that copies, sorts, reverses or filters a `CellVector{T}` gives a
+      `CellVector{T}`, by a new form `CellVector{T}(@computation …)` that checks
+      each element as it is computed. The search collects matches from anywhere
+      in a tree, so its output is no copy of one list, and it stays
+      `CellVector{Any}`. The copy, the sort and the reverse print their elements
+      through the recursion; their `CellVector` method runs only where the
+      recursion maps documents to documents or graphics to graphics, and the copy
+      into another domain takes a `Vector{Cell}`, another method. Done
+      (83a4e226e): the tests of the four views, of the arrangement, of the
+      undo round trip and `test_json_content_clicks_clean_all` pass;
+      examples/json_sorted builds, and its walk gives 2 lines, as examples/json;
+      examples/sorting 18, filtering 10, reversing 0 and collection 0 equal run 8.
+      `test_text_navigation_invariants_all` has 16 failures, 2 in each of the 8
+      chart and sequence chart examples: a Right arrow on the title of a chart
+      throws "under-typed @reference" in the backward map of `ChartToChartPlot`
+      (`ChartToChartPlot.jl:106`), which the chart texts (3951f31b3) wrote. No
+      chart code calls a function that step 6 changed, so the failure is
+      very likely on main too; the wide check of step 8 compares it with main.
     - Limits of the catalog and of the walk, for step 8: the five text atoms
       `text/bare_*` and `text/gutter`, whose natural variant `CatalogTest.jl`
       knows as broken (`WordWrapping` has no method for a lone span), and
