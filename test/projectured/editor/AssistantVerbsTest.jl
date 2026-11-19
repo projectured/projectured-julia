@@ -138,9 +138,23 @@ function test_assistant_verbs()
         @test select_part!(cleo; editor) === cleo
         run_frame!(editor)
         @test get_document(find_selected_part(; editor)) === get_document(cleo)
-        # The selection is written at the root, and names the part from there.
-        @test strip_reference_types(get_selection(editor.document)) ==
-              strip_reference_types(get_reference(cleo))
+        # The selection is written at the root. The tab shows the file through its
+        # views, so the selection names the view of the part, and each view on the way
+        # keeps its part of the path.
+        selection = strip_reference_types(get_selection(editor.document))
+        @test selection == find_view_path(editor.document, get_reference(cleo))
+        @test selection != strip_reference_types(get_reference(cleo))
+        view = evaluate_reference(editor.document, selection)
+        @test view isa ContentView && view.viewed === get_document(cleo)
+        file_view = get_document(find_pane("people.json"; editor)).content
+        @test get_stored_selection(file_view) isa ConcreteReference
+        # A part of a part, which the assistant names with an index and a key.
+        @test select_part!(cleo["name"]; editor) isa ReferencedDocument
+        run_frame!(editor)
+        @test get_document(find_selected_part(; editor)) === get_document(cleo["name"])
+        @test evaluate_reference(editor.document, get_selection(editor.document)) isa ContentView
+        select_part!(cleo; editor)
+        run_frame!(editor)
     end
 
     @testset "control: a setting of the window changes and applies" begin

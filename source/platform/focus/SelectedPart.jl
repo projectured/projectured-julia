@@ -107,7 +107,11 @@ function select_part! end
 
 function select_part!(part::ReferencedDocument; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "select_part!") do
-        evaluate_operation(editor, ReplaceSelectionOperation(get_reference(part)))
+        # The part is content, and the caret of a place that shows it through views
+        # is in the views: the selection takes the path through them.
+        root = getfield(editor, :document)
+        shown = find_view_path(root, get_reference(part))
+        evaluate_operation(editor, ReplaceSelectionOperation(annotate_reference_types(root, shown)))
     end
     part
 end
