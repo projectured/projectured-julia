@@ -1007,8 +1007,15 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
   goes, and the test of the bridge in `ReaderJobsTest.jl` tests the default map instead.
 - **Found: an operation travels in the gesture field.** `Intent(x)` puts `x` in the gesture
   field, also an operation, and the default reader maps an operation from that field. The
-  wrappers did the same, so the 4-argument calls keep `Intent(x)` and give the same results.
-  A later change can put an operation in the operation field (`Intent(nothing, op)`).
+  wrappers did the same, so the 4-argument calls keep `Intent(x)`. A later change can put an
+  operation in the operation field (`Intent(nothing, op)`). The first run of the suites
+  (s6a) showed that this is not enough: a reader that reads its own payload took the gesture
+  field for a gesture, so an operation that a caller handed there went to `read_gesture` and
+  answered nothing. A typed character through a view did not edit (json, xml, markdown,
+  julia). The fix (commit e51b45e9a): the template reader, the workspace directory, the pane
+  tree, the screen at two places, and the leaf and the compound of the syntax give an
+  operation in the gesture field to `map_operation_backward`, as the bridge did and as
+  `read_child_intent` and the text block do.
 - **Found: a 3-argument call skipped a reader.** 17 types and the template types have a
   4-argument reader and had no wrapper, so a 3-argument call of them went to the bridge and
   not to their reader. Examples are the navigator, the explorer, the pivot, the screen and the
@@ -1028,3 +1035,11 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
   `read_gesture` that answer only with no answer; the module canvas declines any other gesture
   and any operation, as its reader did. Each file imports the function that it extends.
   **inet-julia**, worktree `inet-julia-reader-split`: one test call takes the 4-argument form.
+- **2026-11-19, step 6: the runs.** The suites of step 1 over the branch (run s6b, after the
+  fix of the gesture field and of a duplicate probe in `ReaderJobsTest.jl`) against the runs
+  of step 5 (s5full): 21 suites are the same. The kernel passes now; step 5 had the flaky time
+  test `FeedsTest.jl:260`. Graph and math have the same failures one line up, because a call
+  of two lines became one. The platform has one more failure, `TaskVerbsTest.jl:101` (the
+  process and the time in the facts of a failed task). That run was at 13.5G of its 14G cap,
+  with a frame of 33 s; alone, `test_task_group_verbs()` passes 87/87 three times on main and
+  on the branch, so the failure comes from the load and not from the change.
