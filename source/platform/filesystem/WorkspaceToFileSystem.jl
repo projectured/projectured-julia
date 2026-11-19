@@ -119,8 +119,9 @@ end
 # An Alt+double click on a row selects the row that the view drew, by the rule of the
 # container above (`convert_to_whole_selection`).
 function read_intent(p::WorkspaceToFileSystemDirectory, recursion, change::Intent, iomap)
-    Intent(change.gesture, change.operation === nothing ? read_gesture(p, iomap, change.gesture) :
-                           map_operation_backward(p, iomap, change.operation))
+    payload = change.operation === nothing ? change.gesture : change.operation
+    Intent(change.gesture, payload isa Operation ? map_operation_backward(p, iomap, payload) :
+                           read_gesture(p, iomap, payload))
 end
 
 

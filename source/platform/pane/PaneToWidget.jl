@@ -813,8 +813,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     state === nothing && is_outward_gesture(gesture) &&
         return Intent(gesture, _read_pane_outward(p, iomap, change))
     payload = change.operation === nothing ? gesture : change.operation
-    answer = change.operation === nothing ? read_gesture(p, iomap, gesture) :
-             map_operation_backward(p, iomap, change.operation)
+    answer = payload isa Operation ? map_operation_backward(p, iomap, payload) :
+             read_gesture(p, iomap, payload)
     payload isa DragTabOperation && gesture isa MouseDown &&
         (answer = _press_tab(iomap, payload, (gesture.x, gesture.y)))
     (state === nothing || state.started) ||

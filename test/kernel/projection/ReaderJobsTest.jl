@@ -123,12 +123,6 @@ ProjectionModule.print_document(p::JobProbeClickProjection, recursion, input, ct
 GestureBindingModule.read_gesture(::JobProbeClickProjection, iomap, click::MouseClick; answer = nothing) =
     JobProbeOperation("click")
 
-# A leaf with a map of its own for one kind of operation.
-struct JobProbeMapProjection <: Projection end
-ProjectionModule.print_document(p::JobProbeMapProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
-ProjectionModule.map_operation_backward(::JobProbeMapProjection, iomap, operation::JobProbeOperation) =
-    JobProbeOperation("new")
-
 # A leaf with a gesture table of its own.
 struct JobProbeTableProjection <: Projection end
 ProjectionModule.print_document(p::JobProbeTableProjection, recursion, input, ctx) = SimpleIoMap(p, input, input)
@@ -182,7 +176,7 @@ _job_key(char) = KeyPress(char; time = 0.0)
 
 function test_reader_jobs()
 @testset "the two jobs of a stage and the passing to a child" begin
-    @testset "the older form hands an operation to map_operation_backward and a gesture to read_gesture" begin
+    @testset "the default reader hands an operation to map_operation_backward and a gesture to read_gesture" begin
         iomap = print_document(JobProbeMapProjection(), nothing, JobProbeLeaf(), PrinterContext())
         @test read_intent(JobProbeMapProjection(), nothing, Intent(JobProbeOperation("x")), iomap).operation == JobProbeOperation("mapped x")
         click = print_document(JobProbeClickProjection(), nothing, JobProbeLeaf(), PrinterContext())
@@ -194,13 +188,12 @@ function test_reader_jobs()
         @test walked.operation == JobProbeOperation("mapped y")
     end
 
-    @testset "the default reader of a stage maps an operation with the map of the stage" begin
+    @testset "a member of a compound goes back through the map of the stage" begin
         p = JobProbeMapProjection()
         iomap = print_document(p, nothing, JobProbeLeaf(), PrinterContext())
-        @test read_intent(p, nothing, Intent(nothing, JobProbeOperation("x")), iomap).operation ==
-              JobProbeOperation("new")
-        @test map_operation_backward(p, iomap, JobProbeOperation("x")) == JobProbeOperation("new")
-        # A member of a compound goes back through the map of the stage too.
+        own = map_operation_backward(p, iomap, CompoundOperation(Any[JobProbeOperation("a")]))
+        @test own isa CompoundOperation && only(own.operations) == JobProbeOperation("mapped a")
+        # A stage with no map of its own gives the member back as it is.
         mapped = map_operation_backward(JobProbeLeafProjection(),
                                         print_document(JobProbeLeafProjection(), nothing, JobProbeLeaf(), PrinterContext()),
                                         CompoundOperation(Any[JobProbeOperation("a")]))

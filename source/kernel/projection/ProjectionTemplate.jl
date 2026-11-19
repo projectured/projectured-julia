@@ -1698,6 +1698,9 @@ function read_template_intent(p, recursion, change::Intent, iomap)
         override === nothing || return answer(override)
     end
     change.operation === nothing || return answer(map_operation_backward(p, iomap, change.operation))
+    # A caller that hands an operation as the gesture (`Intent(operation)`) gets it
+    # mapped back, as an operation that a stage nearer the output answered.
+    change.gesture isa Operation && return answer(map_operation_backward(p, iomap, change.gesture))
     template && change.gesture isa Union{KeyPress, KeyDown} &&
         return _read_template_key(p, recursion, change, iomap)
     answer(read_gesture(p, iomap, change.gesture))

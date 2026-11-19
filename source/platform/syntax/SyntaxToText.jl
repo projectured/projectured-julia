@@ -207,7 +207,8 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     # The edit beside an inline image writes the element list of the output, which
     # has no pre-image in the syntax: decline it.
     is_text_element_write(op) && return Intent(gesture, nothing)
-    answer = op === nothing ? read_gesture(p, iomap, gesture) : map_operation_backward(p, iomap, op)
+    payload = op === nothing ? gesture : op
+    answer = payload isa Operation ? map_operation_backward(p, iomap, payload) : read_gesture(p, iomap, payload)
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
         (answer = _lift_blank_delimiter(iomap.input, convert_to_whole_selection(answer, iomap.input)))
     answer isa ReplaceMouseTargetOperation &&
@@ -1323,7 +1324,8 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     end
     # Everything else (keyboard, plain clicks, other operations) falls through to
     # the rules of the node and the operation-typed maps below.
-    result = op === nothing ? read_gesture(p, iomap, gesture) : map_operation_backward(p, iomap, op)
+    payload = op === nothing ? gesture : op
+    result = payload isa Operation ? map_operation_backward(p, iomap, payload) : read_gesture(p, iomap, payload)
     result === nothing && op isa ReplacePathOperation && (is_whole_selection_press(gesture) || gesture isa MouseMove) &&
         (result = _read_character_place(p, iomap, op))
     op isa ReplaceSelectionOperation && is_whole_selection_press(gesture) &&
