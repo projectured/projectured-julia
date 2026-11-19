@@ -35,8 +35,7 @@ function map_reference_forward(p::FileSystemFileToWidget, iomap, reference)
     rest = strip_reference_types(get_reference_tail(reference))
     view = _get_file_document_view(iomap.input)
     rest isa ConcreteReference && view !== nothing && !is_introduced_reference(rest) &&
-        (rest = concat_references(extend_reference(EmptyReference(), FieldReferenceStep(String(get_edited_field(view)))),
-                                  rest))
+        (rest = get_view_path(view, rest))
     annotate_reference_types(iomap.output, concat_references(
         extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(0, 1)), rest))
 end
@@ -49,13 +48,14 @@ function map_reference_backward(p::FileSystemFileToWidget, iomap, reference)
     # With no document, the page draws the line that says so, a part of the page.
     iomap.input.document === nothing && return make_introduced_reference(p, iomap, reference)
     below = steps[3:end]
-    # A path through the field of the view that holds the file document is a path in
-    # the document, and a part that the view introduced keeps its path after the
-    # document. A field that only the view keeps names no part of the document.
+    # A path of the view that names a place of the file document is a path in the
+    # document (`get_content_path`), and a part that the view introduced keeps its path
+    # after the document. A place that only the view keeps names no part of the document.
     view = _get_file_document_view(iomap.input)
     if view !== nothing && !isempty(below) && !(first(below) isa ProjectionReferenceStep)
-        first(below) == FieldReferenceStep(String(get_edited_field(view))) || return EmptyReference()
-        below = below[2:end]
+        content = get_content_path(view, Reference(below...))
+        content === nothing && return EmptyReference()
+        below = content isa ConcreteReference ? get_reference_steps(strip_reference_types(content)) : ()
     end
     extend_reference(EmptyReference(), FieldReferenceStep("document"), below...)
 end

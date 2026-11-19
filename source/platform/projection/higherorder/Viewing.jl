@@ -472,6 +472,14 @@ and the path of the content has no such step.
 get_content_path(view::ContentView, path) =
     annotate_reference_types(getproperty(view, :viewed), strip_reference_types(_make_plain_path(view, path)))
 
+# A path of the content of `view` as a path of the tree of views.
+get_view_path(view::ContentView, path) = _make_view_path(view, path)
+
+# A path through a view of one content has the steps of the content, because the view
+# sends a field step that it does not have to its content. So a path from a root does
+# not change at such a view.
+get_content_field(::ContentView) = nothing
+
 """
     ViewingProjection(content)
 

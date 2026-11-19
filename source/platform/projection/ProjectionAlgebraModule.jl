@@ -43,6 +43,7 @@ import ..ProjectionModule: get_content_iomap, show_barrier_mark!, retry_barrier_
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward, print_document_pure,
                            map_operation_backward
 import ..GestureBindingModule: read_gesture
+import ..FocusModule: get_content_path, get_view_path, get_content_field
 
 export IdentityProjection
 export ReversingProjection
@@ -52,7 +53,7 @@ export TypeDispatchingProjection
 export RecursiveProjection
 export View, ContentView, CellVectorView, @content_view, find_child_view_type, is_child_view_field,
        make_slot_view_computation, ViewingProjection, ViewingIoMap, ViewRecursion, make_content_view,
-       get_content_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation,
+       get_content_path, get_view_path, find_content_path, find_view_path, map_view_state!, read_view_operation, make_content_edit, ToggleFoldOperation,
        with_view_place_holder, has_view_place_holder,
        make_sibling_view
 export SwitchingProjection, SwitchingIoMap

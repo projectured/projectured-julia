@@ -23,7 +23,9 @@ at the ends of a document in `FocusCyclingProjection`. A selection can also name
 a widget that a projection drew for a document (`OutputReferenceStep`). A model of
 an assistant reads the part that the person selected and the part under the
 pointer with `find_selected_part` and `find_part_under_pointer`, and shows the
-person a part with `select_part!`.
+person a part with `select_part!`. A place has a path through the content and a
+path through the views that show the content: `find_content_path` and
+`find_view_path` change one into the other.
 """
 module FocusModule
 
@@ -60,6 +62,7 @@ export OutputReferenceStep, make_output_reference, find_output_path,
        follow_output_selection!, follow_output_mouse_target!,
        find_output_node_path, map_held_node_forward, map_held_node_backward
 export find_selected_part, find_part_under_pointer, select_part!
+export get_content_path, get_view_path, get_content_field, find_content_path, find_view_path
 
 
 include("Focus.jl")
@@ -67,6 +70,7 @@ include("WholeSelection.jl")
 include("SelectionWalking.jl")
 include("FocusCycling.jl")
 include("OutputSelection.jl")
+include("ContentPath.jl")
 include("SelectedPart.jl")
 
 end # module

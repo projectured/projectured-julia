@@ -279,17 +279,18 @@ end
 
 # The steps below the content of `card`, as the steps below what its card widget
 # draws: the card draws the view of its content in the pane of its body, so they go
-# through the pane and the field of the view that holds the content, except a part
-# that the view introduced, which keeps its path after the content.
+# through the pane and the path of the view for the place, except a part that the
+# view introduced, which keeps its path after the content.
 _make_card_view_steps(card::DashboardCard, rest) = (_CARD_BODY_STEPS[2:end]..., _make_view_content_steps(card, rest)...)
 
 # The steps from what `card` draws, its content or the view of its content, to the
-# part that `rest` names below the content: the field of the view that holds the
-# content, then `rest`, except a part that the view introduced.
+# part that `rest` names below the content: the path of the view for that place
+# (`get_view_path`), except a part that the view introduced.
 function _make_view_content_steps(card::DashboardCard, rest)
     view = _get_card_view(card)
     (view === card.content || isempty(rest) || first(rest) isa ProjectionReferenceStep) && return Tuple(rest)
-    (FieldReferenceStep(String(get_edited_field(view))), rest...)
+    shown = get_view_path(view, Reference(rest...))
+    shown isa ConcreteReference ? Tuple(get_reference_steps(strip_reference_types(shown))) : ()
 end
 
 # The steps below the content of `card` that `rest`, steps below what its card
@@ -308,7 +309,9 @@ end
 function _find_view_content_steps(card::DashboardCard, rest)
     view = _get_card_view(card)
     (view === card.content || isempty(rest) || first(rest) isa ProjectionReferenceStep) && return rest
-    first(rest) == FieldReferenceStep(String(get_edited_field(view))) ? rest[2:end] : nothing
+    content = get_content_path(view, Reference(rest...))
+    content === nothing && return nothing
+    content isa ConcreteReference ? Tuple(get_reference_steps(strip_reference_types(content))) : ()
 end
 
 function map_reference_forward(p::DashboardToWidget, iomap, reference)

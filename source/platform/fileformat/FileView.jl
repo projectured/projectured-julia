@@ -102,6 +102,34 @@ _get_shown_document(view::FileView) = (shown = view.content; shown === nothing ?
 follow_content_selection!(view::FileView) =
     _shows_file_views(view) ? view : invoke(follow_content_selection!, Tuple{Any}, view)
 
+# The paths of a file view that shows its file through views. The file holds what it
+# holds at `content`, and the view holds the view of that at `content` too. So a path
+# of the file that starts with `content` keeps that step below the view, and the view
+# of what the file holds changes the rest. The whole file is the whole view. Any other
+# path of the file goes through the field `file`, where no view shows it.
+function get_view_path(view::FileView, path)
+    shown = view.content
+    shown === nothing && return invoke(get_view_path, Tuple{Any, Any}, view, path)
+    path isa ConcreteReference || return EmptyReference()
+    steps = get_reference_steps(strip_reference_types(path))
+    first(steps) == _FILE_VIEW_CONTENT_STEP || return invoke(get_view_path, Tuple{Any, Any}, view, path)
+    _make_shown_path(get_view_path(shown, length(steps) == 1 ? EmptyReference() : Reference(steps[2:end]...)))
+end
+
+function get_content_path(view::FileView, path)
+    shown = view.content
+    shown === nothing && return invoke(get_content_path, Tuple{Any, Any}, view, path)
+    path isa ConcreteReference || return EmptyReference()
+    steps = get_reference_steps(strip_reference_types(path))
+    first(steps) == _FILE_VIEW_CONTENT_STEP || return invoke(get_content_path, Tuple{Any, Any}, view, path)
+    _make_shown_path(get_content_path(shown, length(steps) == 1 ? EmptyReference() : Reference(steps[2:end]...)))
+end
+
+# `rest` below the step `content`, with no types.
+_make_shown_path(rest) =
+    rest isa ConcreteReference ? Reference(_FILE_VIEW_CONTENT_STEP, get_reference_steps(strip_reference_types(rest))...) :
+                                 Reference(_FILE_VIEW_CONTENT_STEP)
+
 # A view holds its file, so the file watches the disk while a place shows it.
 acquire_document!(editor, view::FileView) = hold_documents!(editor, view, Any[view.file])
 

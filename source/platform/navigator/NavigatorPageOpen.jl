@@ -188,7 +188,9 @@ function _find_opened_content(root, operation::OpenPageOperation)
         try_evaluate_reference(content, reference, _NOT_REACHED) === _NOT_REACHED && return (nothing, nothing)
         return (content, annotate_reference_types(content, reference))
     end
-    steps = get_reference_steps(reference)
+    # A path through the views of a file names a place of the file, so the page opens
+    # on the content, as a path through the file opens it.
+    steps = get_reference_steps(find_content_path(root, reference))
     nodes = Any[root]
     for step in steps
         node = try_evaluate_reference(nodes[end], extend_reference(EmptyReference(), step), _NOT_REACHED)
