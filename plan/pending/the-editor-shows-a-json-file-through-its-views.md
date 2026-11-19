@@ -218,14 +218,29 @@ tests of the steps before it.
   guard of the JSON package, and `test_markdown()` has 358 of 358. The step did
   not run the integration suite again: the source of the branch is the source of
   the copy of the measurement, and each later step runs the tests of its cause.
-- [ ] **2. The two functions of a view, and the three maps.** *First part done
-  on 2026-11-19 (`89688a469`): the functions and the three maps. Open: the caret
-  of a view in a slot, found fact 3.* Proposed decision
+- [x] **2. The two functions of a view, and the three maps.** Proposed decision
   3. The row of a file on the page of the explorer, the card of a dashboard and
   the open of a page call the functions.
   *Check:* cause D passes. New tests: a JSON file on a card of a dashboard and
   on the page of the explorer takes a click, and the caret shows at the
   character under the pointer; a key there edits the file.
+
+  Done on 2026-11-19, in four commits. The functions are `get_content_path` and
+  `get_view_path`, with `find_content_path` and `find_view_path` for a path from a
+  root (found facts 1 and 2). After the decision of the owner (found fact 3), the
+  selection of each place goes through the view that the place keeps, when that
+  view keeps a selection of its own: `FileSystemFile.document_view` on the page
+  of the explorer, `content_view.view` of a card of a dashboard, and
+  `page_view.view` of a navigator. Each of the three holders has the two
+  functions, so `find_content_path` gives the path through the content of the
+  holder. The navigator had a fourth map that added the step of the view by
+  hand, and it reads its own selection in three places: all go through the two
+  functions now. Three tests, one for each place: a click on the text of a JSON
+  file puts the caret in the view, the same place has its path through the
+  content, and a key edits the file at the caret. `test_explorer` has 521 of 522,
+  and the one failure is cause F, for step 7. `test_navigator` has 416 of 420,
+  and the four failures are lines of `NavigatorChoicesTest.jl` that fail on
+  `main`.
 - [x] **3. A change for a part of a file reaches the view.** Proposed decision
   4.
   *Check:* cause A passes: the editing verbs, a command of a part, a group of

@@ -44,6 +44,48 @@ function get_navigator_page_view(navigator::Navigator)
     _is_page_view_slot(slot, page) ? slot.view : page
 end
 
+# The view of the page of `navigator` when that view keeps a selection of its own,
+# as the view of a file that shows the file through views does, and `nothing`
+# otherwise. The selection of the navigator then goes through the view, so each
+# navigator has a caret of its own in the page.
+function _get_page_own_view(navigator::Navigator)
+    view = get_navigator_page_view(navigator)
+    (view === get_navigator_page(navigator) || is_following_content_selection(view)) ? nothing : view
+end
+
+const _PAGE_VIEW_STEPS = (FieldReferenceStep("page_view"), FieldReferenceStep("view"))
+
+# A navigator whose page view keeps a selection of its own has the page in its content,
+# at its address, and the view at `page_view.view`: a path of the content inside the
+# page is a path of the view there, and a path through the view names a place of the
+# content.
+function get_view_path(navigator::Navigator, path)
+    view = _get_page_own_view(navigator)
+    view === nothing && return invoke(get_view_path, Tuple{Any, Any}, navigator, path)
+    page = get_reference_steps(strip_reference_types(get_navigator_page_address(navigator)))
+    steps = path isa ConcreteReference ? get_reference_steps(strip_reference_types(path)) : ()
+    _starts_with(steps, page) || return invoke(get_view_path, Tuple{Any, Any}, navigator, path)
+    below = steps[(length(page) + 1):end]
+    shown = get_view_path(view, isempty(below) ? EmptyReference() : Reference(below...))
+    shown isa ConcreteReference ?
+        Reference(_PAGE_VIEW_STEPS..., get_reference_steps(strip_reference_types(shown))...) :
+        Reference(_PAGE_VIEW_STEPS...)
+end
+
+function get_content_path(navigator::Navigator, path)
+    view = _get_page_own_view(navigator)
+    (view !== nothing && path isa ConcreteReference) ||
+        return invoke(get_content_path, Tuple{Any, Any}, navigator, path)
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) >= 2 && steps[1] == _PAGE_VIEW_STEPS[1] && steps[2] == _PAGE_VIEW_STEPS[2]) ||
+        return invoke(get_content_path, Tuple{Any, Any}, navigator, path)
+    below = get_content_path(view, length(steps) == 2 ? EmptyReference() : Reference(steps[3:end]...))
+    below === nothing && return nothing
+    place = Any[get_reference_steps(strip_reference_types(get_navigator_page_address(navigator)))...]
+    below isa ConcreteReference && append!(place, get_reference_steps(strip_reference_types(below)))
+    isempty(place) ? EmptyReference() : Reference(place...)
+end
+
 # Whether `slot` holds a view document of `page`: the field that the view edits
 # holds `page`.
 function _is_page_view_slot(slot, page)
@@ -106,9 +148,10 @@ end
 # or when no document stands between the page and the end of `path`.
 function _find_part_address(navigator::Navigator, path)
     path isa ConcreteReference || return nothing
-    get_reference_head(path) == _CONTENT_STEP || return nothing
-    page = get_reference_steps(get_navigator_page_address(navigator))
-    steps = get_reference_steps(get_reference_tail(path))
+    below = get_content_path(navigator, path)
+    below isa Reference || return nothing
+    page = get_reference_steps(strip_reference_types(get_navigator_page_address(navigator)))
+    steps = below isa ConcreteReference ? get_reference_steps(strip_reference_types(below)) : ()
     _starts_with(steps, page) || return nothing
     content = navigator.content
     for last_step in length(steps):-1:(length(page) + 1)
@@ -254,6 +297,16 @@ function _make_visit_operation(navigator::Navigator, visit::NavigatorVisit, back
     selection = _find_visit_selection(visit)
     path = ConcreteReference(get_reference_node_type(navigator), _CONTENT_STEP,
                              annotate_reference_types(visit.content, selection))
+    # A view that keeps a selection of its own takes the selection through its slot.
+    if slot !== nothing && !is_following_content_selection(view)
+        place = get_reference_steps(strip_reference_types(selection))
+        inside = place[(length(get_reference_steps(strip_reference_types(
+            get_valid_reference_prefix(visit.content, visit.address)))) + 1):end]
+        shown = get_view_path(view, isempty(inside) ? EmptyReference() : Reference(inside...))
+        below = shown isa ConcreteReference ? get_reference_steps(strip_reference_types(shown)) : ()
+        path = ConcreteReference(get_reference_node_type(navigator), _PAGE_VIEW_STEPS[1],
+                                 annotate_reference_types(slot, Reference(_PAGE_VIEW_STEPS[2], below...)))
+    end
     CompoundOperation(Any[ReplaceViewStateOperation(CompoundOperation(writes)),
                           ReplaceSelectionOperation(path)])
 end
@@ -282,8 +335,7 @@ const _CONTENT_STEP = FieldReferenceStep("content")
 function _find_content_selection(navigator::Navigator)
     selection = navigator.selection
     selection isa ConcreteReference || return nothing
-    get_reference_head(selection) == _CONTENT_STEP || return nothing
-    get_reference_tail(selection)
+    get_content_path(navigator, selection)
 end
 
 _starts_with(steps, prefix) =

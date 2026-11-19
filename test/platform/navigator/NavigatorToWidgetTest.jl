@@ -84,6 +84,39 @@ end
 function test_navigator_to_widget()
 @testset "NavigatorToWidget" begin
 
+    @testset "a JSON file as the page of a navigator keeps its caret in the view of the page, and a key edits it" begin
+        root = mktempdir()
+        path = joinpath(root, "data.json")
+        write(path, "{\"name\": \"abc\"}")
+        navigator = Navigator(make_file_tab(path))
+        editor, backend = _nav_editor(navigator)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        # The editor holds the navigator, so the navigator makes the view of its page.
+        evaluate_operation(editor, AcquireDocumentOperation(navigator))
+        frame!()
+        @test navigator.page_view !== nothing && !is_following_content_selection(navigator.page_view.view)
+        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+        @test !isempty(texts)
+        (_, x, y) = first(texts)
+        _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+        frame!()
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        # The page shows the file through its views, so the caret is in the view of the page.
+        @test occursin(r"\.page_view\.view\.content(\.content)?\.entries\[1\]\.value\.value\{0\}$", selected())
+        # The same place through the content of the navigator.
+        through_content = string(find_content_path(editor.document, get_selection(editor.document)))
+        @test occursin(r"\.content\.content(\.content)?\.entries\[1\]\.value\.value\{0\}$", through_content)
+        @test !occursin("page_view", through_content)
+        # The address of the part that holds the caret is an address in the content.
+        address = find_navigator_selected_address(navigator)
+        @test address isa ConcreteReference && evaluate_reference(navigator.content, address) isa Document
+        # A key at the caret edits the file, and the caret goes on by one character.
+        _nav_press!(editor, backend, KeyPress('x'; time = 2.0))
+        frame!()
+        @test _nav_has_text(backend, "xabc")
+        @test occursin(r"\.page_view\.view\..*\.value\.value\{1\}$", selected())
+    end
+
     @testset "the grid holds the bar and the page" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf, @reference(shelf, books[2]))

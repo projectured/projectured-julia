@@ -644,6 +644,14 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
     steps = get_reference_steps(reference)
     steps[1] == _DRAFT_STEP && return _map_address_forward(iomap, get_reference_tail(reference))
+    # A path through the view of the page is a path of what the page draws.
+    if length(steps) >= 2 && steps[1] == _PAGE_VIEW_STEPS[1] && steps[2] == _PAGE_VIEW_STEPS[2]
+        own = _get_page_own_view(iomap.input)
+        own === nothing && return nothing
+        rest = get_reference_tail(get_reference_tail(reference))
+        is_fully_typed_reference(rest) || (rest = annotate_reference_types(own, strip_reference_types(rest)))
+        return _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
+    end
     steps[1] == _CONTENT_STEP || return nothing
     page = get_reference_steps(get_navigator_page_address(iomap.input))
     _starts_with(steps[2:end], page) || return nothing
@@ -658,8 +666,9 @@ function map_reference_forward(::NavigatorToWidget, iomap::NavigatorToWidgetIoMa
         (rest = annotate_reference_types(get_navigator_page(iomap.input), strip_reference_types(rest)))
     view = get_navigator_page_view(iomap.input)
     field = _find_view_field_step(view, iomap.input)
+    # The view draws a place of the page at its own path for it (`get_view_path`).
     field === nothing || is_introduced_reference(rest) ||
-        (rest = ConcreteReference(get_reference_node_type(view), field, rest))
+        (rest = annotate_reference_types(view, get_view_path(view, rest)))
     _attach_rest(annotate_reference_types(output, extend_reference(EmptyReference(), _PAGE_STEPS...)), rest)
 end
 
@@ -708,6 +717,10 @@ function map_reference_backward(::NavigatorToWidget, iomap::NavigatorToWidgetIoM
     # the page, and a part that the view introduced keeps its path after the page. A
     # field that only the view keeps has no path in the content, so it names
     # nothing, as a path into the bar does.
+    # A view that keeps a selection of its own takes the path through its slot, so
+    # each navigator has a caret of its own in the page.
+    _get_page_own_view(iomap.input) !== nothing && rest isa ConcreteReference && !is_introduced_reference(rest) &&
+        return concat_references(extend_reference(EmptyReference(), _PAGE_VIEW_STEPS...), rest)
     field = _find_view_field_step(get_navigator_page_view(iomap.input), iomap.input)
     if field !== nothing && rest isa ConcreteReference && !is_introduced_reference(rest)
         get_reference_head(rest) == field || return nothing

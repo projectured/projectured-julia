@@ -51,6 +51,7 @@ import ..ProjectionModule: print_document, read_intent, map_operation_backward, 
 import ..GestureBindingModule: read_gesture
 import ..EditorModule: make_change
 import ..OperationModule: evaluate_operation
+import ..ProjectionAlgebraModule: get_content_path, get_view_path
 import ..DomainModule: acquire_document!, release_document!, get_document_decoration
 
 export NavigatorViewSlot, NavigatorVisit, ReferenceInsertion, NavigatorAddress, Navigator
