@@ -331,6 +331,19 @@ tests of the steps before it.
    it shows (`get_edited_field`), which a view of a content does. When a path
    through the views ends in the step `.viewed`, in plan 4c, the path names the
    content itself, and this rule can go.
+5. **The box of a view is a document now.** A card of a dashboard and a
+   navigator keep the view of what they show in a `NavigatorViewSlot`, a box that
+   a walk does not enter. It was a plain struct, and the write of a selection
+   stops at a node that has no selection field. It is a `@document` now, so the
+   selection of a card goes through `content_view.view`. The test
+   `is_following_content_selection(view)` says whether a view copies the selection
+   of its content. A place sends its selection through a view that keeps its own,
+   and through the content otherwise.
+6. **A card makes its view only in an editor that holds the dashboard.** The
+   acquire of the dashboard makes the view of each card. In an editor that holds
+   nothing, a card has no view, and it shows a JSON file as content with no view.
+   That works while the JSON content keeps a caret. Plan 4c must give such a card
+   its view.
 
 ## Risks
 

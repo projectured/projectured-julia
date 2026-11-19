@@ -314,6 +314,19 @@ function _find_view_content_steps(card::DashboardCard, rest)
     content isa ConcreteReference ? Tuple(get_reference_steps(strip_reference_types(content))) : ()
 end
 
+# The steps below the view of `card` that `rest`, steps below what its card widget
+# draws, name, when the view keeps a selection of its own: a place in the view is then
+# a path through the view. `nothing` for another view, for the body as a whole, and
+# for a part that the view introduced.
+function _find_card_own_view_steps(card::DashboardCard, rest)
+    _get_card_own_view(card) === nothing && return nothing
+    body = _CARD_BODY_STEPS[2:end]
+    rest = Tuple(rest)
+    (length(rest) > length(body) && rest[1:length(body)] == body) || return nothing
+    below = rest[(length(body) + 1):end]
+    first(below) isa ProjectionReferenceStep ? nothing : below
+end
+
 function map_reference_forward(p::DashboardToWidget, iomap, reference)
     iomap === nothing && return invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
     field = _map_title_field_path(reference)
@@ -335,6 +348,11 @@ function map_reference_forward(p::DashboardToWidget, iomap, reference)
             steps[3] == FieldReferenceStep("content") &&
                 return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), card_steps...,
                     FieldReferenceStep("content"), _make_card_view_steps(iomap.input.cards[k], steps[4:end])...))
+            # A path through the view of the card is a path of what the body draws.
+            length(steps) >= 4 && steps[3] == _CARD_VIEW_STEPS[1] && steps[4] == _CARD_VIEW_STEPS[2] &&
+                _get_card_own_view(iomap.input.cards[k]) !== nothing &&
+                return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), card_steps...,
+                    FieldReferenceStep("content"), _CARD_BODY_STEPS[2:end]..., steps[5:end]...))
         end
     end
     invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
@@ -360,6 +378,9 @@ function map_reference_backward(p::DashboardToWidget, iomap, reference)
                 first(inside) == FieldReferenceStep("title") &&
                     return extend_reference(EmptyReference(), card_steps..., FieldReferenceStep("title"))
                 if first(inside) == FieldReferenceStep("content")
+                    own = _find_card_own_view_steps(iomap.input.cards[k], inside[2:end])
+                    own === nothing ||
+                        return extend_reference(EmptyReference(), card_steps..., _CARD_VIEW_STEPS..., own...)
                     below = _find_card_content_steps(iomap.input.cards[k], inside[2:end])
                     below === nothing && return nothing
                     return extend_reference(EmptyReference(), card_steps..., FieldReferenceStep("content"), below...)

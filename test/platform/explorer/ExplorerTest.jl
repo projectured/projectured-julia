@@ -2074,6 +2074,39 @@ function test_explorer()
         end
     end
 
+    @testset "a JSON file in a card of a dashboard keeps its caret in the view of the card, and a key edits it" begin
+        root = mktempdir()
+        path = joinpath(root, "data.json")
+        write(path, "{\"name\": \"abc\"}")
+        dashboard = Dashboard("Study", Any[DashboardCard("Data", make_file_tab(path))])
+        explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+        editor, backend = _explorer_window_editor(explorer)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        # The editor holds the explorer, so the dashboard that the page shows makes the
+        # view of each card.
+        evaluate_operation(editor, AcquireDocumentOperation(explorer))
+        _explorer_window_press!(editor, backend, _explorer_click(backend, "Study"))
+        frame!()
+        @test dashboard.cards[1].content_view !== nothing
+        texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+        @test !isempty(texts)
+        (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+        _explorer_window_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+        frame!()
+        selected() = string(strip_reference_types(get_selection(editor.document)))
+        # The card shows the file through its views, so the caret is in the view of the card.
+        @test occursin(r"\.cards\[1\]\.content_view\.view\.content(\.content)?\.entries\[1\]\.value\.value\{0\}$",
+                       selected())
+        # The same place through the content of the card.
+        @test occursin(r"\.cards\[1\]\.content\.content(\.content)?\.entries\[1\]\.value\.value\{0\}$",
+                       string(find_content_path(editor.document, get_selection(editor.document))))
+        # A key at the caret edits the file, and the caret goes on by one character.
+        _explorer_window_press!(editor, backend, KeyPress('x'; time = 2.0))
+        frame!()
+        @test _nav_has_text(backend, "xabc")
+        @test occursin(r"\.content_view\.view\..*\.value\.value\{1\}$", selected())
+    end
+
     @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
         root = mktempdir()
         try

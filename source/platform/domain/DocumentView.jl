@@ -67,6 +67,24 @@ function follow_content_selection!(view)
     view
 end
 
+"""
+    is_following_content_selection(view) -> Bool
+
+Whether the selection of `view` follows the selection of the document that it shows
+([`follow_content_selection!`](@ref)). A view that answers `false` keeps a selection
+of its own, as the view of a file that shows its file through views does.
+
+Use it where a place keeps a view beside the document that the view shows: the
+selection of the place goes through a view that keeps its own, and through the
+document otherwise.
+
+# Example
+
+    is_following_content_selection(follow_content_selection!(make_document_view(document)))   # true
+"""
+is_following_content_selection(view) =
+    hasfield(typeof(view), :selection) && is_computed_cell(getfield(view, :selection))
+
 # The path of the document, as a path of its view: the field of the view that holds
 # the document, then the path. A path that the view introduced is already a path
 # of the view. A selection that the document keeps while it is not live keeps its

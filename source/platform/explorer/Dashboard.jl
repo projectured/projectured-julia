@@ -197,6 +197,39 @@ function _get_card_view(card::DashboardCard)
     (field !== nothing && getproperty(slot.view, field) === card.content) ? slot.view : card.content
 end
 
+# The view of `card` when that view keeps a selection of its own, as the view of a
+# file that shows the file through views does, and `nothing` otherwise. The selection
+# of the card then goes through the view, so each card has a caret of its own.
+function _get_card_own_view(card::DashboardCard)
+    view = _get_card_view(card)
+    (view === card.content || is_following_content_selection(view)) ? nothing : view
+end
+
+const _CARD_VIEW_STEPS = (FieldReferenceStep("content_view"), FieldReferenceStep("view"))
+
+# A card whose view keeps a selection of its own has its content at `content` and
+# the view at `content_view.view`: a path of the content is a path of the view there,
+# and a path through the view names a place of the content.
+get_content_field(card::DashboardCard) = _get_card_own_view(card) === nothing ? nothing : :content
+
+function get_view_path(card::DashboardCard, path)
+    view = _get_card_own_view(card)
+    view === nothing && return invoke(get_view_path, Tuple{Any, Any}, card, path)
+    shown = get_view_path(view, path)
+    shown isa ConcreteReference ?
+        Reference(_CARD_VIEW_STEPS..., get_reference_steps(strip_reference_types(shown))...) :
+        Reference(_CARD_VIEW_STEPS...)
+end
+
+function get_content_path(card::DashboardCard, path)
+    view = _get_card_own_view(card)
+    (view !== nothing && path isa ConcreteReference) || return invoke(get_content_path, Tuple{Any, Any}, card, path)
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) >= 2 && steps[1] == _CARD_VIEW_STEPS[1] && steps[2] == _CARD_VIEW_STEPS[2]) ||
+        return invoke(get_content_path, Tuple{Any, Any}, card, path)
+    get_content_path(view, length(steps) == 2 ? EmptyReference() : Reference(steps[3:end]...))
+end
+
 # The slot for the view of `content`, which follows the selection of the content,
 # or `nothing` for a content that shows as itself.
 function _make_card_view_slot(content)

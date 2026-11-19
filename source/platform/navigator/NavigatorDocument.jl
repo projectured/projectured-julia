@@ -6,10 +6,12 @@
 
 The view document of the page of a navigator ([`make_document_view`](@ref)), in a
 box that a walk does not enter. A walk of a navigator reaches the page through the
-content, so no path goes through the view, and the selection of the view keeps
-following the selection of its page.
+content. A view whose selection follows the selection of its page has no path
+through the box. A view that keeps a selection of its own, such as the view of a
+file that shows the file through views, takes its selection through the box, at the
+field `view`, so the box is a document.
 """
-struct NavigatorViewSlot
+@document struct NavigatorViewSlot
     view::Any
 end
 
