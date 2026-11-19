@@ -1075,7 +1075,10 @@ function _point_backward(document, entries::Vector, point; topmost_first::Bool =
         local_point === nothing && continue
         child = entry[3]
         answer = map_reference_backward(child.projection, child, PointReferenceStep(local_point...))
-        path = answer === nothing ? EmptyReference() : answer
+        # A child that passes the point through, as a canvas does, answers the
+        # point step itself: the point in the child.
+        path = answer isa Reference ? answer :
+               answer isa ReferenceStep ? ConcreteReference(answer, EmptyReference()) : EmptyReference()
         for step in Base.reverse(steps_of(index))
             path = ConcreteReference(step, path)
         end

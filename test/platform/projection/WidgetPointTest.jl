@@ -104,5 +104,27 @@ end
     @test strip_reference_types(part) == EmptyReference()
 end
 
+# A canvas passes a point through: its backward map answers the point step
+# itself. A tabbed pane whose open page is a canvas maps a point in the page to
+# that point in the page, and a layout maps a point in a canvas child the same.
+@testset "a point in a canvas page or child maps to the point in the canvas" begin
+    canvas() = GraphicsCanvas(Any[GraphicsRect(0, 0, 120, 40), GraphicsRect(0, 60, 120, 40)]; w = 120, h = 100)
+    ends_in_point(answer, head) = answer !== nothing && last(collect(get_reference_steps(answer))) isa PointReferenceStep &&
+                                  first(collect(get_reference_steps(answer))) == head
+    # The natural renderer draws a canvas, as the editor does; the widget
+    # projection of `_map` has no row for it.
+    natural = NaturalToGraphics(; measure = FixedMeasure(10, 18, 6, 0))
+    function map_natural(document, x, y)
+        iomap = print_document(natural, document)
+        answer = map_reference_backward(natural, iomap, PointReferenceStep(x, y))
+        answer === nothing ? nothing : strip_reference_types(answer)
+    end
+    answers = [map_natural(WidgetTabbedPane(Any[("One", canvas())]), 30, y) for y in 0:5:160]
+    @test any(answer -> ends_in_point(answer, FieldReferenceStep("selector_element_pairs")), answers)
+    layout = VerticalLayout(Any[WidgetLabel("above"), canvas()])
+    answers = [map_natural(layout, 30, y) for y in 0:5:160]
+    @test any(answer -> ends_in_point(answer, FieldReferenceStep("children")), answers)
+end
+
 end # @testset
 end # test_widget_point

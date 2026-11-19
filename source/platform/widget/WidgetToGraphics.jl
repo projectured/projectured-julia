@@ -1687,7 +1687,10 @@ function _map_point_to_child(input, entries, point::PointReferenceStep)
         steps === nothing && return nothing
         answer = map_reference_backward(get_iomap_projection(child), child,
                                         PointReferenceStep(local_point...))
-        path = answer === nothing ? EmptyReference() : answer
+        # A child that passes the point through, as a canvas does, answers the
+        # point step itself: the point in the child.
+        path = answer isa Reference ? answer :
+               answer isa ReferenceStep ? ConcreteReference(answer, EmptyReference()) : EmptyReference()
         for step in Base.reverse(steps)
             path = ConcreteReference(step, path)
         end
