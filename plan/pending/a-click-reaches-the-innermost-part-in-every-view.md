@@ -219,6 +219,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   in the view. `ProjectionReferenceStep` and `OutputReferenceStep` become one
   model. Rejected: each view writes the code of the runner form; about 20 views
   need it today, and each new view has dead clicks until it does.
+  The model of one step moved to
+  `plan/pending/a-projection-step-evaluates-to-what-it-names.md` on 2026-11-19
+  (see 5.4).
 - **P3. The whole-selection rule keeps an introduced part** (follows from D2).
   `convert_to_whole_selection` and its copies keep a path that names an
   introduced part as a whole: a drawn widget, a value of it, and a bracket. A
@@ -961,7 +964,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       it, so the separate band of the card title (`_make_title_band`) goes, and
       the description of a card has its band too. The node of a row of facts
       draws the same band while its fact is selected as a whole.
-  - [ ] 5.4 **One step for a drawn part (P2).** The introduced step holds the
+  - [x] 5.4 **One step for a drawn part (P2).** (Closed on 2026-11-19: the wiring of D6
+    below is done, and the evaluation of the step moved to its own plan, at the end
+    of this step.) The introduced step holds the
     output that its projection drew, and evaluates to the drawn part. The owner
     chose it as the next work on 2026-11-11 ("Ok"), before the widgets that record
     no line, because most of the plain clicks that do nothing in step 6 are on a
@@ -1116,188 +1121,21 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       tooltip, the label of an embedded formula, and the quote leaf of a string
       in the reversing view.
 
-    **The design of 5.4** (2026-11-18, proposed by the assistant).
-
-    Found before the design, in a read of the code:
-    - The step `ProjectionReferenceStep(projection, output_path)` evaluates to
-      `output_path`, a path, and not to the part. A path of a drawn part is one
-      node, `X‹.a.b{3}›`. Its terminal records `Position` when it is made, and
-      `ConcreteReference` after the selection types it again. So a copy, a note
-      and the whole-part rule get the path and not the part. No new step is
-      needed: this step names the part already, and it does not reach it.
-    - A probe (`/var/tmp/ic-scratch/step11/probe-save.jl`), in the example
-      `appearance/appearance/natural`: an Alt+double click on the button "Save"
-      selects `…PaneTab.content::Appearance‹.content.children[1].children[1].action.label›`.
-      The path evaluates to the path
-      `::WidgetScrollPane.content::VerticalLayout.children::CellVector[1]::HorizontalLayout.children::CellVector[1]::WidgetButton.action::Action.label::String`,
-      and not to the text `"Save"`; Ctrl+C then does nothing.
-    - 99 of the 111 makers in the sources call
-      `make_introduced_reference(projection, iomap, path)`, so they have the IO
-      map of the view. 12 do not: `WholeSelection.jl:151` and
-      `PivotZoneEdit.jl:191`, which change a step that exists;
-      `ProjectionTemplate.jl:887`, `:906` and `:1050`, `Finding.jl:42`,
-      `DbCatalogToSyntax.jl:51`, `PaneToWidget.jl:591`, `OutlinePaths.jl:135`,
-      `SyntaxToText.jl:759`, `RosterToGraphics.jl:312`, `:571` and `:611`, and
-      `AppearanceToWidget.jl:849`. Most of them have an IO map in scope.
-    - An IO map keeps its identity while its output computes again
-      (`@iomap`), so a step that holds the IO map reaches the output as it is
-      drawn now.
-    - `OutputReferenceStep` has two users: the mark of a fault
-      (`FaultCatching.jl:389`), which has the IO map of its barrier, and the
-      runner form of omnet-julia (`LegacySimulationRunnerToWidget.jl:786`),
-      which has the IO map of its view.
-    - No code that saves a document reads the step, so a selection that holds an
-      IO map is never written to a file.
-    - About 30 places evaluate a selection and read the result as a document:
-      the owner of a selection (`Operations.jl:756`), the edits
-      (`DocumentEdits.jl:27`, `Inversion.jl:101`), the targets of a paste and a
-      cut (`Clipboard.jl`, `ClipboardSliceToAny.jl`), the named document
-      (`Domain.jl:644`), the innermost document of a tab (`PaneToWidget.jl:652`),
-      the selected part (`SelectedPart.jl:12`), the walk (`SelectionWalking.jl`)
-      and the route of a gesture (`Chaining.jl:191`). Today each of them stops at
-      the step, because the step does not evaluate.
-
-    **The owner rejected S1 on 2026-11-18**: "An iomap is not a step in the
-    path, use the projection induced step if that fits as you said." The path
-    holds only steps. The drawn part keeps its name by
-    `ProjectionReferenceStep(projection, output_path)`, with no IO map, and S1,
-    S2, S3 and S6 below do not apply. A click, a caret and a selection of a
-    drawn part already work with this step. What is open is how a copy reads the
-    drawn value, which only the IO map of the view holds.
-
-    **The design again** (2026-11-19). The owner asked to go back to the design,
-    because the step holds the projection and the place in its drawing, but not
-    the drawing. The owner decided on 2026-11-19: "Both are valid
-    interpretations. When you only have the document and the path then it's ok
-    to return a new one but when you have the IoMap then it should be the one
-    that's there."
-    - **R1. Two forms of the evaluation** (the owner).
-      `evaluate_reference(document, path)` makes the drawn part again and gives
-      a new object. The form with an IO map gives the drawn part that is in the
-      drawing of the IO map, the same object.
-    - **R2. The document form prints again** (proposed by the assistant). At an
-      introduced step `‹P .x›` on the node `D`, it prints `D` with `P` and
-      evaluates `.x` in that output.
-    - **R3. The IO map form walks the IO maps** (proposed by the assistant, on
-      the idea of the owner to combine `evaluate_reference`,
-      `map_reference_forward` and the IO map). It walks the path in the input of
-      the IO map. It gives the rest of the path to the child IO map whose input
-      the walk reaches (`get_child_iomaps`, as `read_routed_child` does), or to
-      the IO map that a wrapper shows through (`get_content_iomap`). At the IO
-      map of `P` on `D`, it maps the rest forward (`map_reference_forward`) and
-      evaluates it in the output of that IO map. An IO map that holds children
-      and gives none gets a method of `get_child_iomaps`.
-    - **R4. The code in the editor uses the IO map form** (proposed by the
-      assistant). The copy, the note and the whole-part rule run in readers,
-      which have their IO map. The document form, which prints, runs only where
-      no IO map is: a test, the assistant, a check of a saved selection.
-    - **R5. A write stops before the step** (S4 below), and
-      **`OutputReferenceStep` goes** (S5 below).
-
-    Found in the probe of R3 (`/var/tmp/ic-scratch/step11/probe-eval.jl`, the
-    button "Save"): the walk passes six wrappers by `get_child_iomaps`
-    (appearance, settings, gesture tracking, drag tracking, context menu,
-    tooltip), then goes through `ReferenceDispatchingIoMap` by
-    `get_content_iomap`, and stops at `WindowManagingIoMap`, which gives no
-    children; its forward map answers `nothing` for the path.
-
-    The owner on 2026-11-19, about the value of today (the output path of the
-    step for a stored selection, `nothing` for a new path): "that sounds a bad
-    design, a quite random return value. We should clean this up. I'm not sure
-    allowing the projection step to be evaluated is always a good idea, maybe it
-    should be an option." And about R3: "it would be a search and not just going
-    down the fields and indices, right? Not sure that's a good idea either." So
-    R2, R3 and R4 are open again: the evaluation of the step is an option, and
-    the IO map form must go down by the steps of the path, with no search.
-
-    Found in a survey of the IO maps that hold children (2026-11-19):
-    - 30 IO map types give their children by `get_child_iomaps`. In 16 of them,
-      the child of one step is a field or an index (the six wrappers above the
-      screen, the roster, the arrangement, a turn of a conversation, the scroll
-      pane, the transform pane, the context menu, the grid and the flow layout,
-      the chart plot and the sequence chart plot). In 9 it is not clear: the
-      container keeps only the children that are documents, so the index of a
-      child is not its index in the input (the widget children, the dialog), or
-      the child is two to four steps below (`.tabs[i].content`,
-      `.vertex_layouts[i].vertex.content`, `.items[i].body`). In 5 the
-      container builds the child itself, so no step of the input reaches it:
-      `AppearanceToWidget` prints a `WidgetScrollPane` that it makes.
-    - 57 more IO map types hold children and give none, among them 11 on the
-      way to "Save": the dispatch, the window manager, the screen, the window,
-      the nesting, the chain, the fault barrier, the pane tree, the split and the
-      group. The wrappers among them have the same input as their child, so no
-      step leads to the child.
-    - The view of the content of a tab is in the second stage of the chain. The
-      pane stage passes the content of a tab through as it is
-      (`Application.jl:360`), and the renderer prints it. The input of the
-      second stage is the output of the first, so no step of the document path
-      reaches the IO map of the view. The path must first be mapped forward
-      through the first stage (`map_reference_forward`), as the route of a
-      gesture is (`_read_routed_chain`).
-
-    **The owner decided on 2026-11-19**: "Then I would just skip copying
-    projection induced stuff. Probably still worth removing returning the output
-    path for a projection induced step. I guess nobody depends on that and it's
-    just plain wrong." So no copy of a drawn part, no print option and no IO map
-    form in this plan (R2, R3 and R4 go), and the step no longer evaluates to its
-    output path.
-
-    Found after that decision: the gate of every selection write depends on the
-    value. `_matched_selection` (`SelectionDefaults.jl:155`) types the path
-    (`annotate_reference_types`) and checks it (`is_valid_reference`). Both
-    evaluate the step: the value is the output path, so the terminal records
-    `ConcreteReference` and the check passes. With no value, the check cuts the
-    path at the step, and the write of each selection in a drawn part throws
-    `SelectionMismatchException`. The same check clears or cuts the selection in
-    the repair after a fault (`FaultBarriers.jl:230`) and after a file is read
-    again (`DocumentFile.jl:674`).
-
-    The decisions as first proposed:
-    - **S1. The step holds the IO map of the view that drew the part.** The
-      fields are `projection`, `iomap` and `output_path`. It evaluates to the
-      part in the output of the IO map now:
-      `evaluate_reference(get_iomap_output(iomap), output_path)`. A step with no
-      IO map (`nothing`), such as one from a `.proj` literal of a test, does not
-      evaluate. Rejected: the step holds the output at the time of the click, as
-      `OutputReferenceStep` holds its node; then a copy after the view draws
-      again gives the old part.
-    - **S2. Two steps are equal when the projection and the output path are
-      equal**, as now. The IO map is not compared, so a selection that a view
-      names again after it prints again is the same selection.
-    - **S3. The terminal records the type of the drawn part**: the widget for a
-      whole widget, `Position` for a caret. `make_introduced_reference` types
-      the path against the output of the IO map.
-    - **S4. A walk that writes stops before the first introduced step. A walk
-      that reads goes on.** The owner of a selection, an edit, its inverse, and
-      the target of a paste and a cut take the input document that the view
-      drew, so a drawn part takes no write. The whole-part rule, the copy, the
-      note, the description and the ring read the drawn part.
-    - **S5. `OutputReferenceStep` goes.** The mark of a fault and the runner
-      form of omnet-julia make the introduced step with their IO map, and
-      `make_output_reference` and `find_output_path` go with it.
-    - **S6. The makers that have no IO map** carry it: a maker that changes a
-      step takes the IO map of that step, and a maker that has an IO map in
-      scope passes it. A maker that has none makes a step that does not
-      evaluate, as now.
-
-    The sub-steps, one commit each:
-    - [ ] 5.4a **The step** (S1, S2, S3, S6). Test: `ProjectionReferenceStepTest`
-      gives the drawn part from a path, the typed terminal, the equality with
-      another IO map, and a step with no IO map that does not evaluate.
-    - [ ] 5.4b **The walks** (S4). Each of the 30 places is checked. Test: a
-      paste and a cut refuse a drawn part, and the owner of a selection in a
-      drawn part is the document that the view drew.
-    - [ ] 5.4c **One step for a drawn object** (S5), in projectured-julia and in
-      omnet-julia. Test: the tests of the fault mark and `WidgetSelectionTest`.
-    - [ ] 5.4d **The use.** An Alt+click on the button "Save" of the appearance
-      view selects the button, and the ring holds it; the whole-part rule keeps
-      it. The copy of a drawn part is the rest of 5.5. The texts that the plan
-      gives to 5.4 (the labels of the ticks and the names of the states in a
-      band, the glyphs of math, a label cell of a data frame) are causes of
-      step 6: each view names its text by an introduced step, and the step of
-      5.4a gives the copy and the whole-part rule for them.
-  - [ ] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
-    done (2026-11-10); the copy of a part that a view drew waits for 5.4.
+    **The evaluation of the step moved to its own plan** (2026-11-19). The design
+    of 2026-11-18 and 2026-11-19, the probes of the button "Save", the surveys and
+    the decisions of the owner are in
+    `plan/pending/a-projection-step-evaluates-to-what-it-names.md`. The owner:
+    "let's write up this whole issue of evaluation of projection induced steps in
+    a future plan. This needs to fixed eventually but not now." So this plan
+    changes no kernel file for 5.4, and the step keeps its value of today. The
+    texts that this plan gives to 5.4 (the labels of the ticks and the names of
+    the states in a band, the glyphs of math, a label cell of a data frame) take
+    a caret and a selection by the step as it is: they are causes of step 6,
+    where each view names its text by the step.
+  - [x] 5.5 **Ctrl+C copies a selected value (P5).** The copy of a value is
+    done (2026-11-10). The owner skips the copy of a part that a view drew in
+    this plan (2026-11-19): "Then I would just skip copying projection induced
+    stuff." It is step 6 of the plan of the projection step.
 
     Found in the work: the copy (`_clipboard_copy`, `ClipboardSliceToAny.jl`)
     takes a selected value that is not a document as the primitive document of
