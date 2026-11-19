@@ -300,6 +300,20 @@ tests of the steps before it.
    name where the caret path of such a place goes, so the session asks the
    owner. Steps 3, 4 and 6 are for a tab and do not wait.
 
+   **Decided by the owner on 2026-11-19:** "Generally, the selection should go
+   through the view", and "I would assume the final solution would just be a
+   selection through the views so we can have different selections per view."
+   So for a file view with views, the selection of the window goes through the
+   view that the place keeps: `FileSystemFile.document_view`, the view in
+   `DashboardCard.content_view`, and the view in the `page_view` of a
+   `Navigator`. Each place has a caret of its own. The three holders get methods
+   of `get_content_path` and `get_view_path`, so a path through the content of a
+   holder and the path through its view change one into the other. A file view
+   with no views stays as it is: its selection follows the selection of its
+   file. The owner also said that the name `document_view` sounds strange. The
+   three fields and their names are from 2026-11-06, and point 7 of the order
+   gives the three holders one form. This plan renames nothing.
+
 ## Risks
 
 1. **Other plans change the same files.** `a-reader-is-split-by-its-jobs.md`
