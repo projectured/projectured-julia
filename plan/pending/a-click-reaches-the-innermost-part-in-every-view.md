@@ -1209,6 +1209,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
     So step 5 breaks no case that passed, but the move in a separator, a cause
     of step 6.
+
+  The landing of 2026-11-19 (main 8356082d0, not pushed; the owner: "yes")
+  holds step 5 and the walk fix, rebased with no conflict over main 0a4f46451.
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
