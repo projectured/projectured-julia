@@ -888,7 +888,8 @@ Two rules make this order possible:
        state (the owner on 2026-11-18: "yes"), the write of the root value, a
        caret in a part that has no view, the field `content` of `FileView`,
        and the views of the place of every domain. The plan is
-       `a-file-and-its-undo-steps-have-views.md`.
+       `plan/done/a-file-and-its-undo-steps-have-views.md`. It is done on
+       the branch `file-views` on 2026-11-19, and it waits for the landing.
      - **A measurement.** In a copy of the repository, each file view of a
        JSON file is made with views, and the suites of the editor run there.
        The list of the failures gives the steps of 4b2. The copy lands

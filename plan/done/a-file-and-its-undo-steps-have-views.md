@@ -1,7 +1,9 @@
 # A file and its undo steps have views
 
-**Status:** approved by the owner on 2026-11-18 ("yes", to "Do you approve this plan, so
-that I start it in a worktree?"). In work on the branch `file-views`.
+**Status:** done on 2026-11-19, on the branch `file-views`, which is 11 commits
+over `main` `0ae98a75b`. The owner approved the plan on 2026-11-18 ("yes", to "Do
+you approve this plan, so that I start it in a worktree?"). The branch is not
+landed: the session asks for the landing, and for the push apart.
 
 This plan is the first of two plans in the place of plan 4b of point 4 of the
 order in section 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`.
@@ -368,7 +370,7 @@ They are approved with this plan.
   open list and a dormant caret in the part that has no view. A file view takes
   all the space of its place, so each of the two is in a `LayoutConstraint` that
   gives it a half of the width (found fact 13).
-- [ ] **8. The wide check and the guides.** `test_platform()`, the suites of the
+- [x] **8. The wide check and the guides.** `test_platform()`, the suites of the
   JSON and the Markdown domains, and the examples, against the same runs at the
   base commit. The six guard scripts. The recorded precompile calls, if a list
   goes above its limit. `Pkg.precompile` of `omnet-julia` against the branch,
@@ -380,6 +382,65 @@ They are approved with this plan.
   and of JSON. Section 13.3 of the order document takes the cut of plan 4b. The
   plan moves to `plan/done/`. Then the session asks for the landing, and for
   the push apart.
+  **Done on 2026-11-19.** The wide check ran two times: at the base
+  `93d8ab5d7`, and again after the rebase over `main` `0ae98a75b` (found fact
+  14). The two give the same picture. The numbers of the second, each run at
+  `main` and on the branch in a worktree and a depot of its own:
+
+  | Check | `main` `0ae98a75b` | Branch |
+  | --- | --- | --- |
+  | `test_platform()` | 236497 passes, 15 failures, 21 broken | 236605 passes, 15 failures, 21 broken |
+  | `test_json()` | 832 of 832 | 1443 of 1443 |
+  | `test_markdown()` | 358 of 358 | 358 of 358 |
+  | The examples, alone | 117, no failure | 118, no failure |
+  | The six guards | 4 with findings | the same findings |
+
+  - **The platform suite.** The 15 failure lines are the same on the two sides,
+    with the same text of the layering failures: `FileChangeStoreTest.jl:971`,
+    `ClipboardTest.jl:502` to `504`, `NavigatorChoicesTest.jl:174`, `178`, `208`
+    and `211`, `FileDialogTest.jl:138`, and `CheckLayering.jl:880`, `889` and
+    `922` (four times). Before the rebase each side had one error more, in
+    `TaskWorkItemTest.jl:171`, which did not occur in the second run of each
+    side.
+  - **The 108 more passes of the platform suite** are all in the row of the
+    examples. The test of a printer counts one test for each cell that a print
+    reaches. A run of the examples alone gives 90 more for five platform
+    examples: 3 each for `syntax_leaf_view` and `syntax_node_view`, and 28 each
+    for `document_tree`, `work_plan` and `system_process_tree`. Those three are
+    the platform examples that print through the general renderer, which holds
+    two more chains of stages for the rows of a view. The IO map of the step of
+    a view has one more field. The cells were not counted one by one. The
+    other 18 are not traced to an example: the count of an example depends on
+    the tests that run before it in one process, and the sum of the platform
+    examples differs between the two ways of the run at `main` too.
+  - **The JSON suite.** The 611 more passes are the six new tests: 47, 39, 130,
+    216, 73 and 106.
+  - **The examples.** The one more is `json_file_view`, with 10952 passes. Ten
+    examples have more passes on the branch and none has fewer: the five
+    above, and `json_string_view` (6), `json_array_view` (6),
+    `json_view_places` (8), `json_object_view` (6) and `markdown_json_view`
+    (4).
+  - **The guards.** The naming and the tree guard pass. The other four give
+    the same findings on the two sides. Only the line numbers of four known
+    findings of the documentation guard moved, in `json.md` and in
+    `fileformat.md`.
+  - **The recorded precompile calls.** 124 lines of 13 lists name
+    `FileView{…}` with its fields of before, and one line names
+    `_compute_typing_run`. They no longer resolve. The largest share is 74 of
+    11043 lines, in `package/ProjecturedPlatform/precompile/workload.txt`, so
+    no list goes above its limit by this plan, and no list is recorded again.
+    These counts are of the run before the rebase. On `main` `0ae98a75b` the
+    list of `ProjecturedJulia` is above its limit already: 527 of its 3186
+    calls no longer resolve there, and 533 on the branch. Step 8 of
+    `a-reader-is-split-by-its-jobs.md` records the lists again.
+  - **The downstream program.** `omnet-julia` and `inet-julia` use no name
+    that this plan added or changed. `Pkg.precompile` of a copy of
+    `omnet-julia` at `87ab6cd38`, its head, against the branch at `29cbf689d`:
+    295 packages compiled, 199 were compiled already, and no error. The
+    manifest reads 68 packages from the worktree of the branch. The one
+    warning is the warning of the list of `ProjecturedJulia` above.
+  - **The guides** are in the commit of step 8, and the guide of the file
+    formats says the form of the reader after the rebase.
 
 ## Found during the work
 
@@ -462,6 +523,33 @@ They are approved with this plan.
     outside the window. The first picture of the example showed that. A tab
     gives a file view its whole place, so the editor has no such case.
 
+14. **`main` moved during the wide check, and the branch took its form.** Step 5
+    of `a-reader-is-split-by-its-jobs.md` landed on the local `main` on
+    2026-11-19, at `0ae98a75b`, 11 commits after the base `93d8ab5d7` of this
+    branch. That is risk 1. The branch is rebased over `0ae98a75b`. Two readers
+    changed their form:
+    - The reader of `UndoBufferToAnyProjection` had the one conflict of the
+      rebase. It now passes a change with the one helper of `main`
+      (`read_child_intent`), with the steps from the buffer or from its view
+      (`_get_content_steps`). The answer through a view becomes an edit of the
+      content after the passing (`_make_shown_edit`), and then the buffer
+      records it.
+    - The reader of `FileViewToWidget` used a helper of the printer of a file
+      (`_get_collected_intents`), which the module of the file formats no
+      longer has on `main`. A list of rows through a file view with views
+      then names a function that does not exist. No run showed it: the reader
+      changed before the first run after the rebase. The reader of its own
+      goes. The file view
+      now reads the key table of its file as a method of
+      `read_gesture(p, iomap, gesture; answer)`, by the rule of a level, as each
+      stage does on `main`: with no answer of what the pane shows, a rule of
+      the file answers, and with an answer, only a rule whose `override`
+      condition holds for it.
+
+    `Viewing.jl` and `UndoBufferToAny.jl` keep a 3-argument form of
+    `read_intent`. Step 6 of the plan of the readers removes that form in each
+    reader.
+
 ## After this plan
 
 The session makes a measurement before it writes the second plan. In a copy of
@@ -477,7 +565,9 @@ views" come from that list.
    in work on the branch `reader-split`, and it changes each reader. This plan
    changes the readers of `ViewingProjection` and of
    `UndoBufferToAnyProjection`, and it gives `FileViewToWidget` a reader. The
-   branch that lands second takes the form of the first.
+   branch that lands second takes the form of the first. **It happened:** step 5
+   of that plan landed first, and this branch took its form (found fact 14).
+   Step 6 of that plan changes the readers again.
 2. **A key with a route can stop before the printer of a part.** Step 4 tests
    that fact first. If the kernel must change for it, the work stops and the
    session asks.
