@@ -618,6 +618,18 @@ function test_explorer()
         end
     end
 
+    # A list that `OpenFileList()` makes holds no table, so its page has no
+    # arrangement to keep, and an answer of a part maps back as through any view.
+    @testset "the page of a list with no table maps an answer back as any view does" begin
+        list = OpenFileList()
+        projection = OpenFileListToWidget()
+        iomap = print_document(projection, nothing, list, PrinterContext())
+        for answer in (nothing, ReplaceSelectionOperation(EmptyReference()))
+            expected = invoke(map_operation_backward, Tuple{Projection, Any, Any}, projection, iomap, answer)
+            @test repr(map_operation_backward(projection, iomap, answer)) == repr(expected)
+        end
+    end
+
     @testset "the page of the open files is a table of the files, which a person filters and opens" begin
         root = mktempdir()
         content = ExplorerSection("Explorer", Any[])

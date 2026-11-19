@@ -106,7 +106,9 @@ end
 of its holder replaced by the edit that removes every entry of `arrangement`. A
 page that holds its table as an arrangement in a field calls it in its reader:
 the removal of the last entry then leaves the arrangement with no entry, so the
-next filter or sort of the table has an arrangement to go to.
+next filter or sort of the table has an arrangement to go to. A field that holds
+`nothing` keeps `operation` as it is: a page with no table has no arrangement to
+keep.
 
 # Example
 
@@ -135,6 +137,8 @@ function keep_held_arrangement(operation::ReplaceReferencedValueOperation, arran
 end
 
 keep_held_arrangement(operation, ::ArrangementDocument, ::FieldReferenceStep) = operation
+
+keep_held_arrangement(operation, ::Nothing, ::FieldReferenceStep) = operation
 
 read_intent(p::ArrangingProjection, iomap::ArrangingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
