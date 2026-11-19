@@ -60,7 +60,10 @@ not changed.
 
 **A change with a route.** The chain maps the route forward, stage by stage, as
 the printer maps a reference. An operation keeps to the stages that print the
-place as the same document, and the last of them reads it. A gesture goes on as
+place as the same document, and the last of them reads it. A stage that holds a
+document that names the place as what it shows (`get_edited_field`), as the view
+of a content does, counts too: a change for a part of a file goes on to the view
+of that part. A gesture goes on as
 far as the forward maps answer, also into a stage that shows the place as
 something else: a widget that a view makes for a part of its input, or for a
 place that the view names with an introduced reference. The deepest stage reads

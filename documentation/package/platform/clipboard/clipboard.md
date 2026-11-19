@@ -42,6 +42,8 @@ The clipboard is outside the history of a window and of each tab. So an edit of 
 
 `ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.
 
+**The clipboard takes and puts content.** A caret can be in the views of a place that shows its document through views. The clipboard reads its selection as the path of the same place through the content (`find_content_path`), so the selected document, the text of a field and the slot of an element are content, as with no view. An answer that selects a place goes back as the path through the views (`find_view_path`). "Copy reference" writes the code of the path through the content.
+
 The clipboard reads its own `selection` field only, never its content's. Every write of the live selection starts at the root, so by the time a key reaches the clipboard, its own suffix already names what was selected (`PAR-SELECTION-WRITTEN-AT-ROOT`; see [selection.md](../../kernel/selection.md#writing-from-outside-a-gesture)).
 
 ### Where a paste can go

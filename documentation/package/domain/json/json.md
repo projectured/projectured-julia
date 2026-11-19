@@ -89,9 +89,9 @@ No row of `JsonToSyntax` changes. The step gives the `SyntaxNodeView` of the nod
 | Insert | `JsonInsertionView` | make the place of JSON the place of every domain, with the same typed text |
 | Insert | `JsonNothingView` | make the place for a new value of the empty place |
 
-An entry of an object is not replaced, as with no view. A comma on the bracket that closes a node goes to the node around it. The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view. The editor shows a JSON file through such a chain.
+An entry of an object is not replaced, as with no view. A comma on the bracket that closes a node goes to the node around it. The key tables of the documents (`@gestures` of `JsonDocument.jl`) stay for the chains that have no view, such as the page of a part of a JSON file in a navigator.
 
-**A JSON file through views.** The general renderer prints a JSON view with no chain of its own, and a file view can hold the views of a JSON file: `make_file_view(file; views = true)` gives the view of the undo buffer of the file in `content`, which holds the view of the JSON document ([fileformat.md](../../platform/fileformat/fileformat.md)). The example `json_file_view` shows one JSON file in two such file views side by side, with a fold in one, a caret in each, and one undo history. A document in a JSON tree whose type has no view prints as content there, and it takes a caret and its keys below the step `viewed` of the view above it.
+**A JSON file through views.** The general renderer prints a JSON view with no chain of its own, and the editor shows each JSON file through its views: `JsonFile` answers `true` to `is_file_shown_through_views`, so the file view holds the view of the undo buffer of the file in `content`, which holds the view of the JSON document ([fileformat.md](../../platform/fileformat/fileformat.md)). A tab, a page of the explorer, a card of a dashboard and a page of a navigator each keep a caret of their own in one file. The example `json_file_view` shows one JSON file in two such file views side by side, with a fold in one, a caret in each, and one undo history. A document in a JSON tree whose type has no view prints as content there, and it takes a caret and its keys below the step `viewed` of the view above it.
 
 ### The text form
 
@@ -112,7 +112,7 @@ follows its scales, and the appearance tab shows a section for `JsonTheme`.
 
 ### The tooltip of a part
 
-A JSON file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)).
+A JSON file says what the pointer is on: the path of the part, as `users[1].name`, counted from 1 as the editor counts, its type, and its length, its value or its count ([tooltip.md](../../platform/tooltip/tooltip.md)). A file that a view shows keeps no pointer, so its view asks `make_file_part_note` for the same note, with the path of the pointer of the view.
 
 ## How it fits
 

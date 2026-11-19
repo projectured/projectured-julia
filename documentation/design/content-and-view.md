@@ -324,9 +324,23 @@ The code differs from this design in these places.
 - Each node of a JSON document has a view. A file view can hold the view of what
   its file holds (`make_file_view(file; views = true)`), with the view of the undo
   buffer of the file between the two. The general renderer prints these views.
-  The editor uses them in no tab: a tab shows a JSON file as content with no
-  view. Of all the view types, only `TextView` shows in the editor, for the text
-  of a widget.
+  The editor shows each JSON file through them: in a tab, on the page of the
+  explorer, on a card of a dashboard and on the page of a navigator. Each of
+  these places keeps a caret of its own, and the selection of the window is a
+  path of the views. The page of a part inside a JSON file shows the part as
+  content with no view. Of the other view types, only `TextView` shows in the
+  editor, for the text of a widget.
+- A place has a path through the views and a path through the content.
+  `get_content_path` and `get_view_path` change one into the other at a view, and
+  `find_content_path` and `find_view_path` do it for a path from a root. An
+  operation, the clipboard and an assistant name content. The path of a view has
+  the steps of its content, with no step `viewed`, so the two paths differ only
+  where a holder keeps the content and the view in two fields.
+- The page of the explorer, a card of a dashboard and a navigator keep the
+  content and its view in two fields, under three names: `document_view`,
+  `content_view` and `page_view`. A view that keeps a selection of its own takes
+  the selection through that field. Any other view copies the selection of its
+  content (`follow_content_selection!`).
 - A write through a view names its place below `viewed`, as in this design
   (`make_content_edit`). A caret does not: it has the path of the content, with
   no step `.viewed`. One caret has that step already: a caret in a document whose

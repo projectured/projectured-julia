@@ -52,6 +52,23 @@ The rule is applied in one place: `read_child_event` in `source/platform/layout/
 
 `:down`, `:left` and `:right` need a whole selection and return `nothing` for a caret, so a text reader can use the keys while a person edits. An object is a document that is not a collection and that can hold a selection, so a value such as a color is not one. `is_selection_walk_stop(document)` is `true` by default. A domain answers `false` for a document that only holds the objects that a person points at, and the walk goes through it. The form of the evaluator in the conversation package does this.
 
+**The walk stays in the views.** A document that shows its content through views, such as the view of a file, gives the view of its content as its child for the walk, and not the content. It gives no field that a walk of a document does not enter, such as the scroll pane of a file view. A view of one content does not give its content. So Alt+Down from the view of a file goes into what the view shows, and a walk down ends at a text in a view.
+
+### A place through the content and through the views
+
+A document that shows its content through views has the content at one field and the views at another, so one place has two paths below it. A caret and the pointer are in the views. An operation, a reader of the content and an assistant name a place in the content.
+
+| Function | What it answers |
+| --- | --- |
+| `get_content_path(view, path)` | a path of `view` as a path of the content that it shows, or `nothing` for a place that only the view has |
+| `get_view_path(view, path)` | a path of the content as a path of `view`, the reverse |
+| `find_content_path(root, path)` | a path from a root as the path of the same place through the content |
+| `find_view_path(root, path)` | a path from a root through the content as the path through the views |
+
+A document that names what it shows with `get_edited_field` takes the step of that field off, or puts it in front. A type that shows its content through views of its own adds methods: the view of a file, the row of a file in the explorer, a card of a dashboard and a navigator. `get_content_field(node)` says at which field a path from a root can change. A view of one content answers `nothing`: its paths have the steps of its content. `get_view_path` of such a view first writes a step that a document takes by a method of its own, such as the second element of a JSON array, through the fields that hold the child.
+
+`find_selected_part` and `find_part_under_pointer` answer content: they read the path of the window through `find_content_path`. `select_part!` writes the selection through `find_view_path`, so the caret shows in the view of the part.
+
 ### A widget that a projection drew
 
 A projection can draw a widget that no document of the domain stands behind, such as the table of a form. No field or index reaches such a widget. `OutputReferenceStep(owner, node, output_path)` is a step that holds the widget itself and its place in the output. It evaluates to `node`, but only from `owner`; from another document it throws. So a copy, a note and `is_whole_selection` reach the widget, and a paste never writes through it.
