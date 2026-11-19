@@ -115,6 +115,17 @@ function test_navigator_to_widget()
         frame!()
         @test _nav_has_text(backend, "xabc")
         @test occursin(r"\.page_view\.view\..*\.value\.value\{1\}$", selected())
+        # A visit to the part that holds the caret shows the page of the part. Back
+        # shows the file again, with the caret where it was, in the view of the page.
+        before = selected()
+        evaluate_operation(editor, make_navigator_open_operation(navigator, address))
+        frame!()
+        @test !(get_navigator_page(navigator) isa FileDocument)
+        @test !occursin("page_view", selected())
+        _nav_press!(editor, backend, _nav_click(backend, _NAV_BACK))
+        frame!()
+        @test get_navigator_page(navigator) === navigator.content
+        @test selected() == before
     end
 
     @testset "the grid holds the bar and the page" begin

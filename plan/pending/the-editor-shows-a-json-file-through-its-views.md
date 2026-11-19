@@ -270,23 +270,60 @@ tests of the steps before it.
   part and "Copy reference", pass with step 6. New assertions in
   `AssistantVerbsTest.jl`: a selection and a pointer that go through the views
   give the content part, with a reference through the file.
-- [ ] **5. A selection for a part of a content shows in the view.** Proposed
+- [x] **5. A selection for a part of a content shows in the view.** Proposed
   decision 6: `select_part!`, `open_page!` at a part of a file, a visit of the
   navigator, a search link of the explorer, and a row of the document tree.
   *Check:* new tests, one for each of the five: the caret or the selection frame
   is drawn at the part. The test of `select_part!` that compares the selection
   of the window with the reference of the part compares it with the reference
   through the views.
-- [ ] **6. The clipboard keys at a caret of a view.** Proposed decisions 5 and
+
+  Done on 2026-11-19, with two of the five new tests not written.
+  `select_part!` writes `find_view_path` of the reference of the part. Its test
+  asks for the path through the views, for the content of the view at that path,
+  for the part of the path that the file view keeps, and for a part that is named
+  with an index and a key. A visit of the navigator writes the selection through
+  the view of its page since step 2, and a new test visits a part of a JSON file
+  and goes Back: the caret is where it was, in the view of the page.
+  `open_page!` at a part has its test on `main`, which passes.
+  **Not written:** a test of a search link of the explorer and a test of a row of
+  the document tree, each with a JSON file. Each of the two opens the page of a
+  part inside the file. Such a page shows the part as content with no view in
+  this plan ("Not in this plan"), so the code of the two did not change, and the
+  tests of the explorer and of the tree on `main` pass (`test_explorer` 522 of
+  522). Plan 4c gives the page of a part its view, and it needs these two tests.
+- [x] **6. The clipboard keys at a caret of a view.** Proposed decisions 5 and
   6, at the one place where the clipboard reads the selection.
   *Check:* cause B passes, with the helper `_ce_file` on the new shape. A copy
   in one tab and a paste in a second tab of the same file is one new test.
-- [ ] **7. Alt with the arrow keys, and the reload.** Alt+Down from a file view
+
+  Done on 2026-11-19. The clipboard reads its selection through
+  `_find_content_selection`, which gives the path through the content, at each of
+  its nine reads but the one of the text mode. An answer that selects the same
+  place again goes back through `_find_shown_path`. An edit that the clipboard
+  places goes down by its route, which reaches the view since step 3, and its
+  selection comes back through the stages of the views. "Copy reference" writes
+  the code of the content path. `test_clipboard_edits` has 39 of 39, with the new
+  test of two tabs of one file: the second tab is a pane that opens on a new view
+  of the file, because a pane of a file view has no duplicate. The rest of cause
+  C passes: `test_application` has 420 passes and the one failure of `main`
+  (`ApplicationTest.jl:1050`).
+- [x] **7. Alt with the arrow keys, and the reload.** Alt+Down from a file view
   goes into what the view shows. After F5, after "Load it" and after Back to a
   page whose file changed, the page shows only the new text, and the caret is at
   a valid place.
   *Check:* cause F passes. New tests: Alt+Down and Alt+Up through a file view,
   and the caret after a reload of a file that got shorter.
+
+  Done on 2026-11-19. The walk is found fact 9, and cause F is found fact 10.
+  `_repair_selection!` writes the selection again after a load also when the
+  caret is in the views of the file, so the views of the new document take their
+  parts of the path. `test_file_view_walk` is new, with 16 of 16.
+  `test_file_watch_window` has two new cases, a file that gets shorter under the
+  caret and a key after "Load it", with 22 of 22. `test_explorer` has 522 of 522.
+  The tests of the walk on `main` pass: `test_selection_walking` 36,
+  `test_widget_text_editing` 97, `test_text_view` 36 and
+  `test_conversation_transcript` 194.
 - [ ] **8. The find and the filter of a JSON tab.** A test first: Ctrl+F and the
   filter menu on a JSON array in a tab, on `main` and on the branch. The branch
   must do what `main` does.
@@ -387,6 +424,20 @@ tests of the steps before it.
    view of one content first writes each such step through the fields that hold
    the child (`_make_field_path`, with `find_document_path` of the kernel). No
    test of `main` sends a change or a selection to a part that is named so.
+
+9. **The walk of Alt with the arrows listed each field of a document.** From the
+   view of a file it went first to the file, which the tab does not draw, and
+   from a view of one content it went to the content. The walk now asks the
+   functions of step 2: a document that shows its content through views gives the
+   view as its child, and not the content, and it gives no field that a walk of a
+   document does not enter, such as the scroll pane of a file view. A view of one
+   content does not give the field `viewed`. A walk down ends at a text in a
+   view, such as the key of an entry.
+10. **A file kept its document only for a place that the document keeps.** When
+    the page of a file closes, the file forgets its document unless the document
+    has an edit or keeps the place of the keys. With views, the view keeps that
+    place, so the document was forgotten and read again, and Back showed another
+    document. The rule reads the place of the view too. This was cause F.
 
 ## Risks
 
