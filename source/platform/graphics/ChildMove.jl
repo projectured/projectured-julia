@@ -9,7 +9,10 @@ The path of the part of the input of `iomap` at the point `(x, y)` of its output
 by the backward map of the point, as a move of the pointer names the part
 under the pointer, with the types that the map gives it. The empty path, the input
 itself, when the map names no part. A point step at the end of the mapped path,
-which a part that reads a point further keeps, is dropped.
+which a part that reads a point further keeps, is dropped. So is a point step at
+the end of the output path of a projection step at the end, the point in a part
+that a projection drew; a projection step that names only a point names the node
+that printed it, as a separator or an icon that draws no part of its own.
 """
 function compute_part_at_point(iomap, x::Integer, y::Integer)
     answer = map_reference_backward(get_iomap_projection(iomap), iomap,
@@ -19,14 +22,25 @@ function compute_part_at_point(iomap, x::Integer, y::Integer)
         annotate_reference_types(get_iomap_input(iomap), EmptyReference())
 end
 
-# `path` without the point steps at its end. Each node keeps its type, and the node
-# that a dropped point stood on becomes the typed end of the path.
+# `path` without the point steps at its end, also inside the output path of a
+# projection step at its end. Each node keeps its type, and the node that a
+# dropped point or a dropped projection step stood on becomes the typed end of
+# the path.
 function _drop_end_points(path::Reference)
     path isa ConcreteReference || return path
+    head = get_reference_head(path)
     tail = _drop_end_points(get_reference_tail(path))
-    get_reference_head(path) isa PointReferenceStep && tail isa EmptyReference &&
-        return EmptyReference(path.type)
-    tail === get_reference_tail(path) ? path : ConcreteReference(path.type, get_reference_head(path), tail)
+    if tail isa EmptyReference
+        head isa PointReferenceStep && return EmptyReference(path.type)
+        if head isa ProjectionReferenceStep
+            inner = _drop_end_points(head.output_path)
+            if inner !== head.output_path
+                inner isa EmptyReference && return EmptyReference(path.type)
+                return ConcreteReference(path.type, ProjectionReferenceStep(head.projection, inner), tail)
+            end
+        end
+    end
+    tail === get_reference_tail(path) ? path : ConcreteReference(path.type, head, tail)
 end
 
 """

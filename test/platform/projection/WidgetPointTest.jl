@@ -93,5 +93,16 @@ end
     @test _map(accordion, 10, 90) == _path(FieldReferenceStep("items"), _at(2))
 end
 
+# A move names the part under the pointer (`compute_part_at_point`). A separator
+# draws no part of its own, so a point on its rule names the separator as a whole,
+# and no point in its drawing.
+@testset "a move on the rule of a separator names the separator" begin
+    projection = _projection()
+    iomap = print_document(projection, WidgetSeparator(; length = 260))
+    rule = last([e for e in get_iomap_output(iomap).elements if e isa GraphicsRect])
+    part = compute_part_at_point(iomap, Int(rule.x) + 100, Int(rule.y))
+    @test strip_reference_types(part) == EmptyReference()
+end
+
 end # @testset
 end # test_widget_point
