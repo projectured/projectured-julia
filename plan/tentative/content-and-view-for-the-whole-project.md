@@ -940,13 +940,18 @@ Two rules make this order possible:
      - **A measurement.** In a copy of the repository, each file view of a
        JSON file is made with views, and the suites of the editor run there.
        The list of the failures gives the steps of 4b2. The copy lands
-       nowhere.
+       nowhere. Done on 2026-11-19: 48 new failure lines, 45 in the
+       integration suite and 3 in the platform suite, with seven causes. The
+       plan of 4b2 holds the table.
      - **4b2. The editor shows a JSON file through its views.** The JSON
        domain turns the views on for its files, and each feature that names a
        place by a path through the content takes the path through the views.
        A file view is the page of a file in the sense of decision 19 of section
        13.1: `make_document_view(file)` makes it, with the scroll pane, the band
        and, since 4b1, the view of what the file holds.
+       The plan is
+       `plan/pending/the-editor-shows-a-json-file-through-its-views.md`,
+       proposed on 2026-11-19 and not approved.
    - **4c. The JSON content keeps no selection.** The kernel hook, the step
      `.viewed`, the caret place in an operation, the key tables of the content,
      and the tests that put a caret into a JSON content. Then the review of the
