@@ -1551,18 +1551,24 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         `document.content{16}`, a path into a document that the file does not
         have. That line is a part of the page now, named by a step of the page
         (d241e6b24).
-      - The end of a drag in a cell of a table (examples/table 3 lines,
+      - ~~The end of a drag in a cell of a table~~ (examples/table 3 lines,
         examples/math_table 3). The press puts the caret, `.value{1}`, and the
-        end of the drag at the same point reaches the text in another frame, so
-        its caret is another one, `{2}`, and the release selects one character.
-        In a `String` that is a valid place and goes unseen; in the value of a
-        number, an `Int64`, it is no place, and the write throws. A probe of
-        the drawn text of a `MathVariable` in examples/math_table: the press
-        reaches it at (4, 8), the end of the drag at (45, 69). The math view
-        moves a routed drag point down its selected children itself
-        (`_read_selected_leaf`), and the table moves the point of a
-        positioned event into its cell (`_wt_route_to_cell_under`). Which
-        container on the route forgets the frame is open.
+        end of the drag at the same point reached the text in another frame, so
+        its caret was another one, `{2}`, and the release selected one
+        character. In a `String` that is a valid place and goes unseen; in the
+        value of a number, an `Int64`, it is no place, and the write threw. A
+        probe of the drawn text of a `MathVariable` in examples/math_table: the
+        press reached it at (4, 8), the end of the drag at (45, 69). A part of
+        a drag is no positioned event for the table, so the table gave it to
+        the cell of the selection (`_wt_route_to_selected_cell`) with no move
+        into the frame of the cell. It goes by its route to the cell or the
+        header that started it now, in the frame of that part, as the list form
+        of the table does (`_wt_read_routed_drag`, ed702d5be). The table tests
+        pass; examples/table 3 → 0, examples/math_table 23 → 20; task/group
+        50 and examples/pivot 39 equal run 8.
+
+    So each throw of a click in run 8 is fixed, but those of the limits of
+    the catalog and the walk.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
