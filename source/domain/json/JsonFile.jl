@@ -40,9 +40,14 @@ is_file_shown_through_views(::JsonFile) = true
 
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its
-# value or its count. With no pointer on the file, it says the selected part.
-function _make_json_part_note(file::JsonFile)
-    found = find_pointed_part(file)
+# value or its count. With no pointer on the file, it says the part at `path`: the
+# selected part, or the part that the reader of the row names.
+make_file_part_note(file::JsonFile, path) = _make_json_part_note(file, path)
+
+function _make_json_part_note(file::JsonFile, path = get_selection(file))
+    # The pointer of the file first. A file that a view shows keeps no pointer, and
+    # `path` is then the path of the pointer that the view gave.
+    found = find_pointed_part(file, something(get_mouse_target(file), Some(path)))
     found === nothing && return nothing
     part = found.part
     part isa JsonDocument || return nothing

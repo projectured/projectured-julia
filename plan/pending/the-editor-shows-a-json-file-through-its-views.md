@@ -254,10 +254,22 @@ tests of the steps before it.
   of 134: the 15 lines of cause A pass, and the 3 that fail are lines of cause G
   (`:431`, `:436`, `:454`), which step 9 changes. The test of a value at two
   places passes.
-- [ ] **4. The selected part and the part under the pointer are content.**
+- [x] **4. The selected part and the part under the pointer are content.**
   Proposed decisions 5 and 7.
   *Check:* causes C and E pass. A new test: `find_part_under_pointer` over a
   JSON string in a tab answers the `JsonString`.
+
+  Done on 2026-11-19. `find_selected_part` and `find_part_under_pointer` read the
+  path of the window through `find_content_path`. The tooltip of a file with
+  views is found fact 7, and an index of a document in a path is found fact 8.
+  Cause E passes: `test_pointed_part` has 3 of 3. Of cause C, the lines that
+  evaluate the selection pass (Alt+Up to the `JsonString` and to the `JsonFile`,
+  the file after F5, the string after a click from the explorer): the tests
+  evaluate `find_content_path` of the selection now, because the selection is a
+  path of the views. The lines of cause C that need the clipboard, the note of a
+  part and "Copy reference", pass with step 6. New assertions in
+  `AssistantVerbsTest.jl`: a selection and a pointer that go through the views
+  give the content part, with a reference through the file.
 - [ ] **5. A selection for a part of a content shows in the view.** Proposed
   decision 6: `select_part!`, `open_page!` at a part of a file, a visit of the
   navigator, a search link of the explorer, and a row of the document tree.
@@ -359,6 +371,22 @@ tests of the steps before it.
    nothing, a card has no view, and it shows a JSON file as content with no view.
    That works while the JSON content keeps a caret. Plan 4c must give such a card
    its view.
+7. **A row of a key table gets the answer of the child, not a path.** The
+   function of a row is called with the document, the gesture and the answer of
+   the child. Only the condition of a row gets the selection. So the row of the
+   tooltip of a file can not get the pointer of the file view. The file view
+   answers a dwell itself: with no other answer, it asks
+   `make_file_part_note(file, path)` for the note of the part under its own
+   pointer. The function is new, its default answers `nothing`, and the JSON
+   package gives the method. The row of the file stays for a file that no view
+   shows.
+8. **A path of the assistant can use an index of a document.** `people[2]` is
+   the step `[2]` on the `JsonArray` itself, and `object["name"]` is a step with
+   the name of a key on the `JsonObject`. A view holds the views of its children
+   in the fields of its content, so it takes neither step. `get_view_path` of a
+   view of one content first writes each such step through the fields that hold
+   the child (`_make_field_path`, with `find_document_path` of the kernel). No
+   test of `main` sends a change or a selection to a part that is named so.
 
 ## Risks
 

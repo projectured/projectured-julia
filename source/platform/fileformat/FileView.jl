@@ -56,6 +56,25 @@ function is_file_shown_through_views end
 is_file_shown_through_views(file) = false
 
 """
+    make_file_part_note(file, path) -> TooltipNote or nothing
+
+The note of `file` about its part at `path`, a path from `file`: what the tooltip
+of a view of the file says about the part under the pointer. The default answers
+`nothing`. The package of a file format whose files show through views adds a
+method, because such a file keeps no pointer of its own, and its view gives the
+path.
+
+Use it for a file format that says what the pointer is on.
+
+# Example
+
+    make_file_part_note(file::JsonFile, path) = make_json_part_note(file, path)
+"""
+function make_file_part_note end
+
+make_file_part_note(file, path) = nothing
+
+"""
     make_file_view(file; views = is_file_shown_through_views(file)) -> FileView
 
 The view of `file` for a new place, with its own scroll pane that grows on its

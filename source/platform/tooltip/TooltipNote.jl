@@ -71,10 +71,16 @@ to the part, and the steps between them, so `documents[k + 1]` is `steps[k]` fro
 `documents[k]`. `nothing` when `container` has neither path, or the path names no
 document below it.
 
+`find_pointed_part(container, path)` answers the same for `path`, a path from
+`container` that the caller gives. A document that a view shows keeps neither path,
+and the view gives the path of the pointer in it.
+
 Use it in a tooltip binding of a container that says what the pointer is on.
 """
-function find_pointed_part(container)
-    path = something(get_mouse_target(container), Some(get_selection(container)))
+find_pointed_part(container) =
+    find_pointed_part(container, something(get_mouse_target(container), Some(get_selection(container))))
+
+function find_pointed_part(container, path)
     path isa ConcreteReference || return nothing
     documents = Any[container]
     steps = ReferenceStep[]

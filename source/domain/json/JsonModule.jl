@@ -36,7 +36,7 @@ import ..SerializationModule: make_reference_leaf, find_reference_marker, make_d
                               parse_document_string
 import ..NaturalModule: make_syntax_projection, find_natural_file_format
 import ..DisplayModule: make_workload_file
-import ..FileFormatModule: is_file_shown_through_views
+import ..FileFormatModule: is_file_shown_through_views, make_file_part_note
 
 export parse_json, parse_json_file
 export JsonTheme, ScaledJsonTheme

@@ -187,11 +187,28 @@ end
 # with an answer, only a rule whose `override` condition holds for it. A list of rows
 # takes the rows of the file too. With the file in the pane, the printer of the file
 # reads them, and this method adds nothing.
+# The path, from the file of `view`, of the part under the pointer, or of the caret
+# when the pointer is not on the view: the path that the file keeps when it shows
+# with no view. The file keeps neither with views, so the view gives it to the note
+# of the file.
+function _find_pointed_file_path(view::FileView)
+    path = something(get_mouse_target(view), Some(get_selection(view)))
+    path isa ConcreteReference || return nothing
+    get_content_path(view, path)
+end
+
 function read_gesture(p::FileViewToWidget, iomap::SimpleIoMap, gesture; answer = nothing)
     own = invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
     view = iomap.input
     view.content === nothing && return own
     table = read_gesture(view.file, gesture; answer)
+    # The row of the tooltip of the file reads the pointer of the file, which a file
+    # with views does not keep. So the view answers a dwell with the note of the file
+    # for the part under its own pointer.
+    if table === nothing && answer === nothing && matches_gesture_pattern(MouseDwellPattern(), gesture)
+        note = make_file_part_note(view.file, _find_pointed_file_path(view))
+        note === nothing || (table = make_tooltip_operation(view.file, note, gesture))
+    end
     gesture isa CollectIntents || return own === nothing ? table : own
     merge_collected_intents(own isa CollectedIntentsOperation ? own : nothing,
                             table isa CollectedIntentsOperation ? table : nothing)

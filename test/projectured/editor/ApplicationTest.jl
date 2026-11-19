@@ -1392,7 +1392,9 @@ function test_application()
                 # Alt+double click on the JSON of the file tab selects the text under the
                 # pointer, Alt+Up widens it to the JSON string and walks out to the file,
                 # and Ctrl+N notes it: the clipboard holds the file itself.
-                selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
+                # The selection is a path of the views of the tab, and the part that it
+                # names is the content that the view shows.
+                selected() = try_evaluate_reference(scene, find_content_path(scene, getfield(scene, :selection)[]), missing)
                 (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
                 press!(MouseClick(:left, ax + 5, ay + 5, 2, ModifierKeys(alt = true); time = 0.0))
                 press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
@@ -1452,7 +1454,7 @@ function test_application()
                         operation
                     end
                     drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
-                    selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
+                    selected() = try_evaluate_reference(scene, find_content_path(scene, getfield(scene, :selection)[]), missing)
                     copy_reference!() = _app_plain(press!(KeyDown(:c, ModifierKeys(ctrl = true, shift = true); time = 0.0)))
                     (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
                     # Alt+double click selects the text under the pointer, Alt+Up widens it to
@@ -2104,7 +2106,7 @@ function test_application()
                 @test reload isa CompoundOperation
                 @test any(operation -> operation isa ReloadFileOperation, reload.operations)
                 @test holds_one_path(w)
-                @test evaluate_reference(w.scene, get_selection(w.scene)) isa JsonFile
+                @test evaluate_reference(w.scene, find_content_path(w.scene, get_selection(w.scene))) isa JsonFile
                 @test _app_plain(_app_fire(w.composed, w.editor.iomap,
                                            KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))) isa SaveFileOperation
             end
@@ -2179,7 +2181,7 @@ function test_application()
             @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
                   ReplaceSelectionOperation
             press!(KeyDown(:up, ModifierKeys(alt = true); time = 0.0))
-            @test evaluate_reference(scene, get_selection(scene)) isa JsonString
+            @test evaluate_reference(scene, find_content_path(scene, get_selection(scene))) isa JsonString
         end
 
         @testset "a drag of the divider between the groups keeps the divider of the Explorer where a drag put it" begin

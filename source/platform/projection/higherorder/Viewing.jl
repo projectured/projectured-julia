@@ -472,8 +472,39 @@ and the path of the content has no such step.
 get_content_path(view::ContentView, path) =
     annotate_reference_types(getproperty(view, :viewed), strip_reference_types(_make_plain_path(view, path)))
 
-# A path of the content of `view` as a path of the tree of views.
-get_view_path(view::ContentView, path) = _make_view_path(view, path)
+# A path of the content of `view` as a path of the tree of views. A view names its
+# children by the fields of its content, so a step that the content takes by a method
+# of its own goes first to the fields that hold the child (`_make_field_path`).
+get_view_path(view::ContentView, path) = _make_view_path(view, _make_field_path(getproperty(view, :viewed), path))
+
+# `path`, a path from `content`, with each step that names a child by a method of a
+# document, such as the second element of a JSON array or a key of a JSON object, as
+# the steps through the fields that hold that child. A step that names a field, and a
+# step into a collection of elements or into a plain value, stays as it is. The child
+# is found by its identity, the nearest place first (`find_document_path`).
+function _make_field_path(content, path)
+    path isa ConcreteReference || return path
+    steps = get_reference_steps(strip_reference_types(path))
+    made = ReferenceStep[]
+    node = content
+    for (index, step) in enumerate(steps)
+        child = try_evaluate_reference(node, Reference(step), _NO_CHILD)
+        child === _NO_CHILD && return Reference(made..., steps[index:end]...)
+        found = (_is_field_step(node, step) || !(child isa Document)) ? nothing : find_document_path(node, child)
+        found isa ConcreteReference ? append!(made, get_reference_steps(strip_reference_types(found))) : push!(made, step)
+        node = child
+    end
+    Reference(made...)
+end
+
+struct _NoChild end
+const _NO_CHILD = _NoChild()
+
+# Whether `step` names a child of `node` by where `node` holds it: a field of a
+# document, an element of a collection of elements, or a place in a plain value.
+_is_field_step(node, step) = true
+_is_field_step(node::Document, step) =
+    step isa AFieldReferenceStep ? hasfield(typeof(node), Symbol(step.name)) : is_element_collection(node)
 
 # A path through a view of one content has the steps of the content, because the view
 # sends a field step that it does not have to its content. So a path from a root does

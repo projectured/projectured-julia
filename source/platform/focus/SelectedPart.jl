@@ -21,6 +21,9 @@ end
 
 The part that the person selected: the document that the selection of the
 window names as a whole after an Alt+double click, or the document that holds the caret.
+The part is content: where a place shows a document through views, the answer is
+the document that the view of the caret shows, with its reference through the
+content ([`find_content_path`](@ref)).
 The answer acts like the document and carries its complete reference from the
 root, so a verb that takes a part takes it. `nothing` when nothing below the root
 of the window is selected.
@@ -45,7 +48,8 @@ function find_selected_part(; editor = get_evaluation_editor())
         root = getfield(editor, :document)
         selection = get_selection(root)
         selection isa Reference || return nothing
-        _find_deepest_part(root, selection)
+        # The caret is in the views, and the part is the content that they show.
+        _find_deepest_part(root, find_content_path(root, selection))
     end
 end
 
@@ -75,7 +79,7 @@ function find_part_under_pointer(; editor = get_evaluation_editor())
         root = getfield(editor, :document)
         target = get_mouse_target(root)
         target isa Reference || return nothing
-        _find_deepest_part(root, target)
+        _find_deepest_part(root, find_content_path(root, target))
     end
 end
 

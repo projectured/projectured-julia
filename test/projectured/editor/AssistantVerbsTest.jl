@@ -55,6 +55,18 @@ function test_assistant_verbs()
         tab = find_focused_pane(; editor)
         @test get_pane_tab_title_string(get_document(tab)) == "people.json"
         @test occursin("Ada", _run_assistant_code(editor, "print_natural_text(find_selected_part())"))
+        # The caret of a person is in the views of the tab. The part is the content
+        # that the view of the caret shows, with its reference through the content.
+        through_views = find_view_path(editor.document, get_reference(ada_name))
+        @test through_views != strip_reference_types(get_reference(ada_name))
+        @test evaluate_reference(editor.document, through_views) isa ContentView
+        evaluate_operation(editor, ReplaceSelectionOperation(annotate_reference_types(editor.document, through_views)))
+        run_frame!(editor)
+        part = find_selected_part(; editor)
+        @test get_document(part) === get_document(ada_name)
+        # Its reference goes through the file, and it names the same document.
+        @test FieldReferenceStep("file") in get_reference_steps(strip_reference_types(get_reference(part)))
+        @test evaluate_reference(editor.document, get_reference(part)) === get_document(ada_name)
     end
 
     @testset "read: the part under the pointer" begin
@@ -63,6 +75,14 @@ function test_assistant_verbs()
         part = find_part_under_pointer(; editor)
         @test part isa ReferencedDocument
         @test get_document(part) === get_document(cleo_age)
+        # The pointer of a person is on a view of the tab, and the part is its content.
+        through_views = find_view_path(editor.document, get_reference(cleo_age))
+        @test evaluate_reference(editor.document, through_views) isa ContentView
+        evaluate_operation(editor, ReplaceMouseTargetOperation(annotate_reference_types(editor.document, through_views)))
+        part = find_part_under_pointer(; editor)
+        @test get_document(part) === get_document(cleo_age)
+        @test FieldReferenceStep("file") in get_reference_steps(strip_reference_types(get_reference(part)))
+        @test evaluate_reference(editor.document, get_reference(part)) === get_document(cleo_age)
     end
 
     @testset "read: what changed last" begin
