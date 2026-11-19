@@ -1524,17 +1524,45 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       `OpenFileList()` holds no table, as its docstring says, and
       `keep_held_arrangement` had no method for `nothing`. A field that holds
       `nothing` keeps the operation as it is (703da5536).
-    - The point in a canvas page (graphics/canvas 2 lines,
+    - ~~The point in a canvas page~~ (graphics/canvas 2 lines,
       examples/rotating_vector 1). A canvas passes a point through: its backward
       map answers the bare `PointReferenceStep`. `_map_point_to_child` of the
       tabbed pane and `_point_backward` of the layouts put the steps of the
       child before that answer, and `annotate_reference_types` has no method
       for a step as the tail of a path. They make such an answer a path of one
-      step now. Both forms of the point exist as input: the math view takes only
-      the bare step, and `compute_part_at_point` passes a path of one step.
+      step now (f4912e33b). Both forms of the point exist as input: the math
+      view takes only the bare step, and `compute_part_at_point` passes a path
+      of one step. Left in the two examples: the Alt+double click on a rectangle
+      selects the canvas, not the rectangle.
     - The selection that a press writes does not match the document
-      (`SelectionMismatchException`, 9 lines in layout/anchored, filesystem/file,
-      examples/table and examples/math_table). Open.
+      (`SelectionMismatchException`, 9 lines), three causes:
+      - ~~The anchored layout~~ (layout/anchored, 2 lines). Its build prints the
+        content at `content` and the child of an entry at `children[i].child`,
+        but its reader rooted entry `k` at `children[k]`, and its backward map
+        had no `child` step. Its forward and backward maps, its reader and its
+        ring take the steps of the build now, as the scroll layout does
+        (918f5420b). `AnchoredLayoutTest` expected the note at `children[1]`
+        with no `child` step, a path that matches no document; it expects the
+        step now, and writes both paths as a selection. layout/anchored has no
+        failure. Left: its Tab key still counts the children as
+        `children[i]` (`_read_layout_key`).
+      - ~~The page of a file with no document~~ (filesystem/file, 1 line). The
+        page draws a line "… · not read yet", and a click on it gave
+        `document.content{16}`, a path into a document that the file does not
+        have. That line is a part of the page now, named by a step of the page
+        (d241e6b24).
+      - The end of a drag in a cell of a table (examples/table 3 lines,
+        examples/math_table 3). The press puts the caret, `.value{1}`, and the
+        end of the drag at the same point reaches the text in another frame, so
+        its caret is another one, `{2}`, and the release selects one character.
+        In a `String` that is a valid place and goes unseen; in the value of a
+        number, an `Int64`, it is no place, and the write throws. A probe of
+        the drawn text of a `MathVariable` in examples/math_table: the press
+        reaches it at (4, 8), the end of the drag at (45, 69). The math view
+        moves a routed drag point down its selected children itself
+        (`_read_selected_leaf`), and the table moves the point of a
+        positioned event into its cell (`_wt_route_to_cell_under`). Which
+        container on the route forgets the frame is open.
     - Not in the clicks: examples/json_sorted does not build. The copy of a
       `JsonObject` gives its field `entries` a `CellVector{Any}`, and the field
       is declared `CellVector{Document}`. Five generic views build their output
@@ -1553,7 +1581,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     Alt+double click names the leaf. `compute_part_at_point` drops a point at
     the end of the path, and now also a point at the end of the output path of
     a projection step at the end; a step that names only a point names the node
-    that printed it. The probe: widget/separator, widget/swatch, widget/icon,
+    that printed it (92c35e6bb). The probe: widget/separator, widget/swatch, widget/icon,
     examples/widget_separator and examples/widget_progress_bar have no failure.
     Run 6 did not press the separator (0 and 2 points), so its line in run 8 is
     a new point, not a case that broke. Left: 8 lines where the move names
