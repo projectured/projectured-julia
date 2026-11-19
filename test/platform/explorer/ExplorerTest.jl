@@ -1587,6 +1587,61 @@ function test_explorer()
         @test [shown(page) for page in pages] == [3, 3]
     end
 
+    @testset "a card that fills a page in the scroll pane of a file view is as wide as the page" begin
+        # The scroll pane of a file view gives its content the width of the view as an edge,
+        # and a height that grows. The card that fills the page lies where it lies in a page
+        # of an exact width: its title at the left, its button at the right of the window.
+        card(title) = DashboardCard(title, PrimitiveString("text of " * title))
+        restore_glyph = string(Char(0xe11a))
+        function maximized_places(make_document)
+            dashboard = Dashboard("Fill", Any[card("First"), card("Second"), card("Third")])
+            evaluate_operation(nothing, ExplorerModule._make_maximize_operation(dashboard, dashboard.cards[2]))
+            editor, backend = _explorer_window_editor(make_document(dashboard))
+            try
+                texts = _nav_texts(backend)
+                (only(entry[2] for entry in texts if entry[1] == "Second"),
+                 only(entry[2] for entry in texts if entry[1] == restore_glyph))
+            finally
+                foreach(step -> step(editor), editor.stop_steps)
+            end
+        end
+        exact = maximized_places(identity)
+        in_file_view = maximized_places(dashboard -> WidgetScrollPane(dashboard; grows = (width = false, height = true)))
+        @test exact[2] > 1100 - 100
+        @test in_file_view == exact
+    end
+
+    @testset "a card pressed in the tree shows on the page as in its dashboard, its title above its content" begin
+        walk = DashboardCard("The walk", PrimitiveString("text of the walk"))
+        dashboard = Dashboard("Board", Any[walk, DashboardCard("Steps", PrimitiveString("text of the steps"))])
+        explorer = Explorer(ExplorerSection("Explorer", Any[dashboard]))
+        editor, backend = _explorer_window_editor(explorer)
+        try
+            chevron = _explorer_open_chevron(backend, "Board")
+            @test chevron !== nothing
+            _explorer_window_press!(editor, backend, chevron)
+            click = _explorer_click(backend, "The walk")
+            @test click !== nothing
+            _explorer_window_press!(editor, backend, click)
+            for _ in 1:3
+                drain_operations!(editor)
+                run_frame!(editor)
+            end
+            @test get_navigator_page(explorer.navigator) === walk
+            # The page is right of the button Back and below the bar, which names the card too.
+            (_, back_x, back_y) = only(entry for entry in _nav_texts(backend) if entry[1] == _NAV_BACK)
+            page = [entry for entry in _nav_texts(backend) if entry[2] >= back_x && entry[3] > back_y + 10]
+            titles = [entry for entry in page if entry[1] == "The walk"]
+            texts = [entry for entry in page if entry[1] == "text of the walk"]
+            @test length(titles) == 1 && length(texts) == 1
+            @test texts[1][3] > titles[1][3]
+            # No field of the card shows, as the tree of the fields of a document draws them.
+            @test !any(entry -> entry[1] in ("DashboardCard", "title", "content", "PrimitiveString"), page)
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
+        end
+    end
+
     @testset "a document pasted on the row of a dashboard, or at the caret on its page, is a new card" begin
         dashboard = Dashboard("Study")
         content = ExplorerSection("Explorer", Any[dashboard])

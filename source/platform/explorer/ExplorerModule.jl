@@ -68,7 +68,7 @@ export ExplorerSectionToWidget
 export ExplorerSearch, StartExplorerSearchOperation
 export ExplorerSearchToWidget
 export DashboardCard, Dashboard
-export DashboardToWidget
+export DashboardToWidget, DashboardCardToWidget
 export get_explorer_content_file, save_explorer_content!, load_explorer_content
 
 include("ExplorerFilter.jl")
@@ -79,6 +79,7 @@ include("ExplorerSearch.jl")
 include("ExplorerSearchToWidget.jl")
 include("Dashboard.jl")
 include("DashboardToWidget.jl")
+include("DashboardCardToWidget.jl")
 include("ExplorerRowMenu.jl")
 include("ExplorerEntryEdits.jl")
 include("ExplorerContentFile.jl")

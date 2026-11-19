@@ -11,7 +11,8 @@ too. `content_view` is the view document of the content
 ([`make_document_view`](@ref)), in a slot that a walk does not enter, or `nothing`
 for a content that shows as itself. The card shows and holds the view, so the
 card keeps its own place in a content that another place shows too. The dashboard
-makes it when it is held, and a save writes none of it.
+makes it when it is held, and so does a page that shows the card by itself
+([`DashboardCardToWidget`](@ref)); a save writes none of it.
 
 `columns` is how many columns of the grid the card spans: `1`, `2`, … or `:all`
 for the whole row. A card that asks for more columns than the page has takes the
@@ -221,6 +222,19 @@ end
 
 release_document!(editor, dashboard::Dashboard) =
     release_held_documents!(editor, dashboard, _collect_held_cards(dashboard))
+
+# A card by itself, as the page of an explorer shows it, holds what it draws, as its
+# dashboard does: the view of its content, which it makes when it has none. A view
+# that its dashboard made already, and holds, it holds too, so the card keeps one view.
+function acquire_document!(editor, card::DashboardCard)
+    if _get_card_view(card) === card.content
+        slot = _make_card_view_slot(card.content)
+        slot === nothing || set_cell_value!(getfield(card, :content_view), slot)
+    end
+    hold_documents!(editor, card, Any[_get_card_view(card)])
+end
+
+release_document!(editor, card::DashboardCard) = release_held_documents!(editor, card, Any[_get_card_view(card)])
 
 # The views that `dashboard` holds: that of each card.
 _collect_held_cards(dashboard::Dashboard) =

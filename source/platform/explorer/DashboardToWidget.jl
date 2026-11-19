@@ -160,7 +160,7 @@ function _make_card_widget(p::DashboardToWidget, dashboard::Dashboard, card::Das
                           maximized::Bool)
     pane = WidgetScrollPane(_get_card_view(card))
     place = LayoutConstraint(pane; width = Fill)
-    _set_card_body_height!(p, place, maximized ? :page : card.height, visible)
+    _set_card_body_height!(p.card_chrome, place, maximized ? :page : card.height, visible)
     body = VerticalLayout(Any[place]; child_width = Fill)
     widget = WidgetCard(; content = body,
                         gestures = GestureBinding[make_context_menu_binding(_ -> compute_context_menu(card);
@@ -217,10 +217,11 @@ _get_shown_index(dashboard::Dashboard, k::Int) =
 _get_card_index(dashboard::Dashboard, j::Int) =
     !_is_maximized_shown(dashboard) ? j : findfirst(card -> card === dashboard.maximized, dashboard.cards)
 
-# The height of the body of a card in the constraint `place`. With no visible
+# The height of the body of a card in the constraint `place`, less `card_chrome`, the
+# height that the card draws around its body. With no visible
 # height of the page, a card of `:content` and of `:page` is as high as its content.
-function _set_card_body_height!(p::DashboardToWidget, place::LayoutConstraint, height, visible)
-    page() = max(0, Int(visible[]) - p.card_chrome)
+function _set_card_body_height!(card_chrome::Int, place::LayoutConstraint, height, visible)
+    page() = max(0, Int(visible[]) - card_chrome)
     if height === :content
         visible === nothing || set_cell_computation!(getfield(place, :max_height), page)
     elseif height === :page
@@ -229,7 +230,7 @@ function _set_card_body_height!(p::DashboardToWidget, place::LayoutConstraint, h
             set_cell_computation!(getfield(place, field), page)
         end
     else
-        body = max(0, Int(height) - p.card_chrome)
+        body = max(0, Int(height) - card_chrome)
         for field in (:min_height, :preferred_height, :max_height)
             set_cell_value!(getfield(place, field), body)
         end
@@ -280,11 +281,15 @@ end
 # draws: the card draws the view of its content in the pane of its body, so they go
 # through the pane and the field of the view that holds the content, except a part
 # that the view introduced, which keeps its path after the content.
-function _make_card_view_steps(card::DashboardCard, rest)
+_make_card_view_steps(card::DashboardCard, rest) = (_CARD_BODY_STEPS[2:end]..., _make_view_content_steps(card, rest)...)
+
+# The steps from what `card` draws, its content or the view of its content, to the
+# part that `rest` names below the content: the field of the view that holds the
+# content, then `rest`, except a part that the view introduced.
+function _make_view_content_steps(card::DashboardCard, rest)
     view = _get_card_view(card)
-    (view === card.content || isempty(rest) || first(rest) isa ProjectionReferenceStep) &&
-        return (_CARD_BODY_STEPS[2:end]..., rest...)
-    (_CARD_BODY_STEPS[2:end]..., FieldReferenceStep(String(get_edited_field(view))), rest...)
+    (view === card.content || isempty(rest) || first(rest) isa ProjectionReferenceStep) && return Tuple(rest)
+    (FieldReferenceStep(String(get_edited_field(view))), rest...)
 end
 
 # The steps below the content of `card` that `rest`, steps below what its card
@@ -294,7 +299,13 @@ function _find_card_content_steps(card::DashboardCard, rest)
     rest = Tuple(rest)
     length(rest) < length(body) && return rest == body[1:length(rest)] ? () : nothing
     rest[1:length(body)] == body || return nothing
-    rest = rest[(length(body) + 1):end]
+    _find_view_content_steps(card, rest[(length(body) + 1):end])
+end
+
+# The steps below the content of `card` that `rest`, steps below what the card draws,
+# name: past the field of the view that holds the content; `nothing` for a part that
+# only the view keeps.
+function _find_view_content_steps(card::DashboardCard, rest)
     view = _get_card_view(card)
     (view === card.content || isempty(rest) || first(rest) isa ProjectionReferenceStep) && return rest
     first(rest) == FieldReferenceStep(String(get_edited_field(view))) ? rest[2:end] : nothing
