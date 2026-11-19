@@ -464,9 +464,14 @@ end
 
 # The value that `operation` writes into the scroll bar, or `nothing`.
 function _find_scroll_bar_value(bar, operation)
-    operation isa CompoundOperation &&
-        return something((_find_scroll_bar_value(bar, member) for member in operation.operations)..., nothing)
-    write = operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
+    if operation isa CompoundOperation
+        for member in operation.operations
+            value = _find_scroll_bar_value(bar, member)
+            value === nothing || return value
+        end
+        return nothing
+    end
+    write =operation isa ReplaceViewStateOperation ? get_wrapped_operation(operation) : operation
     (write isa ReplaceReferencedValueOperation && write.document === bar && write.reference isa ConcreteReference &&
      get_reference_head(write.reference) == FieldReferenceStep("value")) || return nothing
     write.value

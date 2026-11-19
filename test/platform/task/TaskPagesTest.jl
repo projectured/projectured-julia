@@ -211,6 +211,19 @@ function test_task_pages()
             @test !any(t -> t[3] == "line 1" || t[3] == "TaskStreamLines", texts)
         end
 
+        # A compound answer of a part, such as the caret and the show of a click on
+        # a line, writes no value into the scroll bar, so it maps as through any view.
+        @testset "a compound answer that moves no scroll bar maps as through any view" begin
+            lines = only(getfield(document, :executions)[]).stdout_page.lines
+            projection = TaskStreamLinesToWidget()
+            context = with_exact_size(PrinterContext(); width = Cell(Int32(1200)), height = Cell(Int32(600)))
+            iomap = print_document(projection, nothing, lines, context)
+            answer = CompoundOperation(Any[ReplaceSelectionOperation(EmptyReference()),
+                                           ReplaceSelectionOperation(EmptyReference())])
+            expected = invoke(map_operation_backward, Tuple{Projection, Any, Any}, projection, iomap, answer)
+            @test repr(map_operation_backward(projection, iomap, answer)) == repr(expected)
+        end
+
         @testset "find, the first error and the wheel move the line at the top" begin
             lines = only(getfield(document, :executions)[]).stdout_page.lines
             holder = _NavHolder(lines)
