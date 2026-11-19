@@ -247,7 +247,7 @@ function test_clipboard_edits()
             @test read_os_clipboard() == "\"Alice\""
             kept = string(strip_reference_types(get_stored_selection(first_view)))
             # A second tab of the file has a view of its own, and so a caret of its own.
-            second_tab = duplicate_pane!(first_tab; editor)
+            second_tab = open_pane!(make_file_view(first_view.file); group = get_pane_file_group(; editor), editor)
             show_pane!(second_tab; editor)
             run_frame!(editor)
             drain_operations!(editor)
