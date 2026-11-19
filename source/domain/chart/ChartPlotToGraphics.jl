@@ -38,16 +38,17 @@ function _get_text_size(measure::TextMeasure, text::AbstractString, font::StyleF
     (line.width, line.height)
 end
 
-# Hovering one series fades the others, so the one under the pointer reads
-# clearly without anything being hidden.
-_veiled(color::StyleColor, on::Bool, veil::Real) =
-    on ? StyleColor(color.red, color.green, color.blue, color.alpha * veil) : color
+# `color` with its opacity times `alpha` when `on`. The pointer on one series
+# fades the others, so the one under the pointer reads clearly, and the legend
+# fades the entry of a hidden series.
+_faded(color::StyleColor, on::Bool, alpha::Real) =
+    on ? StyleColor(color.red, color.green, color.blue, color.alpha * alpha) : color
 
 # The colour a series draws in: its own or the cycle's, faded when the pointer is
 # on some *other* series.
 function _draw_color(g, index::Int, own)
     color = get_series_color(own, index, _get_color_cycle(g.style, g.theme_values))
-    _veiled(color, g.lit_index != 0 && g.lit_index != index, g.theme_values.veil_alpha)
+    _faded(color, g.lit_index != 0 && g.lit_index != index, g.theme_values.veil_alpha)
 end
 
 """
@@ -97,19 +98,21 @@ end
 
 # ── Data ranges ──────────────────────────────────────────────────────────
 
-# The visible series of a chart, paired with their position in the series list
-# (the position, not the filtered index, is what drives the color cycle — hiding
-# a series must not recolor the ones after it).
-function _visible_series(chart::Chart)
+# The series of a chart, each paired with its position in the series list. The
+# position, not the filtered index, drives the color cycle, so hiding a series
+# does not recolor the ones after it. The legend lists all of them.
+function _chart_series(chart::Chart)
     out = Tuple{Int,Any}[]
     for i in 1:length(chart.series)
         s = chart.series[i]
         s isa ChartSeries || continue
-        s.visible || continue
         push!(out, (i, s))
     end
     out
 end
+
+# The series that draw: those whose `visible` is set.
+_visible_series(chart::Chart) = filter(((_, s),) -> s.visible, _chart_series(chart))
 
 _series_x_bounds(s::ChartLineSeries) = get_column_bounds(s.x)
 _series_x_bounds(s::ChartScatterSeries) = get_column_bounds(s.x)
@@ -530,9 +533,14 @@ end
 _series_label(s) = hasproperty(s, :label) ? String(s.label) : ""
 
 """
-    _legend_items(chart, series) -> Vector{Tuple{Int,String,Any}}
+    _legend_items(chart, t, samples) -> Vector{Tuple{Int,String,Any,Bool}}
 
-What the legend lists, as `(series_index, label, swatch_color)`.
+What the legend lists, as `(series_index, label, swatch_color, shown)`.
+
+The legend lists every series of the chart in the order of the series list, also
+a hidden one. The entry of a hidden series has `shown = false`, and the legend
+draws it faded in its place: a click on it shows the series again, and no entry
+moves when a click hides or shows a series.
 
 A line, scatter, bar or histogram series is one entry in its own colour. A pie
 series is an entry for each slice, in the colour of the slice. A strip
@@ -546,46 +554,58 @@ own, and interleaved that reads as though the states belonged to the first strip
 alone. Grouped, the first block is what is drawn and the second is what the
 colours mean.
 
+An entry that explains a colour, a state of a strip or a shade of a matrix, is
+shown while a shown series draws that colour. Two strips share the entries of
+their states, so such an entry fades only when both strips are hidden.
+
 A zero index is an entry that names no series, which is what keeps a state entry
 inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
+
+A hidden function series computes no samples, so its entry shows its label with
+no reason after it.
 """
-function _legend_items(chart::Chart, series, t, samples = Dict{Int,Any}())
+function _legend_items(chart::Chart, t, samples = Dict{Int,Any}())
     cycle = _get_color_cycle(chart.style, t)
-    items = Tuple{Int,String,Any}[]
-    states = Tuple{Int,String,Any}[]
-    for (index, s) in series
+    items = Tuple{Int,String,Any,Bool}[]
+    states = Tuple{Int,String,Any,Bool}[]
+    for (index, s) in _chart_series(chart)
+        shown = s.visible
         if s isa ChartStripSeries
-            push!(items, (index, _series_label(s), t.strip_swatch))
+            push!(items, (index, _series_label(s), t.strip_swatch, shown))
             for code in 1:length(s.states)
                 label = strip_state_name(s, code)
                 color = strip_state_color(s, code, cycle)
-                any(it -> it[2] == label && it[3] == color, states) && continue
-                push!(states, (0, label, color))
+                k = findfirst(it -> it[2] == label && it[3] == color, states)
+                if k === nothing
+                    push!(states, (0, label, color, shown))
+                elseif shown
+                    states[k] = (0, label, color, true)
+                end
             end
         elseif s isa ChartMatrixSeries
             # A matrix names the values of its lightest and of its darkest shade.
             color = get_series_color(s.color, index, cycle)
-            push!(items, (index, _series_label(s), color))
+            push!(items, (index, _series_label(s), color, shown))
             range = _compute_matrix_range(s)
             if range !== nothing
-                push!(states, (0, format_tick(range[1]), _get_matrix_shade(color, 1)))
+                push!(states, (0, format_tick(range[1]), _get_matrix_shade(color, 1), shown))
                 range[2] > range[1] &&
-                    push!(states, (0, format_tick(range[2]), _get_matrix_shade(color, _MATRIX_LEVELS)))
+                    push!(states, (0, format_tick(range[2]), _get_matrix_shade(color, _MATRIX_LEVELS), shown))
             end
         elseif s isa ChartPieSeries
             # A pie is one colour for each slice: an entry for each, under its series.
             for (k, category) in enumerate(s.categories)
                 own = (s.colors === nothing || k > length(s.colors)) ? nothing : s.colors[k]
-                push!(items, (index, string(category), get_series_color(own, k, cycle)))
+                push!(items, (index, string(category), get_series_color(own, k, cycle), shown))
             end
         elseif s isa ChartFunctionSeries
             # A function series that draws no line says why after its label.
             reason = haskey(samples, index) ? samples[index].reason : nothing
             label = reason === nothing ? _series_label(s) : _series_label(s) * ": " * reason
-            push!(items, (index, label, get_series_color(s.color, index, cycle)))
+            push!(items, (index, label, get_series_color(s.color, index, cycle), shown))
         else
-            push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle)))
+            push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle), shown))
         end
     end
     append!(items, states)
@@ -596,12 +616,12 @@ end
 # legend's own font, which may differ from the axis font the frame draws with.
 # The rows of strips or of a matrix fill a plot (`filled`), so an inside legend
 # of such a plot goes below it.
-function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
+function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart,
                       font::StyleFont, w::Int, h::Int, t, samples = Dict{Int,Any}(); filled::Bool = false)
     legend = chart.legend
     legend isa ChartLegend || return nothing
     legend.visible || return nothing
-    items = _legend_items(chart, series, t, samples)
+    items = _legend_items(chart, t, samples)
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
@@ -685,8 +705,11 @@ function _legend_elements!(out, g, drawn)
 
     rects = get_legend_item_rects(plan, t.legend_padding)
     for (k, (index, x, y, item_w, row_h)) in enumerate(rects)
-        _, label, color = plan.items[k]
+        _, label, color, shown = plan.items[k]
         cy = y + row_h ÷ 2
+        # The entry of a hidden series is faded in its place, so a click on it
+        # shows the series again.
+        faded = !shown
         # The legend is where a selected or lit series is called out: it is
         # the one place every series has a fixed, findable spot. An entry that
         # names no series has nothing to call out.
@@ -698,12 +721,13 @@ function _legend_elements!(out, g, drawn)
                 push!(out, GraphicsRect(x - inset, y, item_w + 2inset, row_h; color = t.hover_fill, radius = t.radius))
             end
         end
-        push!(out, GraphicsRect(x, cy - 4, t.swatch, 8; color, radius = t.swatch_radius))
+        push!(out, GraphicsRect(x, cy - 4, t.swatch, 8; color = _faded(color, faded, t.hidden_alpha),
+                                radius = t.swatch_radius))
         # `plan.font` is `legend_font`, the font `g.measure_legend_label` is bound to.
         line = g.measure_legend_label(label)
         th = line.height
         push!(out, GraphicsText(label, x + t.swatch + t.legend_gap, cy - th ÷ 2 + line.text_y;
-                                font = plan.font, color = label_color))
+                                font = plan.font, color = _faded(label_color, faded, t.hidden_alpha)))
         # The label of a series is its field `label`; the slices of a pie, the
         # states of a strip and the reason of a function series are other texts.
         if index != 0
@@ -825,7 +849,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
 
     # An outside legend reserves a strip, shrinking the plot; an inside one
     # overlays it and takes nothing.
-    legend = _legend_plan(p, chart, series, legend_font, w, h, t, function_samples; filled = strip_only || matrix_only)
+    legend = _legend_plan(p, chart, legend_font, w, h, t, function_samples; filled = strip_only || matrix_only)
     if legend !== nothing && legend.position !== :inside
         legend.position === :above && (top += legend.box_h + t.padding)
         legend.position === :below && (bottom += legend.box_h + t.padding)
@@ -1524,7 +1548,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     t = g.theme_values
 
     for (l, r, code) in spans
-        color = _veiled(strip_state_color(s, code, cycle), veiled, t.veil_alpha)
+        color = _faded(strip_state_color(s, code, cycle), veiled, t.veil_alpha)
         push!(out, s.draw_edges ?
             GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color,
                          border_width=t.border_width, border_color=t.strip_edge) :

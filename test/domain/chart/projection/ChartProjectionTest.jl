@@ -999,7 +999,7 @@ function test_chart_projection()
             @test ChartMatrixSeries("m", ["a", "b"], [1 2; 3 4]).values == [[1, 2], [3, 4]]
 
             # The legend names the value of the lightest and of the darkest shade.
-            legend = [item[2] for item in ChartModule._legend_items(chart, g.series, g.theme_values)]
+            legend = [item[2] for item in ChartModule._legend_items(chart, g.theme_values)]
             @test legend == ["count", ChartModule.format_tick(0.5), ChartModule.format_tick(8.0)]
 
             # A cell is a sample: `(row, column, value)`, its index counted down the
@@ -1227,6 +1227,78 @@ function test_chart_projection()
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.cursor === nothing
+        end
+
+        @testset "a hidden series stays in the legend, faded" begin
+            swatch_width = get_theme_defaults(ChartTheme).swatch
+            hidden_alpha = get_theme_defaults(ChartTheme).hidden_alpha
+            # The label and the swatch that the legend draws in the entry `rect`.
+            function entry_elements(canvas, rect)
+                _, x, y, w, h = rect
+                inside(e) = x <= Int(e.x) < x + w && y <= Int(e.y) < y + h
+                elements = collect(canvas.elements)
+                (first(e for e in elements if e isa GraphicsText && inside(e)),
+                 first(e for e in elements if e isa GraphicsRect && inside(e) && Int(e.w) == swatch_width))
+            end
+            chart = _line_chart()
+            proj = _chart_projection()
+            iomap = print_document(proj, _chart_widgets(), chart, PrinterContext())
+            plan() = iomap.step_iomaps[2][].geometry.legend
+            polylines() = [e for e in _series_elements(iomap.output) if e isa GraphicsPolyline]
+            rects = get_legend_item_rects(plan())
+            @test [r[1] for r in rects] == [1, 2]
+            label, swatch = entry_elements(iomap.output, rects[2])
+            @test String(label.text) == "cos"
+            label_alpha, swatch_alpha = label.color.alpha, swatch.color.alpha
+            @test length(polylines()) == 2
+
+            # A click on "cos" hides its line. Its entry stays at the same place, faded.
+            _, ix, iy, iw, ih = rects[2]
+            click = MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0)
+            op = read_intent(proj, iomap, click)
+            @test op isa ReplaceReferencedValueOperation && op.value == false
+            evaluate_operation(nothing, op)
+            @test !chart.series[2].visible
+            @test length(polylines()) == 1
+            @test get_legend_item_rects(plan()) == rects
+            label, swatch = entry_elements(iomap.output, rects[2])
+            @test String(label.text) == "cos"
+            @test label.color.alpha ≈ label_alpha * hidden_alpha
+            @test swatch.color.alpha ≈ swatch_alpha * hidden_alpha
+            # The entry of the shown series keeps its full strength.
+            label, swatch = entry_elements(iomap.output, rects[1])
+            @test String(label.text) == "sin"
+            @test label.color.alpha ≈ label_alpha
+            @test swatch.color.alpha ≈ swatch_alpha
+
+            # A second click at the same point shows the line again.
+            op = read_intent(proj, iomap, click)
+            @test op isa ReplaceReferencedValueOperation && op.value == true
+            evaluate_operation(nothing, op)
+            @test length(polylines()) == 2
+            label, swatch = entry_elements(iomap.output, rects[2])
+            @test label.color.alpha ≈ label_alpha
+            @test swatch.color.alpha ≈ swatch_alpha
+
+            # A chart whose series are all hidden still draws its legend, with
+            # each entry faded, so a click can show each series again.
+            none = _line_chart()
+            none.series[1].visible = false
+            none.series[2].visible = false
+            @test [(it[2], it[4]) for it in _chart_layout(none).legend.items] ==
+                  [("sin", false), ("cos", false)]
+
+            # A pie hides as one series: a click on the entry of a slice hides
+            # the whole pie, and the entry of each slice fades.
+            pie = Chart("", [ChartPieSeries("share", ["a", "b", "c"], [1, 2, 1])])
+            iomap = print_document(proj, _chart_widgets(), pie, PrinterContext())
+            rects = get_legend_item_rects(plan())
+            @test [r[1] for r in rects] == [1, 1, 1]
+            _, ix, iy, iw, ih = rects[2]
+            op = read_intent(proj, iomap, MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
+            @test op isa ReplaceReferencedValueOperation && op.document === pie.series[1] && op.value == false
+            evaluate_operation(nothing, op)
+            @test [(it[2], it[4]) for it in plan().items] == [("a", false), ("b", false), ("c", false)]
         end
 
         @testset "part selection" begin

@@ -107,6 +107,8 @@ default theme. A value that a chart's own
     dashed_line_dash::Tuple{Int,Int} = (6, 4)
     "The opacity of a series that is not the one the pointer is on, while another is lit."
     veil_alpha::Float64          = 0.25
+    "The opacity of the legend entry of a hidden series, relative to its own color."
+    hidden_alpha::Float64        = 0.25
     "The opacity of the cell of a histogram that holds the values below or above its range, relative to the color of its series."
     overflow_alpha::Float64      = 0.5
 end

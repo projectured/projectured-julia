@@ -1,6 +1,8 @@
 # A hidden series stays in the legend
 
-**Status:** proposed on 2026-11-19. Not approved, and not started.
+**Status:** proposed on 2026-11-19, and approved by the owner on 2026-11-19 ("yes").
+The work is in the worktree `projectured-julia-legend-hidden`, on the branch
+`legend-hidden`.
 
 The plan lands nothing and pushes nothing: it ends with a request to land.
 
@@ -41,14 +43,17 @@ sequence chart has no legend, and a pivot chart turns its legend off.
 
 ## Proposed decisions
 
-They are the decisions of the session. They become decisions of the owner when
-the owner approves the plan.
+The session proposed them. They are approved with the plan, on 2026-11-19.
 
 1. **A hidden entry keeps its place.** The legend lists every series in the
    order of the list of series, or in the order of the labels when the legend
    has `sort = true`. A hidden series is in that order too. So the legend box
    keeps its size, an outside legend keeps the size of the plot, and no entry
-   moves under the pointer when a click hides or shows a series.
+   moves inside the legend when a click hides or shows a series.
+   *Found in step 1:* an inside legend, the default, has its place in the plot.
+   When a click changes the range of the data, the labels of the y axis can
+   change their width, and then the plot and its inside legend move with them.
+   This is so on `main` too.
    *Not chosen:* the hidden entries at the end of the legend. Then the entries
    move at each click, and a second click at the same point hits another entry.
 2. **A new theme value `hidden_alpha`, with the default 0.25.** Its text in
@@ -119,9 +124,11 @@ All lines are in
 ## Steps
 
 The work is in a worktree of projectured-julia. Each step ends with a commit.
-Before step 1, `test_chart()` runs on `main` once, for the baseline.
+Other sessions use most of the memory budget of the machine, so the session
+runs no separate baseline before step 1. If a test fails on the branch, that
+test runs at the base commit `415b84442`, to see whether it fails on `main` too.
 
-- [ ] **1. The legend lists every series, and a hidden entry is faded.** The
+- [x] **1. The legend lists every series, and a hidden entry is faded.** The
   decision of the owner, and proposed decisions 1, 2 and 5. `_legend_items`
   takes each series of the chart, and each entry carries whether it is shown.
   `_legend_elements!` draws the swatch and the label of a hidden entry with
@@ -132,6 +139,17 @@ Before step 1, `test_chart()` runs on `main` once, for the baseline.
   line draws again. New tests: a chart with every series hidden draws a legend
   with each entry faded; one click hides a pie, and each slice entry fades.
   `test_chart()` passes.
+  *Done as:* `_chart_series(chart)` gives each series with its place, and
+  `_visible_series` filters it. `_legend_items(chart, t, samples)` takes no
+  list of series, and each entry is `(series_index, label, swatch_color,
+  shown)`. The function makes all entries in one pass, so it also gives the
+  entries of the states and the shades their `shown` value of decision 4. The
+  fade is `_faded(color, on, alpha)`, the old `_veiled`, which the veil uses
+  too. The tests are in the new test set "a hidden series stays in the legend,
+  faded", after "legend interaction". `test_chart()`: 677 of 677 pass. The
+  precompile warns that 105 of the 632 recorded calls of `ProjecturedChart` no
+  longer resolve: the named tuple of the theme, the changed functions, and
+  closures with new numbers.
 - [ ] **2. The entries of the states and the shades, and the veil.** Proposed
   decisions 3 and 4.
   *Check:* the test "strip legend" grows with the example of decision 4. A new
@@ -145,6 +163,8 @@ Before step 1, `test_chart()` runs on `main` once, for the baseline.
   clicks. [chart.md](../../documentation/package/domain/chart/chart.md): the
   text of the legend and the table of the gestures say that a hidden entry
   stays faded in its place, and the list of the theme names `hidden_alpha`.
+  The recorded precompile lists: a count of the lines that no longer resolve,
+  and a new recording of each list that is over the limit of 10 %.
   *Check:* `test_chart()` passes. `Pkg.precompile` of omnet-julia against the
   branch passes. The plan moves to `plan/done/`. Then the session asks for the
   landing, and for the push apart.
@@ -157,6 +177,14 @@ Before step 1, `test_chart()` runs on `main` once, for the baseline.
    the legend, which is opaque.
 2. **Other plans change the same file.** The branch follows `main` by a
    rebase, and `test_chart()` runs again after it.
+3. **The recorded precompile lists name the fields of the theme.** The type of
+   the theme values of a chart is a named tuple of all fields of `ChartTheme`,
+   and the lists name the functions that this plan changes. Found before step
+   1: 21 of the 140 lines of `ProjecturedChart/precompile/projectured.txt` name
+   them, which is 15 %. The other lists are under the limit: 24 of 496 lines of
+   the chart workload, 14 of 4556 of `ProjecturedBuild`, and 31 of 8120 of
+   `ProjecturedExample`. The default preference shows a warning and does not
+   stop a load. Step 3 records again each list that is over the limit.
 
 ## Not in this plan
 
