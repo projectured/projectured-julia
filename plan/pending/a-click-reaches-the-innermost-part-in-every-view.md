@@ -697,7 +697,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     view of the content of the tab, or a layer above the pane, drops it. Step 6
     finds which one.
   - **Slow.** `task/stream_lines/natural` takes 496 s and 9 GiB for 200 points.
-- [ ] 5. **A drawn part is a part.** P2, P3 and P4 in the kernel and the
+- [x] 5. **A drawn part is a part.** P2, P3 and P4 in the kernel and the
   platform; the pane, the syntax tree, the card title and the shell band follow
   the one rule of `convert_to_whole_selection`. P5 in the clipboard.
 
@@ -1146,7 +1146,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     its text as for any document. `find_clipboard_document` does not change,
     because a note names the original: a note of a value takes nothing. The
     test is in `ClipboardTest.jl`.
-  - [ ] 5.6 **The check.** The click test on the catalogs, against the counts
+  - [x] 5.6 **The check.** The click test on the catalogs, against the counts
     of step 4, and the suites that the change touches, against main.
 
     Run 7 of the click test (2026-11-19) runs over the catalog on main 0ae98a75b,
@@ -1196,7 +1196,19 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       of the separator (`‹WidgetSeparatorToGraphicsCanvas @(138,8)›`), not the
       separator. A cause of step 6.
 
-    Run 8 runs the walk with the fix of the cut (folder `run8`).
+    Run 8 (2026-11-19, the walk with the fix of the cut, folder `run8`,
+    1 h 26 min): 1744 lines in 218 of 546 examples. Only `examples/filesystem`
+    changes against run 7: no throw, and the walk reaches all its points, with
+    the same 19 lines as in run 6 (an Alt+click with no caret on a chevron 4,
+    the part of the caret 6, a move 9). Each other example equals run 7.
+
+    The suites: the code of the branch differs from main 0ae98a75b only in
+    the walk (`PartClickTest.jl`), and `test_part_click` passes. The code of
+    5.1 to 5.5 is on main, and its suites ran before each land. So the check
+    runs no other suite.
+
+    So step 5 breaks no case that passed, but the move in a separator, a cause
+    of step 6.
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
