@@ -18,8 +18,19 @@ function _child_document_refs(node)
     end
     T = typeof(node)
     isstructtype(T) || return refs
+    # A document that shows its content through views has the view of the content as
+    # its child, and not the content: the walk stays in the views, where the caret is.
+    shown = _find_shown_content_steps(node)
+    hidden = shown === nothing ? _get_viewed_field(node) : get_content_field(node)
+    if shown !== nothing && !isempty(shown)
+        view = try_evaluate_reference(node, Reference(shown...), nothing)
+        view isa Document && push!(refs, (Tuple(shown), view))
+    end
     for fname in fieldnames(T)
         is_view_state_field(fname) && continue
+        fname === hidden && continue
+        # Such a document draws only what a walk enters, besides the view above.
+        shown === nothing || (is_field_walked(node, fname) && !is_view_state_field(T, fname)) || continue
         fv = getfield(node, fname)
         v = fv isa Cell ? fv[] : fv
         v === nothing && continue

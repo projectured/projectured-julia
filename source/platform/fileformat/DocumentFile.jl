@@ -684,10 +684,27 @@ function _repair_selection!(editor, file::FileDocument)
     selection isa ConcreteReference || return nothing
     if !is_valid_reference(root, selection)
         evaluate_operation(editor, ReplaceSelectionOperation(get_valid_reference_prefix(root, selection)))
-    elseif get_stored_selection(file) !== nothing && is_live_selection(file)
+    elseif (get_stored_selection(file) !== nothing && is_live_selection(file)) ||
+           _is_selection_in_views_of(root, selection, file)
         evaluate_operation(editor, ReplaceSelectionOperation(selection))
     end
     nothing
+end
+
+# Whether `selection`, the live selection of `root`, is in the views of `file`: the
+# path of the same place through the content goes through `file`, and `selection`
+# does not. The views of the new document then take their parts of the path.
+function _is_selection_in_views_of(root, selection, file)
+    content = find_content_path(root, selection)
+    content isa ConcreteReference || return false
+    get_reference_steps(content) == get_reference_steps(strip_reference_types(selection)) && return false
+    node = root
+    for step in get_reference_steps(content)
+        node = try_evaluate_reference(node, Reference(step), nothing)
+        node === nothing && return false
+        node === file && return true
+    end
+    false
 end
 
 """

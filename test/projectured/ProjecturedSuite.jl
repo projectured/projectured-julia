@@ -178,6 +178,7 @@ include("editor/FrameStatisticsFeedTest.jl")
 include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
 include("editor/ClipboardEditTest.jl")
+include("editor/FileViewWalkTest.jl")
 include("editor/FileWorkloadTest.jl")
 include("editor/ScrollWorkTest.jl")
 include("editor/PointedPartTest.jl")
@@ -564,6 +565,7 @@ const test_integration = TestSuite("integration", [
     TestPart(test_frame_statistics_feed; level = :slow),
     TestPart(test_application; level = :slow),
     TestPart(test_clipboard_edits; level = :slow),
+    test_file_view_walk,
     TestPart(test_file_workloads; level = :slow),
     test_scroll_work,
     test_pointed_part,

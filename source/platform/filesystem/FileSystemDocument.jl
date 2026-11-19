@@ -85,7 +85,9 @@ function release_document!(editor, file::FileSystemFile)
     document = file.document
     document === nothing && return nothing
     release_held_documents!(editor, file, Any[something(_get_file_document_view(file), document)])
-    (_has_file_edits(document) || _has_dormant_place(document)) ||
+    # A view that shows the file document through views keeps the place of the keys.
+    view = _get_file_views_view(file)
+    (_has_file_edits(document) || _has_dormant_place(document) || (view !== nothing && _has_dormant_place(view))) ||
         (file.document = nothing; file.document_view = nothing)
     nothing
 end

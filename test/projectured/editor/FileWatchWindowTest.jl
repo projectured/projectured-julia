@@ -72,6 +72,16 @@ function test_file_watch_window()
         @test _fw_wait_until(() -> shows("Bob"), editor)
         @test state.band === nothing && state.file_hash == compute_file_text_hash(path)
 
+        # The file on disk gets shorter while the caret is in the part that goes: the
+        # selection of the window names a part of the new document after the load.
+        write(path, "{\"name\": \"Bob\", \"city\": \"Rome\"}")
+        @test _fw_wait_until(() -> shows("Rome"), editor)
+        _fw_click!(editor, backend, place("Rome"), 0.5)
+        @test is_valid_reference(editor.document, get_selection(editor.document))
+        write(path, "{\"name\": \"Bob\"}")
+        @test _fw_wait_until(() -> !shows("Rome"), editor)
+        @test is_valid_reference(editor.document, get_selection(editor.document))
+
         # A typed character is an edit that is not saved. A change on disk keeps it,
         # and the file shows its band.
         _fw_click!(editor, backend, place("Bob"), 1.0)
@@ -99,6 +109,12 @@ function test_file_watch_window()
         _fw_click!(editor, backend, place("Load it"), 7.0)
         @test shows("Dave") && state.band === nothing
         @test state.file_hash == compute_file_text_hash(path)
+        # After the load, the selection names a part of the new document, and a key
+        # at the caret edits it.
+        @test is_valid_reference(editor.document, get_selection(editor.document))
+        _fw_click!(editor, backend, place("Dave"), 8.0)
+        _fw_press!(editor, backend, KeyPress('z'; time = 9.0))
+        @test shows("z") && has_unsaved_edits(get_file_content(file)) === true
         foreach(step -> step(editor), editor.stop_steps)
     end
 end

@@ -68,6 +68,22 @@ end
 get_content_field(node::Document) = get_edited_field(node)
 get_content_field(node) = nothing
 
+# The steps from `node` to the view that shows its content, when `node` shows its
+# content through views: empty when the views are in the fields of `node` itself, as
+# for the view of a file. `nothing` for a document that shows its content at the field
+# of the content, and for a document that names no content.
+function _find_shown_content_steps(node)
+    field = get_content_field(node)
+    field === nothing && return nothing
+    shown = get_view_path(node, EmptyReference())
+    steps = shown isa ConcreteReference ? Any[get_reference_steps(strip_reference_types(shown))...] : Any[]
+    steps == Any[FieldReferenceStep(String(field))] ? nothing : steps
+end
+
+# The field of a view of one content that names the content. The paths of such a
+# view have the steps of the content, so `get_content_field` answers `nothing` for it.
+_get_viewed_field(node) = (node isa Document && get_content_field(node) === nothing) ? get_edited_field(node) : nothing
+
 """
     find_content_path(root, path) -> Reference
 
