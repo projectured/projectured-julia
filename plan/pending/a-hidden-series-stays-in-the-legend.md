@@ -150,11 +150,16 @@ test runs at the base commit `415b84442`, to see whether it fails on `main` too.
   precompile warns that 105 of the 632 recorded calls of `ProjecturedChart` no
   longer resolve: the named tuple of the theme, the changed functions, and
   closures with new numbers.
-- [ ] **2. The entries of the states and the shades, and the veil.** Proposed
+- [x] **2. The entries of the states and the shades, and the veil.** Proposed
   decisions 3 and 4.
   *Check:* the test "strip legend" grows with the example of decision 4. A new
   test: a pointer on a hidden entry gives the entry the hover fill, and the
   shown lines keep their alpha. `test_chart()` passes.
+  *Done as:* `_is_veiled(g, index)` veils a series only while the lit series
+  is one of the series that draw, and `_draw_color` and the strips use it. The
+  test "strip legend" hides `a` and then `b`. The matrix test hides the matrix.
+  The test set of step 1 sets the mouse target to the hidden series, and then
+  to a shown series after the second click. `test_chart()`: 688 of 688 pass.
 - [ ] **3. The editor, and the documentation.** A new test in
   `ChartViewGestureTest.jl`: window input at the pixels of a legend entry of a
   chart in a tab. The first click hides the line, and the entry stays, faded.

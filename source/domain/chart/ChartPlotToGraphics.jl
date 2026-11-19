@@ -44,11 +44,16 @@ end
 _faded(color::StyleColor, on::Bool, alpha::Real) =
     on ? StyleColor(color.red, color.green, color.blue, color.alpha * alpha) : color
 
-# The colour a series draws in: its own or the cycle's, faded when the pointer is
-# on some *other* series.
+# Whether the series at `index` is veiled: the pointer is on some *other* series
+# that draws. The pointer on the legend entry of a hidden series veils nothing,
+# because that series draws nothing to read clearly.
+_is_veiled(g, index::Int) =
+    g.lit_index != 0 && g.lit_index != index && any(((i, _),) -> i == g.lit_index, g.series)
+
+# The colour a series draws in: its own or the cycle's, faded while it is veiled.
 function _draw_color(g, index::Int, own)
     color = get_series_color(own, index, _get_color_cycle(g.style, g.theme_values))
-    _faded(color, g.lit_index != 0 && g.lit_index != index, g.theme_values.veil_alpha)
+    _faded(color, _is_veiled(g, index), g.theme_values.veil_alpha)
 end
 
 """
@@ -1544,7 +1549,7 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     height = max(bottom - top, 1)
     spans = _strip_spans(g, index)
     cycle = _get_color_cycle(g.style, g.theme_values)
-    veiled = g.lit_index != 0 && g.lit_index != index
+    veiled = _is_veiled(g, index)
     t = g.theme_values
 
     for (l, r, code) in spans

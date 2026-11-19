@@ -849,6 +849,20 @@ function test_chart_projection()
             # one — which is exactly why a table of its own wants state_colors.
             @test values[1][3] == values[4][3]
 
+            # A state entry fades only when no shown strip draws that state:
+            # `a` and `b` share their states, and `c` has states of its own.
+            shown_of(name) = only(it[4] for it in _chart_layout(chart).legend.items if it[2] == name)
+            chart.series[1].visible = false
+            @test !shown_of("a") && shown_of("b")
+            @test shown_of("IDLE") && shown_of("BUSY") && shown_of("DONE")
+            chart.series[2].visible = false
+            @test !shown_of("IDLE") && !shown_of("BUSY") && !shown_of("DONE")
+            @test shown_of("c") && shown_of("ON") && shown_of("OFF") && shown_of("END")
+            # The entries keep their places while the strips are hidden.
+            @test [it[2] for it in _chart_layout(chart).legend.items] == [it[2] for it in items]
+            chart.series[1].visible = true
+            chart.series[2].visible = true
+
             # A per-state override reaches the legend too.
             recolored = Chart("m", [ChartStripSeries("a", t, codes; states=states,
                                                      state_colors=[color_solarized_violet,
@@ -1001,6 +1015,11 @@ function test_chart_projection()
             # The legend names the value of the lightest and of the darkest shade.
             legend = [item[2] for item in ChartModule._legend_items(chart, g.theme_values)]
             @test legend == ["count", ChartModule.format_tick(0.5), ChartModule.format_tick(8.0)]
+            # The two values fade with the matrix when it is hidden.
+            @test all(item -> item[4], ChartModule._legend_items(chart, g.theme_values))
+            chart.series[1].visible = false
+            @test !any(item -> item[4], ChartModule._legend_items(chart, g.theme_values))
+            chart.series[1].visible = true
 
             # A cell is a sample: `(row, column, value)`, its index counted down the
             # rows first. An empty cell is no sample.
@@ -1271,6 +1290,20 @@ function test_chart_projection()
             @test label.color.alpha ≈ label_alpha
             @test swatch.color.alpha ≈ swatch_alpha
 
+            # The pointer on the faded entry gives it the hover fill, and veils no
+            # line, because the hidden series draws nothing. The editor writes the
+            # mouse target at its root, so the test sets it.
+            plot = iomap.step_iomaps[1][].output
+            line_alpha = only(polylines()).color.alpha
+            hover_fill = iomap.step_iomaps[2][].geometry.theme_values.hover_fill
+            _, hx, hy, hw, hh = rects[2]
+            getfield(plot, :mouse_target)[] = get_chart_series_reference(2, plot)
+            @test any(e -> e isa GraphicsRect && e.color == hover_fill && Int(e.y) == hy &&
+                           Int(e.x) <= hx && Int(e.x) + Int(e.w) >= hx + hw,
+                      collect(iomap.output.elements))
+            @test only(polylines()).color.alpha ≈ line_alpha
+            getfield(plot, :mouse_target)[] = nothing
+
             # A second click at the same point shows the line again.
             op = read_intent(proj, iomap, click)
             @test op isa ReplaceReferencedValueOperation && op.value == true
@@ -1279,6 +1312,12 @@ function test_chart_projection()
             label, swatch = entry_elements(iomap.output, rects[2])
             @test label.color.alpha ≈ label_alpha
             @test swatch.color.alpha ≈ swatch_alpha
+            # The pointer on a shown series still veils the other one.
+            getfield(plot, :mouse_target)[] = get_chart_series_reference(2, plot)
+            veil_alpha = iomap.step_iomaps[2][].geometry.theme_values.veil_alpha
+            @test polylines()[1].color.alpha ≈ line_alpha * veil_alpha
+            @test polylines()[2].color.alpha ≈ line_alpha
+            getfield(plot, :mouse_target)[] = nothing
 
             # A chart whose series are all hidden still draws its legend, with
             # each entry faded, so a click can show each series again.
