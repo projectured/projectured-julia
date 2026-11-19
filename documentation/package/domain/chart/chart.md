@@ -29,7 +29,7 @@ A line, scatter, strip and matrix series also hold `links`, the link of each sam
 
 **An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
 
-The order of `series` is the draw order and the legend order. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
+The order of `series` is the draw order and the legend order. The legend lists every series, also a hidden one: a series whose `visible` is `false` draws nothing, and its entry stays in its place, faded to the opacity `hidden_alpha` of the theme. So a click on that entry shows the series again, and no entry moves inside the legend when a click hides or shows a series. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 
 **A series holds whole columns, one cell for each column.** A column is numeric leaf data and no caret goes into it, so a cell for each sample costs about 88 bytes and gives nothing. An assignment of a new column, `chart.series[1].y = v`, repaints the chart without a new print of the projection. Any `AbstractVector{<:Real}` works, so a column of a data frame goes into a series directly. This is an exception to `PAR-FINEST-GRANULARITY`, on the same grounds as `GraphicsPolyline.points`.
 
@@ -53,7 +53,7 @@ A `ChartStripSeries` draws a sequence of enumerated values over time, such as th
 
 - **Rows.** Each visible strip takes one integer row, the first series on top, and a band spans the row centre ± 0.4 in data coordinates. A chart with only strips labels its y axis with the names of the series and draws no horizontal grid lines.
 - **Colours.** A colour follows the state code, not the series. `strip_state_color` takes the `state_colors` entry of the series, or else the entry of the chart's cycle at the code. So two strips with different tables give their first state the same colour, unless one of them sets `state_colors`.
-- **Legend.** The legend lists the states after the series. The entry of a strip has a grey swatch, and a click on it still hides or shows the series. A click on a state entry selects the legend.
+- **Legend.** The legend lists the states after the series. The entry of a strip has a grey swatch, and a click on it still hides or shows the series. Two strips with one table share the entries of their states, and a state entry fades when no shown strip draws that state. A click on a state entry selects the legend.
 
 ### Matrices
 
@@ -63,7 +63,7 @@ A `ChartMatrixSeries` draws a value for each pair of a row and a category: one c
 - **Values.** `values` is a vector of rows, because a `.pred` file holds vectors and not a `Matrix`; the constructor turns an `AbstractMatrix` into rows. A cell takes a gap of one pixel when every cell is at least 6 pixels on each side. `labels` gives a text to each cell, which the cell shows when it fits.
 - **Folding.** Rows and columns under 3 pixels fold into groups of at least 3 pixels. A block of a row group and a column group shows the greatest value in it, and neighbour blocks of one shade along a row merge into one rectangle.
 - **Samples.** A cell is a sample, `(row, column, value)`. Its index counts down the rows first, as a `Matrix` of Julia does, so the series alone decodes it. A click selects the cell whose value its block shows, the selected cell is outlined, and the readout names the row, the category, the value and the label.
-- **Legend.** The legend lists the series, then the value of the lightest and of the darkest shade.
+- **Legend.** The legend lists the series, then the value of the lightest and of the darkest shade. The two values fade when the matrix is hidden.
 
 ### A reference step into a column
 
@@ -101,7 +101,7 @@ A press with Alt selects and never acts. So it starts no zoom and no pan, an Alt
 | Alt+Down, Alt+Left, Alt+Right | select the first, the previous or the next part |
 | Ctrl+Shift+Up, Ctrl+Shift+Down | move the selected series in the list |
 | Alt+Delete | remove the selected series |
-| click on a legend item; hover on it | hide or show that series; veil the other series |
+| click on a legend item; hover on it | hide or show that series, whose item stays, faded, while the series is hidden; veil the other series, unless that series is hidden |
 | Alt+click on a text that a field holds; Alt+double click | the caret at the character; the text as a whole |
 | Ctrl+click on a point, a segment or a cell with a link; Ctrl+Shift+click | follow the link; open it in a new tab |
 | Ctrl+wheel over the plot; over an axis | zoom about the pointer; zoom that axis alone |
@@ -152,7 +152,9 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 nothing: the colors of the backgrounds, the axis, the grid, the text, a selection,
 the hover, a strip and the crosshair band, the title, axis and legend fonts, and
 the padding, the tick length, the gap of a label, the spacing of the ticks, the
-swatch and the gap of the legend. A value that `ChartStyle` sets keeps its
+swatch and the gap of the legend, and two opacities: `veil_alpha` of a series
+that the pointer is not on, and `hidden_alpha` of the legend item of a hidden
+series. A value that `ChartStyle` sets keeps its
 priority; the legend draws with `legend_font`. The printer takes `theme`, scaled
 or not, holds all its values as one style field and no theme, reads it once at
 each print, and gives the tuple to its helpers as `theme_values`. The natural registration of a frame time series gives the

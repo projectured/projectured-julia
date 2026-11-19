@@ -173,6 +173,25 @@ test runs at the base commit `415b84442`, to see whether it fails on `main` too.
   *Check:* `test_chart()` passes. `Pkg.precompile` of omnet-julia against the
   branch passes. The plan moves to `plan/done/`. Then the session asks for the
   landing, and for the push apart.
+  *Done as:* the test set "a click on a legend entry in the editor hides and
+  shows its series" opens the application window with a chart in a tab, as the
+  other gestures of that file do. `test_chart()`: 698 of 698 pass.
+  The live check opened a real SDL window with the line chart example, the
+  series `q1` and `q2`, and pushed two clicks as SDL events at the entry of
+  `q2`. After the first click `q2` drew no line, and its swatch and label were
+  faded in their place. After the second click `q2` drew again at full
+  strength. So the SDL backend draws a faded label, and risk 1 did not occur.
+  The limit of the precompile counts all lists of one package together. Before
+  the recording, 105 of the 632 recorded calls of `ProjecturedChart` did not
+  resolve, which is 17 %. `record_package_calls!("ProjecturedChart")`, which
+  the warning names, recorded `workload.txt` again: 1916 lines, from 496.
+  About 1400 of the new lines name the kernel and the platform. Their own lists
+  on `main` do not hold these calls with the types of the chart, so the trace
+  of the chart keeps them, as the recordings of the chart alone on 2026-11-11
+  (540 lines) and 2026-11-15 (854 lines) did. A load after the recording shows
+  no warning. The lists of omnet-julia need no recording: in each package, the
+  lines that name the theme of the chart or a closure of the chart are at most
+  4 % (`OmnetLegacyResultPresentation`, 93 of 2562).
 
 ## Risks
 

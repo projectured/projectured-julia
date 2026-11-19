@@ -88,7 +88,8 @@ The view gestures of a chart in a tab of the application window: Ctrl and the
 wheel zoom, a Shift drag and a drag with the middle button pan, Ctrl+0 shows all the
 data, a page key scrolls, a right click opens the menu, a button of the corner
 zooms, a click on the track of a bar scrolls, a click on an axis still selects it,
-and Ctrl+Shift with an arrow moves a series.
+and Ctrl+Shift with an arrow moves a series. A click on a legend entry hides its
+series, and a second click at the same pixels shows it again.
 """
 function test_chart_view_gestures()
 @testset "the view gestures of a chart in the editor" begin
@@ -190,5 +191,49 @@ function test_chart_view_gestures()
     w.send(KeyDown(:up, ModifierKeys(; ctrl = true, shift = true); time = w.next()))
     @test String(chart.series[1].label) == "b"
     @test plot.view == ChartView(5.0, 15.0, 7.0, 13.0)
+end
+
+@testset "a click on a legend entry in the editor hides and shows its series" begin
+    t = collect(0.0:0.1:30.0)
+    chart = Chart("Signal", Any[ChartLineSeries("a", t, sin.(t) .* 4 .+ 10),
+                                ChartLineSeries("b", t, cos.(t) .* 2 .+ 10)])
+    w = _cvg_open(chart)
+    ox, oy = w.origin()
+    none = ModifierKeys()
+    canvas() = _cvg_force(w.canvas_iomap().output)
+    rects() = get_legend_item_rects(w.canvas_iomap().geometry.legend)
+    lines() = count(e -> e isa GraphicsPolyline,
+                    _cvg_force(first(e for e in collect(canvas().elements) if e isa GraphicsViewport).content).elements)
+    # The alpha of the label that the legend draws in the entry `rect`.
+    function label_alpha(rect)
+        _, rx, ry, rw, rh = rect
+        first(e for e in collect(canvas().elements)
+              if e isa GraphicsText && rx <= Int(e.x) < rx + rw && ry <= Int(e.y) < ry + rh).color.alpha
+    end
+    before = rects()
+    @test [r[1] for r in before] == [1, 2]
+    shown_alpha = label_alpha(before[2])
+    @test lines() == 2
+    _, ix, iy, iw, ih = before[2]
+    px, py = ox + ix + 2, oy + iy + ih ÷ 2
+    function click()
+        w.send(MouseMove(px, py, MouseButtons(), none; time = w.next()))
+        w.send(MouseDown(:left, px, py, none; time = w.next()))
+        w.send(MouseUp(:left, px, py, none; time = w.next()))
+    end
+
+    # The first click hides "b". Its entry stays at the same pixels, faded.
+    click()
+    @test !chart.series[2].visible
+    @test lines() == 1
+    @test rects() == before
+    @test label_alpha(before[2]) ≈ shown_alpha * get_theme_defaults(ChartTheme).hidden_alpha
+    @test label_alpha(before[1]) ≈ shown_alpha
+
+    # The second click at the same pixels shows "b" again.
+    click()
+    @test chart.series[2].visible
+    @test lines() == 2
+    @test label_alpha(before[2]) ≈ shown_alpha
 end
 end
