@@ -2,7 +2,7 @@
 
 **Status:** proposed on 2026-11-19, and approved by the owner on 2026-11-19 ("yes").
 The work is in the worktree `projectured-julia-legend-hidden`, on the branch
-`legend-hidden`.
+`legend-hidden`. All three steps are done on 2026-11-19.
 
 The plan lands nothing and pushes nothing: it ends with a request to land.
 
@@ -160,7 +160,7 @@ test runs at the base commit `415b84442`, to see whether it fails on `main` too.
   test "strip legend" hides `a` and then `b`. The matrix test hides the matrix.
   The test set of step 1 sets the mouse target to the hidden series, and then
   to a shown series after the second click. `test_chart()`: 688 of 688 pass.
-- [ ] **3. The editor, and the documentation.** A new test in
+- [x] **3. The editor, and the documentation.** A new test in
   `ChartViewGestureTest.jl`: window input at the pixels of a legend entry of a
   chart in a tab. The first click hides the line, and the entry stays, faded.
   The second click at the same pixels shows the line again. A live check in the
@@ -192,6 +192,14 @@ test runs at the base commit `415b84442`, to see whether it fails on `main` too.
   no warning. The lists of omnet-julia need no recording: in each package, the
   lines that name the theme of the chart or a closure of the chart are at most
   4 % (`OmnetLegacyResultPresentation`, 93 of 2562).
+  After a rebase on `main` at `b5fd62fac`, `test_chart()`: 698 of 698 pass,
+  and the chart loads with no warning. `Pkg.precompile()` of omnet-julia, at
+  its `main` `87ab6cd38`, in a scratch environment whose projectured packages
+  are the worktree: 142 packages compiled, no error, no method overwrite, no
+  undeclared name. Its one warning, that 533 of the 3186 recorded calls of
+  `ProjecturedJulia` no longer resolve, does not come from this branch: the
+  branch does not change that package, and its lists name nothing of the
+  chart.
 
 ## Risks
 
