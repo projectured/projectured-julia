@@ -129,8 +129,11 @@ mktempdir() do dir
         @test click(load_x, load_y) isa _FileBandChoiceProbe
         answer = click(hello_x, hello_y)
         @test answer isa ReplaceSelectionOperation
-        @test occursin(r"^\.file\.content\.entries\[1\]\.value\.value\{\d+\}$",
+        # The view shows a JSON file through its views, so the path of the press goes
+        # through the view of what the file holds, at the field `content` of the view.
+        @test occursin(r"^\.content\.entries\[1\]\.value\.value\{\d+\}$",
                        repr(strip_reference_types(answer.path)))
+        @test get_content_path(view, answer.path) == strip_reference_types(answer.path)
         # With no band, the view draws the file alone.
         get_file_disk_state(file).band = nothing
         texts = _app_drawn_at(get_iomap_output(print_view()))

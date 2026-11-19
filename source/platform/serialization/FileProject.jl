@@ -123,8 +123,8 @@ reads it — the parsed tree for a `JsonFile`, a raw `String` for a `TextFile`. 
 application that keeps a history of each file keeps the history in this field,
 so the answer is then the history and not the tree. To reach the document a
 person edits, through the history too, use [`get_edited_document`](@ref). Given a
-layer that shows a file, such as the scroll pane of a file tab, it answers the
-content of that file.
+layer that shows a file, such as the tab of a file or the view of a file, it answers
+the content of that file.
 
 Default reads through the `content` field: the save copies it, and the load
 fills it. A file whose whole node is its content answers with the node itself and
@@ -145,8 +145,8 @@ function get_file_content end
 
 function get_file_content(f)
     is_file_document(f) && return unwrap_cell(getfield(f, :content))
-    # A layer a person sees through, such as the scroll pane of a file tab, answers
-    # the content of the file it shows.
+    # A layer a person sees through, such as the tab of a file or the view of a file,
+    # answers the content of the file it shows.
     field = get_edited_field(f)
     field === nothing ? unwrap_cell(getfield(f, :content)) : get_file_content(getproperty(f, field))
 end

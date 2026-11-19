@@ -98,7 +98,9 @@ function _app_focus_first_file!(document)
     steps = collect(get_reference_steps(strip_reference_types(get_selection(document))))
     at = findlast(==(FieldReferenceStep("tabs")), steps)
     steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"), FieldReferenceStep("file"))
-    set_selection!(document, extend_reference(EmptyReference(), steps...))
+    # The file through the content. A tab that shows its file through views takes the
+    # selection at the view of the file (`find_view_path`).
+    set_selection!(document, find_view_path(document, extend_reference(EmptyReference(), steps...)))
     document
 end
 

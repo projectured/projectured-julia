@@ -101,7 +101,9 @@ function _make_window_frame_guard_editor(path::AbstractString, root::AbstractStr
     at = findlast(==(FieldReferenceStep("tabs")), steps)
     steps = vcat(steps[1:at], RangeReferenceStep(1, 2), FieldReferenceStep("content"),
                  FieldReferenceStep("file"), FieldReferenceStep("content"))
-    set_selection!(document, extend_reference(EmptyReference(), steps...))
+    # The path through the file is a path of the content. A tab that shows its file
+    # through views has the caret in the views (`find_view_path`).
+    set_selection!(document, find_view_path(document, extend_reference(EmptyReference(), steps...)))
     editor = build_editor(document, make_application_projection(); backend = SdlBackend(), settings,
                           window = (; title = "ProjecturEd", width = _WINDOW_GUARD_WIDTH,
                                     height = _WINDOW_GUARD_HEIGHT,

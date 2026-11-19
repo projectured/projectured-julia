@@ -324,14 +324,36 @@ tests of the steps before it.
   The tests of the walk on `main` pass: `test_selection_walking` 36,
   `test_widget_text_editing` 97, `test_text_view` 36 and
   `test_conversation_transcript` 194.
-- [ ] **8. The find and the filter of a JSON tab.** A test first: Ctrl+F and the
+- [x] **8. The find and the filter of a JSON tab.** A test first: Ctrl+F and the
   filter menu on a JSON array in a tab, on `main` and on the branch. The branch
   must do what `main` does.
   *Check:* the new test. If the arrangement needs more than the functions of
   decision 3, the work stops and the session asks, because point 6 of the order
   moves the arrangement into the view of a collection.
-- [ ] **9. The tests that spell the shape of today.** Cause G, and each of the
+
+  Done on 2026-11-20, with no change of the code. Found fact 11 has the result of
+  the probe on `main` and on the branch: the find and the filter of a JSON array
+  in a tab do not work on `main`, so the branch has nothing to keep. The new test
+  `test_json_tab_arrangement`, with 14 of 14, asks for what the two sides share:
+  Ctrl+F puts the arrangement around the file view, with a find at the list of
+  the views of the elements, the menu of a value offers its items, its choice
+  arranges the tab, and the file is as it was.
+- [x] **9. The tests that spell the shape of today.** Cause G, and each of the
   twelve places that still spells a path through `file` for what a tab draws.
+
+  Done on 2026-11-20. `FileTabTest.jl` asks for the path of a press through the
+  field `content` of the view. `ReferencedDocumentEditorTest.jl` asks that the
+  scroll pane of a tab holds the view of what the file holds, and it reads the
+  history of the file with `get_file_content(view)`. The two helpers that put the
+  focus in the file of a tab, in `ApplicationTest.jl` and in
+  `WindowFrameGuardTest.jl`, write the selection through `find_view_path`. The
+  helper of the clipboard test changed in step 6, and the four places of
+  `ApplicationTest.jl` that evaluate the selection changed in step 4. The other
+  places of the list read the content of a file, and not a path of what a tab
+  draws, so they stay. The docstring of `get_file_content` said that the scroll
+  pane of a file tab is a layer that shows a file. It names the tab and the view
+  of a file now. `test_referenced_document_editor` has 135 of 135, `test_file_tab`
+  35 of 35, and `test_window_frame_guards` 39 passes and 3 broken.
 - [ ] **10. The wide check and the guides.** `test_platform()`,
   `test_integration()`, the suites of JSON, Markdown and MCP, the suites of the
   backends, and the six guards, on the branch and at its base. The time of the
@@ -438,6 +460,18 @@ tests of the steps before it.
     has an edit or keeps the place of the keys. With views, the view keeps that
     place, so the document was forgotten and read again, and Back showed another
     document. The rule reads the place of the view too. This was cause F.
+
+11. **The find and the filter of a JSON array in a tab do not work on `main`.**
+    A probe ran the same keys on `main` and on the branch, on a file with an array
+    of five strings in a tab. On both sides Ctrl+F puts an arrangement around the
+    file view with one find, and the menu of a value offers its six items. On both
+    sides no count shows, and "Hide items like this" hides no element: the printer
+    of a JSON array reads no arrangement. One thing differs. On `main` the caret
+    stays in the string after Ctrl+F, so a text that a person types for the find
+    goes into the JSON string (`"apple"` became `"apapple"`). On the branch the
+    caret goes to the field of the find, and the typed text changes nothing. The
+    arrangement of a JSON array is work of point 6 of the order, which moves the
+    arrangement into the view of a collection. This plan changes nothing of it.
 
 ## Risks
 

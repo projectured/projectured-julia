@@ -428,12 +428,15 @@ function test_referenced_document_editor()
         view = get_document(long_tab).content
         @test view isa FileView && is_file_document(view.file)
         pane = view.scroll
-        @test pane isa WidgetScrollPane && is_file_document(pane.content)
+        # The scroll pane shows the view of what the file holds, which is the view of
+        # the history of the file.
+        @test pane isa WidgetScrollPane && pane.content === view.content
+        @test pane.content isa ContentView && pane.content.viewed === get_file_content(view.file)
         items = get_edited_document(long_tab)
         @test get_document(items) isa JsonArray
         # The path to a tab's text that the system text of the application names.
         @test startswith(print_natural_text(pane), "[")
-        @test get_file_content(pane) === pane.content.content
+        @test get_file_content(view) === pane.content.viewed
         window_history = only(search_documents(long_editor.document,
                                                node -> node isa UndoBuffer && node.content isa PaneTree))
         steps = length(window_history.undo_entries)
@@ -448,7 +451,7 @@ function test_referenced_document_editor()
         @test pane.scroll_position.y[] > 0
         @test length(window_history.undo_entries) == steps       # a scroll is no edit
 
-        file_history = pane.content.content
+        file_history = get_file_content(view)
         insert_elements!(items, 61, [JsonObject("n" => JsonNumber(61))]; editor = long_editor)
         @test length(get_document(items)) == 61
         @test length(file_history.undo_entries) == 1
