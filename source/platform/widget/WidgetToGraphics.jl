@@ -12133,7 +12133,9 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
                                      n * row_height)
         (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows)
     end)
-    canvas = _reactive_canvas_cell(_origin(position)..., build)
+    # The rows that a pane of the list shows stand at the origin of the pane; the
+    # position of the list places the canvas of the pane (`_print_rows_pane`).
+    canvas = _reactive_canvas_cell((bare ? (0, 0) : _origin(position))..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].row_height), Cell(@computation build[].width),
         Cell(@computation build[].rows), bare, geometry)
@@ -15194,7 +15196,10 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         result
     end)
 
-    canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
+    # The rows that a pane of the tree shows stand at the origin of the pane; the
+    # position of the tree places the canvas of the pane (`_print_rows_pane`).
+    origin_x, origin_y = bare ? (0, 0) : _origin(position)
+    canvas = GraphicsCanvas(Cell(Int32(origin_x)), Cell(Int32(origin_y)),
                             outer_w, outer_h,
                             elements, layout_none, true, Cell(nothing))
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h, box_geometry)

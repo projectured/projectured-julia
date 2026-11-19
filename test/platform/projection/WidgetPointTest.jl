@@ -33,6 +33,24 @@ end
     @test _map(menu, 5, 80) == _path(FieldReferenceStep("elements"), _at(3))
 end
 
+# A list that is given an edge scrolls its rows in a pane at its position, and the
+# rows stand at the origin of the pane, so a point on the text of a row maps to
+# that row.
+@testset "a list in its pane maps a point on a row to that row" begin
+    projection = _projection()
+    list = WidgetList(["Apples", "Bananas", "Cherries"]; position = Point2D(40, 40), width = 200)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(400)), height = Cell(Int32(300)))
+    iomap = print_document(projection, nothing, list, context)
+    output = get_iomap_output(iomap)
+    texts = _collect_task_view_texts(output)
+    for (k, name) in enumerate(("Apples", "Bananas", "Cherries"))
+        t = only(t for t in texts if t[3] == name)
+        point = PointReferenceStep(t[1] + 2 - Int(output.x), t[2] + 2 - Int(output.y))
+        @test strip_reference_types(map_reference_backward(projection, iomap, point)) ==
+              _path(FieldReferenceStep("items"), _at(k))
+    end
+end
+
 @testset "a list maps to the item of the row under the point" begin
     list = WidgetList(Any["a", "b", "c", "d"])
     @test _map(list, 5, 5) == _path(FieldReferenceStep("items"), _at(1))
