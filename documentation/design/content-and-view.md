@@ -165,8 +165,23 @@ When another library changes the collection, each view stays at its index.
    runs loops over its columns, a tree keeps the rows above a match, and a
    stream of lines reads its index of the file. A change of an arrangement is
    state of a view, so it is no undo step.
-9. **`make_content_view` is the one function that makes a view.** Its default
-   answers `nothing`, and the caller then shows the content with no view.
+9. **Two functions make a view, and each has one job.**
+   - `make_content_view(content)` makes the view of one content. Each level of
+     the tree of views calls it: each child field of a view, and each element
+     of the view of a list. Its default answers `nothing`, and the caller then
+     shows the content with no view. It makes nothing that only a place needs,
+     so it makes no scroll pane.
+   - `make_page_view(content)` makes the document that fills a place: a tab,
+     the page of the explorer, or a card of a dashboard. That document is the
+     view and what the place needs around it, such as a `WidgetScrollPane` or
+     the band of a file. Only the code that opens a place calls it, and only
+     for the content that fills the place. Its default answers
+     `something(make_content_view(content), content)`, with no pane.
+
+   ```julia
+   make_page_view(root::WorkflowStep) =
+       WidgetScrollPane(make_content_view(root); grows = (width = false, height = true))
+   ```
 10. **A view of one kind of content takes the suffix `View`**
     ([naming-rules.md](../rule/naming-rules.md)).
 11. **Only a `View` has the fields `selection` and `mouse_target`.** `@document`
@@ -280,6 +295,16 @@ The name of a summary type ends in `Summary`.
   widget that a later stage makes, and another projection needs other fields.
 - **A field step that a view sends to its content.** Other code reads a step as
   a real step. A step with two meanings breaks that code.
+- **One function for the view and for the page.** `make_content_view` runs at
+  each level of the tree of views. A scroll pane from it is then around each
+  node, for example around each step of a workflow. A place needs things around
+  the content that no level of the tree needs.
+- **A scroll pane that `open_pane!` adds.** `open_pane!` puts a document at a
+  place. What the document is, is not its job.
+- **A scroll pane at every place.** A content that needs no scroll then gets a
+  pane too.
+- **A scroll pane that a printer adds.** The pane is a document, so it must be
+  in the tree of documents.
 
 ## The code now
 
@@ -322,7 +347,11 @@ The code differs from this design in these places.
   field `content` too, for the view of what its file holds. Four of them have the
   supertype of their content: the two plots, `GraphLayout` and
   `WorkspaceExplorer`.
-- Two functions make a view: `make_content_view` and `make_document_view`.
+- The function that makes the document of a place has the name
+  `make_document_view`. Its default answers the content itself, and not the view
+  of the content. The navigator and the card of a dashboard call it, and the
+  open of a file calls `make_file_view`. No other open of a tab calls it, so a
+  tab that shows a document that is no file has no scroll pane.
   `follow_content_selection!` makes the selection of a view follow the selection
   of its content.
 - Eighteen types declare fields of view state with `get_view_state_fields`.
@@ -355,6 +384,7 @@ The code differs from this design in these places.
 | the struct `SequenceChartView` | `SequenceChartRange` | the same reason as for the chart |
 | `GraphLayout` | `GraphLayout` and a new `GraphView` | the positions are the output of the layout stage; the zoom, the shape of the edges and the highlights are state of a view |
 | `DataFrameView.frame` | `viewed`, a `DataFrameDocument` | all the views of one frame read one cell |
+| `make_document_view` | `make_page_view` | it makes the document that fills a place, and `make_content_view` makes a view |
 | a summary of a downstream program with a name that ends in `View` | a name that ends in `Summary` | it is content, and views read it |
 
 ## Open points

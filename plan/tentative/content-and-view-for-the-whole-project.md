@@ -9,6 +9,11 @@ other facts of section 11 stay. The owner approved the order of section 10 on
 2026-11-15, and point 1 of it is done and on `main`. This document has no steps:
 the steps of each point come in a plan of their own.
 
+Status 2026-11-19: the owner decided that `make_document_view` does not become
+methods of `make_content_view`. It stays a function for a page only, with the
+name `make_page_view`. Decision 19 of section 13.1 holds it, and point 7 of the
+order in section 13.3 follows it.
+
 The pilot is `plan/done/views-compose-as-content-composes.md`. It was on the
 branch `views-compose`, and it is on `main` since 2026-11-15 (`adea9d83f`). Its
 steps 1 to 7 and 9 are done. This document says only what differed from `main` on
@@ -637,7 +642,7 @@ session and not decided.
 | `SequenceChartPlot` | `SequenceChartView` | `chart` | Holds its content. The same field `view`. |
 | `GraphLayout` | Open | `graph` | It is also the output of the layout stage. The highlight of `GraphGraph` is state of a view. |
 | `WorkspaceExplorer`, `DocumentTree`, `Navigator` | Stay, each is a tool of its own | `workspace`, `root`, `content` | `Navigator.page_view` comes from `make_content_view`. |
-| `FileView`, `UrlView`, `FindBarView` | Stay | `file`, `url`, `content` | Their methods of `make_document_view` become methods of `make_content_view`. |
+| `FileView`, `UrlView`, `FindBarView` | Stay | `file`, `url`, `content` | Their methods of `make_document_view` become methods of `make_content_view`. Replaced on 2026-11-19: they stay methods of that function, which takes the name `make_page_view` (decision 19 of section 13.1). |
 | `ArrangementDocument` | Goes | `document` | Its entries become state of the view of their part (decision 4), and `ArrangingProjection` puts nothing in the printer context. |
 
 The filter, the sort and the find exist five times: the arrangement,
@@ -667,7 +672,9 @@ For the views of the older rule:
   the package a minor step (decision R36 of the release plan), and `omnet-julia`
   follows each rename.
 - Whether `make_document_view` goes when its methods are methods of
-  `make_content_view`. Its default answers the document itself.
+  `make_content_view`. Its default answers the document itself. Decided on
+  2026-11-19: it stays, with the name `make_page_view` and a new default
+  (decision 19 of section 13.1).
 - Which documents that name their content with `get_edited_field` are views:
   `PaneTab`, `ClipboardSlice`, `ClipboardCollection`, `UndoBuffer`, `FileDocument`,
   `WidgetScrollPane` and `WidgetTransformPane` are not on the list above.
@@ -778,6 +785,45 @@ Each line gives the decision, and the words of the owner where they are short.
 18. **The names**: `ChartPlot` to `ChartView` and the struct `ChartView` to
     `ChartRange`, the same for the sequence chart, and a new `GraphView` beside
     `GraphLayout` (2026-11-17: "I mostly agree").
+19. **Two functions make a view: `make_content_view` for one content, and
+    `make_page_view` for a place** (2026-11-19: "yes, I agree"). The decision
+    came in another session, from fault F5 of
+    `plan/pending/the-editor-for-the-assistant-of-the-catch-up.md`: a tab that
+    `start_workflow!` opened did not scroll. The words of the owner below are as
+    that session recorded them.
+    - `make_document_view` does **not** become methods of `make_content_view`.
+      It stays a function of its own, for a page only, and its name is
+      `make_page_view` from now on.
+    - `make_content_view(content)` makes the view of one content, at every level
+      of the tree of views: each child field that `@content_view` makes, and each
+      element of the view of a list. It makes no scroll pane: "there's no place
+      for adding a scroll pane there".
+    - `make_page_view(content)` makes the document that fills a tab, the page of
+      the explorer or a card of a dashboard. That document is the view plus what
+      the place needs, for example a `WidgetScrollPane` or the band of a file.
+      Only the code that opens a place calls it, for the content that fills the
+      place, as `open_file!` calls `make_file_view` now. Its default is
+      `something(make_content_view(content), content)`, with no pane.
+
+      ```julia
+      make_page_view(root::WorkflowStep) =
+          WidgetScrollPane(make_content_view(root); grows = (width = false, height = true))
+      ```
+    - The owner rejected three other places for the pane, in this order. A pane
+      that `open_pane!` adds: "not the job of open_pane!". A pane at every place:
+      "I don't want a scroll pane for content which don't need one". A pane that
+      the printer adds: "the WidgetScrollPane should not be added by the printer,
+      it should be in the document".
+    - The reason: a place needs things around the content, such as a scroll and
+      a band, that no level of the tree of views needs. With one function, the
+      call at each level gave each step of a workflow a pane.
+    - This replaces one part of the decision of 2026-11-16 that the view
+      documents of the older rule follow the rules for views (decision 5 of
+      section 11.1): the part "one function makes a view", which is rule 3 of
+      section 11.6 and the last sentence of point 7 of section 13.3 before this
+      day.
+    - Not asked: the 16 printers that make a `WidgetScrollPane` in their output,
+      for example the body of a card of a dashboard.
 
 ### 13.2 The facts of `omnet-julia`
 
@@ -798,7 +844,8 @@ Each line gives the decision, and the words of the owner where they are short.
   `LegacyTestRoot` and three result types have a field `collapsed`; `ExpandStage`
   has `selected`.
 - Five methods of `make_document_view`: a NED file entry, a test case, an INI
-  configuration, a baseline entry and a result file entry.
+  configuration, a baseline entry and a result file entry. They follow the
+  rename to `make_page_view` (decision 19 of section 13.1).
 - No source file of `omnet-julia` calls `@selected`.
 
 ### 13.3 The order of the work
@@ -897,6 +944,9 @@ Two rules make this order possible:
      - **4b2. The editor shows a JSON file through its views.** The JSON
        domain turns the views on for its files, and each feature that names a
        place by a path through the content takes the path through the views.
+       A file view is the page of a file in the sense of decision 19 of section
+       13.1: `make_document_view(file)` makes it, with the scroll pane, the band
+       and, since 4b1, the view of what the file holds.
    - **4c. The JSON content keeps no selection.** The kernel hook, the step
      `.viewed`, the caret place in an operation, the key tables of the content,
      and the tests that put a caret into a JSON content. Then the review of the
@@ -912,7 +962,15 @@ Two rules make this order possible:
    `make_content_view` for `DataFrameView` with `DataFrameDocument`, `ChartView`
    with `ChartRange`, `SequenceChartView`, `GraphView`, `WorkspaceExplorer`,
    `DocumentTree`, `Navigator`, `FileView`, `UrlView` and `FindBarView`.
-   `make_document_view` and `follow_content_selection!` go.
+   `follow_content_selection!` goes. `make_document_view` does not go (decision
+   19 of section 13.1, of 2026-11-19): it takes the name `make_page_view` and the
+   default `something(make_content_view(content), content)`, its methods stay
+   methods of it, and each open of a tab, of a page of the explorer and of a card
+   of a dashboard calls it. Proposed by the session, and not decided: the rename
+   and the new default are steps of this point, unless plan 4c or the plan for
+   fault F5 of the assistant needs them before. Plan 4c can need the default: a
+   place that shows a JSON document that is no file shows the document itself
+   now, and a JSON content with no selection needs its view there.
 8. **The boxes.** `PrimitiveString`, `PrimitiveNumber`, `PrimitiveBool` and
    `ObjectField` keep no selection, and each gets its view.
 9. **The other domains that print as code**, one plan for each domain. The view
