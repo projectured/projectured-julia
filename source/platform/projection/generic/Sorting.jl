@@ -1,7 +1,8 @@
 # Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that sorts the elements of a collection
-# document by a configurable key function.
+# document by a configurable key function. The sorted `CellVector` keeps the
+# element type of its input.
 """
     SortingProjection(; by=identity, lt=isless, rev=false)
 
@@ -42,7 +43,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         (index, x) -> print_child(recursion, x,
             make_element_context(ctx, index, i -> (ElementReferenceStep(i),))))
     index_map = Cell(@computation sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev))
-    output = CellVector(@computation begin
+    output = CellVector{eltype(input)}(@computation begin
         cs = child_iomaps[]
         perm = index_map[]
         [cs[perm[j]].output for j in 1:length(perm)]

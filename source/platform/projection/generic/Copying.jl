@@ -6,7 +6,9 @@
 # project on demand. For struct Documents it creates per-field iomaps for
 # every non-selection field. Primitives are identity. The iomap stores all
 # child iomaps so that map_reference_backward can delegate through them
-# (enabling e.g. SortingProjection to remap indices).
+# (enabling e.g. SortingProjection to remap indices). The copy of a `CellVector`
+# keeps its element type, as the copy of a struct keeps its type, so a field that
+# declares the element type of a list takes the copy.
 struct CopyingProjection <: Projection end
 
 # ── IoMap ─────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
         () -> input,
         (index, x) -> print_child(recursion, x,
             make_element_context(ctx, index, i -> (ElementReferenceStep(i),))))
-    output = CellVector(@computation [im.output for im in children[]])
+    output = CellVector{eltype(input)}(@computation [im.output for im in children[]])
     set_output_path_computations!(output, input, identity)
     CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end

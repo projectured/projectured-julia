@@ -172,10 +172,13 @@ CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 """
     CellVector(@computation expr) -> CellVector
     CellVector(@computation(keys); element) -> CellVector
+    CellVector{T}(@computation expr) -> CellVector{T}
 
 A `CellVector` whose elements are derived: `expr` computes the element list, and
 each element gets a slot cell of its own on every computation. The counterpart
-of `Cell(@computation expr)` for a collection.
+of `Cell(@computation expr)` for a collection. With an element type `T`, each
+element meets the check of the type when it is computed, as in a list of a
+stated element type; the bare name makes a list whose elements may be anything.
 
 With `element`, the elements are derived one at a time. `keys` computes one key
 for each element, and the slot of a key computes `element(key)` at its first
@@ -190,12 +193,14 @@ folder, the children of a tree node.
     length(entries)      # one readdir
     entries[3]           # one stat, of the third entry
 """
-function CellVector(marker::Computation; element = nothing)
-    cv = CellVector(Cell(Cell[]), Cell(nothing))
+CellVector(marker::Computation; element = nothing) = CellVector{Any}(marker; element)
+
+function CellVector{T}(marker::Computation; element = nothing) where {T}
+    cv = CellVector{T}(Cell(Cell[]), Cell(nothing))
     f = marker.computation
     slots = element === nothing ?
-        () -> Cell[Cell(x) for x in f()] :
-        () -> Cell[Cell(@computation element(key)) for key in f()]
+        () -> Cell[Cell(_check_element(T, x, i)) for (i, x) in enumerate(f())] :
+        () -> Cell[Cell(@computation _check_element(T, element(key), i)) for (i, key) in enumerate(f())]
     set_cell_computation!(getfield(cv, :elements), slots)
     cv
 end

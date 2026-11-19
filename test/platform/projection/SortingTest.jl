@@ -29,5 +29,14 @@ function test_sorting()
     @test iomap.index_map == [4, 2, 3, 1]
     @test objectid(iomap) === id
 
+
+    # ── the element type of the list ────────────────────────────────────────
+    # The sorted list keeps the element type of its input, so a field that
+    # declares the element type of a list takes it.
+    typed = CellVector{Document}(Any[PrimitiveNumber(2), PrimitiveNumber(1), PrimitiveNumber(3)])
+    typed_output = print_document(SortingProjection(by = x -> x.value), IdentityProjection(), typed, PrinterContext()).output
+    @test typed_output isa CellVector{Document}
+    @test [element.value for element in typed_output] == [1, 2, 3]
+
 end
 end

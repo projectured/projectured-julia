@@ -1,7 +1,8 @@
 # Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that reverses the order of elements in a
-# collection document.
+# collection document. The reversed list keeps the element type of a `CellVector`
+# input.
 """
     ReversingProjection()
 
@@ -24,7 +25,8 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
             make_element_context(ctx, index, i -> (ElementReferenceStep(i),))))
     # Output is the reversed child outputs, derived reactively into a persistent
     # CellVector: the IoMap keeps its identity while the output tracks input edits.
-    output = CellVector(@computation reverse([im.output for im in child_iomaps[]]))
+    output = CellVector{input isa CellVector ? eltype(input) : Any}(
+        @computation reverse([im.output for im in child_iomaps[]]))
     iomap = ChildrenIoMap(p, input, output, child_iomaps)
     # The output holds the forward image of the paths of the input, with the indices
     # reversed by the forward map.

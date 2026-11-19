@@ -1,7 +1,8 @@
 # Fragment of `ProjectionAlgebraModule`.
 #
 # Domain-independent projection that restricts a collection document to the
-# subset of elements matching a given predicate.
+# subset of elements matching a given predicate. The kept `CellVector` keeps the
+# element type of its input.
 # `kept_indices` and `output` are computed cells for a reactive `CellVector`
 # input, so the IoMap keeps its identity while the kept subset tracks the input
 # (PAR-STABLE-IOMAP-IDENTITY); `iomap.kept_indices` reads the current vector.
@@ -32,7 +33,7 @@ FilteringProjection(; predicate::Function=Returns(true)) =
 
 function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
     kept = Cell(@computation Int[i for i in 1:length(input) if p.predicate(input[i])])
-    output = CellVector(@computation [input[i] for i in kept[]])
+    output = CellVector{eltype(input)}(@computation [input[i] for i in kept[]])
     set_output_path_computations!(output, input, identity)
     FilteringIoMap(p, input, output, kept)
 end

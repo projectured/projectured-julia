@@ -13,6 +13,13 @@ iomap = print_document(CopyingProjection(), inner, cv, PrinterContext())
 @test iomap.output[2].value == 20
 @test iomap.output[3].value == 30
 
+# The copy of a list of a stated element type keeps the type, as the copy of a
+# struct keeps its type, so a field that declares the element type takes the copy.
+# A list of any element stays one.
+typed = CellVector{Document}(Any[PrimitiveNumber(1), PrimitiveNumber(2)])
+@test print_document(CopyingProjection(), inner, typed, PrinterContext()).output isa CellVector{Document}
+@test print_document(CopyingProjection(), inner, cv, PrinterContext()).output isa CellVector{Any}
+
 end # @testset
 
 @testset "CopyingProjection CellVector reactive output" begin

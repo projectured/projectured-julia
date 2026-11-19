@@ -27,5 +27,14 @@ function test_reversing()
     fwd = map_reference_forward(rp, iomap, ConcreteReference(ElementReferenceStep(1), EmptyReference()))
     @test fwd !== nothing                   # input head → output tail
 
+
+    # ── the element type of the list ────────────────────────────────────────
+    # The reversed list keeps the element type of its input, so a field that
+    # declares the element type of a list takes it.
+    typed = CellVector{Document}(Any[PrimitiveNumber(2), PrimitiveNumber(1), PrimitiveNumber(3)])
+    typed_output = print_document(ReversingProjection(), IdentityProjection(), typed, PrinterContext()).output
+    @test typed_output isa CellVector{Document}
+    @test [element.value for element in typed_output] == [3, 1, 2]
+
 end
 end
