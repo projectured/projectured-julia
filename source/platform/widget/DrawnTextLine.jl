@@ -330,11 +330,13 @@ mark of `selection`, the stored selection of the widget, in its text: a band in
 behind the characters of each line that a range of a part holds, and a thin
 rectangle on top, in the colour of the line, while `selection` is a caret in a
 part that a line shows. With no such mark, the answer is `elements` itself, so
-a widget that holds no selection in its text has no element for it.
+a widget that holds no selection in its text has no element for it. A line can
+stand in a canvas or a viewport among `elements`, as the title of an accordion
+stands in its header: its marks take the place of that frame too.
 """
 function make_drawn_selection_elements(elements, drawn, selection, measure, band_color)
-    bands = _make_drawn_bands(drawn, selection, measure, band_color)
-    caret = _make_drawn_caret_elements(drawn, selection, measure)
+    bands = _make_drawn_bands(drawn, selection, measure, band_color, elements)
+    caret = _make_drawn_caret_elements(drawn, selection, measure, elements)
     isempty(bands) && isempty(caret) && return elements
     # The bands go before the first element that holds a line, over the box of the widget.
     at = something(findfirst(element -> any(line -> _find_element_path(element, line.text) !== nothing, drawn),
@@ -345,19 +347,21 @@ end
 
 # A band in `color` over the box of each line of the part that `selection` names as
 # a whole, and over the characters of each line that a range of a part holds, in
-# the frame of the canvas of the lines.
-function _make_drawn_bands(drawn, selection, measure, color)
+# the frame of `elements`, the elements of the canvas of the lines.
+function _make_drawn_bands(drawn, selection, measure, color, elements = Any[])
     selection isa ConcreteReference || return Any[]
     whole = strip_reference_types(selection)
     found = _split_part_range(selection)
     bands = Any[]
     for line in drawn
         part = strip_reference_types(line.part)
+        (part == whole || found !== nothing && found[1] == part) || continue
         text = _get_drawn_string(line)
         font = unwrap_cell(getfield(line.text, :font))
         box = compute_line_box(measure, text, font)
-        x = round(Int, unwrap_cell(getfield(line.text, :x)))
-        y = round(Int, unwrap_cell(getfield(line.text, :y))) - box.text_y
+        frame_x, frame_y = _find_drawn_line_frame(elements, line.text)
+        x = frame_x + round(Int, unwrap_cell(getfield(line.text, :x)))
+        y = frame_y + round(Int, unwrap_cell(getfield(line.text, :y))) - box.text_y
         if part == whole
             push!(bands, GraphicsRect(x, y, box.width, box.height; color, radius = 0))
         elseif found !== nothing && found[1] == part && found[2].start < found[2].stop
@@ -374,15 +378,15 @@ function _make_drawn_bands(drawn, selection, measure, color)
 end
 
 # The caret of `selection` on its line, as one element, or no element.
-function _make_drawn_caret_elements(drawn, selection, measure)
-    place = _find_drawn_caret_place(drawn, selection, measure)
+function _make_drawn_caret_elements(drawn, selection, measure, elements = Any[])
+    place = _find_drawn_caret_place(drawn, selection, measure, elements)
     place === nothing && return Any[]
     Any[GraphicsRect(place.x, place.y, 2, place.height; color = place.color)]
 end
 
-# The place of the caret `selection` on its line, in the frame of the canvas of
-# the line, or `nothing`.
-function _find_drawn_caret_place(drawn, selection, measure)
+# The place of the caret `selection` on its line, in the frame of `elements`, the
+# elements of the canvas of the line, or `nothing`.
+function _find_drawn_caret_place(drawn, selection, measure, elements = Any[])
     split = _split_part_range(selection)
     split === nothing && return nothing
     part, range = split
@@ -393,7 +397,38 @@ function _find_drawn_caret_place(drawn, selection, measure)
     font = unwrap_cell(getfield(line.text, :font))
     offsets = compute_caret_offsets(measure, text, font)
     _, ascent, descent = compute_text_extent(measure, text, font)
-    (x = round(Int, unwrap_cell(getfield(line.text, :x)) + offsets[range.start - line.start + 1]),
-     y = round(Int, unwrap_cell(getfield(line.text, :y))),
+    frame_x, frame_y = _find_drawn_line_frame(elements, line.text)
+    (x = frame_x + round(Int, unwrap_cell(getfield(line.text, :x)) + offsets[range.start - line.start + 1]),
+     y = frame_y + round(Int, unwrap_cell(getfield(line.text, :y))),
      height = round(Int, ascent + descent), color = unwrap_cell(getfield(line.text, :color)))
+end
+
+# The place of the frame that holds the text element `text` among `elements`: the
+# sum of the places of the canvases and the viewports around it, and `(0, 0)` when
+# `text` is one of `elements` itself or is not among them.
+function _find_drawn_line_frame(elements, text)
+    for k in 1:length(elements)
+        frame = _find_drawn_line_frame_in(unwrap_cell(elements[k]), text, 0, 0)
+        frame === nothing || return frame
+    end
+    (0, 0)
+end
+
+function _find_drawn_line_frame_in(node, text, x::Int, y::Int)
+    node === text && return (x, y)
+    if node isa GraphicsCanvas
+        inner_x = x + round(Int, unwrap_cell(getfield(node, :x)))
+        inner_y = y + round(Int, unwrap_cell(getfield(node, :y)))
+        elements = unwrap_cell(getfield(node, :elements))
+        elements isa Union{AbstractVector, CellVector} || return nothing
+        for k in 1:length(elements)
+            frame = _find_drawn_line_frame_in(unwrap_cell(elements[k]), text, inner_x, inner_y)
+            frame === nothing || return frame
+        end
+    elseif node isa GraphicsViewport
+        return _find_drawn_line_frame_in(unwrap_cell(getfield(node, :content)), text,
+                                         x + round(Int, unwrap_cell(getfield(node, :x))),
+                                         y + round(Int, unwrap_cell(getfield(node, :y))))
+    end
+    nothing
 end

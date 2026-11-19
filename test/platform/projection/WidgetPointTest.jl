@@ -93,6 +93,49 @@ end
     @test _map(accordion, 10, 90) == _path(FieldReferenceStep("items"), _at(2))
 end
 
+# The titles and the open body of an accordion are texts that it draws. An Alt+click
+# on a title puts the caret there, and a plain click on it opens or closes its item,
+# because the header is a control. A point on the open body is the caret there, and
+# the caret maps forward to its line.
+@testset "the texts of an accordion take the caret, and a header keeps its click" begin
+    accordion = WidgetAccordion([("First?", "Yes, first."), ("Second?", "No.")])
+    projection = _projection()
+    iomap = print_document(projection, accordion)
+    texts = _collect_task_view_texts(get_iomap_output(iomap))
+    title = only(t for t in texts if t[3] == "First?")
+    body = only(t for t in texts if t[3] == "Yes, first.")
+    item(field) = [FieldReferenceStep("items"), _at(1), FieldReferenceStep(field)]
+    steps(path) = collect(get_reference_steps(strip_reference_types(path)))
+    click(t, modifiers) =
+        read_intent(projection, iomap, MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0))
+    alt = click(title, ModifierKeys(alt = true))
+    @test alt isa ReplaceSelectionOperation && steps(alt.path)[1:3] == item("title")
+    @test !(click(title, ModifierKeys()) isa ReplaceSelectionOperation)
+    caret = _map(accordion, body[1] + 2, body[2] + 2)
+    @test steps(caret)[1:3] == item("body") && last(steps(caret)) isa RangeReferenceStep
+    @test map_reference_forward(projection, iomap, annotate_reference_types(accordion, caret)) !== nothing
+    # The title selected as a whole has a band behind it, at the place of the title
+    # in its header.
+    function rects(node, x = 0, y = 0, found = Tuple{Int,Int,Int,Int}[])
+        node = unwrap_cell(node)
+        if node isa GraphicsCanvas
+            for element in node.elements
+                rects(element, x + Int(node.x), y + Int(node.y), found)
+            end
+        elseif node isa GraphicsViewport
+            rects(node.content, x + Int(node.x), y + Int(node.y), found)
+        elseif node isa GraphicsRect
+            push!(found, (x + Int(node.x), y + Int(node.y), Int(node.w), Int(node.h)))
+        end
+        found
+    end
+    before = rects(get_iomap_output(iomap))
+    replace_selection!(accordion, annotate_reference_types(accordion, extend_reference(EmptyReference(), item("title")...)))
+    added = setdiff(rects(get_iomap_output(iomap)), before)
+    @test any(r -> r[1] <= title[1] + 2 < r[1] + r[3] && r[2] <= title[2] + 2 < r[2] + r[4], added)
+    replace_selection!(accordion, nothing)
+end
+
 # A move names the part under the pointer (`compute_part_at_point`). A separator
 # draws no part of its own, so a point on its rule names the separator as a whole,
 # and no point in its drawing.

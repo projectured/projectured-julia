@@ -2125,7 +2125,9 @@ end
 # (`read_drawn_text_pointer`); on a chip only a press with Alt does.
 read_gesture(p::WidgetLabelToGraphicsCanvas, iomap::WidgetBoxIoMap, evt; answer = nothing) =
     answer === nothing ? (_read_drawn_text(p, iomap, evt)) : nothing
-function _read_drawn_text(p, iomap::WidgetBoxIoMap, evt)
+# `iomap` is the IO map of a widget that holds the lines of its text in `drawn`, a
+# `WidgetBoxIoMap` or the IO map of a widget with parts, such as an accordion.
+function _read_drawn_text(p, iomap, evt)
     w = iomap.input
     # The moves and the end of a drag that a press on the text started reach the
     # widget also off its text.
@@ -12388,9 +12390,10 @@ read_gesture(::WidgetTextareaToGraphicsCanvas, ::WidgetTextareaToGraphicsCanvasI
     gap::Int                      # space before the trailing chevron
     body_gap::Int                 # gap above the expanded body
     chevron_size::Int
+    selected_color::StyleColor    # the band of a title or a body selected as a whole
 end
 
-WidgetAccordionToGraphicsCanvas(theme; measure,
+WidgetAccordionToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                 margin = inset_default, border = inset_default, padding = inset_default,
                                 margin_color = color_transparent, border_color = color_transparent,
                                 padding_color = color_transparent, content_color = color_transparent,
@@ -12401,10 +12404,11 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
                                 item_padding = _themed(Inset, theme, t -> t.control_padding),
                                 gap = _themed(Int, theme, t -> t.line_gap),
                                 body_gap = _themed(Int, theme, t -> t.accordion_body_gap),
-                                chevron_size = _themed(Int, theme, t -> t.chevron)) =
+                                chevron_size = _themed(Int, theme, t -> t.chevron),
+                                selected_color = _make_selected_row_color(graphics_theme)) =
     WidgetAccordionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                     padding_color, content_color, title_text, body_text, divider_stroke,
-                                    chevron_color, item_padding, gap, body_gap, chevron_size)
+                                    chevron_color, item_padding, gap, body_gap, chevron_size, selected_color)
 
 # The header row of each item, so a press is answered by the header it landed in,
 # and the place of the open body when it is a document, so a press on the body
@@ -12418,7 +12422,14 @@ WidgetAccordionToGraphicsCanvas(theme; measure,
     body_entry::Any
     headers::Any
     box::Any
+    drawn::Any        # the lines of the titles and the open body that are plain values
 end
+
+# The part of item `i` that a title or a body is: `items[i].title` or `items[i].body`.
+_get_accordion_part(i::Int, field::String) =
+    ConcreteReference(FieldReferenceStep("items"),
+                      ConcreteReference(RangeReferenceStep(i - 1, i),
+                                        ConcreteReference(FieldReferenceStep(field), EmptyReference())))
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
 ProjectionModule.get_child_iomaps(iomap::WidgetAccordionToGraphicsCanvasIoMap) =
@@ -12502,6 +12513,9 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         # chevron of its item, so a header is a node that a reference reaches.
         headers = Any[]
         body_entry = nothing
+        # A title or a body that is a plain value records the line that it draws,
+        # so its text takes the caret as the text of a label does.
+        drawn = DrawnTextLine[]
         y = 0
         divider_width = max(1, Int(divider_stroke.width))
         for (i, item) in enumerate(w.items)
@@ -12511,6 +12525,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             if titles[i] === nothing
                 _push_text!(header_elements, p.measure, title_style.font, string(item.title),
                            item_padding_x, item_padding_y, title_style.color)
+                _is_drawn_value(item.title) &&
+                    push!(drawn, DrawnTextLine(last(header_elements), _get_accordion_part(i, "title"), 0))
             else
                 push!(header_elements, _make_canvas(item_padding_x, item_padding_y, Any[titles[i].output]))
             end
@@ -12538,6 +12554,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
                 _, body_height = _text_size(p.measure, body_style.font, body)
                 _push_text!(row_elements, p.measure, body_style.font, body, content_x + item_padding_x,
                            content_y + y + p.body_gap, body_style.color)
+                _is_drawn_value(item.body) &&
+                    push!(drawn, DrawnTextLine(last(row_elements), _get_accordion_part(i, "body"), 0))
                 y += body_height + item_padding_y
             end
             push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width,
@@ -12550,12 +12568,14 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         append!(elements, row_elements)
         _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, item_content_min, y)
         (width=outer_width, height=outer_height, elements=elements,
-         header_bounds=header_bounds, body_entry=body_entry, headers=headers)
+         header_bounds=header_bounds, body_entry=body_entry, headers=headers, drawn=drawn)
     end)
-    WidgetAccordionToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+    WidgetAccordionToGraphicsCanvasIoMap(p, w, _make_drawn_text_canvas(_origin(position)..., build, w, p.measure,
+                                                                       p.selected_color),
                                          Cell(@computation build[].header_bounds),
                                          Cell(@computation build[].body_entry),
-                                         Cell(@computation build[].headers), geometry)
+                                         Cell(@computation build[].headers), geometry,
+                                         Cell(@computation build[].drawn))
 end
 
 # `items[i]` is the canvas of the header of item `i`, found by identity among the
@@ -12565,6 +12585,13 @@ function map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap::WidgetA
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa ConcreteReference || return _map_self_forward(reference)
+    # A caret or a range in a title or a body that the accordion drew is drawn on
+    # its line, and the title or the body as a whole is the text of that line.
+    drawn = iomap.drawn
+    place = map_drawn_caret_forward(drawn, iomap.output, reference)
+    place === nothing || return place
+    line = findfirst(line -> strip_reference_types(line.part) == reference, drawn)
+    line === nothing || return _find_element_path(iomap.output, drawn[line].text)
     head = reference.head
     (head isa FieldReferenceStep && head.name == "items") || return nothing
     rest = reference.tail
@@ -12577,16 +12604,22 @@ function map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap::WidgetA
 end
 
 map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-# A point on a header maps to its item, and a point on the open body on into the
-# body, `items[i].body`, with the point in the body's frame.
-function map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, reference)
+# A point on a header maps to its item, because the header is a control, and a
+# point on the open body on into the body, `items[i].body`, with the point in the
+# body's frame; a point on a body that the accordion drew as a text is the caret
+# there. A place of the characters of a line that it drew is that place in its part.
+function map_reference_backward(p::WidgetAccordionToGraphicsCanvas, iomap, reference)
+    iomap isa WidgetAccordionToGraphicsCanvasIoMap || return nothing
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa WidgetAccordionToGraphicsCanvasIoMap)) && return nothing
+    point === nothing && return reference === nothing ? nothing :
+                                map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     _is_point_on_canvas(iomap.output, point) || return nothing
     item = _find_row_index(iomap.header_bounds, point.y)
     item === nothing ||
         return annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("items"),
                                         ConcreteReference(RangeReferenceStep(item - 1, item))))
+    caret = find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+    caret === nothing || return annotate_reference_types(iomap.input, caret)
     entry = iomap.body_entry
     entry === nothing && return nothing
     (_, _, index, body_iomap) = entry
@@ -12664,6 +12697,10 @@ _is_accordion_header_gesture(iomap, gesture) =
 # (`read_child_part_gesture`).
 function read_gesture(p::WidgetAccordionToGraphicsCanvas, iomap::WidgetAccordionToGraphicsCanvasIoMap,
                       gesture; answer = nothing)
+    if answer === nothing
+        text = _read_accordion_text(p, iomap, gesture)
+        text === nothing || return text
+    end
     if answer === nothing && _is_accordion_header_gesture(iomap, gesture)
         if gesture isa MouseClick && gesture.button === :left
             w = iomap.input
@@ -12677,6 +12714,17 @@ end
 
 _get_accordion_body_steps(index::Int) =
     (FieldReferenceStep("items"), RangeReferenceStep(index - 1, index), FieldReferenceStep("body"))
+
+# A title or a body that the accordion drew as a text takes the caret as the text
+# of a label does (`_read_drawn_text`). A header is a control: a click opens or
+# closes its item, so only a press with Alt puts the caret into a title.
+function _read_accordion_text(p::WidgetAccordionToGraphicsCanvas, iomap::WidgetAccordionToGraphicsCanvasIoMap,
+                              gesture)
+    selecting = is_selection_press(gesture) || gesture isa MouseDown && gesture.modifiers.alt
+    on_header = _positioned_event(gesture) && _find_row_index(iomap.header_bounds, gesture.y) !== nothing
+    on_header && !selecting && return nothing
+    _read_drawn_text(p, iomap, gesture)
+end
 
 # A move of the pointer. The open body gets it first when the accordion's own
 # mouse target is inside the body and the point is not. Then the part at the point
@@ -12704,6 +12752,11 @@ function _read_accordion_move(iomap::WidgetAccordionToGraphicsCanvasIoMap, evt::
                     shift_operation_position(read_child_move(body_iomap, local_event), dx, dy),
                     _get_accordion_body_steps(index))
             end
+        end
+        # A body that the accordion drew as a text names the caret under the pointer.
+        if item === nothing && !on_body
+            caret = find_drawn_caret(iomap.drawn, iomap.output, evt.x, evt.y, iomap.projection.measure)
+            caret === nothing || (new_answer = ReplaceMouseTargetOperation(annotate_reference_types(w, caret)))
         end
     end
     (entry === nothing || on_body) && return new_answer
@@ -15682,7 +15735,7 @@ function WidgetToGraphics(; measure::TextMeasure, theme = WidgetTheme(), graphic
         WidgetList        => WidgetListToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measure),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measure),
-        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measure),
+        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetFactGroup   => WidgetFactGroupToGraphicsCanvas(theme; graphics_theme, measure = measure),
         WidgetTable       => WidgetTableToGraphicsCanvas(theme; graphics_theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(theme; graphics_theme, measure = measure),

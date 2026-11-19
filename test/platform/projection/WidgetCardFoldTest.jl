@@ -185,10 +185,15 @@ function test_widget_card_fold()
         texts = _fold_texts(iomap.output)
         @test !("the first body" in texts) && !("the second body" in texts)
 
-        # A press on a body, a right press and a press outside answer nothing.
+        # A press on the text of a body puts the caret there, because a body is no
+        # control; a right press and a press outside answer nothing.
         evaluate_operation(nothing, ReplaceReferencedValueOperation(accordion, "expanded", 1))
         body = _fold_text_positions(iomap.output)["the first body"]
-        @test press(body[1] + 2, body[2] + 2) === nothing
+        caret = press(body[1] + 2, body[2] + 2)
+        @test caret isa ReplaceSelectionOperation &&
+              strip_reference_types(caret.path) ==
+              extend_reference(EmptyReference(), FieldReferenceStep("items"), RangeReferenceStep(0, 1),
+                               FieldReferenceStep("body"), RangeReferenceStep(0, 0))
         first = _fold_text_positions(iomap.output)["First"]
         @test press(first[1] + 2, first[2] + 2; button = :right) === nothing
         @test press(first[1] + 2, 5) === nothing
