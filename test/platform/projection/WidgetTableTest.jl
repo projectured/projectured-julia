@@ -394,6 +394,29 @@ function test_widget_table_cell_policy()
         @test op.path.tail.head.start == 1
         @test op.path.tail.tail isa EmptyReference
     end
+    # A press on the text of a cell puts the caret and starts a drag; the end of
+    # the drag comes by the path of the cell and reads the cell in its own frame,
+    # so a release at the point of the press leaves the caret where it is.
+    @testset "the end of the drag of a press on the text of a cell reads the cell in its frame" begin
+        geometry = clipped.geometry
+        x = geometry.col_x[1] + geometry.bw + geometry.pad_x + 10
+        y = geometry.row_y[3] + geometry.bw + geometry.pad_y + 2     # body row two
+        flat(op) = op isa CompoundOperation ? reduce(vcat, map(flat, op.operations); init = Any[]) :
+                   op isa WrappingOperation ? flat(get_wrapped_operation(op)) : Any[op]
+        read_at(gesture; route = nothing) =
+            read_intent(rec, nothing, Intent(gesture, nothing, "", "", route), clipped).operation
+        press = flat(read_at(MouseDown(:left, x, y, ModifierKeys(); time = 0.0)))
+        caret = only(op for op in press if op isa ReplaceSelectionOperation).path
+        start = only(op for op in press if op isa StartDragOperation)
+        @test strip_reference_types(caret) ==
+              extend_reference(EmptyReference(), FieldReferenceStep("cells"), RangeReferenceStep(1, 2),
+                               RangeReferenceStep(0, 1), FieldReferenceStep("content"), RangeReferenceStep(1, 1))
+        replace_selection!(clipped.input, caret)
+        ending = flat(read_at(DragEnd(x, y, ModifierKeys(); time = 0.0); route = start.path))
+        @test strip_reference_types(only(op for op in ending if op isa ReplaceSelectionOperation).path) ==
+              strip_reference_types(caret)
+        replace_selection!(clipped.input, nothing)
+    end
     @testset "the padding around a cell is the theme's, one token per axis" begin
         scaled = make_scaled_theme(WidgetTheme())
         geometry = clipped.geometry

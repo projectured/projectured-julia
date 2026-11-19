@@ -13822,6 +13822,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     place = _get_wt_cells_place(p, iomap)
     _is_table_bar_event(iomap.parts.cells_pane, place, g) &&
         return Intent(g, _read_table_bar_event(iomap.parts.cells_pane, place, g))
+    if g isa Union{DragMove, DragEnd, DragCancel} && change.route isa ConcreteReference
+        routed = _wt_read_routed_drag(recursion, change, iomap)
+        routed === nothing || return routed
+    end
     _positioned_event(g) && !(g isa MouseMove) && _outside_widget(iomap, g) && return Intent(g, nothing)
     g isa MouseClick && g.button === :left && return Intent(g, _wt_mouse_select(p, iomap, g))
     # A pointer motion names the innermost part under the pointer, which the content
@@ -14337,6 +14341,39 @@ _wt_translate_event(evt::MouseUp, x::Int, y::Int) =
 _wt_translate_event(evt::MouseDwell, x::Int, y::Int) =
     shift_event_position(evt, x - evt.x, y - evt.y)
 _wt_translate_event(evt, x::Int, y::Int) = nothing
+
+# A part of a drag, its move, its end or its cancel, comes by the path of the part
+# that started it, a cell or a header, and goes to that part in the frame of its
+# canvas, as the press there did, also when the pointer has left the part. The
+# answer comes back rooted at the part, with its positions in the frame of the
+# table. `nothing` for a route into no part of the table.
+function _wt_read_routed_drag(recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
+    found = _wt_find_part_entry(iomap, change.route)
+    found === nothing && return nothing
+    pane, i, steps, _ = found
+    cell = _wt_find_part_cell(iomap, pane, i)
+    cell === nothing && return nothing
+    cim, left, top = cell
+    dx, dy = _wt_get_part_frame_offset(iomap, pane, left, top)
+    routed = follow_intent_route(change, steps...)
+    routed === nothing && return nothing
+    answer = read_routed_child_in_frame(recursion, routed, cim; move_in = (x, y) -> (x - dx, y - dy),
+                                        move_out = (x, y) -> (x + dx, y + dy))
+    Intent(change.gesture, reroot_operation(answer.operation, Tuple(steps)), answer.description, answer.domain)
+end
+
+# The place in the frame of the table of a canvas at `(left, top)` of the geometry
+# of `pane`: past the box, and moved by the scroll of the cells along each axis on
+# which `pane` scrolls, as `_wt_get_unscrolled_point` maps a point back. The cells
+# scroll both ways, the column headers along x and the row headers along y.
+function _wt_get_part_frame_offset(iomap::WidgetTableToGraphicsCanvasIoMap, pane, left::Int, top::Int)
+    parts = iomap.parts
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
+    content = _get_part_content(parts.cells_pane)
+    scroll_x = pane === parts.cells_pane || pane === parts.column_header_pane
+    scroll_y = pane === parts.cells_pane || pane === parts.row_header_pane
+    (content_x + left + (scroll_x ? Int(content.x) : 0), content_y + top + (scroll_y ? Int(content.y) : 0))
+end
 
 # The cell the selection is in reads the event, whether the whole cell is
 # selected or a caret is inside it, and its answer is re-rooted under the cell.
