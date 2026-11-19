@@ -15,6 +15,25 @@ end
 
 const _WORKFLOW_TEST_TIME = "2026-10-09T15:00:00"
 
+# Each text of a canvas with its place in the window, also inside the viewport of a
+# scroll pane, whose translation moves its content.
+function _wf_page_drawn(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+    for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        element isa ListNode && (element = element.value)
+        if element isa GraphicsText
+            push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _wf_page_drawn(element, x, y, found)
+        elseif element isa GraphicsViewport
+            _wf_page_drawn(element.content, x + Int(element.x) + round(Int, element.transform.e),
+                           y + Int(element.y) + round(Int, element.transform.f), found)
+        end
+    end
+    found
+end
+
 """
     test_workflow_edits()
 
@@ -204,7 +223,9 @@ function test_workflow_edits()
             column = tree.root.elements[2]
             @test column isa PaneSplit && column.orientation === :horizontal
             @test column.elements[2] === conversation
-            @test column.elements[1].tabs[1].content isa WorkflowStep
+            # The tab shows the page of the workflow: the workflow in a scroll pane.
+            page = column.elements[1].tabs[1].content
+            @test page isa WidgetScrollPane && page.content isa WorkflowStep
             @test get_pane_normalized_weights(get_pane_weights(column)) ≈ [1 / 3, 2 / 3]
             run_with_evaluation_editor(editor) do
                 start_workflow!("Second plan")
@@ -212,6 +233,45 @@ function test_workflow_edits()
             column = tree.root.elements[2]
             @test length(column.elements) == 2 && column.elements[2] === conversation
             @test length(column.elements[1].tabs) == 2
+            # The group of workflows is a side area: a file that opens goes to the documents.
+            @test !accepts_opened_file(column.elements[1].tabs[2].content)
+        end
+
+        @testset "a long workflow scrolls in its tab, and its page is the same pane everywhere" begin
+            conversation = PaneGroup(PaneTab[PaneTab(_WORKFLOW_CONVERSATION_TITLE, PrimitiveString("talk"))])
+            backend = HeadlessBackend()
+            measure = FixedMeasure(8, 12, 4, 0)
+            editor = build_editor(PaneTree(conversation), make_tabs_projection(NaturalToGraphics(; measure); measure);
+                                  backend, devices = Device[Keyboard(), Mouse(), Display()],
+                                  window = (; title = "W", width = 800, height = 600), tabs = false,
+                                  appearance = false, settings = false)
+            run_frame!(editor)
+            plan = run_with_evaluation_editor(editor) do
+                start_workflow!("Long plan"; steps = ["step $(k)" for k in 1:60])
+            end
+            frame!() = (drain_operations!(editor); run_frame!(editor))
+            frame!()
+            frame!()
+            root = get_document(plan)
+            tab = only(group.tabs[1] for group in get_pane_groups(get_window_tree(; editor)) if group !== conversation)
+            @test tab.content isa WidgetScrollPane && tab.content.content === root
+            @test tab.content.grows == (width = false, height = true)
+            # The tab has a third of the height of the window, so the late steps are
+            # below it until the wheel scrolls the pane.
+            window = first(editor.iomap.output.windows)
+            y_of(text) = (found = [entry[3] for entry in _wf_page_drawn(window.content) if entry[1] == text];
+                          isempty(found) ? nothing : only(found))
+            (x, y) = (only(entry[2] for entry in _wf_page_drawn(window.content) if entry[1] == "step 2"), y_of("step 2"))
+            @test y < 600 ÷ 3
+            for _ in 1:30
+                push_event!(backend, WindowInput(window.id, MouseScroll(0, -10, x + 2, y + 2; time = 0.0)))
+                frame!()
+            end
+            moved = y_of("step 2")
+            @test moved === nothing || moved < y - 100
+            @test y_of("step 60") !== nothing && y_of("step 60") < 600 ÷ 3 + 100
+            # The Explorer page and a card of a dashboard show the same page.
+            @test make_document_view(root) isa WidgetScrollPane
         end
 
         @testset "a verb answers a node as a referenced document when it gets one" begin

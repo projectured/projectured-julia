@@ -196,6 +196,11 @@ is_explorer_entry_type(::Type{WorkflowStep}) = true
 # goes to the documents, and not into the group of the plan.
 accepts_opened_file(::WorkflowStep) = false
 
+# The page of a workflow, in a tab, on the page of an explorer or in a card: the
+# step in a scroll pane that grows on its height, so a long workflow scrolls in
+# its place, and the steps inside it scroll with it.
+make_document_view(step::WorkflowStep) = WidgetScrollPane(step; grows = (width = false, height = true))
+
 # The name of a tab that shows a node of a workflow or its journal: the text that
 # names the node.
 get_document_title(node::Union{WorkflowStep, WorkflowDecision, WorkflowOption}) =

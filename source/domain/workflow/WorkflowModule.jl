@@ -26,7 +26,8 @@ import ..ProjectionModule: print_document, map_operation_backward, map_reference
 import ..EditorModule: make_change
 import ..DocumentModule: get_document_title, get_view_state_fields, has_document_duplicate, is_walk_opaque
 import ..DomainModule: make_pasted_document_operation, get_insertion_aliases, make_insertion_document,
-                       get_document_decoration, accepts_pasted_document, accepts_opened_file
+                       get_document_decoration, accepts_pasted_document, accepts_opened_file,
+                       make_document_view
 import ..SerializationModule: pred_arguments, make_pred_document
 import ..RosterModule: get_item_facets, compute_item_facet, collect_roster_parts, collect_roster_items,
                        get_roster_item_type

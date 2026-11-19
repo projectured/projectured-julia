@@ -230,6 +230,12 @@ of widgets, any document, in a tab of its own: in the group of the documents, in
 the group of another tab, or in a new pane beside or under one group. It answers
 the new tab with its reference, which the other pane verbs take.
 
+The tab holds what the caller gives, and a document that has a page of its own
+shows through that page. Open a file with `open_file!`, which gives it its file
+view: the band of a change on disk and a scroll pane. For another document, pass
+its page, `make_document_view(document)`, such as a workflow in a scroll pane.
+`open_pane!(document)` puts the document itself in the tab, with no page.
+
 # Example
 
     delay_tab_1 = open_pane!(make_result_plot(frame); title = "Delay")

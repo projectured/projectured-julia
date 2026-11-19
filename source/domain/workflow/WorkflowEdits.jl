@@ -450,25 +450,27 @@ end
 
 # The tab of `root` above the conversation: in the group of workflows that sits
 # over it, else in a new group that takes the top third of the conversation's
-# place. Without a conversation, the placement of `open_pane!`.
+# place. Without a conversation, the placement of `open_pane!`. The tab shows the
+# page of the workflow (`make_document_view`), which scrolls it.
 function _open_workflow_pane!(editor, root::WorkflowStep)
+    page = follow_content_selection!(make_document_view(root))
     tree = get_window_tree(; editor)
     conversation = pane_group_to_avoid(tree)
-    conversation === nothing && return open_pane!(root; editor)
+    conversation === nothing && return open_pane!(page; editor)
     parent = get_pane_parent(tree, conversation)
     if parent !== nothing
         owner, index = parent
         if owner isa PaneSplit && owner.orientation === :horizontal && index > 1
             above = owner.elements[index - 1]
             if above isa PaneGroup && !isempty(above.tabs) &&
-               all(tab -> tab.content isa WorkflowStep, above.tabs)
-                return open_pane!(root; group = above, editor)
+               all(tab -> get_edited_document(tab.content) isa WorkflowStep, above.tabs)
+                return open_pane!(page; group = above, editor)
             end
         end
     end
     title = get_document_title(root)
     name = title === nothing ? "Workflow" : String(title)
-    group = PaneGroup(PaneTab[PaneTab(name, root)])
+    group = PaneGroup(PaneTab[PaneTab(name, page)])
     reference = first(search_references(editor.document, node -> node === conversation;
                                         walk = DocumentWalk(; descend = is_pane_search_step)))
     replace_referenced_value!(reference,

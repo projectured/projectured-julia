@@ -4243,9 +4243,11 @@ _get_field_keywords(widget::WidgetDocument, left_out::Tuple) =
     filter(keyword -> first(keyword) !== :content && !(first(keyword) in left_out),
            last(invoke(pred_arguments, Tuple{Any}, widget)))
 
-# A person sees through a scroll pane to what it shows, which names the pane.
+# A person sees through a scroll pane to what it shows, which names the pane, and a
+# tab of the pane takes an opened file when what the pane shows takes one.
 get_edited_field(::WidgetScrollPane) = :content
 get_document_title(pane::WidgetScrollPane) = get_document_title(pane.content)
+accepts_opened_file(pane::WidgetScrollPane) = accepts_opened_file(pane.content)
 
 # A person sees through a transform pane to what it zooms, as through a scroll pane.
 get_edited_field(::WidgetTransformPane) = :content
