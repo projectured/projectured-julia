@@ -1192,9 +1192,11 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       the rule of its level reads it. The test wants the name of the title in
       both runs, so this is the cause of the tab strip in step 6.
     - **A move in a separator** (`widget/separator`, `examples/widget_separator`,
-      1 line each), which passed in run 6: the move names a point of the canvas
-      of the separator (`‹WidgetSeparatorToGraphicsCanvas @(138,8)›`), not the
-      separator. A cause of step 6.
+      1 line each): the move names a point of the canvas of the separator
+      (`‹WidgetSeparatorToGraphicsCanvas @(138,8)›`), not the separator. Run 6
+      did not press the separator (0 points in `widget/separator`, 2 in
+      `examples/widget_separator`, against 1 and 3 now), so the line is a new
+      point, not a case that broke. A cause of step 6.
 
     Run 8 (2026-11-19, the walk with the fix of the cut, folder `run8`,
     1 h 26 min): 1744 lines in 218 of 546 examples. Only `examples/filesystem`
@@ -1207,8 +1209,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     5.1 to 5.5 is on main, and its suites ran before each land. So the check
     runs no other suite.
 
-    So step 5 breaks no case that passed, but the move in a separator, a cause
-    of step 6.
+    So step 5 breaks no case that passed.
 
   The landing of 2026-11-19 (main 8356082d0, not pushed; the owner: "yes")
   holds step 5 and the walk fix, rebased with no conflict over main 0a4f46451.
@@ -1509,6 +1510,55 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   - **Found:** `test_pane_reader` expected the label for an Alt+click on the text
     of a label, which e7ff5e058 changed (P8); its two test sets now expect the
     text of the label and its band, and the ring for the label as a whole.
+
+  **After step 5 (2026-11-19), from run 8.** Run 8 (1744 lines in 218 of 546
+  examples, `step6/run8`) is the baseline. The work goes in this order: the
+  throws, the move over a drawn part, the tab strip, the widgets that record no
+  text (the accordion, the list, the choice list), and the views of §4.
+  - **The throws** (24 lines in 15 examples, all in run 6 too), in 7 groups:
+    - ~~The stream view~~ (task/stream, 3 lines). `_find_scroll_bar_value` took
+      the first value of the members of a compound by `something(…, nothing)`,
+      which throws `ArgumentError` when no member writes the scroll bar. A loop
+      gives `nothing` now (1b259aaed). task/stream: 31 lines → 26.
+    - ~~The open file list~~ (fileformat/open_file_list, 2 lines).
+      `OpenFileList()` holds no table, as its docstring says, and
+      `keep_held_arrangement` had no method for `nothing`. A field that holds
+      `nothing` keeps the operation as it is (703da5536).
+    - The point in a canvas page (graphics/canvas 2 lines,
+      examples/rotating_vector 1). A canvas passes a point through: its backward
+      map answers the bare `PointReferenceStep`. `_map_point_to_child` of the
+      tabbed pane and `_point_backward` of the layouts put the steps of the
+      child before that answer, and `annotate_reference_types` has no method
+      for a step as the tail of a path. They make such an answer a path of one
+      step now. Both forms of the point exist as input: the math view takes only
+      the bare step, and `compute_part_at_point` passes a path of one step.
+    - The selection that a press writes does not match the document
+      (`SelectionMismatchException`, 9 lines in layout/anchored, filesystem/file,
+      examples/table and examples/math_table). Open.
+    - Not in the clicks: examples/json_sorted does not build. The copy of a
+      `JsonObject` gives its field `entries` a `CellVector{Any}`, and the field
+      is declared `CellVector{Document}`. Five generic views build their output
+      by `CellVector(@computation …)`, which is always `CellVector{Any}`: copy,
+      sort, reverse, filter and search. The example workload fails on this
+      example since 2026-10-30 too.
+    - Limits of the catalog and of the walk, for step 8: the five text atoms
+      `text/bare_*` and `text/gutter`, whose natural variant `CatalogTest.jl`
+      knows as broken (`WordWrapping` has no method for a lone span), and
+      `widget/screen_document`, whose document is a screen, so the output of the
+      editor has no `windows` for the walk to read (`PartClickTest.jl:617`).
+  - **The move over a drawn part** (37 move lines in 26 examples). A leaf that
+    draws no part of its own, such as a separator, a swatch, an icon, a skeleton
+    or a progress bar, maps a point to a projection step whose output path is
+    only that point, `‹WidgetSeparatorToGraphicsCanvas @(138,8)›`. The
+    Alt+double click names the leaf. `compute_part_at_point` drops a point at
+    the end of the path, and now also a point at the end of the output path of
+    a projection step at the end; a step that names only a point names the node
+    that printed it. The probe: widget/separator, widget/swatch, widget/icon,
+    examples/widget_separator and examples/widget_progress_bar have no failure.
+    Run 6 did not press the separator (0 and 2 points), so its line in run 8 is
+    a new point, not a case that broke. Left: 8 lines where the move names
+    `.children[N].child` and the Alt+double click `.children[N]`, and 5 lines of
+    `ObjectFieldToWidget`.
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
