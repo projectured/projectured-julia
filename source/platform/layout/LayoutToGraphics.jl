@@ -2904,7 +2904,8 @@ end
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
     build = Cell(@computation _al_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries, p.graphics_style)
+    # `children[i]` is the entry after the content.
+    ring = make_layout_selection_ring(doc, () -> build[].entries[2:end], p.graphics_style)
     memo = IdDict{Any,Any}()
     placed = Cell(@computation _place_anchored_outputs(build[].entries, memo))
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
@@ -2915,10 +2916,51 @@ function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
     ChildrenIoMap(p, doc, outer, Cell(@computation build[].entries))
 end
 
-# Child 1 of the IoMap is the content; the anchored children follow it, so a
-# reference into the content keeps working and `children[i]` lands on entry i.
+# Entry 1 of the IoMap is the content, `content`, and entry `i + 1` the child of the
+# anchored entry `i`, `children[i].child`, as the build prints them.
+_get_anchored_child_steps(index::Integer) =
+    index == 1 ? (FieldReferenceStep("content"),) :
+    (FieldReferenceStep("children"), RangeReferenceStep(index - 2, index - 1), FieldReferenceStep("child"))
+
+# The entry that `path` goes into, and the rest of `path` inside its child: a
+# path to an anchored entry as a whole is its child as a whole. `(0, nothing)`
+# for a path into no child, such as the target of an entry.
+function _split_anchored_path(path, n::Int)
+    path isa ConcreteReference || return (0, nothing)
+    path.head == FieldReferenceStep("content") && return (1, path.tail)
+    (path.head isa FieldReferenceStep && path.head.name == "children") || return (0, nothing)
+    t = path.tail
+    (t isa ConcreteReference && t.head isa RangeReferenceStep && t.head.stop == t.head.start + 1) ||
+        return (0, nothing)
+    index = t.head.start + 2
+    2 <= index <= n || return (0, nothing)
+    rest = t.tail
+    rest isa EmptyReference && return (index, rest)
+    (rest isa ConcreteReference && rest.head == FieldReferenceStep("child")) || return (0, nothing)
+    (index, rest.tail)
+end
+
+_reroot_into_anchored_child(document, op, index::Integer) =
+    _annotate_operation(document, reroot_operation(op, _get_anchored_child_steps(index)))
+
+# A path into the content or into the child of an entry maps to the node that
+# draws that child, followed by what the mapper of the child answers. The canvas
+# draws the content as it is, as its first element, and each anchored child in a
+# canvas that places it.
 function map_reference_forward(::AnchoredLayoutToGraphicsCanvas, iomap, reference)
-    return _children_forward(iomap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    index, rest = _split_anchored_path(reference, length(entries))
+    index == 0 && return nothing
+    child = entries[index][3]
+    child.output isa GraphicsDocument || return nothing
+    inner = map_reference_forward(child.projection, child, rest)
+    inner === nothing && return nothing
+    index == 1 && return ConcreteReference(FieldReferenceStep("elements"),
+                                           ConcreteReference(RangeReferenceStep(0, 1), inner))
+    make_slot_reference(iomap.output, entries, index, inner)
 end
 
 # Only a point maps back: the anchored child drawn at it, topmost first, as the
@@ -2926,19 +2968,32 @@ end
 function map_reference_backward(::AnchoredLayoutToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     point === nothing && return nothing
-    # The first entry is the content, and the entry after it the first child.
     _point_backward(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point;
-                    topmost_first = true,
-                    steps_of = index -> index == 1 ? (FieldReferenceStep("content"),) :
-                                        (FieldReferenceStep("children"),
-                                         RangeReferenceStep(index - 2, index - 1)))
+                    topmost_first = true, steps_of = _get_anchored_child_steps)
 end
 
 # Anchored children are drawn over the content, so a click must reach them
 # first — the same topmost-first rule the stack and constraint layouts follow.
 # The anchored children are drawn after the content, so they are on top of it.
-read_intent(p::AnchoredLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap) =
-    _read_layout_children(p, recursion, change, iomap; reverse = true)
+# A pointer gesture goes to the child at its point, a move to the child that the
+# pointer leaves as well, and a key, a gesture with no point and an operation to
+# the child that the selection of the layout names, each rooted at the steps of
+# its entry.
+function read_intent(p::AnchoredLayoutToGraphicsCanvas, recursion, change::Intent, iomap::ChildrenIoMap)
+    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    gesture = change.gesture
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    document = iomap.input
+    n = length(entries)
+    pointer = change.operation === nothing && _is_point_gesture(gesture)
+    pointer && gesture isa MouseMove &&
+        return Intent(gesture, _read_layout_move(document, entries, gesture, _route_move_reverse;
+                                                 reroot = _reroot_into_anchored_child,
+                                                 old = first(_split_anchored_path(get_mouse_target(document), n))))
+    slot = pointer ? _find_layout_slot_at(entries, gesture.x, gesture.y; reverse = true) :
+                     first(_split_anchored_path(getfield(document, :selection)[], n))
+    _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_anchored_child_steps, pointer)
+end
 
 read_intent(p::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

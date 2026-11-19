@@ -25,6 +25,7 @@ using ProjecturedKernel.ProjectionModule: Projection
 using ProjecturedKernel.IoMapModule: SimpleIoMap
 using ProjecturedKernel.ReferenceModule: var"@reference"
 using ProjecturedKernel.ReferenceModule: var"@reference_case"
+using ProjecturedKernel.SelectionModule: replace_selection!
 using ProjecturedPlatform.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedPlatform.ProjectionAlgebraModule: TypeDispatchingProjection
 
@@ -137,7 +138,8 @@ function test_anchored_layout()
         alone = print_document(renderer, content).output
         note = AnchoredEntry(WidgetLabel("12 waiting");
                              target = alone, placement = :right, offset_x = 6)
-        iomap = print_document(renderer, AnchoredLayout(content, Any[note]))
+        layout = AnchoredLayout(content, Any[note])
+        iomap = print_document(renderer, layout)
         # The content is the first entry, and the caret in the text of the label
         # inside it the part there.
         on_content = map_reference_backward(renderer, iomap, PointReferenceStep(5, 5))
@@ -145,12 +147,21 @@ function test_anchored_layout()
               extend_reference(EmptyReference(), FieldReferenceStep("content"),
                                FieldReferenceStep("children"), RangeReferenceStep(0, 1),
                                FieldReferenceStep("content"), RangeReferenceStep(0, 0))
-        # The annotation is drawn over the content, past its right edge.
+        # The annotation is drawn over the content, past its right edge, and its
+        # label is the `child` of its entry.
         on_note = map_reference_backward(renderer, iomap, PointReferenceStep(120, 5))
         @test strip_reference_types(on_note) ==
               extend_reference(EmptyReference(), FieldReferenceStep("children"),
-                               RangeReferenceStep(0, 1),
+                               RangeReferenceStep(0, 1), FieldReferenceStep("child"),
                                FieldReferenceStep("content"), RangeReferenceStep(0, 0))
+        # Each path is a selection of the layout, as a click writes it, and maps
+        # forward to the node that draws it: the content is the first element of
+        # the canvas, and the annotation the second, in the canvas that places it.
+        for (path, slot) in ((on_content, 1), (on_note, 2))
+            replace_selection!(layout, path)
+            drawn = collect(get_reference_steps(map_reference_forward(renderer, iomap, path)))
+            @test drawn[1:2] == [FieldReferenceStep("elements"), RangeReferenceStep(slot - 1, slot)]
+        end
     end
 
     @testset "a target named by reference is resolved through the content" begin
