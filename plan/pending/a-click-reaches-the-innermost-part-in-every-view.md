@@ -1569,6 +1569,21 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
     So each throw of a click in run 8 is fixed, but those of the limits of
     the catalog and the walk.
+  - **The widgets whose texts record no part**, one widget at a time:
+    - ~~The accordion~~ (widget/accordion and examples/widget_accordion, 7
+      lines each). A title or the open body that is a plain value records the
+      line that it draws, as `items[i].title` and `items[i].body`, so its text
+      takes the caret as the text of a label does: a plain click and a move on
+      a body put the caret, and an Alt+double click selects the title or the
+      body with a band. The header is a control, because its click opens or
+      closes its item, so a plain click and a move on it name the item, and only
+      a press with Alt puts the caret into a title. The marks of a drawn line
+      took the place of the text as a place in the canvas of the widget, and a
+      title stands in the canvas of its header, so its band lay off; the marks
+      add the places of the canvases and the viewports around the line now
+      (`_find_drawn_line_frame`). `WidgetCardFoldTest` expected nothing for a
+      press on the text of a body, the case that this changes; it expects the
+      caret now. Both examples have no failure (cf5ac1c36).
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
