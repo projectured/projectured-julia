@@ -11,7 +11,8 @@
 Draw a [`FileSystemFile`](@ref) as its page: its document, which its acquire gives
 it, drawn as the view of the file document ([`FileView`](@ref)), or a line that says
 that the file is not read while it has none. A path in the document goes to the page and
-back, so a key and a press on the page edit the file.
+back, so a key and a press on the page edit the file. The line of a file with no
+document is a part of the page, and its path is a step of the page.
 """
 struct FileSystemFileToWidget <: Projection end
 
@@ -24,9 +25,11 @@ function print_document(p::FileSystemFileToWidget, recursion, file::FileSystemFi
     iomap
 end
 
-function map_reference_forward(::FileSystemFileToWidget, iomap, reference)
+function map_reference_forward(p::FileSystemFileToWidget, iomap, reference)
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(iomap.output))
     reference isa ConcreteReference || return nothing
+    drawn = find_introduced_path(p, reference)
+    drawn === nothing || return drawn
     head = get_reference_head(reference)
     (head isa FieldReferenceStep && head.name == "document" && iomap.input.document !== nothing) || return nothing
     rest = strip_reference_types(get_reference_tail(reference))
@@ -38,11 +41,13 @@ function map_reference_forward(::FileSystemFileToWidget, iomap, reference)
         extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(0, 1)), rest))
 end
 
-function map_reference_backward(::FileSystemFileToWidget, iomap, reference)
+function map_reference_backward(p::FileSystemFileToWidget, iomap, reference)
     reference isa ConcreteReference || return EmptyReference()
     steps = get_reference_steps(strip_reference_types(reference))
     (length(steps) >= 2 && steps[1] == FieldReferenceStep("children") && steps[2] == RangeReferenceStep(0, 1)) ||
         return EmptyReference()
+    # With no document, the page draws the line that says so, a part of the page.
+    iomap.input.document === nothing && return make_introduced_reference(p, iomap, reference)
     below = steps[3:end]
     # A path through the field of the view that holds the file document is a path in
     # the document, and a part that the view introduced keeps its path after the

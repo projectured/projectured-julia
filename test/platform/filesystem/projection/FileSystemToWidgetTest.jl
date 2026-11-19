@@ -192,4 +192,18 @@ end
         @test bar.document.thumb_drag === nothing
     end
 end
+
+# A file with no document shows the line that says so. That line is a part of the
+# page, which no path of the file reaches: its path is a step of the page, and that
+# step maps forward to the line again.
+@testset "the line of a file that is not read is a part of its page" begin
+    projection = FileSystemFileToWidget()
+    file = FileSystemFile("/study/notes.txt")
+    iomap = print_document(projection, nothing, file, PrinterContext())
+    caret = extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(0, 1),
+                             FieldReferenceStep("content"), RangeReferenceStep(3, 3))
+    part = map_reference_backward(projection, iomap, caret)
+    @test is_introduced_reference(part, projection)
+    @test strip_reference_types(map_reference_forward(projection, iomap, part)) == caret
+end
 end
