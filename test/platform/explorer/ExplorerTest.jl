@@ -381,8 +381,20 @@ function test_explorer()
         (_, x, y) = texts[argmax([entry[2] for entry in texts])]
         _nav_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
         file = ".root.tabs[1].content.navigator.content.entries[1].folders[1].directory.elements[1]"
-        # The content of the file is its history, and the JSON is the content of the history.
-        place = file * ".document.content.content.entries[1].value.value{0}"
+        # The page shows the file through its views, so the caret is in the view of the
+        # page: the view of the history, and the view of the JSON in it.
+        place = file * ".document_view.content.content.entries[1].value.value{0}"
+        @test selected() == place
+        # The same place through the content: the file, its history, and the JSON.
+        @test string(find_content_path(editor.document, get_selection(editor.document))) ==
+              file * ".document.content.content.entries[1].value.value{0}"
+        # A key at the caret edits the file.
+        _nav_press!(editor, backend, KeyPress('x'; time = 2.0))
+        frame!()
+        @test _nav_has_text(backend, "xabc")
+        @test selected() == replace(place, "{0}" => "{1}")
+        _nav_press!(editor, backend, KeyDown(:left, ModifierKeys(); time = 3.0))
+        frame!()
         @test selected() == place
         # The row of another file takes the keys, then a double press on the row of
         # the file puts them back: the file, its document and the place in the JSON.

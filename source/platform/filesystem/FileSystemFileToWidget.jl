@@ -31,9 +31,14 @@ function map_reference_forward(p::FileSystemFileToWidget, iomap, reference)
     drawn = find_introduced_path(p, reference)
     drawn === nothing || return drawn
     head = get_reference_head(reference)
+    view = _get_file_document_view(iomap.input)
+    # A path through the view of the file document is a path of what the page draws.
+    head == _FILE_DOCUMENT_VIEW_STEP && view !== nothing &&
+        return annotate_reference_types(iomap.output, concat_references(
+            extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(0, 1)),
+            strip_reference_types(get_reference_tail(reference))))
     (head isa FieldReferenceStep && head.name == "document" && iomap.input.document !== nothing) || return nothing
     rest = strip_reference_types(get_reference_tail(reference))
-    view = _get_file_document_view(iomap.input)
     rest isa ConcreteReference && view !== nothing && !is_introduced_reference(rest) &&
         (rest = get_view_path(view, rest))
     annotate_reference_types(iomap.output, concat_references(
@@ -52,6 +57,10 @@ function map_reference_backward(p::FileSystemFileToWidget, iomap, reference)
     # document (`get_content_path`), and a part that the view introduced keeps its path
     # after the document. A place that only the view keeps names no part of the document.
     view = _get_file_document_view(iomap.input)
+    # A view that shows the file document through views keeps the caret, so a place
+    # in it is a path through the view, and each page has a caret of its own.
+    _get_file_views_view(iomap.input) !== nothing && !isempty(below) && !(first(below) isa ProjectionReferenceStep) &&
+        return extend_reference(EmptyReference(), _FILE_DOCUMENT_VIEW_STEP, below...)
     if view !== nothing && !isempty(below) && !(first(below) isa ProjectionReferenceStep)
         content = get_content_path(view, Reference(below...))
         content === nothing && return EmptyReference()

@@ -97,6 +97,38 @@ function _get_file_document_view(file::FileSystemFile)
     (view isa FileView && view.file === file.document) ? view : nothing
 end
 
+# The view of the file document of `file` when that view shows the file document
+# through views, and `nothing` otherwise. Such a view keeps a caret of its own, so
+# the selection of the page of `file` goes through it.
+function _get_file_views_view(file::FileSystemFile)
+    view = _get_file_document_view(file)
+    (view !== nothing && view.content !== nothing) ? view : nothing
+end
+
+const _FILE_DOCUMENT_VIEW_STEP = FieldReferenceStep("document_view")
+
+# A file whose view shows the file document through views has that document at
+# `document` and the views at `document_view`: a path of the file document is a path
+# of the view there, and a path through the view names a place of the file document.
+get_content_field(file::FileSystemFile) = _get_file_views_view(file) === nothing ? nothing : :document
+
+function get_view_path(file::FileSystemFile, path)
+    view = _get_file_views_view(file)
+    view === nothing && return invoke(get_view_path, Tuple{Any, Any}, file, path)
+    shown = get_view_path(view, path)
+    shown isa ConcreteReference ?
+        Reference(_FILE_DOCUMENT_VIEW_STEP, get_reference_steps(strip_reference_types(shown))...) :
+        Reference(_FILE_DOCUMENT_VIEW_STEP)
+end
+
+function get_content_path(file::FileSystemFile, path)
+    view = _get_file_views_view(file)
+    (view !== nothing && path isa ConcreteReference) || return invoke(get_content_path, Tuple{Any, Any}, file, path)
+    steps = get_reference_steps(strip_reference_types(path))
+    first(steps) == _FILE_DOCUMENT_VIEW_STEP || return invoke(get_content_path, Tuple{Any, Any}, file, path)
+    get_content_path(view, length(steps) == 1 ? EmptyReference() : Reference(steps[2:end]...))
+end
+
 _has_file_edits(document) =
     any(condition -> condition.name in (:unsaved, :conflict), get_document_decoration(document).conditions)
 
