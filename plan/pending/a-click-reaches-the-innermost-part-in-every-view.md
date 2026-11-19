@@ -1584,6 +1584,24 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       (`_find_drawn_line_frame`). `WidgetCardFoldTest` expected nothing for a
       press on the text of a body, the case that this changes; it expects the
       caret now. Both examples have no failure (cf5ac1c36).
+    - ~~The origin of the rows in the pane of a list or a tree~~ (76b1cb08e).
+      A list or a tree that is given an edge prints its rows again inside a
+      pane, and that print placed its canvas at the position of the widget a
+      second time. So a point mapped to a row lower by the position: in
+      widget/list at (40, 40), a click on the first row chose the third, and the
+      rows below it mapped to no row. The rows stand at the origin of the pane
+      now. widget/list 6 → 3, widget/tree and examples/widget_tree 22 → 9;
+      tree/tree and examples/document_tree 15, as before.
+    - ~~The list~~ (5bc6a0a6f). The text of a row that is a plain value records
+      its line as the part `items[i]`, so by D4 a plain click and an Alt+click on
+      it put the caret, a click on the padding chooses the row, and a move on
+      the text names the caret and lights the row. Only a press, a drag and a
+      key read the text, because `_read_drawn_text` reads the bindings of the
+      widget, and the query of the commands found the tooltip of the list.
+      `ScrollPaneHoverTest` and `MouseTargetMoveTest` expected the row for a
+      press and a move on the text; they expect the caret in that row now.
+      widget/list 3 → 0. A drag in the text of a list in its pane does not
+      extend: `_read_rows_pane` gives a part of a drag only to a bar.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
