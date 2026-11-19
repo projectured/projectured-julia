@@ -1,9 +1,11 @@
 # A file and its undo steps have views
 
-**Status:** done on 2026-11-19, on the branch `file-views`, which is 11 commits
-over `main` `0ae98a75b`. The owner approved the plan on 2026-11-18 ("yes", to "Do
-you approve this plan, so that I start it in a worktree?"). The branch is not
-landed: the session asks for the landing, and for the push apart.
+**Status:** done on 2026-11-19, and on `main` at `22122a1d8`: the branch
+`file-views`, 11 commits over `main` `0ae98a75b`, landed by a fast-forward on
+2026-11-19. The owner approved the plan on 2026-11-18 ("yes", to "Do you approve
+this plan, so that I start it in a worktree?"), and the landing on 2026-11-19
+("yes", to "Do you approve that I land the branch `file-views` on `main` by
+fast-forward?"). The session asks for the push apart.
 
 This plan is the first of two plans in the place of plan 4b of point 4 of the
 order in section 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`.
