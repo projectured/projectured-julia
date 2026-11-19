@@ -1,6 +1,8 @@
 # The editor shows a JSON file through its views
 
-**Status:** proposed on 2026-11-19. Not approved, and not started.
+**Status:** approved by the owner on 2026-11-19 ("yes", to "Do you approve this
+plan, so that I start it in a worktree?"). In work on the branch `json-tab-views`,
+in the worktree `projectured-julia-json-tab-views`.
 
 This plan is the second of two plans in the place of plan 4b of point 4 of the
 order in section 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`.
@@ -108,8 +110,8 @@ the measurement calls it after a click.
 
 ## Proposed decisions
 
-They are the decisions of the session. They become decisions of the owner when
-the owner approves the plan.
+The session proposed them, and the owner approved them with the plan on
+2026-11-19.
 
 1. **A file says whether a new view of it shows it through views.** One
    function of the file answers, with the default `false`, and the JSON package
