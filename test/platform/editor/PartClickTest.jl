@@ -197,15 +197,27 @@ function _pc_cut_place(path)
     path isa ConcreteReference || return path
     steps = collect(get_reference_steps(path))
     step = last(steps)
-    head = extend_reference(EmptyReference(), steps[1:(end - 1)]...)
+    head = _pc_drop_last_step(path)
     if step isa ProjectionReferenceStep
         # An output path that loses every step names the node that printed it.
         inner = _pc_cut_place(step.output_path)
         inner isa EmptyReference && return head
-        return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, inner))
+        return _pc_replace_last_step(path, ProjectionReferenceStep(step.projection, inner))
     end
     _pc_is_place(path) ? head : path
 end
+
+# `path` without its last step, and `path` with `step` in place of its last step.
+# The node types of `path` stay, and a new end records the type of the node that
+# the step stood on. So the output path of an introduced step keeps its types, and
+# a part that the walk selects is typed as the editor types a selection.
+_pc_drop_last_step(path::ConcreteReference) =
+    path.tail isa ConcreteReference ? ConcreteReference(path.type, path.head, _pc_drop_last_step(path.tail)) :
+    EmptyReference(path.type)
+
+_pc_replace_last_step(path::ConcreteReference, step) =
+    path.tail isa ConcreteReference ? ConcreteReference(path.type, path.head, _pc_replace_last_step(path.tail, step)) :
+    ConcreteReference(path.type, step, path.tail)
 
 # `path` without a range of one step at its end, also inside a step that a
 # projection introduced: the part that holds a character, when the range names
@@ -215,12 +227,12 @@ function _pc_cut_character(path)
     path isa ConcreteReference || return path
     steps = collect(get_reference_steps(path))
     step = last(steps)
-    head = extend_reference(EmptyReference(), steps[1:(end - 1)]...)
+    head = _pc_drop_last_step(path)
     if step isa ProjectionReferenceStep
         inner = _pc_cut_character(step.output_path)
         inner === step.output_path && return path
         inner isa EmptyReference && return head
-        return _pc_extend_reference(head, ProjectionReferenceStep(step.projection, inner))
+        return _pc_replace_last_step(path, ProjectionReferenceStep(step.projection, inner))
     end
     is_one = step isa RangeReferenceStep || nameof(typeof(step)) === :TextRangeReferenceStep
     is_one && step.stop == step.start + 1 ? head : path

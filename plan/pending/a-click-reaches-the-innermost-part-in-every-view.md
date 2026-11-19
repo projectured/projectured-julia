@@ -841,7 +841,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     toolbar item declines an Alt+click and the level above selects the item; the
     shell band calls `read_child_event`; the mark of a fault and the runner form
     of omnet-julia make an `OutputReferenceStep` and wait for 5.4.
-  - [ ] 5.3 **A plain click on a drawn text (D1, P4).** A plain click on a text
+  - [x] 5.3 **A plain click on a drawn text (D1, P4).** (Done: the model, the card
+    title, the fact and the label, is on main; the other widgets are causes of
+    step 6, as the text below says.) A plain click on a text
     that no text leaf reads puts the caret at the character: the view that drew
     the text names it by its output path and the index of the character, and
     its backward map names the field that it shows, or an introduced caret. A
@@ -1146,6 +1148,55 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     test is in `ClipboardTest.jl`.
   - [ ] 5.6 **The check.** The click test on the catalogs, against the counts
     of step 4, and the suites that the change touches, against main.
+
+    Run 7 of the click test (2026-11-19) runs over the catalog on main 0ae98a75b,
+    which has step 5 of the reader split, with the runner of run 6
+    (`/var/tmp/ic-scratch/step6/run.jl`, folder `run7`, 1 h 38 min): 1730
+    lines in 218 of 546 examples (run 6: 2642 lines). The examples with points
+    and no failure go from 252 to 328. By kind, run 6 → run 7: an Alt+click
+    with no caret 622 → 519, an Alt+double click that no ring draws 611 → 388,
+    a move that names another part 435 → 291, a caret outside the part of the
+    point 351 → 19, an Alt+double click outside the innermost part 297 → 222,
+    a plain click that does nothing 200 → 189, a throw 40 → 26.
+
+    The runs of step 4 (run 2 and run 3 above) use another walk over 661
+    examples, so the check compares run 7 with run 6 of the same runner. Each
+    kind that grows in an example, in 21 pairs of an example and a kind, is one
+    of these:
+    - **A shift to a better part.** The Alt+double click now selects the menu
+      under the pointer (`widget/menu`, `examples/widget`, `widget/shell`), the
+      button of a toolbar, a band of a sequence chart and the content of a tab,
+      and no ring draws it yet: `alt:outside` and `move:differs` go,
+      `alt2:not-drawn` comes. On the closing quote of a string, the Alt+double
+      click selects the quote (`.close`), not the text, and the caret is at the
+      end of the text (`examples/filtering`, `examples/sorting`,
+      `fileformat/view`).
+    - **An example that ran no walk in run 6.** `examples/chart` threw at the
+      build, and `text/view` had no forward image.
+    - **The walk wrote a part with no node types.** The new throw of
+      `examples/filesystem` came from the walk, not from the editor.
+      `_pc_cut_place` built the output path of a projection step again with
+      `extend_reference(EmptyReference(), …)`, so it lost its node types, and
+      `_pc_is_caret_part_at_point` (the table rule, 2026-11-18) wrote it as the
+      selection. The forward map of two folders then joins an untyped
+      `‹FileSystemFileToSyntaxLeaf .value›` into a typed `@reference`
+      (`FileSystemToSyntax.jl:139`) and throws. No maker of the editor writes
+      such a step. The two cuts of the walk now drop the last step and keep the
+      types (`_pc_drop_last_step`, `_pc_replace_last_step`), as
+      `_drop_last_step` in `WholeSelection.jl` does. `test_part_click` on the
+      text example passes (2 of 2).
+    - **A case that failed, and now fails in another way.** In `pane/split`, an
+      Alt+double click on the title of a tab selected the tab in run 6 and
+      selects the whole split in run 7, as in `pane/group` in both runs. The
+      split pane passes the answer of a slot by `read_child_intent` now, and
+      the rule of its level reads it. The test wants the name of the title in
+      both runs, so this is the cause of the tab strip in step 6.
+    - **A move in a separator** (`widget/separator`, `examples/widget_separator`,
+      1 line each), which passed in run 6: the move names a point of the canvas
+      of the separator (`‹WidgetSeparatorToGraphicsCanvas @(138,8)›`), not the
+      separator. A cause of step 6.
+
+    Run 8 runs the walk with the fix of the cut (folder `run8`).
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
