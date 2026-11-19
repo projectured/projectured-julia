@@ -206,11 +206,18 @@ The session proposed them, and the owner approved them with the plan on
 Each step ends with a commit. Each step runs the tests that it names, and the
 tests of the steps before it.
 
-- [ ] **1. The JSON domain turns the views on for its files.** Proposed
+- [x] **1. The JSON domain turns the views on for its files.** Proposed
   decision 1. The five tests of the first plan that compare a file view with no
   views pass `views = false`.
   *Check:* `test_json()` passes whole. The 48 failure lines of the measurement
   are the failures of the branch now.
+
+  Done on 2026-11-19. The function is `is_file_shown_through_views(file)`, in
+  `FileView.jl`, exported by the file format module. `JsonFile.jl` answers
+  `true` for a `JsonFile`. `test_json()` has 1443 of 1443, with the layering
+  guard of the JSON package, and `test_markdown()` has 358 of 358. The step did
+  not run the integration suite again: the source of the branch is the source of
+  the copy of the measurement, and each later step runs the tests of its cause.
 - [ ] **2. The two functions of a view, and the three maps.** Proposed decision
   3. The row of a file on the page of the explorer, the card of a dashboard and
   the open of a page call the functions.

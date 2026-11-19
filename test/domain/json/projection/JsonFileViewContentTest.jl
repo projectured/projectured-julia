@@ -60,13 +60,13 @@ mktempdir() do dir
         @test view.content === view.content
         # The scroll pane shows the view, and a file view of today shows the file.
         @test view.scroll.content === view.content
-        plain = make_file_view(file)
+        plain = make_file_view(file; views = false)
         @test plain.content === nothing && plain.scroll.content === file
-        @test make_document_view(file).content === nothing
+        @test make_document_view(file; views = false).content === nothing
     end
 
     @testset "it draws what a file view of today draws" begin
-        plain = _fvc_show(make_file_view(make_file()))
+        plain = _fvc_show(make_file_view(make_file(); views = false))
         shown = _fvc_show(make_file_view(make_file(); views = true))
         @test shown.drawn() == plain.drawn()
         @test any(text -> text[1] == "hello", shown.drawn())
@@ -84,7 +84,7 @@ mktempdir() do dir
         @test _json_view_holds_no_caret(file.content.content)
         # A file view of today takes the caret of its file, which the file holds.
         plain_file = make_file()
-        plain_view = make_file_view(plain_file)
+        plain_view = make_file_view(plain_file; views = false)
         plain = _fvc_show(plain_view)
         plain.press!(click(_find_fvc_spot(plain, "hello")))
         @test occursin(r"^\.file\.content\.content\.entries\[1\]\.value\.value\{\d+\}$", caret_text(plain_view))
@@ -166,7 +166,7 @@ mktempdir() do dir
         evaluate_operation(nothing, save)
         @test occursin('X', read(path, String))
         # A file view of today gives the same answer, through the printer of the file.
-        plain = _fvc_show(make_file_view(make_file()))
+        plain = _fvc_show(make_file_view(make_file(); views = false))
         plain.press!(click(_find_fvc_spot(plain, "hello")))
         @test plain.read!(key(:s; ctrl = true)) isa SaveFileOperation
         # F5 reads the file again, and the view shows the view of the new document.
@@ -264,7 +264,7 @@ mktempdir() do dir
             push!(file.content.content.entries, JsonObjectEntry("self", file))
             file
         end
-        plain = _fvc_show(make_file_view(make_loop()))
+        plain = _fvc_show(make_file_view(make_loop(); views = false))
         shown = _fvc_show(make_file_view(make_loop(); views = true))
         @test shown.drawn() == plain.drawn()
         @test count(drawn -> drawn[1] == "hello", shown.drawn()) == 2

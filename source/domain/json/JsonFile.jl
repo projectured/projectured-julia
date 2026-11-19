@@ -34,6 +34,10 @@ A file of [`JsonFileFormat`](@ref), whose `content` is a `JsonDocument`.
 """
 const JsonFile = File{JsonFileFormat}
 
+# A place shows a JSON file through the views of what the file holds, so each place
+# keeps a caret of its own.
+is_file_shown_through_views(::JsonFile) = true
+
 # The file says what the pointer is on, for a part that says nothing of its own:
 # the path of the part from the root of the file, its type, and its length, its
 # value or its count. With no pointer on the file, it says the selected part.

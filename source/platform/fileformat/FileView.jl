@@ -38,14 +38,33 @@ get_document_decoration(view::FileView) = get_document_decoration(view.file)
 is_field_walked(::FileView, name::Symbol) = name !== :scroll
 
 """
-    make_file_view(file; views = false) -> FileView
+    is_file_shown_through_views(file) -> Bool
+
+Whether a new view of `file` shows the file through views when the caller does not
+say ([`make_file_view`](@ref)). The default answers `false`: the place shows the
+file, and the caret is in what the file holds. The package of a file format whose
+documents have views answers `true` for its file.
+
+Use it to turn the views on for the files of one format.
+
+# Example
+
+    is_file_shown_through_views(::JsonFile) = true
+"""
+function is_file_shown_through_views end
+
+is_file_shown_through_views(file) = false
+
+"""
+    make_file_view(file; views = is_file_shown_through_views(file)) -> FileView
 
 The view of `file` for a new place, with its own scroll pane that grows on its
 height, as a file does, so a table on a Markdown page is as tall as its rows and the
 place scrolls it. Its selection follows the selection of the file
 ([`follow_content_selection!`](@ref)).
 
-With `views`, the place shows the file through views. The field `content` of the
+With `views`, the place shows the file through views. The default comes from the
+file ([`is_file_shown_through_views`](@ref)). The field `content` of the
 view holds the view of what the file holds now (`make_content_view`), the scroll
 pane shows that view, and the selection of the file view is its own: a second
 place that shows the same file keeps another caret. While what the file holds has
@@ -59,10 +78,10 @@ Use it where a file shows, such as a tab that opens a file.
     view.content            # the view of the undo buffer of the file
     view.content.content    # the view of the JSON document
 """
-make_file_view(file::FileDocument; views::Bool = false) =
+make_file_view(file::FileDocument; views::Bool = is_file_shown_through_views(file)) =
     follow_content_selection!(make_document_view(file; views))
 
-function make_document_view(file::FileDocument; views::Bool = false)
+function make_document_view(file::FileDocument; views::Bool = is_file_shown_through_views(file))
     scroll = WidgetScrollPane(file; grows = (width = false, height = true))
     views || return FileView(file, scroll)
     view = FileView(file, scroll, Cell(Computation(make_slot_view_computation(() -> get_file_content(file)))))
