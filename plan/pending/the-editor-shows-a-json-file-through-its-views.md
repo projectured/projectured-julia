@@ -218,7 +218,9 @@ tests of the steps before it.
   guard of the JSON package, and `test_markdown()` has 358 of 358. The step did
   not run the integration suite again: the source of the branch is the source of
   the copy of the measurement, and each later step runs the tests of its cause.
-- [ ] **2. The two functions of a view, and the three maps.** Proposed decision
+- [ ] **2. The two functions of a view, and the three maps.** *First part done
+  on 2026-11-19 (`89688a469`): the functions and the three maps. Open: the caret
+  of a view in a slot, found fact 3.* Proposed decision
   3. The row of a file on the page of the explorer, the card of a dashboard and
   the open of a page call the functions.
   *Check:* cause D passes. New tests: a JSON file on a card of a dashboard and
@@ -266,6 +268,37 @@ tests of the steps before it.
   the design document. `Pkg.precompile` of `omnet-julia` against the branch,
   with a count of the compiled packages. The plan moves to `plan/done/`. Then
   the session asks for the landing, and for the push apart.
+
+## Found during the work
+
+1. **One of the two functions existed.** `get_content_path(view, path)` gives the
+   path of the content for a path of a view of one content, and the syntax, the
+   text and JSON call it. So the pair of proposed decision 3 is
+   `get_content_path` and the new `get_view_path`, with no second name for the
+   same job. The forms for a path from a root are `find_content_path(root, path)`
+   and `find_view_path(root, path)`.
+2. **The four functions are in the focus slice**, in `ContentPath.jl`. The
+   function of the selected part is in that slice, and the slice of the
+   projections is above it. The module of the projections exports them too, so no
+   slice gets a new edge. `get_content_field(node)` says at which field a path
+   from a root can change: the field that `get_edited_field` names, and `nothing`
+   for a view of one content, whose path has the steps of its content until
+   plan 4c and point 11.
+3. **A page and a card keep the file view in a slot, and a view with views gets
+   no caret there.** A tab holds the file view, so the caret path goes through
+   the view. The row of a file on the page of the explorer and a card of a
+   dashboard hold the file, and they keep the file view beside it in a slot that
+   a walk does not enter (`document_view`, `content_view`). The selection of the
+   window goes through the file. A file view with no views follows the caret of
+   its file (`follow_content_selection!`). A file view with views keeps a caret
+   of its own, and nothing writes it there. A probe on the branch, with the maps
+   of step 2: after a click on the text of a JSON file on the page of the
+   explorer, the file has the caret, the file view has none, and a key changes
+   nothing. A second probe, with a change that is not committed: the map of the
+   row answers the path through `document_view`, and then the views have the
+   caret and the key edits the file (`"abc"` becomes `"xabc"`). The plan does not
+   name where the caret path of such a place goes, so the session asks the
+   owner. Steps 3, 4 and 6 are for a tab and do not wait.
 
 ## Risks
 
