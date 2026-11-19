@@ -179,6 +179,7 @@ include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
 include("editor/ClipboardEditTest.jl")
 include("editor/FileViewWalkTest.jl")
+include("editor/JsonTabArrangementTest.jl")
 include("editor/FileWorkloadTest.jl")
 include("editor/ScrollWorkTest.jl")
 include("editor/PointedPartTest.jl")
@@ -566,6 +567,7 @@ const test_integration = TestSuite("integration", [
     TestPart(test_application; level = :slow),
     TestPart(test_clipboard_edits; level = :slow),
     test_file_view_walk,
+    test_json_tab_arrangement,
     TestPart(test_file_workloads; level = :slow),
     test_scroll_work,
     test_pointed_part,
