@@ -122,7 +122,8 @@ end
 # `file.<rest>` ↔ `<scroll pane>.content.<rest>` in the layout: the file is the
 # content of the scroll pane. For a view that shows its file through views, the path
 # of the view is `content.<rest>`, and the content of the scroll pane is the view of
-# what the file holds. `scroll.<rest>` is a part that the pane introduced,
+# what the file holds. A path of such a view through `file` maps forward as the path
+# of the views of the same place, and no path maps back to it. `scroll.<rest>` is a part that the pane introduced,
 # which the view keeps by its field. The band names no place, and the whole view is
 # the layout.
 function map_reference_forward(::FileViewToWidget, iomap::SimpleIoMap, reference)
@@ -138,6 +139,15 @@ function map_reference_forward(::FileViewToWidget, iomap::SimpleIoMap, reference
             (tail = annotate_reference_types(view.scroll, strip_reference_types(tail)))
         return concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), scroll_steps...)),
                                  tail)
+    end
+    # A view that shows its file through views draws a place of the file with the view
+    # of that place, so a path through the field `file` takes the path of the views:
+    # a change for a part of the file goes to the view that shows the part.
+    if head == _FILE_VIEW_FILE_STEP && view.content !== nothing
+        shown = get_view_path(view, tail)
+        shown isa ConcreteReference || return EmptyReference(get_reference_node_type(output))
+        head = get_reference_head(shown)
+        tail = get_reference_tail(shown)
     end
     head == _get_shown_step(view) || return nothing
     # The rest keeps the checkpoints that it came with; the steps of the layout take

@@ -186,6 +186,16 @@ const _NO_NODE = gensym(:no_node)
 # needs only the way forward, so it goes on, and the stage that drew the part maps
 # the step forward into its output: so a drag that a part inside the output of a
 # view starts comes back to that part.
+# Whether `node` is a document that shows `place`: it names `place` as what it shows
+# (`get_edited_field`), as the view of a content does. A stage that draws the views of
+# its input holds the view of a place where its input holds the place, so a change
+# for the place goes on to that view.
+function _shows_place(node, place)
+    node isa Document || return false
+    field = get_edited_field(node)
+    field !== nothing && getproperty(node, field) === place
+end
+
 function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
                             iomap::ChainingIoMap)
     n = length(seq.projections)
@@ -210,7 +220,7 @@ function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
         end
         node = try_evaluate_reference(next_iomap.input, forward, _NO_NODE)
         node === _NO_NODE && break
-        is_gesture || node === place || break
+        is_gesture || node === place || _shows_place(node, place) || break
         push!(routes, forward)
     end
     is_gesture && return _read_routed_gesture(seq, recursion, change, iomap, routes, length(routes))

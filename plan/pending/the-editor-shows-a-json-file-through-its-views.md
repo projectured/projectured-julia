@@ -226,11 +226,19 @@ tests of the steps before it.
   *Check:* cause D passes. New tests: a JSON file on a card of a dashboard and
   on the page of the explorer takes a click, and the caret shows at the
   character under the pointer; a key there edits the file.
-- [ ] **3. A change for a part of a file reaches the view.** Proposed decision
+- [x] **3. A change for a part of a file reaches the view.** Proposed decision
   4.
   *Check:* cause A passes: the editing verbs, a command of a part, a group of
   changes, and one undo step of the file for each. The test "a value found by
   identity at two places has no reference" passes as on `main`.
+
+  Done on 2026-11-19. The forward map of `FileViewToWidget` takes a path through
+  the field `file` and answers the path of the views (`get_view_path`), and a
+  chain of stages passes a change on to the view of a place (found fact 4).
+  `test_assistant_verbs` has 98 of 98. `test_referenced_document_editor` has 131
+  of 134: the 15 lines of cause A pass, and the 3 that fail are lines of cause G
+  (`:431`, `:436`, `:454`), which step 9 changes. The test of a value at two
+  places passes.
 - [ ] **4. The selected part and the part under the pointer are content.**
   Proposed decisions 5 and 7.
   *Check:* causes C and E pass. A new test: `find_part_under_pointer` over a
@@ -313,6 +321,16 @@ tests of the steps before it.
    file. The owner also said that the name `document_view` sounds strange. The
    three fields and their names are from 2026-11-06, and point 7 of the order
    gives the three holders one form. This plan renames nothing.
+4. **A chain of stages passed a change only to the same object.** A change with
+   a route names a place of the input. `_read_routed_chain` in `Chaining.jl`, a
+   file of the platform, maps the route forward through each stage, and it went
+   on to the next stage only when the route named the same object there. A stage
+   that draws the views of its input holds the view of the place, so the change
+   for a part of a file stopped at the first stage of the file view. The chain now
+   goes on also when the next stage holds a document that names the place as what
+   it shows (`get_edited_field`), which a view of a content does. When a path
+   through the views ends in the step `.viewed`, in plan 4c, the path names the
+   content itself, and this rule can go.
 
 ## Risks
 
