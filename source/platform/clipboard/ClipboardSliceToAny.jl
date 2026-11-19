@@ -370,7 +370,8 @@ function evaluate_operation(editor, op::CopyReferenceOperation)
     root = editor.document
     selection = getfield(root, :selection)[]
     selection isa Reference || return nothing
-    steps = collect(Any, get_reference_steps(strip_reference_types(selection)))
+    # The code names the content that the view of the caret shows.
+    steps = collect(Any, get_reference_steps(strip_reference_types(find_content_path(root, selection))))
     while !isempty(steps) &&
           !(try_evaluate_reference(root, _make_steps_path(steps), missing) isa Document)
         pop!(steps)
@@ -419,7 +420,7 @@ end
 # stored copy and no converter of the text of the system clipboard. An empty
 # place, such as the hole that a cut leaves, takes the stored document instead.
 function _is_whole_value_paste(p, input)
-    selected = try_evaluate_reference(input, input.selection, missing)
+    selected = try_evaluate_reference(input, _find_content_selection(input), missing)
     selected isa Document || return false
     # The general type of the document, which the domain names as its placeholder.
     is_domain_placeholder(Base.typename(typeof(selected)).wrapper) && return false
@@ -435,7 +436,7 @@ end
 function _make_pasted_value(input, slice)
     text = _slice_text(slice)
     text === nothing && return slice
-    selected = try_evaluate_reference(input, input.selection, missing)
+    selected = try_evaluate_reference(input, _find_content_selection(input), missing)
     selected isa Document || return slice
     insertion = get_domain_insertion(typeof(selected))
     insertion === nothing ? slice : insertion(text)
@@ -456,7 +457,7 @@ function _text_target_copy(p, input)
     text = _get_text_target_text(target)
     CompoundOperation(Any[make_replace_document_operation(_field_path("slice"),
                                                           PrimitiveString(text)),
-                          ReplaceSelectionOperation(target.path),
+                          ReplaceSelectionOperation(_find_shown_path(input, target.path)),
                           WriteOsClipboardOperation(text)])
 end
 
@@ -491,7 +492,7 @@ function _clipboard_copy(p, input)
     clear_selection!(payload)                  # clipboard payload carries no cursor
     ops = Any[
         make_replace_document_operation(_field_path("slice"), payload),
-        ReplaceSelectionOperation(sel),
+        ReplaceSelectionOperation(_find_shown_path(input, sel)),
     ]
     _maybe_os_mirror!(ops, p, obj)
     CompoundOperation(ops)
@@ -517,7 +518,7 @@ function _make_cut_store(p, input)
     sel, obj = _selected(input)
     obj isa Document || return nothing
     ops = Any[make_replace_document_operation(_field_path("slice"), obj),
-              ReplaceSelectionOperation(sel)]
+              ReplaceSelectionOperation(_find_shown_path(input, sel))]
     _maybe_os_mirror!(ops, p, obj)
     CompoundOperation(ops)
 end
@@ -599,7 +600,7 @@ function _clipboard_note(p, input)
     obj === nothing && return nothing
     ops = Any[
         make_replace_document_operation(_field_path("slice"), obj),
-        ReplaceSelectionOperation(sel),
+        ReplaceSelectionOperation(_find_shown_path(input, sel)),
     ]
     _maybe_os_mirror!(ops, p, obj)
     CompoundOperation(ops)
@@ -659,13 +660,14 @@ end
 # not the paste replaces it. Paste-copy gives a fresh copy.
 function _document_target_paste(input, slice; copy::Bool = false)
     (slice isa Document && _slice_text(slice) === nothing) || return nothing
-    input.selection isa ConcreteReference || return nothing
+    selection = _find_content_selection(input)
+    selection isa ConcreteReference || return nothing
     at_text = _find_text_target(input; writes = true) !== nothing
-    (at_text || try_evaluate_reference(input, input.selection, missing) isa Document) || return nothing
+    (at_text || try_evaluate_reference(input, selection, missing) isa Document) || return nothing
     value = copy ? _make_clipboard_copy(slice) : slice
     value === nothing && return nothing
     copy && clear_selection!(value)
-    steps = get_reference_steps(strip_reference_types(input.selection))
+    steps = get_reference_steps(strip_reference_types(selection))
     for count in (at_text ? (length(steps):-1:1) : (length(steps):length(steps)))
         path = _make_steps_path(steps[1:count])
         document = try_evaluate_reference(input, path, missing)
@@ -685,10 +687,11 @@ end
 function _insertion_target_paste(input; make = make_pasted_document)
     slice = input.slice
     slice isa Document || return nothing
-    input.selection isa ConcreteReference || return nothing
+    selection = _find_content_selection(input)
+    selection isa ConcreteReference || return nothing
     _find_text_target(input; writes = true) === nothing && return nothing
     # The deepest document on the path of the caret holds the text.
-    steps = get_reference_steps(strip_reference_types(input.selection))
+    steps = get_reference_steps(strip_reference_types(selection))
     for count in length(steps):-1:1
         path = _make_steps_path(steps[1:count])
         document = try_evaluate_reference(input, path, missing)

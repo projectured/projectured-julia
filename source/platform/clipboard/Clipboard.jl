@@ -201,12 +201,34 @@ make_inverse_operation(document, ::WriteOsClipboardOperation) = DoNothingOperati
 _field_path(name::AbstractString) =
     ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
+# The selection of the clipboard document as a path through the content. A caret is
+# in the views of a place that shows its document through views, and the clipboard
+# takes and puts content: the selected document, the text of a field, and the slot of
+# an element. A selection that goes through no view is the selection itself.
+function _find_content_selection(input)
+    selection = input.selection
+    selection isa ConcreteReference || return selection
+    content = find_content_path(input, selection)
+    get_reference_steps(content) == get_reference_steps(strip_reference_types(selection)) && return selection
+    annotate_reference_types(input, content)
+end
+
+# `path`, a path of the content from the clipboard document, as the path through
+# the views that show the place: the form of a selection. A path that goes through
+# no view is `path` itself.
+function _find_shown_path(input, path)
+    path isa ConcreteReference || return path
+    shown = find_view_path(input, path)
+    get_reference_steps(shown) == get_reference_steps(strip_reference_types(path)) && return path
+    annotate_reference_types(input, shown)
+end
+
 # The selected sub-document and its path, or (nothing, nothing) when there is no
 # usable (non-empty) selection. The clipboard reads its own selection: every
 # write of the live selection starts at the root, so its own suffix is current
 # (PAR-SELECTION-WRITTEN-AT-ROOT).
 function _selected(input)
-    sel = input.selection
+    sel = _find_content_selection(input)
     (sel === nothing || sel isa EmptyReference) && return nothing, nothing
     obj = try_evaluate_reference(input, sel, missing)
     obj === missing && return nothing, nothing
@@ -284,9 +306,10 @@ end
 #    and the document in the slot when it does not accept `value` as its
 #    replacement (`accepts_pasted_replacement`).
 #
-# `selection` is the selection of `input` by default. A caller gives another one
-# to ask about a whole document on the path of the selection.
-function _find_paste_target(input, value; selection = input.selection)
+# `selection` is the selection of `input` as a path through the content by default.
+# A caller gives another one to ask about a whole document on the path of the
+# selection.
+function _find_paste_target(input, value; selection = _find_content_selection(input))
     slot = _find_writable_slot(input; selection)
     slot === nothing && return nothing
     _is_slot_accepting(slot.parent, last(slot.steps), value, slot.owner) || return nothing
@@ -298,7 +321,7 @@ end
 # above hold: the selection `path` and its `steps`, the `document` there, the
 # `parent` that holds it, and the `owner`, the nearest document above the slot
 # that is not a list, whose domain owns an element. `nothing` otherwise.
-function _find_writable_slot(input; selection = input.selection)
+function _find_writable_slot(input; selection = _find_content_selection(input))
     sel = selection
     (sel === nothing || sel isa EmptyReference) && return nothing
     document = try_evaluate_reference(input, sel, missing)
@@ -442,7 +465,7 @@ end
 # The text target the clipboard's selection names, or `nothing`. For an edit
 # (`writes`), every document from the content down to the target must accept
 # pasted text; a copy reads, and asks none.
-_find_text_target(input; writes::Bool) = _find_text_target(input, input.selection; writes)
+_find_text_target(input; writes::Bool) = _find_text_target(input, _find_content_selection(input); writes)
 
 # The text target that `sel`, a path from the clipboard document, names.
 function _find_text_target(input, sel; writes::Bool)
@@ -472,7 +495,7 @@ end
 # else its only field that holds text or a number. `nothing` for a document with
 # neither, such as an object or a list.
 function _find_whole_value_target(input)
-    sel = input.selection
+    sel = _find_content_selection(input)
     sel isa ConcreteReference || return nothing
     document = try_evaluate_reference(input, sel, missing)
     document isa Document || return nothing

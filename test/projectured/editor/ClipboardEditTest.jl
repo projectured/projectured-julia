@@ -99,9 +99,10 @@ function _ce_file_window(dir, name)
     w
 end
 
-# The file that the tab shows: the selection up to its `file` step.
+# The file that the tab shows: the selection, as a path through the content, up to
+# its `file` step. The selection itself goes through the views of the tab.
 function _ce_file(w)
-    steps = collect(get_reference_steps(strip_reference_types(get_selection(w.scene))))
+    steps = collect(get_reference_steps(find_content_path(w.scene, get_selection(w.scene))))
     at = findlast(==(FieldReferenceStep("file")), steps)
     evaluate_reference(w.scene, extend_reference(EmptyReference(), steps[1:at]...))
 end
@@ -233,6 +234,32 @@ function test_clipboard_edits()
             _ce_click!(w, _ce_find(w, ==("Paris")))
             _ce_key!(w, :v, _CE_CTRL)
             @test entry(w, 2).value.value == "\"Alice\"Paris"
+        end
+
+        @testset "a copy in one tab of a file and a paste in a second tab of the same file" begin
+            w = _ce_file_window(dir, "a.json")
+            editor = w.editor
+            first_tab = find_pane("a.json"; editor)
+            first_view = get_document(first_tab).content
+            _ce_select_whole!(w, ==("Alice"))
+            buffer[] = "older"
+            _ce_key!(w, :c, _CE_CTRL)
+            @test read_os_clipboard() == "\"Alice\""
+            kept = string(strip_reference_types(get_stored_selection(first_view)))
+            # A second tab of the file has a view of its own, and so a caret of its own.
+            second_tab = duplicate_pane!(first_tab; editor)
+            show_pane!(second_tab; editor)
+            run_frame!(editor)
+            drain_operations!(editor)
+            run_frame!(editor)
+            second_view = get_document(second_tab).content
+            @test second_view !== first_view && second_view.file === first_view.file
+            _ce_click!(w, _ce_find(w, ==("Paris")))
+            @test get_stored_selection(second_view) isa ConcreteReference
+            _ce_key!(w, :v, _CE_CTRL)
+            @test entry(w, 2).value.value == "\"Alice\"Paris"
+            # The caret of the first tab is where it was.
+            @test string(strip_reference_types(get_stored_selection(first_view))) == kept
         end
 
         @testset "a text pasted on a whole string is typed over its value" begin
