@@ -12073,6 +12073,7 @@ WidgetListToGraphicsCanvas(theme; graphics_theme = nothing, measure,
     rows::Any
     bare::Bool       # the rows of a list that scrolls itself, with no box
     box::Any
+    drawn::Any       # the line of the text of each row that is a plain value
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
@@ -12109,8 +12110,10 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         elements = Any[]
         bare || _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         # Each row is a canvas of its own, which holds the row's tint, its band
-        # and its text, so a row is a node that a reference reaches.
+        # and its text, so a row is a node that a reference reaches. The text of
+        # an item that is a plain value records its line, as the part `items[i]`.
         rows = Any[]
+        drawn = DrawnTextLine[]
         for (i, it) in enumerate(items)
             row = Any[]
             # The light of the row under the pointer sits UNDER the selection band,
@@ -12123,6 +12126,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
                 _push_panel!(row, 0, 0, content_width, row_height; fill = row_selected_color)
             end
             _push_text!(row, p.measure, label.font, string(it), row_left, row_pad_y, label.color)
+            _is_drawn_value(it) && push!(drawn, DrawnTextLine(last(row), make_widget_list_selection(i), 0))
             push!(rows, GraphicsCanvas(row; x = content_x, y = content_y + (i - 1) * row_height,
                                        w = content_width, h = row_height))
         end
@@ -12131,14 +12135,16 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         # A list with no pane cuts its rows at its box, as a pane does.
         bare || _cut_content_at_box!(elements, first_row, box, outer_width, outer_height, intrinsic,
                                      n * row_height)
-        (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows)
+        (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows,
+         drawn=drawn)
     end)
     # The rows that a pane of the list shows stand at the origin of the pane; the
     # position of the list places the canvas of the pane (`_print_rows_pane`).
-    canvas = _reactive_canvas_cell((bare ? (0, 0) : _origin(position))..., build)
+    canvas = _make_drawn_text_canvas((bare ? (0, 0) : _origin(position))..., build, w, p.measure,
+                                     p.row_selected_color)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
         Cell(@computation build[].row_height), Cell(@computation build[].width),
-        Cell(@computation build[].rows), bare, geometry)
+        Cell(@computation build[].rows), bare, geometry, Cell(@computation build[].drawn))
 end
 
 # `items[k]` is the canvas of row `k`, found by identity among the list's
@@ -12147,6 +12153,9 @@ function map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListTo
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa ConcreteReference || return _map_self_forward(reference)
+    # A caret or a range in the text of a row is drawn on its line.
+    place = map_drawn_caret_forward(iomap.drawn, iomap.output, reference)
+    place === nothing || return place
     head = reference.head
     (head isa FieldReferenceStep && head.name == "items") || return nothing
     rest = reference.tail
@@ -12158,13 +12167,19 @@ function map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListTo
     find_node_reference(iomap.output, rows[k]; depth = 1)
 end
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-# A point on a row maps to that item, the reference that a click there selects.
+# A point on the text of a row is the caret at the character there, and a point
+# on the padding of a row is that item, the reference that a click there selects
+# (D4). A place of the characters of a row is that place in its item.
 function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
+    iomap isa WidgetListToGraphicsCanvasIoMap || return nothing
     point = find_reference_point(reference)
-    (point === nothing || !(iomap isa WidgetListToGraphicsCanvasIoMap)) && return nothing
+    point === nothing && return reference === nothing ? nothing :
+                                map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     _is_point_on_canvas(iomap.output, point) || return nothing
     row = _find_list_row_at(p, iomap, point.y)
-    row == 0 ? nothing : make_widget_list_selection(row)
+    row == 0 && return nothing
+    caret = find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
+    caret === nothing ? make_widget_list_selection(row) : annotate_reference_types(iomap.input, caret)
 end
 
 # The row of the list at `y` of its canvas, from the first row down; `0` when no
@@ -12194,6 +12209,13 @@ function read_gesture(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphics
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
+    # The text of a row takes the caret as the text of a label does, and a click
+    # off the text chooses the row (D4). Only a press, a drag and a key read the
+    # text: a query of the commands reads the list, which binds none of its own.
+    if evt isa Union{MouseDown, MouseClick, DragMove, DragEnd, KeyDown, KeyPress}
+        text = _read_drawn_text(p, iomap, evt)
+        text === nothing || return text
+    end
     n = length(collect(w.items))
     n == 0 && return nothing
     sel = get_widget_list_selected(w)

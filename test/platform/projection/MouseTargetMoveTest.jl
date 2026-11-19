@@ -337,11 +337,14 @@ end
     root = WidgetComposite(Any[list])
     iomap = print_document(projection, root)
     items(i) = (FieldReferenceStep("items"), ElementReferenceStep(i))
+    # On the text of a row the pointer names the caret there, in that row (D4).
+    in_row(target, steps...) = target isa ConcreteReference &&
+                               collect(get_reference_steps(target))[1:length(steps)] == collect(steps)
     _mtm_move!(root, iomap, 20, 5)
-    @test get_mouse_target(list) == _mtm_path(items(1)...)
+    @test in_row(get_mouse_target(list), items(1)...)
     _mtm_move!(root, iomap, 20, 55)
-    @test get_mouse_target(root) == _mtm_path(_mtm_elements(1)..., items(2)...)
-    @test get_mouse_target(list) == _mtm_path(items(2)...)
+    @test in_row(get_mouse_target(root), _mtm_elements(1)..., items(2)...)
+    @test in_row(get_mouse_target(list), items(2)...)
 end
 
 @testset "in the panes of a window" begin

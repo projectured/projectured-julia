@@ -94,10 +94,10 @@ function test_scroll_pane_hover()
             @test row == _scroll_pane_row(projection, scrolled, press)
             @test row != _scroll_pane_row(projection, unscrolled, press)
         end
-        # The bottom of the pane is the last row.
-        @test endswith(string(strip_reference_types(
-                           _scroll_pane_row(projection, following, MouseClick(:left, 20, 190; time = 0.0)))),
-                       ".items[40]")
+        # The bottom of the pane is the last row: the press on its text puts the
+        # caret there (D4).
+        @test occursin(r"\.items\[40\](\{\d+\})?$", string(strip_reference_types(
+                           _scroll_pane_row(projection, following, MouseClick(:left, 20, 190; time = 0.0)))))
     end
 
     # A card that opens makes the content taller than the pane. The pane that

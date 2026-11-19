@@ -34,8 +34,8 @@ end
 end
 
 # A list that is given an edge scrolls its rows in a pane at its position, and the
-# rows stand at the origin of the pane, so a point on the text of a row maps to
-# that row.
+# rows stand at the origin of the pane, so a point on the text of a row maps into
+# that row: the caret at the character there (D4).
 @testset "a list in its pane maps a point on a row to that row" begin
     projection = _projection()
     list = WidgetList(["Apples", "Bananas", "Cherries"]; position = Point2D(40, 40), width = 200)
@@ -46,8 +46,8 @@ end
     for (k, name) in enumerate(("Apples", "Bananas", "Cherries"))
         t = only(t for t in texts if t[3] == name)
         point = PointReferenceStep(t[1] + 2 - Int(output.x), t[2] + 2 - Int(output.y))
-        @test strip_reference_types(map_reference_backward(projection, iomap, point)) ==
-              _path(FieldReferenceStep("items"), _at(k))
+        steps = collect(get_reference_steps(strip_reference_types(map_reference_backward(projection, iomap, point))))
+        @test steps == [FieldReferenceStep("items"), _at(k), RangeReferenceStep(0, 0)]
     end
 end
 
