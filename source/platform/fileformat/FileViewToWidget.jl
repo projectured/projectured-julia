@@ -172,19 +172,17 @@ end
 
 # With views in the scroll pane, the printer of the file is not on the path of a key,
 # so the view reads for its file what that printer reads: the key table of the file,
-# such as Ctrl+S and F5, after what the pane shows gave no answer. A list of rows
+# such as Ctrl+S and F5. It reads by the rule of a level, after the rules of the view:
+# with no answer of what the pane shows, a rule of the file that matches answers, and
+# with an answer, only a rule whose `override` condition holds for it. A list of rows
 # takes the rows of the file too. With the file in the pane, the printer of the file
-# reads them, and this reader adds nothing.
-function read_intent(p::FileViewToWidget, recursion, change::Intent, iomap::SimpleIoMap)
-    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+# reads them, and this method adds nothing.
+function read_gesture(p::FileViewToWidget, iomap::SimpleIoMap, gesture; answer = nothing)
+    own = invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
     view = iomap.input
-    (view.content === nothing || change.route !== nothing) && return answer
-    if change.gesture isa CollectIntents
-        own = read_gesture(view.file, change.gesture)
-        return Intent(change.gesture,
-                      merge_collected_intents(_get_collected_intents(answer.operation), _get_collected_intents(own)))
-    end
-    (answer.operation isa Operation || change.operation !== nothing) && return answer
-    own = read_gesture(view.file, change.gesture)
-    own === nothing ? answer : Intent(change.gesture, own)
+    view.content === nothing && return own
+    table = read_gesture(view.file, gesture; answer)
+    gesture isa CollectIntents || return own === nothing ? table : own
+    merge_collected_intents(own isa CollectedIntentsOperation ? own : nothing,
+                            table isa CollectedIntentsOperation ? table : nothing)
 end
