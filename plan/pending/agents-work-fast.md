@@ -120,7 +120,32 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   memory that its record names. Tell the owner the line that each agent needs to rebase and
   continue. **Done when:** the texts say it, and the owner has the line.
 
-## 5. Not in this plan
+## 5. What the work found
+
+- **Step 2, the budget (2026-11-20).** `bounded-run` now starts a job when the available
+  memory holds what the running jobs can still take up to their caps, the new cap and a reserve
+  of 6 GiB, and `--cores N` holds N cores of a pool (default 8-12,14-27) and pins the job to
+  them. Its selftest passes, 19 of 19. Right after the change, three jobs of 14, 11 and 10 GB of
+  cap ran at the same time, where the old budget allowed one; an omnet-julia run that had waited
+  started at once.
+- **Step 2, a worker loads only the package of its parts (A7).** The list of a part gives the
+  package that defines its function and its name, and the worker command `call` runs it with
+  that package only. A part whose function is a closure runs by its place in the suite, as
+  before. The tests of the runner pass, 70 of 70, with two new testsets.
+- **Step 3, the measure (2026-11-20, `using ProjecturedJSONTest`, Julia 1.13.1).** A seed depot
+  compiled at the path of the main checkout: 318 s, peak 6.5 GB. A new worktree of the same
+  commit, mounted at that path in `bwrap`, with a hard-link copy of the seed: 5.2 s, peak
+  0.5 GB. The same with a change in one file of the JSON domain: 92.8 s, peak 1.1 GB. So a new
+  checkout keeps the compiled files valid, and only the changed package and the packages above
+  it compile.
+- **Step 3, the path.** A worktree mounted over the main checkout hides the `.git` folder of
+  main, which the `.git` file of a worktree names, so `git` in the sandbox fails. So the helper
+  mounts both the seed build and each worktree at one neutral path of each repository, and the
+  main checkout stays where it is.
+- **Found along the way:** the recorded call list of `ProjecturedJulia` is stale (539 of 3186
+  calls no longer resolve), so that package compiles more at each load; step 4 records it again.
+
+## 6. Not in this plan
 
 - A change of the reactive compiler itself, beyond what step 4 needs.
 - The fixes of the faults that the markers of `main-stays-green` name.
