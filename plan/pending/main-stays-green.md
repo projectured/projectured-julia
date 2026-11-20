@@ -171,6 +171,12 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   documentation (10) have their lists. The exports guard had a list of modules that are not
   migrated yet; its new list is narrower, one violation for each entry. `check_layering` and
   `check_slice_edges` take the keyword `known` in the same form.
+- **A test that can set what it reads sets it, in place of a skip** (a choice of the
+  implementation under G5, which the owner did not decide): the history sweep prints fresh
+  documents, the memory checks of the explorer count from their start, and the builder test sets
+  a plain logger. Each such change is in the test, not in the code that it tests.
+- **The CI split went into commit `aa7658d3d`** with the marks of run 1, although its message
+  does not say so.
 - **A worker of the runner loads every test package of the run.** So a check whose result
   depends on the packages in its process gives one result in CI, where each test package has
   its own environment, and another in the run of all parts. The notes of earlier sessions name
@@ -179,7 +185,32 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
 
 ## 5. The list
 
-Step 1 fills this section.
+### projectured-julia
+
+Two runs of all 765 parts on `d732e6e2b` (2026-11-20, 1 h 44 min each, peak 12.2 GB): 808 fails
+and 88 errors, then 808 and 86. Each part ended in its limits. The two runs differ only in
+`test_task_work_item` and `test_build_executable`. The CI runs 44521510104, 44493898739 and
+44337950246 on `main` add the checks that fail only there.
+
+| Kind | Checks | What the branch does |
+|---|---|---|
+| guard (G2) | arguments 6, exports 37, style 1, documentation 10, platform layering 9, slice edges 6 | the list of known violations of each guard |
+| fail, error (G2) | the catalog walk, the type-in walk and the REPL walk on `text/view` (with the other views of a text); the REPL walk of `graph` (205), `yaml` (106) and eight charts (48); the position and invariant walks of the eight charts (8, 16); the clicks on 23 layouts and cards of widgets; the coverage of 9 types with no atom; graph drag and scroll pane; tooltip frame; math depth; navigator choices; clipboard cut; save under a new name; reload of the last line break; SDL workload and tree; release copy; call site entries; drag over a stub; history palette; MCP surface sentence; pivot search and drop; agent bar usage; the forms of five verbs | `@test_broken` with a reason, in the registry of its walk where it has one |
+| stale mark | the flat view of a dictionary (an unexpected pass), the natural render of `appearance/document` | the mark goes |
+| sometimes (G3) | `FeedsTest.jl:260`, `FormulaFrameGuardTest.jl:67`, `WindowFrameGuardTest.jl:325` (checks of a time) | `@test_skip` with a reason |
+| sometimes (G3) | `TaskWorkItemTest.jl:171`, `LanguageServerConnectionTest.jl:18`, `TextRangeSelectionTest.jl:267`, `SystemProcessTest.jl:332` (a fixed wait) | a wait for the condition with a bound |
+| sometimes (G3) | `TaskVerbsTest.jl:102`, `TaskGroupToWidgetTest.jl:440` (a process that ends before its identifier is read) | the process of the test lives a second |
+| process (G5) | `HistorySweepTest.jl:118` (CI: the REPL sweep changes the shared documents before it), `ExplorerTest.jl:1928` (CI: the whole memory of the process), `BuilderTest.jl:410` (a logger that an earlier part left) | the test sets what it reads: fresh documents, memory from its start, a plain logger |
+| process (G5) | `BuilderTest.jl:1152`, `:1157` (`bwrap` inside the `bwrap` of the run), `WindowFrameGuardTest.jl:310` (fails on each CI run only, cause not found) | `@test_skip` where it fails, with the reason |
+| process (G5) | the agent and assistant tests, `AssistantWakeTest.jl:116`, `McpLogTest.jl:55`, `PaneDocumentTest.jl:276`, `WorkPlanTest.jl:122`, `BuildEditorTest.jl:257` | the probe of step 1 names the package that changes each result |
+| fault of `tests-run-fast` | `ExampleSweeps.jl:79` (2), `HistorySweepTest.jl:37` and `:124` | fixed on that branch, not marked here |
+
+### omnet-julia
+
+The runs of `test_legacy`, `test_ide` and `test_presentation` on `main` `21d013f2f` of 2026-11-19
+give the first list: `test_legacy` 23 fails and 68 errors (marked on the branch), `test_ide` 23 fails
+and 12 errors, `test_presentation` 28 failures before its bound of 4 hours. The two runs of all
+parts follow.
 
 ## 6. Not in this plan
 
