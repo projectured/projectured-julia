@@ -27,6 +27,7 @@ The options of a run of [`run_test_supervisor`](@ref), with their defaults:
 processes (1); `memory_bytes`, the memory that a
 worker may use (6 GiB); `limit`, the seconds of a part that names no limit of its
 own (600); `only` and `skip`, the filters in the form of the command line;
+`changed`, a base commit whose changes choose the parts (none);
 `record`, the path of the record file (none); and `suites`, the pairs of a
 package and the name of a suite in it.
 """
@@ -38,6 +39,7 @@ Base.@kwdef mutable struct TestRunOptions
     limit::Float64 = 600.0
     only::String = ""
     skip::String = ""
+    changed::String = ""
     record::String = ""
     suites::Vector{Tuple{String, String}} = Tuple{String, String}[]
 end
@@ -58,6 +60,7 @@ const _RUN_TESTS_USAGE = """
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
+      --changed BASE   run only the parts that the changes since the commit BASE reach
       --record PATH    add one line of tab-separated values for each part to PATH
     """
 
@@ -90,6 +93,7 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             word == "--limit" ? (options.limit = parse(Float64, value)) :
             word == "--only" ? (options.only = value) :
             word == "--skip" ? (options.skip = value) :
+            word == "--changed" ? (options.changed = value) :
             word == "--record" ? (options.record = value) :
             error("no option $word")
             k += 2
@@ -284,7 +288,7 @@ function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Ch
             push!(worker.loaded, package)
             println(output, "Loaded $package in $(fields[3]) s.")
         end
-        _send(worker, "list", package, suite, options.only, options.skip)
+        _send(worker, "list", package, suite, options.only, options.skip, options.changed)
         while true
             fields = _wait_answer(_ -> nothing, worker, events, ("part", "listed", "failed"))
             if fields === nothing || fields[1] == "failed"

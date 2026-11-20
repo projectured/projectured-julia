@@ -621,6 +621,17 @@ const test_all = TestSuite("Projectured", [
 ])
 
 """
+    test_changed(; base = "main", keywords...)
+
+Run the parts of `test_all` that the changes since `base` reach: the tests of
+the changed files, of their slices and of the code that uses them (see
+`reached_test_paths`), with the other keywords of `run_suite`. It is a quick
+check after a change; run the whole suites before a land.
+"""
+test_changed(; base::AbstractString = "main", keywords...) =
+    run_changed_parts(test_all; base, slice_edges = TEST_SLICE_EDGES, keywords...)
+
+"""
     test_repository()
 
 The tests of the umbrella that read this repository and not only its packages:
@@ -712,3 +723,4 @@ export test_command_palette, test_command_palette_decorator, test_document_inser
 export test_gesture_log, test_file_project, test_workflow_file, test_research_combinations
 export test_marker_vocabulary
 export test_file_format_contract
+export test_changed

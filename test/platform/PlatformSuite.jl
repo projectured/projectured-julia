@@ -134,6 +134,15 @@ const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
 )
 
 """
+    TEST_SLICE_EDGES
+
+The tables of the edges between the slices of a source folder, for the parts of
+what changed (`reached_test_paths`): a change of a slice of the platform reaches
+the tests of the slice and of the slices that use it.
+"""
+const TEST_SLICE_EDGES = Dict("source/platform" => PLATFORM_SLICE_EDGES)
+
+"""
     test_platform_slice_edges()
 
 Each slice of the platform uses only the slices that `PLATFORM_SLICE_EDGES`
@@ -446,7 +455,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
 
 export test_platform, test_platform_layering, test_platform_examples
 export test_feed_frame_guards
-export PLATFORM_SLICE_EDGES, test_platform_slice_edges
+export PLATFORM_SLICE_EDGES, TEST_SLICE_EDGES, test_platform_slice_edges
 export test_bounded_sync, test_document_reflection
 export test_identity
 export test_collection, test_table_interface, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting

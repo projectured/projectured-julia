@@ -208,6 +208,24 @@ supervisor may use, divided by the `--threads` of a worker; under
 measures time or one that needs every thread, has `is_alone = true` in its entry:
 it waits until no other part runs, and no part starts beside it.
 
+### The parts of what changed
+
+`test_changed()` runs the parts of `test_all` that the changes since `main`
+reach: the committed changes of the branch, the changes that are not committed,
+and the new files. `test_changed(base = "HEAD~3")` takes another base, and the
+supervisor takes `--changed main`:
+
+- a changed test file reaches its own parts;
+- a changed file of a package reaches the tests of the package and of each
+  package of the repository that uses it, by the `[deps]` of the `Project.toml`
+  files, so a change of the kernel reaches every package;
+- inside the platform, a changed file of a slice reaches the tests of the slice
+  and of the slices that use it, by `PLATFORM_SLICE_EDGES`, in place of all the
+  tests of the platform.
+
+It prints the changed files and the test folders that they reach. It is a quick
+check after a change. Run the whole suites before a land.
+
 ## Per-package tests
 
 | Function | What it covers |
