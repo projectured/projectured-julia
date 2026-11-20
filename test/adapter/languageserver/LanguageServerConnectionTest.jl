@@ -15,7 +15,8 @@ function test_language_server_connection()
     @test connection.token_types == ["variable", "function", "macro"]
     initialize = only(get_fake_messages(server, "initialize"))
     @test initialize["params"]["capabilities"]["general"]["positionEncodings"] == ["utf-32", "utf-16"]
-    @test length(get_fake_messages(server, "initialized")) == 1
+    # The server reads the notification on its own task, after the answer to the start.
+    @test timedwait(() -> length(get_fake_messages(server, "initialized")) == 1, 30.0) === :ok
     # A second start does nothing.
     start_language_server!(connection)
     @test length(get_fake_messages(server, "initialize")) == 1

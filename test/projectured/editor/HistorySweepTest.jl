@@ -12,8 +12,10 @@ using Test
 # `example` and a wheel turned in two places: one line for each recorded answer.
 # The answers are read and not applied, so each one answers the printed state.
 function _history_recorded_answers(example)
-    projection = example.projection
-    iomap = print_document(projection, example.document)
+    # A fresh document, not the shared `example.document`, which the REPL sweep
+    # changes in place when it runs before this one in the same process.
+    projection = example.make_projection()
+    iomap = print_document(projection, example.make_document())
     output = iomap.output
     output isa GraphicsDocument || return String[]
     width, height = Int.(get_graphics_size(output))

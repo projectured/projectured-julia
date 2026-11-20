@@ -309,12 +309,14 @@ function test_system_process()
 
     @testset "the detail of a running task shows its process tree" begin
         group = wrap_task_group_document(
-            TaskGroup([_TaskGroupProbeTask("sleeper", "sleep 30")]; name = "processes", jobs = 1))
+            TaskGroup([_TaskGroupProbeTask("sleeper", "sleep 120")]; name = "processes", jobs = 1))
         select_task_document!(group, 1)
         start_task_group_document!(group)
         task = only(getfield(group, :tasks)[])
         try
-            deadline = time() + 10
+            # The first view of a process tree compiles, which takes more than 10 s under the
+            # load of a shared machine; the sleeper outlives the bound, and the stop below ends it.
+            deadline = time() + 60
             while get_task_document_status(task) !== :running && time() < deadline
                 drain_task_feed!()
                 sleep(0.05)

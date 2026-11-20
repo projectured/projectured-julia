@@ -428,7 +428,9 @@ function test_task_views()
         end
 
         @testset "the Process group holds the facts that have a value" begin
-            pending = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("p", "exit 0")]; name = "pending process", jobs = 1))
+            # The process lives a second, so it has an identifier to read: a process that
+            # ends at once can have none left.
+            pending = wrap_task_group_document(TaskGroup([_TaskViewProbeTask("p", "sleep 1; exit 0")]; name = "pending process", jobs = 1))
             task = only(getfield(pending, :tasks)[])
             group = TaskModule._make_task_process_group(pending, task)
             @test !group.visible && isempty(group.facts)

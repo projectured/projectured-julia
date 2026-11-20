@@ -31,7 +31,9 @@ end
 
 function test_task_group_verbs()
     @testset "task group verbs" begin
-        tasks = [_TaskViewProbeTask(name, name == "fail" ? "echo oops >&2; exit 1" : "echo $name")
+        # The failing process lives a second, so it has an identifier to read: a
+        # process that ends at once can have none left.
+        tasks = [_TaskViewProbeTask(name, name == "fail" ? "echo oops >&2; sleep 1; exit 1" : "echo $name")
                  for name in ("alpha", "fail")]
         group = wrap_task_group_document(TaskGroup(tasks; name = "verbs", jobs = 2);
                                          title = "the verbs")

@@ -269,6 +269,13 @@ function test_text_range_selection()
         (editor, backend) = _tr_tracking_editor(a, make_assistant_projection_example())
         press(event) = _tr_press!(editor, backend, event)
         texts = _tr_texts(_tr_window(backend))
+        # The composer can need more frames than one before it draws its hint, as a
+        # run on CI showed; the wait has a bound.
+        for _ in 1:50
+            any(t -> occursin("type here", t[3]), texts) && break
+            run_frame!(editor)
+            texts = _tr_texts(_tr_window(backend))
+        end
         (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
         _tr_clicks!(editor, backend, x + 30, y + 8, 1)
         foreach(c -> press(KeyPress(c; time = 0.0)), "hi")

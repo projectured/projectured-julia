@@ -1923,6 +1923,9 @@ function test_explorer()
     end
 
     @testset "a place where a file repeats on its own path draws closed, and each opening shows one more level" begin
+        # The memory that the test adds, from what the process holds when it starts,
+        # which grows with the tests that ran before it in the same process.
+        live_start = (GC.gc(); Base.gc_live_bytes())
         root = mktempdir()
         try
             first_path, second_path = joinpath(root, "first.pred"), joinpath(root, "second.pred")
@@ -1950,7 +1953,7 @@ function test_explorer()
                     drain_operations!(editor)
                     run_frame!(editor)
                 end
-                @test Base.gc_live_bytes() < 3 * 2^30
+                @test Base.gc_live_bytes() - live_start < 2 * 2^30
                 closed, opened = string(Char(0xe06f)), string(Char(0xe06d))
                 @test _nav_count(backend, "first.pred") == 1 && _nav_count(backend, closed) == 1
                 @test _nav_count(backend, opened) == 0 && _nav_has_text(backend, first_path)
@@ -1968,6 +1971,9 @@ function test_explorer()
     end
 
     @testset "a press on the chevron of a repeat opens it one level, and the repeat in it is closed again" begin
+        # The memory that the test adds, from what the process holds when it starts,
+        # which grows with the tests that ran before it in the same process.
+        live_start = (GC.gc(); Base.gc_live_bytes())
         root = mktempdir()
         try
             # a.pred holds a card of b.pred, which holds a card of a.pred.
@@ -1989,7 +1995,7 @@ function test_explorer()
                 frames!()
             end
             frames!()
-            @test Base.gc_live_bytes() < 3 * 2^30
+            @test Base.gc_live_bytes() - live_start < 2 * 2^30
             @test _nav_count(backend, closed) == 1 && _nav_count(backend, opened) == 0
             @test _nav_count(backend, "a.pred") == 1 && _nav_count(backend, "b.pred") == 0
             # One press opens the repeat of a.pred: its content shows once more, and the repeat of
@@ -2002,7 +2008,7 @@ function test_explorer()
             press_chevron!(closed)
             @test _nav_count(backend, opened) == 2 && _nav_count(backend, closed) == 1
             @test _nav_count(backend, "A") == 2 && _nav_count(backend, "B") == 2
-            @test Base.gc_live_bytes() < 3 * 2^30
+            @test Base.gc_live_bytes() - live_start < 2 * 2^30
         finally
             rm(root; recursive = true, force = true)
         end
