@@ -1,8 +1,10 @@
 # Agents work fast
 
-> **Status (2026-11-20): proposed.** The owner asked for this work on 2026-11-20. No step is
-> done. The plan waits for the approval of the owner. It covers projectured-julia, omnet-julia
-> and the tool `bounded-run`.
+> **Status (2026-11-20): approved, in progress.** The owner asked for this work on 2026-11-20
+> and approved the plan the same day ("Good plan"), with the land of `tests-run-fast` together
+> with `main-stays-green` in step 1. The owner also asked: "if something else is found along
+> the way which can be done better than let me know. We really need to bring down the
+> compilation, the testing time because writing code is now negligible to these two".
 
 ## 1. The purpose
 
@@ -48,8 +50,8 @@ What exists, and is not on `main`:
 
 ## 3. Decisions
 
-Each decision is proposed by the assistant. It counts as approved when the owner approves the
-plan.
+Each decision is proposed by the assistant. The owner approved them with the plan on
+2026-11-20.
 
 - **A1. The runner and green main land first, together** (proposed by the assistant). The
   branches `tests-run-fast` and `main-stays-green` land in both repositories as one step: they
