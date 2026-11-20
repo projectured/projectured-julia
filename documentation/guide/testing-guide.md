@@ -158,6 +158,24 @@ The runner is in
 [test/kernel/runner/SuiteRunner.jl](../../test/kernel/runner/SuiteRunner.jl),
 in `ProjecturedKernelTest`, so every test package can use it.
 
+### A filter by name
+
+Every suite takes the keywords `only` and `skip`. Each is a `String`, which
+matches a name that holds it, or a `Regex`. `only` chooses the parts whose name,
+or the name of a suite that holds them, matches it. `skip` leaves out each part
+and each suite whose name matches it:
+
+```julia
+julia> test_platform(only = "widget")             # the parts with "widget" in their name
+julia> test_all(only = "ProjecturedJSON")          # the whole suite of JSON, inside test_all
+julia> test_kernel(skip = r"^test_(agent|llm)")    # the kernel without the agent and model parts
+```
+
+A walk over the examples takes the same keywords, and matches the names of its
+examples: `test_printers(only = "json")` walks the examples whose name holds
+`json`, and `test_catalog(only = "json/")` the JSON atoms of the catalog. A new
+walk filters its list with `select_by_name(examples; only, skip)`.
+
 ## Per-package tests
 
 | Function | What it covers |

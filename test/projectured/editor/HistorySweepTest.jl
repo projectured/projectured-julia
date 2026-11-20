@@ -32,7 +32,7 @@ function _history_recorded_answers(example)
     recorded
 end
 
-function test_history_sweep()
+function test_history_sweep(; only = nothing, skip = nothing)
     @testset "a gesture that changes no document adds no step" begin
         @testset "in the application window" begin
             mktempdir() do dir
@@ -114,7 +114,7 @@ function test_history_sweep()
         end
 
         @testset "over every example" begin
-            for example in examples
+            for example in select_by_name(examples; only, skip)
                 @test (example.name, _history_recorded_answers(example)) == (example.name, String[])
             end
         end

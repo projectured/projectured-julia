@@ -40,7 +40,7 @@ Call the suite to run it, with the keywords of [`run_suite`](@ref):
 ```julia
 const test_json = TestSuite("ProjecturedJSON", [test_json_layering, test_json_document])
 test_json()
-test_json(record = "/var/tmp/json.tsv")
+test_json(only = "document", record = "/var/tmp/json.tsv")
 ```
 
 Each part runs in a testset of its own, with the name of the part. So a part
@@ -89,11 +89,15 @@ end
 const PART_RECORD_COLUMNS = fieldnames(PartRecord)
 
 """
-    run_suite(suite::TestSuite; record = nothing) -> Test.AbstractTestSet
+    run_suite(suite::TestSuite; only = nothing, skip = nothing, record = nothing)
+        -> Test.AbstractTestSet
 
 Run the entries of `suite` in their order, inside the testset of the suite, and
-give that testset.
+give that testset, or `nothing` when no part is chosen.
 
+- `only`: a `String` or a `Regex`. Run only the parts whose name, or the name of a
+  suite that holds them, matches it. A `String` matches a name that holds it.
+- `skip`: the same form. Leave out each part and each suite whose name matches it.
 - `record`: the path of a file. Add one line for each part that runs to it, as
   tab-separated values in the columns of `PART_RECORD_COLUMNS`. A new file starts
   with a line of the column names.
@@ -101,12 +105,14 @@ give that testset.
 When a part ends, the runner prints one line with its counts and its times. At
 the end of the outermost suite, it prints the ten slowest parts.
 """
-function run_suite(suite::TestSuite; record = nothing)
+function run_suite(suite::TestSuite; only = nothing, skip = nothing, record = nothing)
     is_outermost = Test.get_testset_depth() == 0
+    chosen = select_parts(suite; only, skip)
+    chosen === nothing && (println("No part of $(suite.name) matches."); return nothing)
     records = PartRecord[]
-    source = _source_commit(suite)
+    source = _source_commit(chosen)
     try
-        _run_entries(suite, "", records, source, record)
+        _run_entries(chosen, "", records, source, record)
     finally
         is_outermost && _print_slowest(records)
     end
@@ -127,6 +133,57 @@ function _run_entries(suite::TestSuite, path::String, records, source, record)
         end
     end
 end
+
+"""
+    select_parts(suite::TestSuite; only = nothing, skip = nothing) -> Union{TestSuite, Nothing}
+
+The suite with only the entries that `only` and `skip` choose, as
+[`run_suite`](@ref) reads them, or `nothing` when no part is left. A suite inside
+it that keeps no part is left out.
+"""
+select_parts(suite::TestSuite; only = nothing, skip = nothing) =
+    _select(suite, only, skip, only === nothing)
+
+function _select(suite::TestSuite, only, skip, is_chosen::Bool)
+    _name_matches(skip, suite.name) && return nothing
+    is_chosen = is_chosen || _name_matches(only, suite.name)
+    kept = Union{TestPart, TestSuite}[]
+    for entry in suite.entries
+        if entry isa TestSuite
+            inner = _select(entry, only, skip, is_chosen)
+            inner === nothing || push!(kept, inner)
+        elseif !_name_matches(skip, entry.name) && (is_chosen || _name_matches(only, entry.name))
+            push!(kept, entry)
+        end
+    end
+    isempty(kept) ? nothing : TestSuite(suite.name, kept)
+end
+
+_name_matches(::Nothing, ::AbstractString) = false
+_name_matches(pattern::Union{AbstractString, Regex}, name::AbstractString) = occursin(pattern, name)
+
+"""
+    select_by_name(items; only = nothing, skip = nothing) -> Vector
+
+The items whose name matches `only` and does not match `skip`, in their order,
+with the forms of [`run_suite`](@ref). The name of an item is its field `name`,
+or the item itself when it is a `String`. A walk over the examples uses it:
+
+```julia
+function test_printers(; only = nothing, skip = nothing)
+    for example in select_by_name(examples; only, skip)
+        test_printer(example)
+    end
+end
+```
+"""
+select_by_name(items; only = nothing, skip = nothing) =
+    [item for item in items
+     if (only === nothing || _name_matches(only, _item_name(item))) &&
+        !_name_matches(skip, _item_name(item))]
+
+_item_name(item::AbstractString) = item
+_item_name(item) = item.name
 
 """
     run_part(part::TestPart; suite = "", repository = "", commit = "") -> PartRecord

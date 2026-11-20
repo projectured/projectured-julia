@@ -149,14 +149,14 @@ function test_platform_slice_edges()
 end
 
 """
-    test_platform_examples()
+    test_platform_examples(; only = nothing, skip = nothing)
 
 Walk the printer over every platform example (`platform_examples`) — one
 `@test` per forced reactive cell, through the generic `test_printer` driver.
 """
-function test_platform_examples()
+function test_platform_examples(; only = nothing, skip = nothing)
     @testset "PlatformExamples" begin
-        for ex in platform_examples
+        for ex in select_by_name(platform_examples; only, skip)
             @testset "$(ex.name)" begin
                 test_printer(ex)
             end

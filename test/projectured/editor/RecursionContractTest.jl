@@ -251,9 +251,9 @@ test_recursion_contract(example::Example) =
 # delegation predicate.
 const _recursion_contract_examples = ["json", "xml", "syntax", "math"]
 
-function test_recursion_contracts()
+function test_recursion_contracts(; only = nothing, skip = nothing)
     @testset "RecursionContract" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             example.name in _recursion_contract_examples || continue
             @testset "$(example.name)" begin
                 test_recursion_contract(example)

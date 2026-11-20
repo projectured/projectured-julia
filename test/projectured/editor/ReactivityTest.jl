@@ -735,9 +735,9 @@ path mapped, so the field may have no reader at all, which is true of
 `SyntaxLeaf.indentation`. Both counts are reported so that a silent change in
 either is visible.
 """
-function test_reactivity(; leaf_limit::Int=2, node_limit::Int=12)
+function test_reactivity(; leaf_limit::Int=2, node_limit::Int=12, only = nothing, skip = nothing)
     @testset "Reactivity" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 verdicts = try
                     check_reactivity(example; leaf_limit=leaf_limit, node_limit=node_limit)

@@ -27,9 +27,9 @@ _all_known(errors, sigs) =
 
 # ── printer ──────────────────────────────────────────────────────────────────
 
-function test_printers()
+function test_printers(; only = nothing, skip = nothing)
     @testset "Printers" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 test_printer(example)
             end
@@ -75,9 +75,9 @@ end
 
 # What `find` gives for each text document that the printer of each example reaches:
 # one test set for each example, which asserts that it gives nothing.
-function _test_example_texts(find, title::AbstractString)
+function _test_example_texts(find, title::AbstractString; only = nothing, skip = nothing)
     @testset "$title" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 found = String[]
                 iomap = print_document(example.projection, example.document)
@@ -93,7 +93,7 @@ end
 # stage that prints it; a run that holds a `'\n'` is reported by the head of its
 # text.
 test_text_runs_hold_no_break() =
-    _test_example_texts("A text run holds no break") do found, document
+    _test_example_texts("A text run holds no break"; only, skip) do found, document
         document isa TextString || return
         content = document.content
         (content isa AbstractString && occursin('\n', content)) && push!(found, first(content, 60))
@@ -103,7 +103,7 @@ test_text_runs_hold_no_break() =
 # `TextLine`s. A lazy list of lines is not walked, because it can be endless; an
 # element that is no line is reported by its type.
 test_text_blocks_hold_only_lines() =
-    _test_example_texts("A text block holds only lines") do found, document
+    _test_example_texts("A text block holds only lines"; only, skip) do found, document
         document isa TextBlock || return
         elements = document.elements
         elements isa CellVector || return
@@ -131,9 +131,9 @@ function reader_broken(name)
     nothing
 end
 
-function test_readers()
+function test_readers(; only = nothing, skip = nothing)
     @testset "Readers" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 test_reader(example.name, example.document, example.projection;
                             broken=reader_broken(example.name))
@@ -170,9 +170,9 @@ function repl_broken(name)
     nothing
 end
 
-function test_repls()
+function test_repls(; only = nothing, skip = nothing)
     @testset "Repls" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 if example.name in ("focusing", "xml")
                     # @broken: pre-existing runtime bug — walk_repl_loop hits an
@@ -213,9 +213,9 @@ function posnav_seed_broken(name)
     nothing
 end
 
-function test_position_navigations()
+function test_position_navigations(; only = nothing, skip = nothing)
     @testset "PositionNavigation" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             # Skip widget / layout examples and assistant — the
             # widget-to-graphics layer doesn't route keyboard events to its
             # children, so Ctrl+Home can't seed an initial selection.
@@ -332,9 +332,9 @@ const _position_navigation_complete_examples = ["text", "json"]
 _complete_unreached_broken(name) =
     name == "text" ? (s -> startswith(s, ".elements[1].elements[1].content{")) : nothing
 
-function test_position_navigations_complete()
+function test_position_navigations_complete(; only = nothing, skip = nothing)
     @testset "PositionNavigationComplete" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             example.name in _position_navigation_complete_examples || continue
             test_position_navigation(example.name, example.document, example.projection;
                 check_reaches_all=true,
@@ -359,11 +359,11 @@ function tree_broken(name)
     nothing
 end
 
-function test_tree_navigations()
+function test_tree_navigations(; only = nothing, skip = nothing)
     # Only examples whose root projects to a SyntaxNode (not a lone leaf)
     # support tree navigation — Ctrl+Alt+Home must produce a result.
     @testset "TreeNavigation" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             (startswith(example.name, "widget") && example.name != "widget_text") && continue
             example.name in ("layout",
                              "assistant",
@@ -408,9 +408,9 @@ end
 # yields no selection).
 const _tree_navigation_complete_examples = ["syntax", "json"]
 
-function test_tree_navigations_complete()
+function test_tree_navigations_complete(; only = nothing, skip = nothing)
     @testset "TreeNavigationComplete" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             example.name in _tree_navigation_complete_examples || continue
             # The enumerator is chosen by document type via _default_tree_collector
             # (native syntax → is_node predicate; json / ned → projection-aware).
@@ -422,7 +422,7 @@ end
 
 # ── typein ───────────────────────────────────────────────────────────────────
 
-function test_typeins()
+function test_typeins(; only = nothing, skip = nothing)
     @testset "Typeins" begin
         # The walk builds input-domain cursor targets by field/index name and
         # anchors them at the right slot for each domain's selection convention,
@@ -434,7 +434,7 @@ function test_typeins()
         # the default): ~2200 cursor positions over these six examples, half a
         # minute. `test_typein(ex; positions=:ends)` buys the time back if that
         # ever stops being worth it.
-        for name in ("json", "text", "xml", "book", "syntax")
+        for name in select_by_name(("json", "text", "xml", "book", "syntax"); only, skip)
             idx = findfirst(e -> e.name == name, examples)
             idx === nothing && continue
             ex = examples[idx]
@@ -457,16 +457,16 @@ function click_broken(name)
 end
 
 """
-    test_click_roundtrips()
+    test_click_roundtrips(; only = nothing, skip = nothing)
 
 Run `test_click_roundtrip` against every example that produces a
 `TextToGraphicsIoMap` somewhere in its pipeline. Examples whose pipeline
 does not include a `TextToGraphics` step (pure widget / table / graphics
 chains) are skipped with a warning.
 """
-function test_click_roundtrips()
+function test_click_roundtrips(; only = nothing, skip = nothing)
     @testset "ClickRoundtrips" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             # Skip examples whose top-level pipeline does not feed a
             # TextToGraphics step (handled by other readers entirely).
             # Skip:
@@ -552,9 +552,9 @@ function get_navigation_broken(name)
     broken
 end
 
-function test_text_navigation_invariants_all()
+function test_text_navigation_invariants_all(; only = nothing, skip = nothing)
     @testset "TextNavInvariants" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             # Skip:
             #   - widget/layout/table/tooltip/files/assistant: no
             #     TextToGraphics at the top, MouseClick is consumed elsewhere

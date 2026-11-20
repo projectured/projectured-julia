@@ -132,7 +132,7 @@ const test_kernel = TestSuite("ProjecturedKernel", [
 
 export test_kernel, test_kernel_layering
 # the runner of a suite (used by every test package)
-export TestPart, TestSuite, run_suite, run_part
+export TestPart, TestSuite, run_suite, run_part, select_parts, select_by_name
 export PartRecord, PART_RECORD_COLUMNS, write_part_record, read_part_records, test_suite_runner
 # layering guard (shared by base/visual/domain test packages)
 export check_layering, check_slice_edges, get_package_source_root, test_layering_checkers

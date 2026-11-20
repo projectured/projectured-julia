@@ -8,9 +8,9 @@ function test_example(example::Example)
 end
 end
 
-function test_examples()
+function test_examples(; only = nothing, skip = nothing)
     @testset "Examples" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 test_example(example)
             end

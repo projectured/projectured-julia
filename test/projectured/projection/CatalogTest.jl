@@ -127,8 +127,9 @@ which testers apply — a `:syntax` pair runs printer/reader/repl but not
 position-navigation (which needs a `:graphics` terminal) — so no skip-lists are needed.
 """
 function test_catalog(; domain = nothing, document = nothing, terminal = nothing,
-                        only_runnable = false, testers = CATALOG_TESTERS)
-    test_catalog_examples(catalog(; domain, document, terminal, only_runnable); testers,
+                        only_runnable = false, testers = CATALOG_TESTERS, only = nothing, skip = nothing)
+    test_catalog_examples(select_by_name(catalog(; domain, document, terminal, only_runnable);
+                                         only, skip); testers,
                           marks = _CATALOG_MARKS)
 end
 
@@ -142,9 +143,9 @@ domain-specific readers already covered by the curated `test_typeins`. The text
 atoms render straight through `TextToGraphics`, so every caret is a real editable
 text cursor; this asserts each atom types cleanly under the default text projection.
 """
-function test_catalog_typeins(; domain = :text)
+function test_catalog_typeins(; domain = :text, only = nothing, skip = nothing)
     @testset "CatalogTypeins" begin
-        for ex in catalog(; domain = domain, terminal = :graphics)
+        for ex in select_by_name(catalog(; domain = domain, terminal = :graphics); only, skip)
             test_typein(ex.name, ex.make_document(), ex.make_projection())
         end
     end

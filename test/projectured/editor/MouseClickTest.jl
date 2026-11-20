@@ -328,9 +328,9 @@ function mouse_broken(name)
     nothing
 end
 
-function test_mouse_clicks()
+function test_mouse_clicks(; only = nothing, skip = nothing)
     @testset "MouseClicks" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             # Skip examples whose pipeline does not feed a TextToGraphics step
             # or whose domain projections do not yet propagate selection forward
             # to render a cursor. See plan/pending/json-navigation-and-clicks.md

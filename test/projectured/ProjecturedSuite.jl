@@ -230,15 +230,15 @@ include("projection/NaturalNotationTest.jl")
 include("projection/NaturalRegistryTest.jl")
 
 """
-    test_domain_examples()
+    test_domain_examples(; only = nothing, skip = nothing)
 
 Walk the printer over every concrete-domain example. The registry the sweep
 walks (`domain_examples`) names factories from all twenty domain example
 packages, so the sweep belongs here rather than in any one of them.
 """
-function test_domain_examples()
+function test_domain_examples(; only = nothing, skip = nothing)
     @testset "DomainExamples" begin
-        for ex in domain_examples
+        for ex in select_by_name(domain_examples; only, skip)
             @testset "$(ex.name)" begin
                 test_printer(ex)
             end

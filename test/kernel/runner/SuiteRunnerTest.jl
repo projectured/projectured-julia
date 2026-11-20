@@ -25,8 +25,9 @@ end
 
 The runner of a suite: it runs the parts in the order of the table, a part that
 throws records an error and the parts after it still run, a suite inside a suite
-runs as a testset of its own, and the record file holds one line for each part
-with its counts.
+runs as a testset of its own, the record file holds one line for each part with
+its counts, and `only` and `skip` choose the parts and the items of a walk by
+name.
 """
 function test_suite_runner()
     @testset "a suite runs its parts in their order, and a part that throws stops no other" begin
@@ -58,6 +59,43 @@ function test_suite_runner()
         path = joinpath(mktempdir(), "record.tsv")
         _run_quietly(suite; record = path)
         @test only(read_part_records(path)).pass == 1
+    end
+
+    @testset "only and skip choose the parts by their names and the names of their suites" begin
+        noop() = nothing
+        suite = TestSuite("all", [
+            TestPart(noop; name = "test_widget_table"),
+            TestPart(noop; name = "test_text"),
+            TestSuite("ProjecturedJSON", [TestPart(noop; name = "test_json_parser")]),
+        ])
+        names(chosen) = chosen === nothing ? String[] :
+            [entry isa TestSuite ? entry.name * "/" * join(names(entry), ",") : entry.name
+             for entry in chosen.entries]
+        @test names(select_parts(suite)) == ["test_widget_table", "test_text",
+                                             "ProjecturedJSON/test_json_parser"]
+        @test names(select_parts(suite; only = "widget")) == ["test_widget_table"]
+        @test names(select_parts(suite; only = "ProjecturedJSON")) ==
+              ["ProjecturedJSON/test_json_parser"]
+        @test names(select_parts(suite; only = r"^test_t")) == ["test_text"]
+        @test names(select_parts(suite; skip = "JSON")) == ["test_widget_table", "test_text"]
+        @test names(select_parts(suite; only = "test_", skip = "text")) ==
+              ["test_widget_table", "ProjecturedJSON/test_json_parser"]
+        @test select_parts(suite; only = "nothing like it") === nothing
+        ran = String[]
+        counted = TestSuite("counted", [
+            TestPart(() -> (push!(ran, "a"); @test true); name = "a"),
+            TestPart(() -> (push!(ran, "b"); @test true); name = "b"),
+        ])
+        _run_quietly(counted; skip = "a")
+        @test ran == ["b"]
+    end
+
+    @testset "a walk chooses its items by name" begin
+        items = [(name = "json",), (name = "json_widget",), (name = "xml",)]
+        @test select_by_name(items) == items
+        @test [item.name for item in select_by_name(items; only = "json")] == ["json", "json_widget"]
+        @test [item.name for item in select_by_name(items; skip = r"_widget$")] == ["json", "xml"]
+        @test select_by_name(("json", "text", "xml"); only = "x") == ["text", "xml"]
     end
 end
 

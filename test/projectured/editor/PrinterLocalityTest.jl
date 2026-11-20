@@ -295,9 +295,9 @@ end
 test_selection_locality(example::Example) =
     test_selection_locality(example.name, example.document, example.projection)
 
-function test_selection_localities()
+function test_selection_localities(; only = nothing, skip = nothing)
     @testset "Selection locality" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 test_selection_locality(example)
             end
@@ -552,9 +552,9 @@ end
 test_value_locality(example::Example) =
     test_value_locality(example.name, example.document, example.projection)
 
-function test_value_localities()
+function test_value_localities(; only = nothing, skip = nothing)
     @testset "Value locality" begin
-        for example in examples
+        for example in select_by_name(examples; only, skip)
             @testset "$(example.name)" begin
                 test_value_locality(example)
             end

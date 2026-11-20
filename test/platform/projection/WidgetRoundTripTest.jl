@@ -171,12 +171,12 @@ function _rt_round_trip(document, projection, iomap, output, part)
     (:other_part, strip_reference_types(other))
 end
 
-function test_widget_round_trip()
+function test_widget_round_trip(; only = nothing, skip = nothing)
 @testset "every part of a widget example maps forward and back again" begin
     examples = filter(example -> startswith(example.name, "widget"), platform_examples)
     @test length(examples) >= 40
     failures = String[]
-    for example in examples
+    for example in select_by_name(examples; only, skip)
         document = example.make_document()
         projection = example.make_projection()
         ctx = PrinterContext(EmptyReference(), Cell(1200), Cell(800), Dict{Symbol,Any}())
