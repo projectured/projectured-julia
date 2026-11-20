@@ -218,10 +218,12 @@ Whether this operation belongs in a history: the filter a buffer uses when
 nobody names another one.
 
 It drops the operations that change nothing, the selection moves, the moves of
-the part under the pointer, the folds, the writes of view state and the timers. A caret move follows almost every key and almost every
+the part under the pointer, the folds, the writes of view state, the timers and the
+opens of a page, a file or an address. A caret move follows almost every key and almost every
 click, and a history full of caret moves is one a person can not use. A hover or
 a held button is marked as view state by the reader that writes it, and is no
-edit at all. A `ToggleCollapseOperation` is the flip of a fold that a reader made
+edit at all. An open, such as the click on a link, shows a document in a tab or
+outside the editor, and changes none. A `ToggleCollapseOperation` is the flip of a fold that a reader made
 of a click on a chevron, so it is view state by its kind. A compound that carries
 a write is kept; a compound of nothing but these is dropped.
 
@@ -233,13 +235,14 @@ is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operat
 # An operation that edits no document: one that does nothing, a move of the
 # selection or of the part under the pointer, a fold, a write of view state, a
 # write into a field that the type of its document declares view state, a timer, a
-# selection or a part to show, and a compound of nothing else. A compound that holds
-# one real write is an edit.
+# selection or a part to show, an open of a page, a file or an address, and a
+# compound of nothing else. A compound that holds one real write is an edit.
 _is_no_edit(operation) =
     operation isa Union{DoNothingOperation, ReplacePathOperation,
                         SelectNextInsertionOperation, ToggleCollapseOperation,
                         ReplaceViewStateOperation, SetTimerOperation,
-                        SelectDocumentOperation, RevealPartOperation} ||
+                        SelectDocumentOperation, RevealPartOperation,
+                        OpenPageOperation, OpenFileOperation, OpenUrlOperation} ||
     (operation isa ShowSelectionOperation && _is_no_edit(operation.operation)) ||
     _writes_view_state_field(operation) ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&

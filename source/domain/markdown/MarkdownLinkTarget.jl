@@ -12,13 +12,16 @@
 # rendered view follows it on a plain click and opens a new tab on Ctrl+click, as a
 # browser does. Each is an `override` rule with the condition
 # `is_selection_change(answer)`: it takes the click from the text, which answered it
-# with a move of its caret. The tooltip of a link shows its target.
+# with a move of its caret. Only the first click of a double click follows the link:
+# the second can come in the same frame, before the tab of the first is placed, and
+# it would open the target a second time. The tooltip of a link shows its target.
 
 _make_link_open(link::MarkdownLink, place::Symbol) =
     OpenPageOperation(nothing, EmptyReference(), place; target = link.url)
 
 _make_link_binding(modifiers::Vector{Symbol}, place::Symbol, description::String) =
-    GestureBinding(MouseClickPattern(:left; modifiers), (link, gesture, answer) -> _make_link_open(link, place);
+    GestureBinding(MouseClickPattern(:left; modifiers, guard = event -> event.count == 1),
+                   (link, gesture, answer) -> _make_link_open(link, place);
                    description, domain = "markdown", override = is_selection_change)
 
 const _MARKDOWN_LINK_BINDINGS = GestureBinding[
