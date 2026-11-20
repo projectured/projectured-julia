@@ -9,23 +9,28 @@
 # ============================================================================
 
 """
-    TestPart(run; name = String(nameof(run)))
+    TestPart(run; name = String(nameof(run)), limit = 0)
 
 One part of a [`TestSuite`](@ref): `run`, a function with no argument that runs
-tests, and the name of the part. A plain function in the table of a suite becomes
-a part with the name of the function. A test that takes an argument becomes a
-part through a function with no argument and a name:
+tests, the name of the part, and `limit`, the time in seconds that a worker
+process of `tool/run-tests.jl` gives the part before it stops it. A `limit` of 0
+takes the limit of the run. A plain function in the table of a suite becomes a
+part with the name of the function. A test that takes an argument becomes a part
+through a function with no argument and a name:
 
 ```julia
 TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)")
+TestPart(test_catalog; limit = 20 * 60)
 ```
 """
 struct TestPart
     name::String
     run::Any
+    limit::Float64
 end
 
-TestPart(run; name::AbstractString = String(nameof(run))) = TestPart(String(name), run)
+TestPart(run; name::AbstractString = String(nameof(run)), limit::Real = 0) =
+    TestPart(String(name), run, Float64(limit))
 
 """
     TestSuite(name, entries)
@@ -161,6 +166,44 @@ end
 
 _name_matches(::Nothing, ::AbstractString) = false
 _name_matches(pattern::Union{AbstractString, Regex}, name::AbstractString) = occursin(pattern, name)
+
+"""
+    list_parts(suite::TestSuite; only = nothing, skip = nothing)
+        -> Vector{@NamedTuple{index::Vector{Int}, suite::String, part::TestPart}}
+
+The parts that `only` and `skip` choose, as [`run_suite`](@ref) reads them, in
+their order: for each one, its `index`, the positions of the entries from
+`suite` down to the part, the path of the names of the suites that hold it, and
+the part. [`find_part`](@ref) gives the part of an index back.
+"""
+function list_parts(suite::TestSuite; only = nothing, skip = nothing)
+    found = @NamedTuple{index::Vector{Int}, suite::String, part::TestPart}[]
+    _list(suite, only, skip, only === nothing, Int[], "", found)
+    found
+end
+
+function _list(suite::TestSuite, only, skip, is_chosen::Bool, index, path, found)
+    _name_matches(skip, suite.name) && return
+    is_chosen = is_chosen || _name_matches(only, suite.name)
+    here = isempty(path) ? suite.name : path * "/" * suite.name
+    for (position, entry) in enumerate(suite.entries)
+        if entry isa TestSuite
+            _list(entry, only, skip, is_chosen, [index; position], here, found)
+        elseif !_name_matches(skip, entry.name) && (is_chosen || _name_matches(only, entry.name))
+            push!(found, (index = [index; position], suite = here, part = entry))
+        end
+    end
+end
+
+"""
+    find_part(suite::TestSuite, index::Vector{Int}) -> TestPart
+
+The part at `index` in `suite`, an index that [`list_parts`](@ref) gives.
+"""
+function find_part(suite::TestSuite, index::Vector{Int})
+    entry = suite.entries[first(index)]
+    length(index) == 1 ? entry::TestPart : find_part(entry::TestSuite, index[2:end])
+end
 
 """
     select_by_name(items; only = nothing, skip = nothing) -> Vector

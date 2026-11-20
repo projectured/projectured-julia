@@ -56,7 +56,10 @@ include("../../../test/kernel/layering/CheckLayering.jl")
 
 # ── the runner of a suite: a suite is a table of its parts ──────────────────
 include("../../../test/kernel/runner/SuiteRunner.jl")
+include("../../../test/kernel/runner/TestWorker.jl")
+include("../../../test/kernel/runner/TestSupervisor.jl")
 include("../../../test/kernel/runner/SuiteRunnerTest.jl")
+include("../../../test/kernel/runner/TestSupervisorTest.jl")
 
 # ── kernel unit tests (one suite per kernel layer) ──────────────────────────
 include("../../../test/kernel/fault/FaultDefaultsTest.jl")

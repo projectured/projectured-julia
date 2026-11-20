@@ -176,6 +176,28 @@ examples: `test_printers(only = "json")` walks the examples whose name holds
 `json`, and `test_catalog(only = "json/")` the JSON atoms of the catalog. A new
 walk filters its list with `select_by_name(examples; only, skip)`.
 
+### Worker processes and a time limit
+
+`tool/run-tests.jl` runs the parts of one or more suites in worker processes.
+The script loads no package; each worker loads the test packages and runs one
+part at a time:
+
+```bash
+julia --project=environment/all tool/run-tests.jl ProjecturedPlatformTest test_platform
+julia --project=environment/all tool/run-tests.jl --only widget --record /var/tmp/w.tsv \
+    ProjecturedPlatformTest test_platform
+```
+
+Each part gets a time limit: the `limit` of its entry, such as
+`TestPart(test_catalog; limit = 20 * 60)`, or else the `--limit` of the run, 600 s
+by default. At the limit, the worker prints its stacks, the supervisor stops it,
+records the result `timeout`, and starts a new worker for the next part. A worker
+over its `--memory` gets the result `memory`, and a worker that ends during a
+part the result `crash`. So a part that hangs costs its limit, and no result of
+another part is lost. At the end, the supervisor prints a summary, the parts
+that did not pass, and the ten slowest parts. Its exit code is 0 when each part
+ended and passed. `--help` gives the options.
+
 ## Per-package tests
 
 | Function | What it covers |

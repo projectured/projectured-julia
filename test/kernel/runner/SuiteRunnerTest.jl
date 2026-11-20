@@ -1,19 +1,8 @@
-# A testset that keeps the results of its children and gives them to no parent,
-# so a suite under test can fail on purpose without a failure of the real run.
-mutable struct _QuietTestSet <: Test.AbstractTestSet
-    description::String
-    results::Vector{Any}
-end
-
-_QuietTestSet(description::AbstractString; _...) = _QuietTestSet(String(description), Any[])
-Test.record(ts::_QuietTestSet, result) = (push!(ts.results, result); result)
-Test.finish(ts::_QuietTestSet) = ts
-
 # Run `suite` with `keywords` inside a quiet testset, with no printed line.
 function _run_quietly(suite::TestSuite; keywords...)
     Base.ScopedValues.@with Test.TESTSET_PRINT_ENABLE => false begin
         redirect_stdout(devnull) do
-            @testset _QuietTestSet "a suite under test" begin
+            @testset HeldTestSet "a suite under test" begin
                 suite(; keywords...)
             end
         end
