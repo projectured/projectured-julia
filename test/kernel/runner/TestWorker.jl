@@ -72,13 +72,13 @@ with its fields separated by tabs, and answers with lines that start with
 - `revise`: apply the changes of the files with Revise; answer `revised yes`, or
   `revised no` when Revise is not loaded. A change that Revise can not apply
   gets the answer `failed`.
-- `list PACKAGE SUITE ONLY SKIP BASE`, where a plain test function is a suite of
+- `list PACKAGE SUITE ONLY SKIP BASE LEVEL`, where a plain test function is a suite of
   one part: answer one line `part INDEX SUITEPATH NAME LIMIT ALONE` for each part
   that [`list_parts`](@ref) chooses, then `listed COUNT`. A filter is empty for
   none, `r"…"` for a `Regex`, or a part of a name. A `BASE` that is not empty
   keeps only the parts that the changes since `BASE` reach
   ([`reached_test_paths`](@ref)), with the `TEST_SLICE_EDGES` of the package when
-  it has them.
+  it has them. `LEVEL` is `all`, `fast` or `slow`.
 - `run PACKAGE SUITE INDEX`: run the part at `INDEX`, with no standard input;
   answer `record` and the values of its [`PartRecord`](@ref), in the order of
   `PART_RECORD_COLUMNS`.
@@ -127,10 +127,10 @@ function _worker_command(output::IO, command, arguments)
             _worker_answer(output, "revised", "no")
         end
     elseif command == "list"
-        package, name, only_text, skip_text, base = arguments
+        package, name, only_text, skip_text, base, level = arguments
         suite = _worker_suite(package, name)
         parts = list_parts(suite; only = read_name_filter(only_text),
-                           skip = read_name_filter(skip_text))
+                           skip = read_name_filter(skip_text), level = Symbol(level))
         if !isempty(base)
             package_module = getglobal(Main, _package_package_modulename(package))
             edges = isdefined(package_module, :TEST_SLICE_EDGES) ?

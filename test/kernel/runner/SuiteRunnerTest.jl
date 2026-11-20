@@ -15,8 +15,8 @@ end
 The runner of a suite: it runs the parts in the order of the table, a part that
 throws records an error and the parts after it still run, a suite inside a suite
 runs as a testset of its own, the record file holds one line for each part with
-its counts, and `only` and `skip` choose the parts and the items of a walk by
-name.
+its counts, `only` and `skip` choose the parts and the items of a walk by name,
+and `level` chooses the fast or the slow parts.
 """
 function test_suite_runner()
     @testset "a suite runs its parts in their order, and a part that throws stops no other" begin
@@ -77,6 +77,24 @@ function test_suite_runner()
         ])
         _run_quietly(counted; skip = "a")
         @test ran == ["b"]
+    end
+
+    @testset "a run of the level :fast leaves the slow parts out" begin
+        noop() = nothing
+        suite = TestSuite("levels", [
+            TestPart(noop; name = "quick"),
+            TestPart(noop; name = "walk", level = :slow),
+            TestSuite("inner", [TestPart(noop; name = "slow inner", level = :slow)]),
+        ])
+        names(chosen) = chosen === nothing ? String[] :
+            [entry isa TestSuite ? entry.name * "/" * join(names(entry), ",") : entry.name
+             for entry in chosen.entries]
+        @test names(select_parts(suite)) == ["quick", "walk", "inner/slow inner"]
+        @test names(select_parts(suite; level = :fast)) == ["quick"]
+        @test names(select_parts(suite; level = :slow)) == ["walk", "inner/slow inner"]
+        @test [listed.part.name for listed in list_parts(suite; level = :fast)] == ["quick"]
+        @test_throws ArgumentError TestPart(noop; level = :medium)
+        @test_throws ArgumentError select_parts(suite; level = :medium)
     end
 
     @testset "a walk chooses its items by name" begin

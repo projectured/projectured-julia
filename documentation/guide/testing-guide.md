@@ -176,6 +176,11 @@ examples: `test_printers(only = "json")` walks the examples whose name holds
 `json`, and `test_catalog(only = "json/")` the JSON atoms of the catalog. A new
 walk filters its list with `select_by_name(examples; only, skip)`.
 
+Each part has a level, `:fast` or `:slow`. A slow part has
+`TestPart(test_printers; level = :slow)` in its table. `test_platform(level = :fast)`
+leaves the slow parts out, `level = :slow` runs only them, and the default,
+`level = :all`, runs both. The supervisor takes `--level fast`.
+
 ### Worker processes and a time limit
 
 `tool/run-tests.jl` runs the parts of one or more suites in worker processes.

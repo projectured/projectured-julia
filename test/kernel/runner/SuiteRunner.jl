@@ -9,13 +9,15 @@
 # ============================================================================
 
 """
-    TestPart(run; name = String(nameof(run)), limit = 0, is_alone = false)
+    TestPart(run; name = String(nameof(run)), limit = 0, is_alone = false, level = :fast)
 
 One part of a [`TestSuite`](@ref): `run`, a function with no argument that runs
 tests, the name of the part, `limit`, the time in seconds that a worker process of
 `tool/run-tests.jl` gives the part before it stops it, and `is_alone`, true for a
 part that runs only when no other part runs, such as a part that needs every
-thread of the machine. A `limit` of 0 takes the limit of the run.
+thread of the machine. A `limit` of 0 takes the limit of the run. `level` is
+`:fast`, or `:slow` for a part that runs only in a run of all the parts, such as
+a walk over every example; `level = :fast` in a run leaves the slow parts out.
 
 A plain function in the table of a suite becomes a part with the name of the
 function. A test that takes an argument becomes a part through a function with no
@@ -25,6 +27,7 @@ argument and a name:
 TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)")
 TestPart(test_catalog; limit = 20 * 60)
 TestPart(test_frame_measurements; is_alone = true)
+TestPart(test_printers; level = :slow)
 ```
 """
 struct TestPart
@@ -32,11 +35,14 @@ struct TestPart
     run::Any
     limit::Float64
     is_alone::Bool
+    level::Symbol
 end
 
-TestPart(run; name::AbstractString = String(nameof(run)), limit::Real = 0,
-         is_alone::Bool = false) =
-    TestPart(String(name), run, Float64(limit), is_alone)
+function TestPart(run; name::AbstractString = String(nameof(run)), limit::Real = 0,
+                  is_alone::Bool = false, level::Symbol = :fast)
+    level in (:fast, :slow) || throw(ArgumentError("the level of a part is :fast or :slow"))
+    TestPart(String(name), run, Float64(limit), is_alone, level)
+end
 
 """
     TestSuite(name, entries)
@@ -100,7 +106,7 @@ end
 const PART_RECORD_COLUMNS = fieldnames(PartRecord)
 
 """
-    run_suite(suite::TestSuite; only = nothing, skip = nothing, record = nothing)
+    run_suite(suite::TestSuite; only = nothing, skip = nothing, level = :all, record = nothing)
         -> Test.AbstractTestSet
 
 Run the entries of `suite` in their order, inside the testset of the suite, and
@@ -109,6 +115,8 @@ give that testset, or `nothing` when no part is chosen.
 - `only`: a `String` or a `Regex`. Run only the parts whose name, or the name of a
   suite that holds them, matches it. A `String` matches a name that holds it.
 - `skip`: the same form. Leave out each part and each suite whose name matches it.
+- `level`: `:all`, `:fast` for only the parts of the level `:fast`, or `:slow` for
+  only the parts of the level `:slow`.
 - `record`: the path of a file. Add one line for each part that runs to it, as
   tab-separated values in the columns of `PART_RECORD_COLUMNS`. A new file starts
   with a line of the column names.
@@ -116,9 +124,10 @@ give that testset, or `nothing` when no part is chosen.
 When a part ends, the runner prints one line with its counts and its times. At
 the end of the outermost suite, it prints the ten slowest parts.
 """
-function run_suite(suite::TestSuite; only = nothing, skip = nothing, record = nothing)
+function run_suite(suite::TestSuite; only = nothing, skip = nothing, level::Symbol = :all,
+                   record = nothing)
     is_outermost = Test.get_testset_depth() == 0
-    chosen = select_parts(suite; only, skip)
+    chosen = select_parts(suite; only, skip, level)
     chosen === nothing && (println("No part of $(suite.name) matches."); return nothing)
     records = PartRecord[]
     source = _source_commit(chosen)
@@ -146,24 +155,31 @@ function _run_entries(suite::TestSuite, path::String, records, source, record)
 end
 
 """
-    select_parts(suite::TestSuite; only = nothing, skip = nothing) -> Union{TestSuite, Nothing}
+    select_parts(suite::TestSuite; only = nothing, skip = nothing, level = :all)
+        -> Union{TestSuite, Nothing}
 
-The suite with only the entries that `only` and `skip` choose, as
+The suite with only the entries that `only`, `skip` and `level` choose, as
 [`run_suite`](@ref) reads them, or `nothing` when no part is left. A suite inside
 it that keeps no part is left out.
 """
-select_parts(suite::TestSuite; only = nothing, skip = nothing) =
-    _select(suite, only, skip, only === nothing)
+select_parts(suite::TestSuite; only = nothing, skip = nothing, level::Symbol = :all) =
+    _select(suite, only, skip, _check_level(level), only === nothing)
 
-function _select(suite::TestSuite, only, skip, is_chosen::Bool)
+_check_level(level::Symbol) = level in (:all, :fast, :slow) ? level :
+    throw(ArgumentError("the level of a run is :all, :fast or :slow"))
+
+_is_level(part::TestPart, level::Symbol) = level === :all || part.level === level
+
+function _select(suite::TestSuite, only, skip, level::Symbol, is_chosen::Bool)
     _name_matches(skip, suite.name) && return nothing
     is_chosen = is_chosen || _name_matches(only, suite.name)
     kept = Union{TestPart, TestSuite}[]
     for entry in suite.entries
         if entry isa TestSuite
-            inner = _select(entry, only, skip, is_chosen)
+            inner = _select(entry, only, skip, level, is_chosen)
             inner === nothing || push!(kept, inner)
-        elseif !_name_matches(skip, entry.name) && (is_chosen || _name_matches(only, entry.name))
+        elseif !_name_matches(skip, entry.name) &&
+               (is_chosen || _name_matches(only, entry.name)) && _is_level(entry, level)
             push!(kept, entry)
         end
     end
@@ -174,28 +190,29 @@ _name_matches(::Nothing, ::AbstractString) = false
 _name_matches(pattern::Union{AbstractString, Regex}, name::AbstractString) = occursin(pattern, name)
 
 """
-    list_parts(suite::TestSuite; only = nothing, skip = nothing)
+    list_parts(suite::TestSuite; only = nothing, skip = nothing, level = :all)
         -> Vector{@NamedTuple{index::Vector{Int}, suite::String, part::TestPart}}
 
-The parts that `only` and `skip` choose, as [`run_suite`](@ref) reads them, in
+The parts that `only`, `skip` and `level` choose, as [`run_suite`](@ref) reads them, in
 their order: for each one, its `index`, the positions of the entries from
 `suite` down to the part, the path of the names of the suites that hold it, and
 the part. [`find_part`](@ref) gives the part of an index back.
 """
-function list_parts(suite::TestSuite; only = nothing, skip = nothing)
+function list_parts(suite::TestSuite; only = nothing, skip = nothing, level::Symbol = :all)
     found = @NamedTuple{index::Vector{Int}, suite::String, part::TestPart}[]
-    _list(suite, only, skip, only === nothing, Int[], "", found)
+    _list(suite, only, skip, _check_level(level), only === nothing, Int[], "", found)
     found
 end
 
-function _list(suite::TestSuite, only, skip, is_chosen::Bool, index, path, found)
+function _list(suite::TestSuite, only, skip, level::Symbol, is_chosen::Bool, index, path, found)
     _name_matches(skip, suite.name) && return
     is_chosen = is_chosen || _name_matches(only, suite.name)
     here = isempty(path) ? suite.name : path * "/" * suite.name
     for (position, entry) in enumerate(suite.entries)
         if entry isa TestSuite
-            _list(entry, only, skip, is_chosen, [index; position], here, found)
-        elseif !_name_matches(skip, entry.name) && (is_chosen || _name_matches(only, entry.name))
+            _list(entry, only, skip, level, is_chosen, [index; position], here, found)
+        elseif !_name_matches(skip, entry.name) &&
+               (is_chosen || _name_matches(only, entry.name)) && _is_level(entry, level)
             push!(found, (index = [index; position], suite = here, part = entry))
         end
     end

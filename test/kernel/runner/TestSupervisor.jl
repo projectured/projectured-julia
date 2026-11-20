@@ -29,7 +29,8 @@ The options of a run of [`run_test_supervisor`](@ref), with their defaults:
 processes (1); `memory_bytes`, the memory that a
 worker may use (6 GiB); `limit`, the seconds of a part that names no limit of its
 own (600); `only` and `skip`, the filters in the form of the command line;
-`changed`, a base commit whose changes choose the parts (none);
+`changed`, a base commit whose changes choose the parts (none); `level`, the level
+of the parts (`all`, `fast` or `slow`; `all`);
 `record`, the path of the record file (none); `stay` and `send`, the folder of
 the requests of a session ([`run_test_session`](@ref)), to keep a worker open or to
 send it a request (none); `restart`, a request that starts new workers first;
@@ -45,6 +46,7 @@ Base.@kwdef mutable struct TestRunOptions
     only::String = ""
     skip::String = ""
     changed::String = ""
+    level::String = "all"
     record::String = ""
     stay::String = ""
     send::String = ""
@@ -70,6 +72,7 @@ const _RUN_TESTS_USAGE = """
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
       --changed BASE   run only the parts that the changes since the commit BASE reach
+      --level LEVEL    run only the fast parts (fast), only the slow ones (slow), or all (all)
       --record PATH    add one line of tab-separated values for each part to PATH
       --stay FOLDER    keep the workers open, with Revise, and run each request that
                        FOLDER/requests receives, before each one with the changes of the files
@@ -112,6 +115,7 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             word == "--only" ? (options.only = value) :
             word == "--skip" ? (options.skip = value) :
             word == "--changed" ? (options.changed = value) :
+            word == "--level" ? (options.level = value) :
             word == "--record" ? (options.record = value) :
             word == "--stay" ? (options.stay = value) :
             word == "--send" ? (options.send = value) :
@@ -330,7 +334,8 @@ function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Ch
             push!(worker.loaded, package)
             println(output, "Loaded $package in $(fields[3]) s.")
         end
-        _send(worker, "list", package, suite, options.only, options.skip, options.changed)
+        _send(worker, "list", package, suite, options.only, options.skip, options.changed,
+              options.level)
         while true
             fields = _wait_answer(_ -> nothing, worker, events, ("part", "listed", "failed"))
             if fields === nothing || fields[1] == "failed"
