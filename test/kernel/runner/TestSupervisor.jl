@@ -183,6 +183,7 @@ mutable struct _Worker
     is_ending::Bool             # stopped: its answers count no more
     is_ended::Bool
     memory::Int                 # the memory that it may use
+    used::Float64               # when its last part ended, for the order of a session
 end
 
 function _worker_command(options::TestRunOptions, memory::Int = options.memory_bytes)
@@ -212,7 +213,8 @@ function _start_worker(number::Int, options::TestRunOptions, events::Channel,
                        sink::Base.RefValue{IO}, is_prefixed::Bool;
                        memory::Int = options.memory_bytes)
     process = open(_worker_command(options, memory), "r+")
-    worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false, memory)
+    worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false, memory,
+                     time())
     errormonitor(@async begin
         for line in eachline(process)
             if startswith(line, _SUPERVISOR_PREFIX)
@@ -341,7 +343,8 @@ function _run_request!(workers, options, events, columns, sink, output)
     total = options.memory_total > 0 ? options.memory_total :
             cap > 0 ? max(cap - 2^30, _LEAST_WORKER_MEMORY) : count * options.memory_bytes
     _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
-                       count, memory, total, is_per_home = isempty(options.stay))
+                       count, memory, total, is_per_home = true,
+                       is_warm = !isempty(options.stay))
     _print_summary(output, records)
     if !isempty(options.coverage)
         lines = write_coverage_map(options.coverage, joinpath(options.coverage, "map.tsv"))
@@ -373,7 +376,18 @@ function _list_queued_parts(workers, options::TestRunOptions, events::Channel,
     queue = _QueuedPart[]
     worker = first(workers)
     for (package, suite) in options.suites
-        if isempty(options.stay) && !isempty(worker.loaded) && !(package in worker.loaded)
+        warm = isempty(options.stay) ? nothing :
+               findfirst(w -> !w.is_ended && w.loaded == Set([package]), workers)
+        if warm !== nothing
+            worker = workers[warm]                       # the warm worker of the package
+        elseif !isempty(options.stay) && !isempty(worker.loaded) && !(package in worker.loaded)
+            # A session keeps the worker of each package, and a new worker lists this one.
+            number = maximum(w.number for w in workers) + 1
+            worker = _start_worker(number, options, events, sink, true)
+            push!(workers, worker)
+            _wait_ready(worker, events, columns) ||
+                (println(output, "A worker that lists ended before it was ready."); return nothing)
+        elseif isempty(options.stay) && !isempty(worker.loaded) && !(package in worker.loaded)
             # A new worker lists each other package, so no worker holds them all.
             _stop_worker!(worker)
             timedwait(() -> !process_running(worker.process), 10.0)
@@ -478,19 +492,30 @@ end
 # no other part runs, and no part starts beside it.
 function _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
                             count::Int = length(workers), memory = Dict{String, Int}(),
-                            total::Int = count * options.memory_bytes, is_per_home::Bool = false)
+                            total::Int = count * options.memory_bytes, is_per_home::Bool = false,
+                            is_warm::Bool = false)
     remaining = copy(queue)
     is_prefixed = count > 1
+    # Each live worker has a place, and at most `count` of them run a part at a time.
     live = [w for w in workers if !w.is_ended]
-    places = Union{_Worker, Nothing}[k <= length(live) ? live[k] : nothing for k in 1:count]
+    places = Union{_Worker, Nothing}[live; fill(nothing, max(0, count - length(live)))]
     number = maximum((w.number for w in workers); init = 0)
     is_live(w) = w !== nothing && !w.is_ended
     is_busy(w) = is_live(w) && (w.is_ending || w.part !== nothing)
     held() = sum((w.memory for w in places if is_live(w)); init = 0)
     need(part) = get(memory, part.home, options.memory_bytes)
     takes(w, part) = !is_per_home || isempty(w.loaded) || w.loaded == Set([part.home])
+    function end_worker!(w)
+        w.is_ending = w.is_ended = true
+        process_running(w.process) && kill(w.process, Base.SIGKILL)
+        k = findfirst(x -> x === w, places)
+        k === nothing || (places[k] = nothing)
+    end
+    # In a session, the worker that waited the longest ends first, to free memory or a place.
+    oldest_waiting() = (waiting = [w for w in places if is_live(w) && !is_busy(w)];
+                        isempty(waiting) ? nothing : argmin(w -> w.used, waiting))
     while true
-        if is_per_home
+        if is_per_home && !is_warm
             # A worker that waits and whose home has no part left ends, and frees its memory.
             for (k, w) in enumerate(places)
                 if is_live(w) && !is_busy(w) && !isempty(w.loaded) && !any(p -> takes(w, p), remaining)
@@ -500,22 +525,30 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                 end
             end
         end
-        for k in 1:count
+        for k in eachindex(places)
             isempty(remaining) && break
+            Base.count(w -> is_live(w) && w.part !== nothing, places) >= count && break
             worker = places[k]
             is_busy(worker) && continue
             any(w -> is_live(w) && w.part !== nothing && w.part.is_alone, places) && break
             is_others_running = any(w -> is_live(w) && w.part !== nothing, places)
-            choice = is_live(worker) ? something(findfirst(p -> takes(worker, p), remaining), 1) : 1
+            choice = is_live(worker) ? findfirst(p -> takes(worker, p), remaining) : nothing
+            if is_live(worker) && choice === nothing
+                # A warm worker stays while a free place can take the part.
+                is_warm && any(w -> !is_live(w), places) && continue
+                # A worker with another package ends; a new worker takes the part.
+                end_worker!(worker)
+                worker = nothing
+            end
+            choice = something(choice, 1)
             part = remaining[choice]
             part.is_alone && is_others_running && break
-            if is_live(worker) && !takes(worker, part)
-                # A worker with another package ends; a new worker takes the part.
-                worker.is_ending = worker.is_ended = true
-                process_running(worker.process) && kill(worker.process, Base.SIGKILL)
-                places[k] = worker = nothing
-            end
             if !is_live(worker)
+                while is_warm && held() + need(part) > total
+                    oldest = oldest_waiting()
+                    oldest === nothing && break
+                    end_worker!(oldest)
+                end
                 held() + need(part) <= total || !is_others_running || break
                 number += 1
                 worker = _start_worker(number, options, events, sink, is_prefixed;
@@ -569,6 +602,7 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
         elseif kind == "record" && worker.part !== nothing
             _keep_record!(records, Dict(zip(columns, fields[2:end])), columns, options)
             worker.part = nothing
+            worker.used = time()
         elseif kind == "failed" && worker.part !== nothing
             println(output, "The part $(_part_place(worker.part)) did not run: ",
                     join(fields[2:end], " "))
