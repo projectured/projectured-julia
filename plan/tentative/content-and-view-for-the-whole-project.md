@@ -950,8 +950,15 @@ Two rules make this order possible:
        13.1: `make_document_view(file)` makes it, with the scroll pane, the band
        and, since 4b1, the view of what the file holds.
        The plan is
-       `plan/pending/the-editor-shows-a-json-file-through-its-views.md`,
-       proposed on 2026-11-19 and not approved.
+       `plan/done/the-editor-shows-a-json-file-through-its-views.md`,
+       approved on 2026-11-19, done on 2026-11-20 and on `main`. The owner
+       decided in it that the selection goes through the view: a place that
+       keeps a file and its view sends the caret through the view. It found
+       three things for plan 4c. A card of a dashboard in an editor that holds
+       nothing has no view. The page of a part inside a file, which a search
+       link or a row of the document tree opens, shows the part as content with
+       no view. The find and the filter of a JSON array do not work, on `main`
+       too, and point 6 takes them.
    - **4c. The JSON content keeps no selection.** The kernel hook, the step
      `.viewed`, the caret place in an operation, the key tables of the content,
      and the tests that put a caret into a JSON content. Then the review of the
