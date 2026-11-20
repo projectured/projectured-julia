@@ -91,7 +91,7 @@ Pick the narrowest scope that exercises your change:
 - The reactive primitive only: `test_cell()`.
 - One part or a group of parts by name: `test_platform(only = "widget")`, and a walk over the examples by the names of its examples: `test_printers(only = "json")`.
 - After a change, before a broader run: `test_changed(level = :fast)` runs the fast parts of `test_all` that the changes since `main` reach.
-- Before a land: the whole suites in worker processes, with a time and a memory limit for each part: `julia --project=environment/all tool/run-tests.jl --workers 2 --record /var/tmp/<name>.tsv ProjecturedTest test_all` (about two hours with two workers; see "Worker processes and a time limit" in the testing guide).
+- Before a land: all the parts in worker processes, with a time and a memory limit for each part, as "Main is green" below says.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 
 Running `test_all()` is usually not needed — the targeted test above is enough to verify a change. Only reach for the per-package aggregators (`test_kernel()` / `test_platform()` / the eighteen `test_<domain>()`), the loop-over-every-example functions (`test_printers()` / `test_readers()` / `test_position_navigations()` / `test_repls()`), and rarely `test_all()` (which runs every per-package suite plus the umbrella integration tests, and takes about 47 minutes), when you specifically want a broad sweep after the targeted test already passes. See [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md) for the full table of test functions and which package each one covers.
@@ -99,3 +99,24 @@ Running `test_all()` is usually not needed — the targeted test above is enough
 Always narrow down tests to the smallest reasonable scope — never default to `test_all()`, it is slow. Prefer single-example or single-domain test functions as described in the "Testing a change" section above.
 
 **Reading the summary.** An unmarked `Fail` or `Error` is a regression from your change — do not need to bisect to know. Known-failing assertions are marked `@test_broken` and appear in the `Broken` column; only `Fail` / `Error` counts should be zero after a passing run. If the count of `Broken` changes, read the `# @broken:` comment on the marker: fewer broken means an assertion started passing (promote it to `@test`); more broken means a new marker was added. See the "Marking known-failing tests" section in [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md).
+
+## Main is green
+
+On `main`, a run of all the parts gives no unmarked `Fail` and no `Error`, and each part ends in its time and its memory. A known failure has a marker with its reason (testing guide, "Marking known-failing tests"). So an unmarked `Fail` or `Error` on a branch is a fault of the branch. Do not run `main` beside a branch to compare.
+
+- Before a land, run all the parts, in `bwrap --unshare-net` so that no part reaches a model:
+
+  ```bash
+  julia --project=environment/all tool/run-tests.jl --workers 2 --record /var/tmp/<name>.tsv \
+      ProjecturedTest test_all ProjecturedTest test_repository \
+      ProjecturedOpenRouterTest test_openrouter ProjecturedConsoleTest test_console \
+      ProjecturedPDFTest test_pdf ProjecturedWebTest test_web ProjecturedMCPTest test_mcp \
+      ProjecturedSDLTest test_sdl ProjecturedTulipTest test_tulip ProjecturedVideoTest test_video \
+      ProjecturedODBCTest test_odbc ProjecturedBuilderTest test_builder
+  ```
+
+  The land needs 0 unmarked `Fail`, 0 `Error`, and the result `done` for each part.
+- Do not mark a check that passes on `main`: fix the branch. A new marker for a fault that the branch did not make needs the word of the owner, and the report of the land names each new marker.
+- A check that fails only at some times gets no `@test_broken`, because its pass is then an error. Give a wait for a result a bound that holds under the load of the machine, and skip a check of a time with `@test_skip` and a `# @broken:` reason.
+- A repository that develops this one from its main checkout runs its tests against the code of `main` here. So a land here also runs the fast parts of each such repository against the branch, as its own `CLAUDE.md` says, and a failure there stops the land in the same way.
+- A red CI run on `main` is a fault of `main`. The session that pushed fixes it, or marks it with the word of the owner, before more work lands.

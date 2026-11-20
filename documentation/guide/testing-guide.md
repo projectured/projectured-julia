@@ -184,12 +184,21 @@ leaves the slow parts out, `level = :slow` runs only them, and the default,
 The slow parts are those that took more than 60 s in the record of a whole run:
 the walks over every example and over the catalog, the click walks, the workloads
 of a window, and a few large suites. After a change, run the narrowest test, then
-`test_changed(level = :fast)`. Before a land, run all the parts:
+`test_changed(level = :fast)`. Before a land, run all the parts: `test_all`, the tests that
+read this repository, and the suites of the CI that `test_all` does not call. Run them in
+`bwrap --unshare-net`, so that no part reaches a model:
 
 ```bash
 julia --project=environment/all tool/run-tests.jl --workers 2 --record /var/tmp/all.tsv \
-    ProjecturedTest test_all
+    ProjecturedTest test_all ProjecturedTest test_repository \
+    ProjecturedOpenRouterTest test_openrouter ProjecturedConsoleTest test_console \
+    ProjecturedPDFTest test_pdf ProjecturedWebTest test_web ProjecturedMCPTest test_mcp \
+    ProjecturedSDLTest test_sdl ProjecturedTulipTest test_tulip ProjecturedVideoTest test_video \
+    ProjecturedODBCTest test_odbc ProjecturedBuilderTest test_builder
 ```
+
+`main` is green: this run gives no unmarked `Fail` and no `Error` there, and each part
+ends with the result `done`. So the land of a branch needs the same.
 
 ### Worker processes and a time limit
 
@@ -983,6 +992,33 @@ the line above — a bare marker with no context is not acceptable.
   after they're thrown; if throwing is destructive, `@test_skip` is
   safer. Skipped tests never run and can rot silently, so this is a last
   resort.
+
+### A guard keeps a list of its known violations
+
+A static guard (arguments, exports, style, documentation, the layering and the edges
+between the slices) reports a list of violations. Its known violations are a list of
+`key => reason` pairs beside the guard (`test/suite/known.jl`): `ARGUMENT_KNOWN`,
+`EXPORT_KNOWN`, `STYLE_KNOWN`, `DOCUMENTATION_KNOWN`, and the keyword `known` of
+`check_layering` and `check_slice_edges`. The key is the text of the violation
+without its line number. A listed violation does not fail the guard, and its test
+counts it as broken. A violation that no entry excuses fails, and so does an entry
+that excuses none: remove an entry when its violation is fixed.
+
+### A check that fails only at some times
+
+Do not mark such a check with `@test_broken`: when it passes, the marker is an
+error. A check of a result that waits a fixed time gets a wait for its condition,
+with a bound that holds under the load of a shared machine. A check of a time, or
+of a ratio of times, gets `@test_skip` with a `# @broken:` reason.
+
+### A check that depends on its process
+
+A worker of `tool/run-tests.jl` loads every test package of the run, and runs one
+part after another. So a check can pass in the environment of its own package and
+fail beside the other packages, or after a part that left a global value. If the
+test can set what it reads, such as the global logger, set it in the test. Otherwise
+skip the check with `@test_skip` where it fails, with a `# @broken:` reason that
+names the package or the state that changes its result.
 
 ### `@test_broken` semantics you should know
 
