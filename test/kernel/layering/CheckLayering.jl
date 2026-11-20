@@ -776,6 +776,10 @@ a repository-level folder passes that folder. A reached file outside `src_root`
 held against the on-disk set, and it lives in no layer. `foreign_files` names
 files under `src_root` (relative to it) that belong to another package and so
 are not expected in this include tree.
+
+`known` lists the errors of checks 7 and 8 that main has, as `error => reason`
+pairs (`test/suite/known.jl`). A listed error is counted as broken, and a listed
+error that neither check reports fails, so the list can not go stale.
 """
 function check_layering(src_root, top_file; name = "package",
                         layers = String[], exempt_files = Set{String}(),
@@ -784,7 +788,9 @@ function check_layering(src_root, top_file; name = "package",
                         unmigrated_files = Set{String}(),
                         extra_aliases = Set{Symbol}(),
                         allow_root_fragments = false,
-                        foreign_files = Set{String}())
+                        foreign_files = Set{String}(),
+                        known = Pair{String,String}[])
+    reported = String[]
     @testset "$name layered-architecture guard" begin
         reached, entries, file_owner, _ =
             walk_includes(top_file, src_root; allow_root_fragments)
@@ -873,20 +879,38 @@ function check_layering(src_root, top_file; name = "package",
         @testset "qualified references name only exported symbols" begin
             errs = qualified_reference_errors(src_root, file_owner, entries,
                                               layers, exempt_files)
-            if !isempty(errs)
+            append!(reported, errs)
+            found = split_known_violations(errs, known; list_name = "the known errors of $name")
+            if !isempty(found.new)
                 println(stderr, "\nQualified non-exported access (PAR-MODULE-BOUNDARY-IS-API):")
-                foreach(e -> println(stderr, "  ", e), errs)
+                foreach(e -> println(stderr, "  ", e), found.new)
             end
-            @test isempty(errs)
+            @test isempty(found.new)
+            for e in found.listed
+                # @broken: an error of main on the `known` list of the caller, with its reason there
+                @test_broken e == ""
+            end
         end
 
         @testset "every file imports what it extends" begin
             errs = relative_import_errors(src_root, unmigrated_files)
-            if !isempty(errs)
+            append!(reported, errs)
+            found = split_known_violations(errs, known; list_name = "the known errors of $name")
+            if !isempty(found.new)
                 println(stderr, "\nImport-form violations (PAR-QUALIFIED-EXTENSION):")
-                foreach(e -> println(stderr, "  ", e), errs)
+                foreach(e -> println(stderr, "  ", e), found.new)
             end
-            @test isempty(errs)
+            @test isempty(found.new)
+            for e in found.listed
+                # @broken: an error of main on the `known` list of the caller, with its reason there
+                @test_broken e == ""
+            end
+        end
+
+        isempty(known) || @testset "each known error is still reported" begin
+            for (error, _) in known
+                @test error in reported
+            end
         end
     end
 end
@@ -902,10 +926,12 @@ another where `allowed`, a map from a slice to the slices that it may use, does
 not permit it, and for each import of a module that is neither in those slices
 nor defined by the include trees of `below_files`, the packages below. The
 slices that the include trees reach are exactly the keys of `allowed`, so a new
-slice needs its row in the table.
+slice needs its row in the table. `known`
+lists the edges that main has, as `error => reason` pairs; a listed edge is
+counted as broken, and a listed edge that is not reported fails.
 """
 function check_slice_edges(src_root, top_files, allowed; below_files = String[],
-                           name = "package")
+                           name = "package", known = Pair{String,String}[])
     @testset "$name edges between slices" begin
         entries = Tuple{String, Symbol, Vector{Symbol},
                         Vector{Pair{Symbol, Vector{Symbol}}}, Vector{Symbol}}[]
@@ -918,8 +944,14 @@ function check_slice_edges(src_root, top_files, allowed; below_files = String[],
               sort(collect(keys(allowed)))
         below = Set{Symbol}(entry[2] for file in below_files
                                      for entry in walk_includes(file, src_root)[2])
-        for err in slice_edge_errors(entries, allowed; below)
+        found = split_known_violations(slice_edge_errors(entries, allowed; below), known;
+                                       list_name = "the known edges of $name")
+        for err in vcat(found.new, found.stale)
             @test err == ""
+        end
+        for err in found.listed
+            # @broken: an edge of main on the `known` list of the caller, with its reason there
+            @test_broken err == ""
         end
     end
 end

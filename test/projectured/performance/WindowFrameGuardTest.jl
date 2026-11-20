@@ -321,8 +321,8 @@ function test_window_frame_guards()
                 growth = compute_frame_growth(works)
                 print_frame_work(scene.name, works)
                 @test all(work -> work.is_finished, works)
-                # @broken: the open reads and prints the whole file in one frame, and the time grows faster than the file; the table of step 5 of plan/pending/guards-keep-the-frame-short-at-any-size.md
-                @test_broken growth.time_ratio <= FLAT_TIME_RATIO
+                # @broken: the open reads and prints the whole file in one frame, and the time grows faster than the file, but a ratio of times passes at times (an unexpected pass on CI on 2026-11-19); the table of step 5 of plan/pending/guards-keep-the-frame-short-at-any-size.md
+                @test_skip growth.time_ratio <= FLAT_TIME_RATIO
             end
         end
     end
