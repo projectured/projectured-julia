@@ -573,10 +573,9 @@ function run_window_workload(; backend::Backend = WorkloadBackend(; events = Eve
         WorkloadClick(DrawnText("Files"; pick = :leftmost); button = :right),
         WorkloadClick(DrawnText("Open in a new tab")),
         # The name buffer, the gesture help and the palette walk the panes, which
-        # hold a tab of each kind now. Ctrl+T opens a tab on an empty placeholder,
-        # Insert turns it into the name buffer, and the first key lists every type
-        # that it can make.
-        WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("evaluator"),
+        # hold a tab of each kind now. Ctrl+T opens a tab on the name buffer, with
+        # the caret in its text, and the first key lists every type that it can make.
+        WorkloadKey(:t; ctrl = true), WorkloadTyping("evaluator"),
         WorkloadKey(:return),
         WorkloadKey(:f1), WorkloadKey(:f1),
         WorkloadKey(:p; ctrl = true, shift = true), WorkloadTyping("ab"), WorkloadKey(:escape),
@@ -612,7 +611,7 @@ Run the gestures of a file of `type` in the application window with
 [`run_application_workload`](@ref): open the file of [`make_workload_file`](@ref)
 from the Files pane, click the text that it draws, type a key, save, undo (only
 the click for a file of a format that a person does not edit); then
-open a new tab, turn it into the name buffer and type a key, which lists every
+open a new tab, which holds the name buffer, and type a key, which lists every
 type of document that the session can make, cancel, and close the tab.
 
 The package of a domain calls it in its `@compile_workload`, so that its image
@@ -628,7 +627,7 @@ function run_file_workload(type::Type; backend::Backend = WorkloadBackend(; even
     steps = WorkloadStep[_make_file_open_steps(file.name, file.shown)..., edits...,
                          # The first key of the name buffer lists every type of
                          # document, and the list builds each one that it can.
-                         WorkloadKey(:t; ctrl = true), WorkloadKey(:insert), WorkloadTyping("a"),
+                         WorkloadKey(:t; ctrl = true), WorkloadTyping("a"),
                          WorkloadKey(:escape), WorkloadKey(:w; ctrl = true)]
     run_application_workload([file.name => file.text]; steps, backend)
 end

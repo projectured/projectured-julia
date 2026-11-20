@@ -4,7 +4,7 @@
 #
 # | path | write | read (exists) | read (missing) |
 # |-----------|-------|---------------|----------------|
-# | `.pdoc`   | binary `save_document` | `load_document` | `DocumentNothing` |
+# | `.pdoc`   | binary `save_document` | `load_document` | an empty `DocumentInsertion` |
 # | any other | `save_file!` in the format of the extension | `load_file` | the seed of the domain of the format |
 #
 # The format is the one that the extension of the path names (`find_file_format`),
@@ -17,8 +17,9 @@
 # (`make_document_seed`: `JsonInsertion` for JSON, an empty page for Markdown, an
 # empty `PrimitiveString` for a text file, a `DocumentNothing` for a domain with no
 # seed), so a new file starts as an editable seed that can be typed into and then
-# saved. Used by `make_file_tab` and the `FileDocument` save/reload keybindings
-# below.
+# saved. A new `.pdoc` file starts as an empty `DocumentInsertion`, where a person
+# types the kind of its document. Used by `make_file_tab` and the `FileDocument`
+# save/reload keybindings below.
 #
 # The binary half and the formats call down to [`SerializationModule`](@ref).
 const _BINARY_EXT = ".pdoc"
@@ -27,7 +28,8 @@ _ext(path::AbstractString) = lowercase(splitext(path)[2])
 
 _ext_symbol(ext::AbstractString) = isempty(ext) ? Symbol("") : Symbol(SubString(ext, 2))
 
-# A domain that declares no seed gives the empty document.
+# A domain that declares no seed gives the empty place, where a person does not type
+# a kind: a picture that is not read yet holds it.
 make_document_seed(::Type) = DocumentNothing()
 
 # The format that the extension of `path` names, or an error that says which
@@ -115,7 +117,7 @@ For the assistant.
 function read_document_file end
 
 function read_document_file(path::AbstractString)
-    _ext(path) == _BINARY_EXT && return isfile(path) ? load_document(path) : DocumentNothing()
+    _ext(path) == _BINARY_EXT && return isfile(path) ? load_document(path) : DocumentInsertion("")
     isfile(path) || return make_document_for(path)
     _make_edited_content(get_file_content(load_file(dirname(abspath(path)), basename(path))))
 end
@@ -125,11 +127,12 @@ end
 
 The empty seed a *non-existent* file at `path` opens as: the seed of the domain of
 the format that its extension names ([`make_document_seed`](@ref)), with the empty
-string of a text file as a `PrimitiveString`, and a `DocumentNothing` for `.pdoc`.
+string of a text file as a `PrimitiveString`, and an empty `DocumentInsertion` for
+`.pdoc`, where a person types the kind of the document.
 Typing into the seed and saving creates the file.
 """
 function make_document_for(path::AbstractString)
-    _ext(path) == _BINARY_EXT && return DocumentNothing()
+    _ext(path) == _BINARY_EXT && return DocumentInsertion("")
     _make_edited_content(make_document_seed(get_file_format_domain(_get_path_format(path))))
 end
 

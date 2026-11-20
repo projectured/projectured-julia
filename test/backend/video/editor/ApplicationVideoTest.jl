@@ -45,12 +45,11 @@ function test_application_video()
     fps = 10
     initial_hold = 0.3
     final_hold = 0.5
-    # Ctrl+T opens a tab on an empty placeholder, Insert turns it into the name
-    # buffer, "repl" names the tool, and Enter commits it — the same key
-    # sequence `warm_application` uses to open the evaluator.
+    # Ctrl+T opens a tab on the name buffer, "repl" names the tool, and Enter
+    # commits it — the same key sequence `warm_application` uses to open the
+    # evaluator.
     timeline = Any[
         (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.2),
-        (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.2),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
         (event = KeyPress('\n'; time = 0.0),        hold = 0.5),
     ]
@@ -251,7 +250,6 @@ end
     timeline = Any[
         (event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.2),
         (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.3),
-        (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.3),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
         (event = KeyPress('\n'; time = 0.0),        hold = 0.5),
     ]

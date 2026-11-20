@@ -560,6 +560,45 @@ end
     @test !(paste(tab_slice) isa CompoundOperation)
 end
 
+@testset "a paste at the caret of a new tab fills the tab and never pastes a pane" begin
+    group = PaneGroup(PaneTab[_tab("a"), default_new_pane_tab()])
+    tree = PaneTree(group)
+    # The caret of a new tab is in the text of its insertion.
+    caret_of(tree, group) = concat_references(
+        ConcreteReference(FieldReferenceStep("content"), get_pane_content_path(tree, group, 2)),
+        copy_reference(get_selection(group.tabs[2].content)))
+    caret = caret_of(tree, group)
+    paste(slice) = begin
+        p = ClipboardSliceToAnyProjection()
+        io = print_document(p, IdentityProjection(), slice, PrinterContext())
+        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+    end
+    # A pane is never pasted, at the caret either.
+    tab_slice = ClipboardSlice(tree, PaneTab("copied", DocumentNothing()))
+    tab_slice.selection = caret
+    @test !(paste(tab_slice) isa CompoundOperation)
+    @test group.tabs[2].content isa DocumentInsertion
+    # A document takes the place of the insertion, as a paste on the whole place does.
+    stored = WidgetLabel("stored")
+    slice = ClipboardSlice(tree, stored)
+    slice.selection = caret
+    op = paste(slice)
+    @test op isa CompoundOperation
+    evaluate_operation(_PaneReaderMockEditor(slice), op)
+    @test group.tabs[2].content === stored
+    # A stored text fills the tab too: the text of the insertion names a kind, and
+    # the paste does not type into it.
+    text_group = PaneGroup(PaneTab[_tab("a"), default_new_pane_tab()])
+    text_tree = PaneTree(text_group)
+    text_slice = ClipboardSlice(text_tree, PrimitiveString("hello"))
+    text_slice.selection = caret_of(text_tree, text_group)
+    op = paste(text_slice)
+    @test op isa CompoundOperation
+    evaluate_operation(_PaneReaderMockEditor(text_slice), op)
+    @test text_group.tabs[2].content isa PrimitiveString
+    @test text_group.tabs[2].content.value == "hello"
+end
+
 @testset "a copy or a note of a focused tab takes what the tab shows" begin
     label = WidgetLabel("shown")
     group = PaneGroup(PaneTab[PaneTab("shown", label)])

@@ -146,21 +146,19 @@ get_edited_field(::PaneTab) = :content
 """
     default_new_pane_tab() -> PaneTab
 
-The tab an empty new-tab gesture opens: one with an empty name, holding the
-empty placeholder. A projection takes a factory of its own when an application
-wants something else in a fresh tab.
+The tab an empty new-tab gesture opens: one with an empty name, holding an empty
+[`DocumentInsertion`](@ref) with the caret in its text. A projection takes a
+factory of its own when an application wants something else in a fresh tab.
 
-The content is a [`DocumentNothing`](@ref), not an empty string, because a fresh
-tab has no domain yet. The placeholder is a document any other document can
-replace: an Alt+double click selects it whole, a paste puts the clipboard in its place, and
-a printable key turns it into an insertion. An empty string offers none of that —
-it renders nothing, so a click in the tab body answers nothing and the selection
-stays on the tab.
+A fresh tab has no domain yet, so the person types the kind of its document
+there: the first key goes into the text, the list of the kinds opens, and Return
+makes the document. A paste of a document puts it in the place of the insertion.
+Escape leaves a [`DocumentNothing`](@ref), and Insert brings the insertion back.
 
 The name is empty so that the tab is called after what it holds: see
 [`get_pane_tab_title_string`](@ref).
 """
-default_new_pane_tab() = PaneTab("", DocumentNothing())
+default_new_pane_tab() = PaneTab("", with_value_caret(DocumentInsertion(""), 0))
 
 """
     get_pane_tab_title_string(tab) -> String

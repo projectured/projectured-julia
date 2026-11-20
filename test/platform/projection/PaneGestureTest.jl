@@ -56,11 +56,11 @@ end
     @test length(group.tabs) == 3
     @test get_pane_focus(tree) == (group, 3)
     @test get_pane_tab_title_string(group.tabs[3]) == "untitled"
-    # The selection is on the new tab's empty content, as a whole, so a paste
-    # fills it.
+    # The new tab holds an empty insertion, and the caret is in its text, so the
+    # first key types the kind of its document.
+    @test group.tabs[3].content isa DocumentInsertion
     @test string(strip_reference_types(get_selection(tree))) ==
-          string(strip_reference_types(get_pane_content_path(tree, group, 3)))
-    @test evaluate_reference(tree, get_selection(tree)) isa DocumentNothing
+          string(strip_reference_types(get_pane_content_path(tree, group, 3))) * ".value{0}"
     # The tab's own keys still work from there.
     @test _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0)) !== nothing
     @test get_pane_focus_title(tree) == (group, 3)
@@ -82,13 +82,14 @@ end
     @test get_pane_tab_title_string(tab) == "untitled"
 end
 
-@testset "a split selects the empty content of its new tab" begin
+@testset "a split puts the caret in the insertion of its new tab" begin
     tree, group, editor = _seeded()
     _press!(editor, _ctrl(:backslash))
     right = tree.root.elements[2]
     @test get_pane_focus(tree) == (right, 1)
-    @test evaluate_reference(tree, get_selection(tree)) === right.tabs[1].content
-    @test right.tabs[1].content isa DocumentNothing
+    @test right.tabs[1].content isa DocumentInsertion
+    @test string(strip_reference_types(get_selection(tree))) ==
+          string(strip_reference_types(get_pane_content_path(tree, right, 1))) * ".value{0}"
 end
 
 @testset "Ctrl+W closes the focused tab" begin

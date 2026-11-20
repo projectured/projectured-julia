@@ -18,12 +18,26 @@ end
 
 _label(text) = WidgetLabel(text)
 
-@testset "an empty tab duplicates into another empty tab" begin
+@testset "an empty place duplicates into another empty place" begin
     empty = DocumentNothing()
     @test has_document_duplicate(empty)
     duplicate = make_document_duplicate(empty)
     @test duplicate isa DocumentNothing
     @test duplicate !== empty
+end
+
+@testset "a new tab duplicates into another new tab, with the same typed text" begin
+    content = default_new_pane_tab().content
+    @test content isa DocumentInsertion
+    @test has_document_duplicate(content)
+    content.value = "js"
+    duplicate = make_document_duplicate(content)
+    @test duplicate isa DocumentInsertion
+    @test duplicate !== content
+    @test duplicate.value == "js"
+    # The copy is its own: a key in one tab does not type into the other.
+    content.value = "json"
+    @test duplicate.value == "js"
 end
 
 @testset "a primitive is copied, and the copy is its own" begin

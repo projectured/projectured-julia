@@ -592,6 +592,8 @@ function _clipboard_paste(p, input; os = UNREAD_OS_TEXT)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice)
     taken === nothing || return taken
+    filled = _insertion_target_paste(input)
+    filled === nothing || return filled
     text = _text_target_paste(p, input; os)
     text === nothing || return text
     _is_whole_value_paste(p, input) && return _text_target_paste(p, input; os, whole = true)
@@ -618,6 +620,8 @@ function _clipboard_paste_same_view(p, input)
     (p.text && input.content isa TextBlock) && return nothing
     slice = input.slice
     slice isa Document || return nothing
+    filled = _insertion_target_paste(input; make = identity)
+    filled === nothing || return filled
     sel = _find_paste_target(input, slice)
     sel === nothing && return nothing
     _make_replace_edit(input, sel, slice)
@@ -648,6 +652,41 @@ function _document_target_paste(input, slice; copy::Bool = false)
     nothing
 end
 
+# A caret in the text of the place of every domain, a `DocumentInsertion`, where a
+# person types the kind of a document, as in a new tab. That text names a kind and
+# is no content, so a stored document fills the whole place, as a paste on the
+# whole place does, with the same checks. With no stored document, the paste types
+# the text of the system clipboard there. `make` gives what goes in for the stored
+# document: by default what a paste puts in.
+function _insertion_target_paste(input; make = make_pasted_document)
+    slice = input.slice
+    slice isa Document || return nothing
+    input.selection isa ConcreteReference || return nothing
+    _find_text_target(input; writes = true) === nothing && return nothing
+    # The deepest document on the path of the caret holds the text.
+    steps = get_reference_steps(strip_reference_types(input.selection))
+    for count in length(steps):-1:1
+        path = _make_steps_path(steps[1:count])
+        document = try_evaluate_reference(input, path, missing)
+        document isa Document || continue
+        document isa DocumentInsertion || return nothing
+        target = _find_paste_target(input, slice; selection = annotate_reference_types(input, path))
+        target === nothing && return nothing
+        put = make(slice)
+        put === nothing && return nothing
+        return _make_replace_edit(input, target, put)
+    end
+    nothing
+end
+
+# A fresh copy of a stored document for a paste-copy, with no cursor, or `nothing`
+# when the document has no copy.
+function _make_fresh_pasted_copy(slice)
+    fresh = _make_clipboard_copy(slice)
+    fresh === nothing || clear_selection!(fresh)
+    fresh
+end
+
 # Paste-copy: like paste, but a fresh deep copy each time. The OS fallback already
 # produces a fresh document per read, so it needs no extra copy. In text mode it is
 # identical to paste (splicing a string needs no copy).
@@ -655,6 +694,8 @@ function _clipboard_paste_copy(p, input; os = UNREAD_OS_TEXT)
     (p.text && input.content isa TextBlock) && return _text_clipboard_paste(p, input; os)
     taken = _document_target_paste(input, input.slice; copy = true)
     taken === nothing || return taken
+    filled = _insertion_target_paste(input; make = _make_fresh_pasted_copy)
+    filled === nothing || return filled
     text = _text_target_paste(p, input; os, copy = true)
     text === nothing || return text
     _is_whole_value_paste(p, input) && return _text_target_paste(p, input; os, copy = true, whole = true)

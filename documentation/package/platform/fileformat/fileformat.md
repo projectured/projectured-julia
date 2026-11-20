@@ -100,7 +100,7 @@ The text of a file is the string of its content and one line break. The write ad
 
 | Extension | Write | Read, file exists | Read, file missing |
 | --- | --- | --- | --- |
-| `.pdoc` | binary `save_document` | `load_document` | `DocumentNothing()` |
+| `.pdoc` | binary `save_document` | `load_document` | `DocumentInsertion("")` |
 | an extension of a format (`find_file_format`) | `save_file!` of a file of the format | `load_file` | the seed of the domain of the format |
 
 The formats are the ones that the serialization slice and the domains declare ([serialization.md](../serialization/serialization.md#the-file-of-a-format)): `.json`, `.xml`, `.yaml`, `.yml`, `.md`, `.markdown`, `.rst`, `.math`, `.jl`, `.sql`, `.pred`, `.txt` and a path with no extension, the pictures `.png`, `.jpg`, `.jpeg`, `.bmp` and `.gif`, and the source files of a language server. No registry holds them; this package asks `find_file_format(path)`. The text of a file is the string of the document in the format and one line break, so a saved file of each text format ends with a line break. A picture is read as an `Image` of the path, which reads no byte, and a person does not edit it, so nothing writes it.
@@ -119,7 +119,7 @@ A text holds no editor state. The selection and the collapse state are lost, and
 
 ### The seed of a new file
 
-The empty document of a new file comes from one function, `make_document_seed(domain)`, and it is also the default content of a `File{F}`. A path that does not exist opens as the seed of the domain of its format. A domain adds a method for its own type: the insertion where a person types a first element, `make_document_seed(::Type{JsonDocument}) = JsonInsertion()` for JSON, XML, YAML, SQL, Julia and math, and the empty root that takes edits, `MarkdownRoot()` and `RstRoot()`, for Markdown and RST. So a new file starts as a placeholder that you can type into and then save. The serialization slice gives the empty string for the domain `Union{}` of plain text, which the read gives as an empty `PrimitiveString`, and this package gives the default, `DocumentNothing()`, for a domain with no seed. `make_document_for(path)` computes the seed of a path.
+The empty document of a new file comes from one function, `make_document_seed(domain)`, and it is also the default content of a `File{F}`. A path that does not exist opens as the seed of the domain of its format. A domain adds a method for its own type: the insertion where a person types a first element, `make_document_seed(::Type{JsonDocument}) = JsonInsertion()` for JSON, XML, YAML, SQL, Julia and math, and the empty root that takes edits, `MarkdownRoot()` and `RstRoot()`, for Markdown and RST. So a new file starts as a placeholder that you can type into and then save. The serialization slice gives the empty string for the domain `Union{}` of plain text, which the read gives as an empty `PrimitiveString`, and this package gives the default, `DocumentNothing()`, for a domain with no seed: a picture holds it until its read. A `.pdoc` file that does not exist opens as `DocumentInsertion("")`, where a person types the kind of its document. `make_document_for(path)` computes the seed of a path.
 
 ### A file in a tab
 

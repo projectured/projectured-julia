@@ -283,8 +283,11 @@ end
 #    whose declared type does not admit `value` (`is_admitted_by_declared_type`),
 #    and the document in the slot when it does not accept `value` as its
 #    replacement (`accepts_pasted_replacement`).
-function _find_paste_target(input, value)
-    slot = _find_writable_slot(input)
+#
+# `selection` is the selection of `input` by default. A caller gives another one
+# to ask about a whole document on the path of the selection.
+function _find_paste_target(input, value; selection = input.selection)
+    slot = _find_writable_slot(input; selection)
     slot === nothing && return nothing
     _is_slot_accepting(slot.parent, last(slot.steps), value, slot.owner) || return nothing
     accepts_pasted_replacement(slot.document, value) || return nothing
@@ -295,8 +298,8 @@ end
 # above hold: the selection `path` and its `steps`, the `document` there, the
 # `parent` that holds it, and the `owner`, the nearest document above the slot
 # that is not a list, whose domain owns an element. `nothing` otherwise.
-function _find_writable_slot(input)
-    sel = input.selection
+function _find_writable_slot(input; selection = input.selection)
+    sel = selection
     (sel === nothing || sel isa EmptyReference) && return nothing
     document = try_evaluate_reference(input, sel, missing)
     document isa Document || return nothing

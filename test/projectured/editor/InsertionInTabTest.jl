@@ -1,9 +1,9 @@
 # A person opens an empty tab and makes a document in it with the keyboard only.
 #
-# `Ctrl+T` opens a tab that holds a `DocumentNothing` and puts the cursor on the
-# placeholder. The Insert key turns the placeholder into a `DocumentInsertion`,
-# the name buffer. The buffer draws its prompt, narrows as the person types, and
-# Enter commits the typed name to a fresh document.
+# `Ctrl+T` opens a tab that holds a `DocumentInsertion`, the name buffer, and puts
+# the caret in its text. Escape leaves a `DocumentNothing`, and the Insert key
+# turns it back into the name buffer. The buffer draws its prompt, narrows as the
+# person types, and Enter commits the typed name to a fresh document.
 #
 # The whole sequence runs through **one standing iomap**, as a live editor keeps
 # it. A fresh print for each step would hide the case this test is for: a row
@@ -15,7 +15,7 @@ using Test
 mutable struct _InsertTabMockEditor; document::Any; end
 
 function test_insertion_in_tab()
-@testset "A tab makes a document from the Insert key" begin
+@testset "A tab makes a document from a typed kind" begin
 
 _stub = FixedMeasure(10, 18, 6, 0)
 
@@ -68,18 +68,20 @@ function drawn(node = get_iomap_output(iomap), depth = 0)
     ""
 end
 
-@testset "Ctrl+T opens a tab on an empty placeholder" begin
+@testset "Ctrl+T opens a tab on an empty name buffer" begin
     # Ctrl+Tab gives the first tab the focus, as opening a window does.
     press!(KeyPress('\t', ModifierKeys(ctrl = true); time = 0.0))
     press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
     @test length(get_pane_groups(tree)[1].tabs) == 2
-    @test content() isa DocumentNothing
-    # The cursor is on the placeholder, not on the tab. Without this the Insert
-    # key below reaches the tab strip and nothing happens.
-    @test get_selection(tree) !== nothing
+    @test content() isa DocumentInsertion
+    # The caret is in the text of the buffer, not on the tab. Without this the
+    # first key reaches the tab strip and nothing happens.
+    @test endswith(string(strip_reference_types(get_selection(tree))), ".content.value{0}")
 end
 
-@testset "Insert turns the placeholder into the name buffer" begin
+@testset "Escape leaves the empty place, and Insert brings the name buffer back" begin
+    press!(KeyDown(:escape, ModifierKeys(); time = 0.0))
+    @test content() isa DocumentNothing
     press!(KeyDown(:insert, ModifierKeys(); time = 0.0))
     @test content() isa DocumentInsertion
 end

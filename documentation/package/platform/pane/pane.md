@@ -27,7 +27,7 @@ No node has a focus field or an active-tab field. The selection of the tree name
 
 `has_dormant_selection` is `true` for `PaneGroup`, `PaneTab` and `PaneSplit`. When the focus leaves a node, the node keeps its selection as a dormant one: stored and drawn, but not used for routing. So a group that loses the focus still shows its tab, a tab keeps its caret, and a nested split keeps the side that had the focus.
 
-A new tab takes the focus when its opener asks for it with `focus = true`, as a person who opens a file or a page does. The focus goes on the content as a whole when the content is the empty placeholder, so a paste fills it. It goes along the content's own selection when the content holds one, such as the caret in the first form of a new evaluator, so the root holds the selection that the document had and a key or a paste reaches that place with no click. Otherwise it goes on the tab. With `focus = false`, which `open_pane!` uses, the focus and the tab that each group shows stay. A selection names a tab or an element of a split by its index, so each selection that the insert passes names the same node one element on, and a split that takes the slot of a group gives the focus its path through the split. A new group shows its one tab.
+A new tab takes the focus when its opener asks for it with `focus = true`, as a person who opens a file or a page does. The focus goes on the content as a whole when the content is a `DocumentNothing`, so a paste fills it. It goes along the content's own selection when the content holds one, such as the caret in the text of the insertion of a new tab or in the first form of a new evaluator, so the root holds the selection that the document had and a key or a paste reaches that place with no click. Otherwise it goes on the tab. With `focus = false`, which `open_pane!` uses, the focus and the tab that each group shows stay. A selection names a tab or an element of a split by its index, so each selection that the insert passes names the same node one element on, and a split that takes the slot of a group gives the focus its path through the split. A new group shows its one tab.
 
 ### The edits are generic operations
 
@@ -99,7 +99,7 @@ The `@gestures PaneTree` table is in `PaneGestures.jl`:
 
 | Gesture | Effect |
 | --- | --- |
-| `Ctrl+T` | open a new tab in the focused group, and select its empty content |
+| `Ctrl+T` | open a new tab in the focused group, with the caret in the text of its insertion |
 | `Ctrl+W` | close the focused tab |
 | `Ctrl+Shift+D` | duplicate the focused tab |
 | `Ctrl+\` and `Ctrl+Shift+\` | split vertically, the new pane on the right; split horizontally, the new pane below |
@@ -147,9 +147,9 @@ An Alt+double click inside a page selects the object under the pointer, and an A
 
 The pane answers the Alt arrows at a tab itself. The generic walk steps from the content of a tab to its title, and a title is not an object of the content. A whole tab is the top of the walk, and the root of a content has no sibling.
 
-### A new tab is filled by a paste
+### A new tab is filled by a typed kind or by a paste
 
-A new tab holds `DocumentNothing`, and Ctrl+T, the new-tab button and a split select it as a whole. A paste writes where the selection is, so Ctrl+V fills the tab. A new tab has an empty name, and `get_pane_tab_title_string` then uses the `get_document_title` of the content, or "untitled".
+A new tab holds an empty `DocumentInsertion`, and Ctrl+T, the new-tab button and a split put the caret in its text. So the first key types the kind of the document of the tab, and Return makes the document. A paste of a document at that caret replaces the insertion, so Ctrl+V fills the tab. Escape leaves a `DocumentNothing`, and Insert brings the insertion back. A new tab has an empty name, and `get_pane_tab_title_string` then uses the `get_document_title` of the content, or "untitled".
 
 A paste never replaces a pane node, and a pane node is never pasted: `accepts_pasted_replacement` is `false` for them. `find_clipboard_document` of a `PaneTab` is its content, so Ctrl+C on a focused tab copies what the tab shows. See [clipboard.md](../clipboard/clipboard.md).
 
@@ -271,7 +271,7 @@ The shell slice puts a pane tree in the content of a window; see [shell.md](../s
 - **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../../plan/done/declared-api-is-a-list-of-names.md).
 - **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../../plan/done/duplicate-a-pane.md).
 - **A maximize is a view of the layout.** The tree keeps the maximized group in a field and the layout stays, so a restore is exact and costs one layout. A split pane closes a slot whose maximum is 0, so the other groups keep their IO maps. See [plan/done/maximize-a-pane.md](../../../../plan/done/maximize-a-pane.md).
-- **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
+- **A new tab is filled by a paste.** The caret is in the text of the insertion, and the paste of the clipboard package replaces an insertion of every domain at its caret. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
 

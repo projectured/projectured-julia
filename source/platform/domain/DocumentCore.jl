@@ -19,7 +19,7 @@ end
 
 value(::DocumentNothing) = DOCUMENT_NOTHING_VALUE
 
-# The duplicate of an empty tab is another empty tab.
+# The duplicate of a tab that holds the empty place is another tab with an empty place.
 has_document_duplicate(::DocumentNothing) = true
 
 # ── DocumentInsertion ─────────────────────────────────────────────────────────
@@ -51,6 +51,10 @@ DocumentInsertion(value::AbstractString; font=nothing, selection=nothing) =
 
 prefix(::DocumentInsertion) = DOCUMENT_INSERTION_PREFIX
 suffix(::DocumentInsertion) = DOCUMENT_INSERTION_SUFFIX
+
+# A new tab holds an insertion, so the duplicate of that tab is another tab with an
+# insertion, with the same typed text.
+has_document_duplicate(::DocumentInsertion) = true
 
 # A DocumentInsertion's `value` (the editable insertion text) is a plain string,
 # so text-replace edits are handled generically by `splice_value!` (see

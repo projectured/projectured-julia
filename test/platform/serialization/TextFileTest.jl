@@ -6,7 +6,8 @@ format), the write gate, and recreation after an external deletion.
 
 using Test
 using ProjecturedPlatform.SerializationModule
-using ProjecturedPlatform.FileFormatModule: make_file_tab, make_file_tab_content
+using ProjecturedPlatform.FileFormatModule: make_file_tab, make_file_tab_content, read_document_file
+using ProjecturedPlatform.DomainModule: DocumentInsertion
 using ProjecturedPlatform.UndoModule: UndoBuffer
 using ProjecturedKernel.DocumentModule: @document, get_document_title
 
@@ -48,6 +49,18 @@ function test_text_file()
         @test get_file_content(f) == "world"
         # subtype relationship
         @test f isa FileDocument
+    end
+
+    @testset "a .pdoc file that does not exist opens as an empty insertion" begin
+        d = mktempdir()
+        try
+            # A person types the kind of its document there, as in a new tab.
+            seed = read_document_file(joinpath(d, "new.pdoc"))
+            @test seed isa DocumentInsertion
+            @test seed.value == ""
+        finally
+            rm(d; recursive = true, force = true)
+        end
     end
 
     @testset "a file may be its own content" begin
