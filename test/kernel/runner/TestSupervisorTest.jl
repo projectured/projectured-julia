@@ -230,9 +230,10 @@ function test_supervised_runs()
         code = run_test_supervisor(["--record", record, leaf, "leaf_alone", umbrella, "umbrella_suite"];
                                    output)
         @test code == 0
-        @test [(r.suite, r.part, r.pass) for r in read_part_records(record)] ==
-              [("leaf_alone", "leaf_alone", 1), ("umbrella", "leaf_alone", 1),
-               ("umbrella", "umbrella_part", 1), ("umbrella", "closure", 1)]
+        # The order of the record follows the run: a worker takes the parts of its package first.
+        @test sort([(r.suite, r.part, r.pass) for r in read_part_records(record)]) ==
+              sort([("leaf_alone", "leaf_alone", 1), ("umbrella", "leaf_alone", 1),
+                    ("umbrella", "umbrella_part", 1), ("umbrella", "closure", 1)])
     end
 
     @testset "a worker starts when its memory from the record fits beside the others" begin

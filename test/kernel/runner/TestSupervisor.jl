@@ -301,7 +301,7 @@ _wait_ready(worker::_Worker, events::Channel, columns::Vector{String}) =
 # give the exit code.
 function _run_request!(workers, options, events, columns, sink, output)
     records = Dict{String, String}[]
-    queue = _list_queued_parts(first(workers), options, events, columns, output)
+    queue = _list_queued_parts(workers, options, events, columns, sink, output)
     queue === nothing && return 2
     most = max(1, div(_usable_cpus(), options.threads))
     wanted = options.workers == 0 ? most : options.workers
@@ -335,10 +335,22 @@ end
 
 _answer_text(fields) = fields === nothing ? "the worker ended" : join(fields[2:end], " ")
 
-function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Channel,
-                            columns::Vector{String}, output::IO)
+function _list_queued_parts(workers, options::TestRunOptions, events::Channel,
+                            columns::Vector{String}, sink, output::IO)
     queue = _QueuedPart[]
+    worker = first(workers)
     for (package, suite) in options.suites
+        if isempty(options.stay) && !isempty(worker.loaded) && !(package in worker.loaded)
+            # A new worker lists each other package, so no worker holds them all.
+            _stop_worker!(worker)
+            timedwait(() -> !process_running(worker.process), 10.0)
+            worker.is_ended = true
+            number = maximum(w.number for w in workers) + 1
+            worker = _start_worker(number, options, events, sink, options.workers > 1)
+            workers[1] = worker
+            _wait_ready(worker, events, columns) ||
+                (println(output, "A worker that lists ended before it was ready."); return nothing)
+        end
         if !(package in worker.loaded)
             _send(worker, "load", package)
             fields = _wait_answer(_ -> nothing, worker, events, ("loaded", "failed"))

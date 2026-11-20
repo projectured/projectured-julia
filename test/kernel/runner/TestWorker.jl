@@ -69,6 +69,12 @@ function part_home(run, package::AbstractString)
     if first(path) === :Main
         length(path) >= 2 || return (String(package), "")
         home = get(_LOADED_FILES, path[2], "")
+        if isempty(home)
+            # A fixture that another file included: the file of the method, when it has
+            # the name of the module.
+            file = _method_file(run)
+            basename(file) == string(path[2], ".jl") && isfile(file) && (home = file)
+        end
         path = path[2:end]
     else
         home = String(first(path))
