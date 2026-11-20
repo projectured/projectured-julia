@@ -117,8 +117,7 @@ end
 # ── Printers ────────────────────────────────────────────────────────────────
 
 function print_document(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
-    content_iomap = print_child(recursion, input.content,
-                        make_child_context(ctx, FieldReferenceStep("content")))
+    content_iomap = print_child(recursion, input.content, _make_content_context(input, ctx))
     # The stored slice is printed through the whole projection, so it is printed
     # only while it is on display. The cell reads the flag and the slice, so a
     # toggle or a new slice prints it again.
@@ -135,6 +134,13 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     end)
     ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap, recursion)
 end
+
+# The context of the content of `clipboard`: the place `content` below the place of
+# the clipboard. A screen prints at the place of the clipboard, as each wrapper
+# around a screen prints it, because the screen draws each window by its place
+# from the screen.
+_make_content_context(clipboard, ctx) =
+    clipboard.content isa ScreenDocument ? ctx : make_child_context(ctx, FieldReferenceStep("content"))
 
 # ── Reference mapping ─────────────────────────────────────────────────────────
 # The output is the *active child's* output directly (no clipboard-shaped

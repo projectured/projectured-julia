@@ -585,6 +585,7 @@ when one more package is loaded. A backend with no method of
 | `get_excluded_wrappers(::Val{k})` | the keywords that can not be on with it; none by default |
 | `is_wrapper_default(::Val{k})` | whether it is on when the caller does not name it; off by default |
 | `make_wrapper_argument(::Val{k}, argument)` | the argument as the wrapper uses it, made from the value of the keyword before anything of the editor is built; by default the value as it is |
+| `wrap_window_content(::Val{k}, argument, content; arguments, backend)` | the layer that a wrapper of the layer `:container` puts around the content of a window, such as an undo history or the bands of a window; by default `content` as it is. Its `wrap_editor!` calls it for the first window, and `make_window_content` for each window that opens later |
 
 `build_editor` makes every argument first, and `EditorParts.arguments` holds them
 all, so a wrapper can read the argument of another wrapper; the kernel never reads
@@ -596,6 +597,14 @@ inside out. The value of a keyword is the argument of its wrapper: `true` for th
 defaults, a `NamedTuple` of options, or `false` to turn off a wrapper that is on by
 default. A keyword that no loaded package declares is an error when it is on,
 and is ignored when it is off.
+
+**The layers of a window that opens later.** `build_editor` keeps the arguments
+of its wrappers and its backend as a document of the session of the editor,
+`WindowLayers`. `make_window_content(editor, content)` puts around `content` the
+layers that the first window has around its root: the `wrap_window_content` of each
+wrapper of the layer `:container` that is on, from the inside out. So a second window
+of tabs gets the same undo history and the same bands as the first, and a host that
+turns a wrapper off gets the same in every window.
 
 `make_editor` calls `initialize_backend!(backend)`, takes a `Vector{Device}`
 (default `Display()`, `Keyboard()`, `Mouse()`), populates their physical

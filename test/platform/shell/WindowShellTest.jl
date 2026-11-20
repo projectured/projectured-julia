@@ -474,7 +474,10 @@ end
                           shell = (; menus = [run_menu]))
     hosted_bar = get_wrapped_document(hosted.document).windows[1].content.menu_bar
     @test labels(hosted_bar) == ["File", "View", "Run", "Help"]
-    @test hosted_bar.elements[3] === run_menu
+    # Each window gets a copy of the menu of the host, because no two windows can
+    # hold one widget.
+    @test hosted_bar.elements[3] !== run_menu
+    @test _labels(hosted_bar.elements[3].submenu) == ["Go"]
     @test labels(shell.menu_bar) == ["File", "View", "Help"]
     # The shell is off by default.
     plain = build_editor(WidgetLabel("hi"), NaturalToGraphics(measure = FontFileMeasure());

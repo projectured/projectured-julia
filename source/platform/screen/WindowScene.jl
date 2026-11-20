@@ -193,10 +193,10 @@ documents of the inner wrappers around the screen.
   reports.
 - `opened_window_projections` puts rows in front of those of the other
   wrappers, for the windows that open later. A row matches by the first type
-  that the document is, so the rows of the host decide first. After all of them,
-  a window whose content is of the kind of the content of the first window draws
-  through the projection of the first window, so a second window of tabs draws as
-  the first.
+  that the document is, so the rows of the host decide before the rows of the
+  other wrappers. Before all of them, a window whose content is of the kind of the
+  content of the first window draws through the projection of the first window, so
+  a second window of tabs draws as the first.
 - `inner_wrappers` goes to `make_tracking_screen`, after the `window_wrappers`
   that the other wrappers of the editor give in the editor parts, such as the
   `tooltip` and `context_menu` wrappers, which keep the tooltip window and the
@@ -222,12 +222,13 @@ function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorPart
     prepend!(parts.opened_window_projections,
              get(options, :opened_window_projections, Pair{Type,Any}[]))
     # A window that opens later with a content of the kind of the first window, such
-    # as a window of tabs with its bands, draws as the first window does. The rows of
-    # the host and of the other wrappers decide first.
+    # as a window of tabs with its bands, draws as the first window does. This row
+    # decides first, because the rows of the other wrappers draw a content of that
+    # kind in another way, such as the bands of a window as a widget.
     first_kind = Base.typename(typeof(parts.document)).wrapper
-    rows = vcat(parts.opened_window_projections,
-                Pair{Type,Any}[first_kind => NestingProjection(parts.projection;
-                                                               recursion = IdentityProjection())])
+    rows = vcat(Pair{Type,Any}[first_kind => NestingProjection(parts.projection;
+                                                               recursion = IdentityProjection())],
+                parts.opened_window_projections)
     parts.document, parts.projection = make_tracking_screen(
         make_window_scene(parts.document, string(title); width = width, height = height),
         make_window_scene_projection(parts.projection; opened_window_projections = rows);
@@ -250,8 +251,8 @@ end
 Whether the wrapper `window` puts the root of `parts` in a window of a screen: the
 wrapper is on, the backend draws windows, and the root is no screen yet. A wrapper
 that acts around the screen when there is one, and around the root when there is
-none, such as the clipboard, asks it in the layer `:window`, before the window is
-made.
+none, such as the clipboard, asks it before the window is made: in the layer
+`:container`, or in the layer `:window` before the step of `window`.
 """
 is_window_made(parts::EditorParts) =
     haskey(parts.arguments, :window) && _is_window_backend(parts.backend) &&
