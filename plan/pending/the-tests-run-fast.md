@@ -286,6 +286,22 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
 - **Step 10.** Revise 3.17 on Julia 1.13 redefines a struct, so a change of a struct needs no
   new worker. A change that Revise can not apply starts a new worker. The test of the session
   follows the log: without Revise in the worker, only `--restart` loads the new form.
+- **The record of the whole run (2026-11-20, `fd51372fe`, two workers of 5 GB on the cores
+  24 to 27).** 751 parts: 748 ended, 2 got `memory`, 1 got `timeout`; 3489451 pass, 745 fail,
+  40 error, 2855 broken. The run took 2 h 8 min, of which 12 min was the precompile. The
+  parts took 205 min in all, so two workers ran them about 1.8 times as fast as one.
+  - **The compile is most of the time.** Of the 166 min of the parts that ended, 141 min (85 %)
+    is the compile while they ran. `test_export_collisions` took 1497 s, all of it compile;
+    `test_catalog` 895 s, 844 s of it compile.
+  - **The retry for memory works.** Nine parts passed 5 GB in a worker that had run other
+    parts; seven of them passed in a new worker, for example `test_explorer` with 524 checks.
+    `test_application` and `test_window_frame_guards` passed 5 GB in a new worker too.
+  - **The time limit works.** `test_process_debug` hung at `ProcessDebugTest.jl:185`, as a note
+    of an earlier session says it can under load; at its limit the stacks named that line, and
+    the run went on.
+  - **A test depends on the packages in its process.** `test_build_editor` fails in a worker
+    that loaded every test package to list the parts, as an earlier note says; alone it
+    passes.
 - **The order of the land.** omnet-julia reads projectured-julia from the main checkout, so
   the runner of projectured-julia must be on `main` before the omnet branch can run.
 
