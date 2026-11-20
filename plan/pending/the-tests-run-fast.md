@@ -1,6 +1,10 @@
 # The tests run fast
 
-> **Status (2026-11-20): approved, in progress, step 1.** The owner asked for this plan on
+> **Status (2026-11-20): approved, in progress.** The code of steps 1 to 5 and 8 to 10 and
+> the mechanism of step 7 are committed; their tests pass in a process with no package
+> (67 checks). The check of the whole suites waits for room in the memory of the machine.
+> Steps 6, 7 (which parts are slow) and 9 (the markers of the known failures) need the
+> record of that check. The owner asked for this plan on
 > 2026-11-20 and approved it for implementation the same day ("yes"). The work is on the branch
 > `tests-run-fast` in the worktree `projectured-julia-tests-run-fast`, and later in omnet-julia in
 > the worktree `omnet-julia-tests-run-fast`.
@@ -232,7 +236,7 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   branch run is compared with the stored record of its base commit.
 - [ ] 10. **A worker that stays open (P11, I5).** Add `--stay` and `--send` to the supervisor.
   **Done when:** a test file that changes after the start of the worker runs in its new form,
-  with no new load, and a change of a struct starts a new worker.
+  with no new load, and a change that Revise can not apply starts a new worker.
 
 ### What the implementation found
 
@@ -270,6 +274,20 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   function as a suite of one part, so the supervisor runs the static guards and the omnet
   suites that stay functions.
 - **Step 5.** The count of workers is at most the usable CPUs divided by `--threads`.
+- **Step 8.** The rule reads the `[deps]` of the `Project.toml` files with regular expressions,
+  as the tree guard does, so the runner needs no new dependency. A changed package also
+  reaches each test package that uses it as a fixture: a change of the JSON domain reaches
+  the platform tests. A changed slice of the platform reaches its tests and those of the
+  slices that use it, from `TEST_SLICE_EDGES` of `ProjecturedPlatformTest`, in place of all
+  the platform tests, and the tests of every package that uses the platform. In omnet-julia,
+  `test_changed` is in `OmnetTest`, and `test/runtests.jl` takes `--changed BASE`.
+- **Step 9.** The name of a repository in a record is the name of its `origin`, which each
+  worktree shares. The store is filled by any run of one clean commit of `main`.
+- **Step 10.** Revise 3.17 on Julia 1.13 redefines a struct, so a change of a struct needs no
+  new worker. A change that Revise can not apply starts a new worker. The test of the session
+  follows the log: without Revise in the worker, only `--restart` loads the new form.
+- **The order of the land.** omnet-julia reads projectured-julia from the main checkout, so
+  the runner of projectured-julia must be on `main` before the omnet branch can run.
 
 ## 6. Rule of runs and measurements
 
