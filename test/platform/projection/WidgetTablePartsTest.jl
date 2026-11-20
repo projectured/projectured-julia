@@ -208,12 +208,18 @@ end
     plain = read(io, MouseClick(:left, x + 4, y + 4, mods; time = 0.0))
     @test plain isa ReplaceReferencedValueOperation
     @test plain.document === box
-    # A plain press on the text of a label puts the caret there, and a press on
-    # the padding of the cell, which the label declines, selects the row.
+    # A plain press on the text of a label selects the row, as a press on the
+    # padding of the cell, which the label declines, does. An Alt+click puts the
+    # caret in the text.
     (tx, ty, _) = only(t for t in texts(io.output) if t[3] == texts_of(2, 2))
     on_text = read(io, MouseClick(:left, tx + 2, ty + 2, mods; time = 0.0))
     @test on_text isa ReplaceSelectionOperation
-    @test strip_reference_types(on_text.path) ==
+    @test on_text.path.head.name == "rows"
+    @test row_of(on_text.path) == 2
+    @test on_text.path.tail.tail isa EmptyReference
+    caret = read(io, MouseClick(:left, tx + 2, ty + 2, alt; time = 0.0))
+    @test caret isa ReplaceSelectionOperation
+    @test strip_reference_types(caret.path) ==
           concat_references(cell_reference(2, 2), extend_reference(EmptyReference(),
               FieldReferenceStep("content"), RangeReferenceStep(0, 0)))
     on_padding = read(io, MouseClick(:left, tx - 1, ty + 2, mods; time = 0.0))

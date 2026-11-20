@@ -1583,16 +1583,19 @@ end
 # ── Reading ──────────────────────────────────────────────────────────────────
 
 # An event with a place, sent to the cell in row `k` and column `c`, from the
-# point `(x, y)` in the coordinates of the rules. The answer is rooted under
-# `cells[k][c]`; an operation that names its own document, such as the toggle
-# of a checkbox, stays as it is. `nothing` when the cell has nothing to say.
+# point `(x, y)` in the coordinates of the rules. What the cell keeps of the
+# answer (`_find_control_answer`) is rooted under `cells[k][c]`; an operation
+# that names its own document, such as the toggle of a checkbox, stays as it is.
+# `nothing` when the cell has nothing to say, or says only the caret in a text
+# that takes no key, as a label does to a plain click.
 function _read_table_cell_press(w::WidgetTable, st::WidgetTablePartsState, k::Int, c::Int, g::MouseClick,
                                 x::Int, y::Int)
     found = _find_table_cell(st, k, c)
     found === nothing && return nothing
     cim, left, top = found
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
-                                                     g.modifiers; time = g.time))
+    op = _find_control_answer(get_iomap_input(cim),
+                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                                          g.modifiers; time = g.time)), g)
     op === nothing && return nothing
     reroot_operation(op, _wt_get_cell_steps(w, k, c))
 end
@@ -1698,10 +1701,10 @@ end
 # header. A plain press goes to the part first: the corner, a header or a cell, and in a
 # header with levels the label of that level. The corner and a header are
 # controls of their line, so they keep every answer but a caret in a label
-# (`_find_control_answer`), and a cell keeps the caret in its text too. A press
-# that the part does not keep selects its line: the corner the table, a row
-# header its row, a column header its column, `columns[c]`, and a cell, on its
-# padding, its row.
+# (`_find_control_answer`), and so does a cell. A press that the part does not
+# keep selects its line: the corner the table, a row header its row, a column
+# header its column, `columns[c]`, and a cell, on its text that takes no key and
+# on its padding, its row.
 function _read_table_parts_press(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
                                  g::MouseClick)
     st = iomap.state

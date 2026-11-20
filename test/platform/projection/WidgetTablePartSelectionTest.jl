@@ -139,8 +139,11 @@ for (form, make) in (("eager", eager), ("list", listed))
         @test path_of(press_text(io, name(2, 3), alt, 2)) == content_of(cell(2, 3))
         @test path_of(press_padding(io, "b", alt, 2)) == part("column_headers", 2)
         @test path_of(press_padding(io, name(2, 3), alt, 2)) == cell(2, 3)
+        # A plain press on a cell of a label selects its row, on its text too; an
+        # Alt+click puts the caret in the text.
         @test path_of(press_padding(io, name(2, 3), mods)) == part("rows", 2)
-        @test path_of(press_text(io, name(2, 3), mods)) ==
+        @test path_of(press_text(io, name(2, 3), mods)) == part("rows", 2)
+        @test path_of(press_text(io, name(2, 3), alt)) ==
               concat_references(cell(2, 3), extend_reference(EmptyReference(), FieldReferenceStep("content"),
                                                              RangeReferenceStep(0, 0)))
         if form == "list"

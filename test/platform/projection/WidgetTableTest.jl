@@ -376,23 +376,26 @@ function test_widget_table_cell_policy()
     @testset "a policy that is neither is refused" begin
         @test_throws ErrorException make(; cell_policy = :squash)
     end
-    @testset "a plain click on the text of a label cell puts the caret there, and on its padding selects its row" begin
+    @testset "a plain click on a label cell selects its row, and an Alt+click puts the caret in its text" begin
         geometry = clipped.geometry
         x = geometry.col_x[1] + geometry.bw + geometry.pad_x + 2
         y = geometry.row_y[3] + geometry.bw + geometry.pad_y + 2     # body row two
-        click(x) = (change = read_intent(rec, nothing,
-                                         Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0), nothing), clipped);
-                    change isa Intent ? change.operation : change)
-        op = click(x)
+        click(x, modifiers = ModifierKeys()) =
+            (change = read_intent(rec, nothing, Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing),
+                                  clipped);
+             change isa Intent ? change.operation : change)
+        for at in (x, geometry.col_x[1] + geometry.bw + 1)
+            op = click(at)
+            @test op isa ReplaceSelectionOperation
+            @test op.path.head.name == "rows"
+            @test op.path.tail.head.start == 1
+            @test op.path.tail.tail isa EmptyReference
+        end
+        op = click(x, ModifierKeys(alt = true))
         @test op isa ReplaceSelectionOperation
         @test strip_reference_types(op.path) ==
               extend_reference(EmptyReference(), FieldReferenceStep("cells"), RangeReferenceStep(1, 2),
                                RangeReferenceStep(0, 1), FieldReferenceStep("content"), RangeReferenceStep(0, 0))
-        op = click(geometry.col_x[1] + geometry.bw + 1)
-        @test op isa ReplaceSelectionOperation
-        @test op.path.head.name == "rows"
-        @test op.path.tail.head.start == 1
-        @test op.path.tail.tail isa EmptyReference
     end
     # A press on the text of a cell puts the caret and starts a drag; the end of
     # the drag comes by the path of the cell and reads the cell in its own frame,

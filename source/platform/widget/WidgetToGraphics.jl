@@ -14005,12 +14005,13 @@ function _wt_route_header_click(iomap::WidgetTableToGraphicsCanvasIoMap, header:
     op === nothing ? declined : reroot_operation(op, steps)
 end
 
-# What a part that is a control of something else, such as the header of a column
-# or the corner of a table, keeps of `operation`, the answer of `content`, the
-# document that the part holds, to a plain click: every answer but a selection in
-# a text that takes no key, such as the caret in the text of a label. So a click
-# on the label of a header acts on what the header controls, as a click on a tab
-# switches its page, and an action, such as the toggle of a checkbox, and the
+# What a part that is a control of something else, such as the header of a column,
+# the corner of a table or a cell of a table of rows, keeps of `operation`, the
+# answer of `content`, the document that the part holds, to a plain click: every
+# answer but a selection in a text that takes no key, such as the caret in the
+# text of a label. So a click on the label of a header acts on what the header
+# controls, as a click on a tab switches its page, a click on the label of a cell
+# chooses its row, and an action, such as the toggle of a checkbox, and the
 # caret in a text that takes keys, such as a text field, stay. An Alt+click,
 # `press`, keeps the caret in any text and no action, because it always puts the
 # caret. `nothing` when nothing is kept.
@@ -14100,20 +14101,21 @@ end
 
 # Route a plain click at `(x, y)`, in the coordinates of the geometry, into the
 # content of the cell in row `r` and column `c`, in the coordinates of the
-# cell, and root what it answers under the cell.
+# cell, and root what it keeps of the answer under the cell (`_find_control_answer`).
 function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, r::Int, c::Int, g::MouseClick,
                               x::Int, y::Int)
     parts = iomap.parts
     found = _wt_find_part_cell(iomap, parts.cells_pane, (r - 1) * parts.columns + c)
-    # A cell that declines the click — a label has nothing to say to one —
-    # leaves it to the row, and the row is selected: a table of text is a
-    # table of rows. The answer of the cell is re-rooted under the cell; an
-    # operation that names its own document, such as the toggle of a checkbox,
-    # stays as it is.
+    # A cell that declines the click, or that answers only the caret in a text
+    # that takes no key, as a label does, leaves it to the row, and the row is
+    # selected: a table of text is a table of rows. An Alt+click keeps the caret.
+    # The answer of the cell is re-rooted under the cell; an operation that names
+    # its own document, such as the toggle of a checkbox, stays as it is.
     found === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
     cim, left, top = found
-    op = read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count, g.modifiers;
-                                                     time = g.time))
+    op = _find_control_answer(get_iomap_input(cim),
+                              read_intent(cim.projection, cim, MouseClick(g.button, x - left, y - top, g.count,
+                                                                          g.modifiers; time = g.time)), g)
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
     reroot_operation(op, _wt_get_cell_steps(iomap.input, r, c))
 end
