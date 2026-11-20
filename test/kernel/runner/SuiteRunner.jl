@@ -9,28 +9,34 @@
 # ============================================================================
 
 """
-    TestPart(run; name = String(nameof(run)), limit = 0)
+    TestPart(run; name = String(nameof(run)), limit = 0, is_alone = false)
 
 One part of a [`TestSuite`](@ref): `run`, a function with no argument that runs
-tests, the name of the part, and `limit`, the time in seconds that a worker
-process of `tool/run-tests.jl` gives the part before it stops it. A `limit` of 0
-takes the limit of the run. A plain function in the table of a suite becomes a
-part with the name of the function. A test that takes an argument becomes a part
-through a function with no argument and a name:
+tests, the name of the part, `limit`, the time in seconds that a worker process of
+`tool/run-tests.jl` gives the part before it stops it, and `is_alone`, true for a
+part that runs only when no other part runs, such as a part that needs every
+thread of the machine. A `limit` of 0 takes the limit of the run.
+
+A plain function in the table of a suite becomes a part with the name of the
+function. A test that takes an argument becomes a part through a function with no
+argument and a name:
 
 ```julia
 TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)")
 TestPart(test_catalog; limit = 20 * 60)
+TestPart(test_frame_measurements; is_alone = true)
 ```
 """
 struct TestPart
     name::String
     run::Any
     limit::Float64
+    is_alone::Bool
 end
 
-TestPart(run; name::AbstractString = String(nameof(run)), limit::Real = 0) =
-    TestPart(String(name), run, Float64(limit))
+TestPart(run; name::AbstractString = String(nameof(run)), limit::Real = 0,
+         is_alone::Bool = false) =
+    TestPart(String(name), run, Float64(limit), is_alone)
 
 """
     TestSuite(name, entries)

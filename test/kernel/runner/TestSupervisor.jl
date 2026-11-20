@@ -23,7 +23,8 @@ const _STACKS_SECONDS = 5.0
 
 The options of a run of [`run_test_supervisor`](@ref), with their defaults:
 `project`, the environment of the workers (the active project);
-`threads`, the threads of each worker (2); `memory_bytes`, the memory that a
+`threads`, the threads of each worker (2); `workers`, the count of the worker
+processes (1); `memory_bytes`, the memory that a
 worker may use (6 GiB); `limit`, the seconds of a part that names no limit of its
 own (600); `only` and `skip`, the filters in the form of the command line;
 `record`, the path of the record file (none); and `suites`, the pairs of a
@@ -32,6 +33,7 @@ package and the name of a suite in it.
 Base.@kwdef mutable struct TestRunOptions
     project::String = something(Base.active_project(), "")
     threads::Int = 2
+    workers::Int = 1
     memory_bytes::Int = 6 * 2^30
     limit::Float64 = 600.0
     only::String = ""
@@ -50,6 +52,8 @@ const _RUN_TESTS_USAGE = """
     options:
       --project PATH   the environment of the workers (default: the active project)
       --threads N      the threads of each worker (default: 2)
+      --workers N      the worker processes that run parts at the same time (default: 1),
+                       at most the usable CPUs divided by the threads of a worker
       --memory SIZE    the memory of a worker, such as 6G or 800M (default: 6G)
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
@@ -81,6 +85,7 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             value = words[k + 1]
             word == "--project" ? (options.project = value) :
             word == "--threads" ? (options.threads = parse(Int, value)) :
+            word == "--workers" ? (options.workers = parse(Int, value)) :
             word == "--memory" ? (options.memory_bytes = _read_size(value)) :
             word == "--limit" ? (options.limit = parse(Float64, value)) :
             word == "--only" ? (options.only = value) :
@@ -106,6 +111,7 @@ struct _QueuedPart
     path::String
     name::String
     limit::Float64
+    is_alone::Bool
 end
 
 _part_place(part::_QueuedPart) = part.path * "/" * part.name
@@ -160,6 +166,24 @@ function _stop_worker!(worker::_Worker, signal::Integer = Base.SIGKILL)
     process_running(worker.process) && kill(worker.process, signal)
 end
 
+# The CPUs that this process may use: those of its affinity where `/proc` tells
+# them, or else all of the machine.
+function _usable_cpus()
+    path = "/proc/self/status"
+    if isfile(path)
+        for line in eachline(path)
+            startswith(line, "Cpus_allowed_list:") || continue
+            count = 0
+            for range in split(strip(split(line, ':')[2]), ',')
+                bounds = parse.(Int, split(range, '-'))
+                count += last(bounds) - first(bounds) + 1
+            end
+            return count
+        end
+    end
+    Sys.CPU_THREADS
+end
+
 # The resident memory of a process in bytes, or 0 where no `/proc` tells it.
 function _resident_bytes(process::Base.Process)
     path = "/proc/$(getpid(process))/status"
@@ -197,9 +221,18 @@ function run_test_supervisor(options::TestRunOptions; output::IO = stdout)
     columns = String[]
     records = Dict{String, String}[]
     try
-        push!(workers, _start_worker(1, options, events, output, false))
+        push!(workers, _start_worker(1, options, events, output, options.workers > 1))
         queue = _list_queued_parts(first(workers), options, events, columns, output)
         queue === nothing && return 2
+        most = max(1, div(_usable_cpus(), options.threads))
+        if options.workers > most
+            println(output, "$(options.workers) workers need more CPUs than the $(_usable_cpus()) ",
+                    "that this process may use; $most run.")
+        end
+        count = min(options.workers, most, max(1, length(queue)))
+        for number in 2:count
+            push!(workers, _start_worker(number, options, events, output, true))
+        end
         _run_queued_parts!(workers, queue, options, events, columns, records, output)
         _print_summary(output, records)
         all(r -> r["result"] == "done" && r["fail"] == "0" && r["error"] == "0", records) ? 0 : 1
@@ -261,7 +294,7 @@ function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Ch
             fields[1] == "listed" && break
             limit = parse(Float64, fields[5])
             push!(queue, _QueuedPart(package, suite, fields[2], fields[3], fields[4],
-                                     limit > 0 ? limit : options.limit))
+                                     limit > 0 ? limit : options.limit, fields[6] == "true"))
         end
     end
     println(output, "$(length(queue)) parts to run.")
@@ -280,6 +313,9 @@ function _give_part!(worker::_Worker, part::_QueuedPart)
     _send(worker, "run", part.package, part.suite, part.index)
 end
 
+# Each worker that runs no part takes the next part of the queue, in its order.
+# A part that runs alone waits until no other part runs, and no part starts
+# beside it.
 function _run_queued_parts!(workers, queue, options, events, columns, records, output)
     next = 1
     is_prefixed = length(workers) > 1
@@ -289,10 +325,14 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, o
                 workers[k] = worker = _start_worker(worker.number, options, events, output,
                                                     is_prefixed)
             end
-            if !worker.is_ending && worker.part === nothing && next <= length(queue)
-                _give_part!(worker, queue[next])
-                next += 1
-            end
+            next <= length(queue) || continue
+            (worker.is_ending || worker.part !== nothing) && continue
+            is_alone_running = any(w -> w.part !== nothing && w.part.is_alone, workers)
+            is_others_running = any(w -> w.part !== nothing, workers)
+            is_alone_running && break
+            queue[next].is_alone && is_others_running && break
+            _give_part!(worker, queue[next])
+            next += 1
         end
         all(w -> w.part === nothing, workers) && next > length(queue) && return
         number, fields = take!(events)

@@ -82,7 +82,8 @@ function test_suite_runner()
     @testset "a walk chooses its items by name" begin
         items = [(name = "json",), (name = "json_widget",), (name = "xml",)]
         @test select_by_name(items) == items
-        @test [item.name for item in select_by_name(items; only = "json")] == ["json", "json_widget"]
+        @test [item.name for item in select_by_name(items; only = "json")] ==
+              ["json", "json_widget"]
         @test [item.name for item in select_by_name(items; skip = r"_widget$")] == ["json", "xml"]
         @test select_by_name(("json", "text", "xml"); only = "x") == ["text", "xml"]
     end

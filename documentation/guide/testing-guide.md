@@ -198,6 +198,16 @@ another part is lost. At the end, the supervisor prints a summary, the parts
 that did not pass, and the ten slowest parts. Its exit code is 0 when each part
 ended and passed. `--help` gives the options.
 
+`--workers N` runs N workers at the same time, each on the next part of the
+queue. The first worker loads the packages and lists the parts before the
+others start, so only one process precompiles. N is at most the CPUs that the
+supervisor may use, divided by the `--threads` of a worker; under
+`taskset -c 24-27` with `--threads 2`, that is two. Each worker gets
+`--heap-size-hint` from `--memory`, so the memory of the run is about N times
+`--memory`. A part that needs the machine to itself, such as a test that
+measures time or one that needs every thread, has `is_alone = true` in its entry:
+it waits until no other part runs, and no part starts beside it.
+
 ## Per-package tests
 
 | Function | What it covers |

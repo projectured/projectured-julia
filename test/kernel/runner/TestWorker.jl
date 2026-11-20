@@ -67,7 +67,7 @@ with its fields separated by tabs, and answers with lines that start with
 
 - `load PACKAGE`: load the package, or include the file when `PACKAGE` ends with
   `.jl`; answer `loaded PACKAGE SECONDS`.
-- `list PACKAGE SUITE ONLY SKIP`: answer one line `part INDEX SUITEPATH NAME LIMIT`
+- `list PACKAGE SUITE ONLY SKIP`: answer one line `part INDEX SUITEPATH NAME LIMIT ALONE`
   for each part that [`list_parts`](@ref) chooses, then `listed COUNT`. A filter
   is empty for none, `r"…"` for a `Regex`, or a part of a name.
 - `run PACKAGE SUITE INDEX`: run the part at `INDEX`, with no standard input;
@@ -111,7 +111,7 @@ function _worker_command(output::IO, command, arguments)
                            skip = read_name_filter(skip_text))
         for listed in parts
             _worker_answer(output, "part", _index_text(listed.index), listed.suite,
-                           listed.part.name, listed.part.limit)
+                           listed.part.name, listed.part.limit, listed.part.is_alone)
         end
         _worker_answer(output, "listed", length(parts))
     elseif command == "run"

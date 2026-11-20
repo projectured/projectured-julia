@@ -3,7 +3,8 @@
 
 The supervisor of `tool/run-tests.jl`, with real worker processes: each part of a
 suite gets a result, a part that passes its time limit gets `timeout` and the
-parts after it still run, and the record file holds one line for each part.
+parts after it still run, the record file holds one line for each part, two
+workers run parts at the same time, and a part alone runs beside no other part.
 """
 function test_supervised_runs()
     @testset "a supervised run gives each part a result, and a part that hangs stops no other" begin
@@ -37,9 +38,46 @@ function test_supervised_runs()
                        text)
     end
 
+    @testset "two workers run two parts at the same time, and a part alone runs beside none" begin
+        folder = mktempdir()
+        log = joinpath(folder, "times.txt")
+        fixture = joinpath(folder, "ParallelFixture.jl")
+        write(fixture, """
+            module ParallelFixture
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            mark(what, name) = open(io -> println(io, what, " ", name, " ", time()), $(repr(log)), "a")
+            timed(name, seconds; is_alone = false) =
+                TestPart(() -> (mark("start", name); sleep(seconds); mark("end", name); @test true);
+                         name, is_alone)
+            const parallel_suite = TestSuite("parallel", [
+                timed("a", 3), timed("b", 3), timed("alone", 1; is_alone = true), timed("d", 1),
+            ])
+            end
+            """)
+        output = IOBuffer()
+        code = run_test_supervisor(["--workers", "2", "--threads", "1", fixture, "parallel_suite"];
+                                   output)
+        @test code == 0
+        times = Dict{Tuple{String, String}, Float64}()
+        for line in readlines(log)
+            what, name, at = split(line)
+            times[(what, name)] = parse(Float64, at)
+        end
+        start(name) = times[("start", name)]
+        stop(name) = times[("end", name)]
+        if _usable_cpus() >= 2
+            @test start("b") < stop("a") && start("a") < stop("b")
+        end
+        @test start("alone") >= max(stop("a"), stop("b"))
+        @test start("d") >= stop("alone")
+        @test occursin("[w2] ", String(take!(output)))
+    end
+
     @testset "the command line of the supervisor" begin
         options = read_test_run_options(["--memory", "800M", "--limit", "30", "--only", "r\"^a\"",
-                                         "P", "test_p", "Q", "test_q"])
+                                         "--workers", "3", "P", "test_p", "Q", "test_q"])
+        @test options.workers == 3
         @test options.memory_bytes == 800 * 2^20
         @test options.limit == 30.0
         @test read_name_filter(options.only) == r"^a"
