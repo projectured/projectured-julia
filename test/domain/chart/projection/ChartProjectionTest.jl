@@ -1269,7 +1269,7 @@ function test_chart_projection()
             # A click on "cos" hides its line. Its entry stays at the same place, faded.
             _, ix, iy, iw, ih = rects[2]
             click = MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0)
-            op = read_intent(proj, iomap, click)
+            op = read_intent(proj, nothing, Intent(click), iomap).operation
             @test op isa ReplaceReferencedValueOperation && op.value == false
             evaluate_operation(nothing, op)
             @test !chart.series[2].visible
@@ -1300,7 +1300,7 @@ function test_chart_projection()
             getfield(plot, :mouse_target)[] = nothing
 
             # A second click at the same point shows the line again.
-            op = read_intent(proj, iomap, click)
+            op = read_intent(proj, nothing, Intent(click), iomap).operation
             @test op isa ReplaceReferencedValueOperation && op.value == true
             evaluate_operation(nothing, op)
             @test length(polylines()) == 2
@@ -1329,7 +1329,7 @@ function test_chart_projection()
             rects = get_legend_item_rects(plan())
             @test [r[1] for r in rects] == [1, 1, 1]
             _, ix, iy, iw, ih = rects[2]
-            op = read_intent(proj, iomap, MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
+            op = read_intent(proj, nothing, Intent(MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0)), iomap).operation
             @test op isa ReplaceReferencedValueOperation && op.document === pie.series[1] && op.value == false
             evaluate_operation(nothing, op)
             @test [(it[2], it[4]) for it in plan().items] == [("a", false), ("b", false), ("c", false)]

@@ -20,7 +20,7 @@ function _fvc_show(document; measure = FixedMeasure(10, 18, 6, 0))
     renderer = NaturalToGraphics(; measure)
     iomap = _fvc_print(renderer, document)
     editor = (; document)
-    read!(event) = read_intent(renderer, iomap, event)
+    read!(event) = read_intent(renderer, nothing, Intent(event), iomap).operation
     press!(event) = begin
         operation = read!(event)
         operation === nothing || evaluate_operation(editor, operation)

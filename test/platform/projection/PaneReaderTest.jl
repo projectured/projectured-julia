@@ -570,7 +570,7 @@ end
     paste(slice) = begin
         p = ClipboardSliceToAnyProjection()
         io = print_document(p, IdentityProjection(), slice, PrinterContext())
-        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
+        read_intent(p, nothing, Intent(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0)), io).operation
     end
     # A pane is never pasted, at the caret either.
     tab_slice = ClipboardSlice(tree, PaneTab("copied", DocumentNothing()))

@@ -143,7 +143,7 @@ end
     item(field) = [FieldReferenceStep("items"), _at(1), FieldReferenceStep(field)]
     steps(path) = collect(get_reference_steps(strip_reference_types(path)))
     click(t, modifiers) =
-        read_intent(projection, iomap, MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0))
+        read_intent(projection, nothing, Intent(MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0)), iomap).operation
     alt = click(title, ModifierKeys(alt = true))
     @test alt isa ReplaceSelectionOperation && steps(alt.path)[1:3] == item("title")
     @test !(click(title, ModifierKeys()) isa ReplaceSelectionOperation)

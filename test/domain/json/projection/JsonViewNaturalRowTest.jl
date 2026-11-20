@@ -33,7 +33,7 @@ function _vnr_show(document; measure = FixedMeasure(10, 18, 6, 0))
     iomap = print_document(projection, root)
     editor = (; document = root)
     press!(event) = begin
-        operation = read_intent(projection, iomap, event)
+        operation = read_intent(projection, nothing, Intent(event), iomap).operation
         operation === nothing || evaluate_operation(editor, operation)
         operation
     end
