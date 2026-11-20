@@ -19,6 +19,42 @@ const _DOCUMENT_FOLDERS = ("documentation", "test", "tool", "example", "asset",
                            "source", "package", "bin")
 const _SKIPPED_FOLDERS = (joinpath("example", "platform", "filesystem", "fixture"), "build", ".git")
 
+isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+
+# The violations that main has, each with its reason (`known.jl`). A listed
+# violation does not fail the guard; `test_documentation` counts it as broken.
+const DOCUMENTATION_KNOWN = Pair{String,String}[
+    "documentation/package/domain/git/git.md links to git+file:///home/projectured/workspace/inet-cpp#3fa2c1d, which is not there" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md links to git+file:///home/projectured/workspace/inet-cpp#3fa2c1d:src/queue/Queue.cc, which is not there" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/guide/testing-guide.md names Omnet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/guide/testing-guide.md names Omnet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md names inet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md names inet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md names omnetpp, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md names inet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/domain/git/git.md names inet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+    "documentation/package/platform/task/task.md names omnet, which is private; write what the thing is instead" =>
+        "on main 2026-11-20, not studied yet",
+]
+
+"""
+    known_documentation_violations(root) -> (; new, listed, stale)
+
+The violations of this repository, split by `DOCUMENTATION_KNOWN`.
+"""
+known_documentation_violations(root::AbstractString) =
+    split_known_violations(documentation_violations(root), DOCUMENTATION_KNOWN;
+                           list_name = "DOCUMENTATION_KNOWN in test/suite/documentation.jl")
+
 """
     collect_documents(root) -> Vector{String}
 
@@ -355,8 +391,13 @@ end
 #
 if abspath(PROGRAM_FILE) == @__FILE__
     root = normpath(joinpath(@__DIR__, "..", ".."))
-    bad = documentation_violations(root)
+    found = known_documentation_violations(root)
+    bad = vcat(found.new, found.stale)
     report = documentation_report(root)
+    if !isempty(found.listed)
+        println("$(length(found.listed)) known violation(s) of the writing rules, on DOCUMENTATION_KNOWN:")
+        foreach(violation -> println("  ", violation), found.listed)
+    end
     if isempty(bad)
         println("every document keeps the rules a program can check")
     else

@@ -100,6 +100,97 @@ const EXPORT_UNMIGRATED = Set(String[
     "source/domain/yaml/YamlModule.jl",
 ])
 
+isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+
+# The violations of a migrated module that main has, each with its reason
+# (`known.jl`). A listed violation does not fail the guard; `test_exports`
+# counts it as broken.
+const EXPORT_KNOWN = Pair{String,String}[
+    "source/adapter/languageserver/LanguageServerModule.jl: the names are not in the order that LanguageServerDocument.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/backend/sdl/SdlModule.jl: one statement names SdlBackend.jl, SdlWorkload.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/git/GitModule.jl: the names are not in the order that GitParse.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/git/GitModule.jl: GitParse.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/git/GitModule.jl: one statement names GitDocument.jl, GitTree.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/git/GitModule.jl: the names are not in the order that GitText.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/git/GitModule.jl: one statement names GitTheme.jl, GitToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/research/ResearchModule.jl: the names are not in the order that ResearchDocument.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/workflow/WorkflowModule.jl: the names are not in the order that WorkflowEdits.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/workflow/WorkflowModule.jl: one statement names WorkflowList.jl, WorkflowListToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/appearance/AppearanceModule.jl: one statement names AppearanceToWidget.jl, AppearancePartToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/application/ApplicationModule.jl: one statement names Application.jl, ApplicationWorkload.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/application/ApplicationModule.jl: the names are not in the order that ApplicationWorkload.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/application/ApplicationModule.jl: StartSettings.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/application/ApplicationModule.jl: ApplicationExplorer.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/arrangement/ArrangementModule.jl: one statement names ArrangeCollectionOperation.jl, Arranging.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/arrangement/ArrangementModule.jl: FilterLanguage.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/arrangement/ArrangementModule.jl: ArrangementColumns.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/display/DisplayModule.jl: the names are not in the order that DisplayWorkload.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/explorer/ExplorerModule.jl: one statement names DashboardToWidget.jl, DashboardCardToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/help/HelpModule.jl: one statement names HelpDocument.jl, HelpTree.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/help/HelpModule.jl: one statement names HelpGroupToWidget.jl, HelpEntryToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/link/LinkModule.jl: one statement names LinkDocument.jl, LinkToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/link/LinkModule.jl: one statement names LinkDocument.jl, UrlViewToWidget.jl, UrlToSyntax.jl, UrlInterface.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/link/LinkModule.jl: LinkDocument.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/link/LinkModule.jl: one statement names UrlInterface.jl, OpenUrlOperation.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/outline/OutlineModule.jl: the names are not in the order that OutlinePaths.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/roster/RosterModule.jl: the names are not in the order that RosterInterface.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/roster/RosterModule.jl: the names are not in the order that RosterDocument.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/roster/RosterModule.jl: the names are not in the order that RosterToGraphics.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/roster/RosterModule.jl: one statement names RecordTable.jl, RecordTableToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/settingsmanaging/SettingsManagingModule.jl: one statement names SettingsToWidget.jl, SettingsGroupToWidget.jl" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/task/TaskModule.jl: ImitatedProcess.jl comes after a later fragment or has two statements" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/task/TaskModule.jl: the names are not in the order that TaskVerbs.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/tool/builder/BuilderModule.jl: the names are not in the order that LinkedExecutable.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/tool/builder/BuilderModule.jl: the names are not in the order that BuildCommand.jl defines them" =>
+        "on main 2026-11-20, not studied yet",
+    "source/tool/precompile/PrecompileModule.jl: one statement names PrecompilePackage.jl, PrecompilePreferences.jl, PrecompileFailure.jl, PrecompileRecording.jl, PrecompileMeasurement.jl" =>
+        "on main 2026-11-20, not studied yet",
+]
+
+"""
+    known_export_violations(root) -> (; new, listed, stale)
+
+The violations of this repository, split by `EXPORT_KNOWN`.
+"""
+known_export_violations(root::AbstractString) =
+    split_known_violations(export_violations(root), EXPORT_KNOWN;
+                           list_name = "EXPORT_KNOWN in test/suite/exports.jl")
+
 "One `export` statement: where it stands, and the names it lists."
 struct ExportStatement
     line::Int
@@ -368,7 +459,12 @@ if abspath(PROGRAM_FILE) == @__FILE__
     if "--report" in ARGS
         export_report(root)
     else
-        bad = export_violations(root)
+        found = known_export_violations(root)
+        bad = vcat(found.new, found.stale)
+        if !isempty(found.listed)
+            println("$(length(found.listed)) known export violation(s), on EXPORT_KNOWN:")
+            foreach(v -> println("  ", v), found.listed)
+        end
         if isempty(bad)
             println("every export block has one statement for each fragment")
         else

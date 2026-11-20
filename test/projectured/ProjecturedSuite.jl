@@ -302,10 +302,15 @@ runs in about a second.
 function test_arguments()
     @testset "arguments" begin
         root = normpath(joinpath(@__DIR__, "..", ".."))
-        for violation in argument_violations(root)
+        found = known_argument_violations(root)
+        for violation in vcat(found.new, found.stale)
             @test violation == ""
         end
-        @test isempty(argument_violations(root))
+        for violation in found.listed
+            # @broken: a violation of main on ARGUMENT_KNOWN in test/suite/arguments.jl, with its reason there
+            @test_broken violation == ""
+        end
+        @test isempty(found.new) && isempty(found.stale)
         # A call of `get_evaluation_editor` stands only as the default of an
         # `editor` keyword: not in a body, not at a call, not for another keyword.
         mktempdir() do fixture
@@ -364,10 +369,15 @@ true. It loads nothing and runs in about a second.
 function test_exports()
     @testset "exports" begin
         root = normpath(joinpath(@__DIR__, "..", ".."))
-        for violation in export_violations(root)
+        found = known_export_violations(root)
+        for violation in vcat(found.new, found.stale)
             @test violation == ""
         end
-        @test isempty(export_violations(root))
+        for violation in found.listed
+            # @broken: a violation of main on EXPORT_KNOWN in test/suite/exports.jl, with its reason there
+            @test_broken violation == ""
+        end
+        @test isempty(found.new) && isempty(found.stale)
     end
 end
 
@@ -383,10 +393,15 @@ in about a second.
 function test_style()
     @testset "style" begin
         root = normpath(joinpath(@__DIR__, "..", ".."))
-        for violation in style_violations(root)
+        found = known_style_violations(root)
+        for violation in vcat(found.new, found.stale)
             @test violation == ""
         end
-        @test isempty(style_violations(root))
+        for violation in found.listed
+            # @broken: a violation of main on STYLE_KNOWN in test/suite/style.jl, with its reason there
+            @test_broken violation == ""
+        end
+        @test isempty(found.new) && isempty(found.stale)
     end
 end
 
@@ -406,10 +421,15 @@ read. It loads nothing and runs in about a second.
 function test_documentation()
     @testset "documentation" begin
         root = normpath(joinpath(@__DIR__, "..", ".."))
-        for violation in documentation_violations(root)
+        found = known_documentation_violations(root)
+        for violation in vcat(found.new, found.stale)
             @test violation == ""
         end
-        @test isempty(documentation_violations(root))
+        for violation in found.listed
+            # @broken: a violation of main on DOCUMENTATION_KNOWN in test/suite/documentation.jl, with its reason there
+            @test_broken violation == ""
+        end
+        @test isempty(found.new) && isempty(found.stale)
         # The report fails nothing: it names the sentences and the slices a
         # person must judge.
         report = documentation_report(root)

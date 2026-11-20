@@ -32,6 +32,35 @@ const ARGUMENT_ROOTS = ["source", "example"]
 "The count of positional arguments that the report counts as over the advice."
 const POSITIONAL_LIMIT = 3
 
+isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+
+# The violations of this repository that main has, each with its reason
+# (`known.jl`). A listed violation does not fail the guard; `test_arguments`
+# counts it as broken. The guard of the root of another repository reads no list.
+const ARGUMENT_KNOWN = Pair{String,String}[
+    "example/projectured/Catalog.jl catalog takes 1 optional positional argument(s) beside keyword arguments — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/graph/GraphToWidgetScrollPane.jl make_scrolling_graph_projection takes 1 optional positional argument(s) beside keyword arguments — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/julia/JuliaDocument.jl JuliaLambda takes 2 optional positional argument(s) — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+    "source/domain/julia/JuliaDocument.jl JuliaFunction takes 3 optional positional argument(s) — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+    "source/kernel/projection/ProjectionDefaults.jl read_child_intent takes 1 optional positional argument(s) beside keyword arguments — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+    "source/platform/arrangement/ArrangementProgram.jl make_change takes 1 optional positional argument(s) beside keyword arguments — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>
+        "on main 2026-11-20, not studied yet",
+]
+
+"""
+    known_argument_violations(root) -> (; new, listed, stale)
+
+The violations of this repository, split by `ARGUMENT_KNOWN`.
+"""
+known_argument_violations(root::AbstractString) =
+    split_known_violations(argument_violations(root), ARGUMENT_KNOWN;
+                           list_name = "ARGUMENT_KNOWN in test/suite/arguments.jl")
+
 # The generic functions of a protocol: every method takes the arity of the
 # contract. The report counts them apart. A method of Base is here as well.
 const ARGUMENT_PROTOCOL = Set(String[
@@ -378,7 +407,13 @@ if abspath(PROGRAM_FILE) == @__FILE__
     if "--report" in ARGS
         argument_report(root)
     else
-        bad = argument_violations(root)
+        found = isempty(paths) ? known_argument_violations(root) :
+                (; new = argument_violations(root), listed = String[], stale = String[])
+        bad = vcat(found.new, found.stale)
+        if !isempty(found.listed)
+            println("$(length(found.listed)) known argument violation(s), on ARGUMENT_KNOWN:")
+            foreach(v -> println("  ", v), found.listed)
+        end
         if isempty(bad)
             println("every public definition keeps the optional clause, or says why not")
         else

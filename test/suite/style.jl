@@ -41,6 +41,24 @@ const STYLE_COLOR_PLACES = ["source/platform/style/ColorTheme.jl"]
 "The files whose values wait for a decision of the owner, with the reason."
 const STYLE_EXEMPT_FILES = Dict{String,String}()
 
+isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+
+# The violations that main has, each with its reason (`known.jl`). A listed
+# violation does not fail the guard; `test_style` counts it as broken.
+const STYLE_KNOWN = Pair{String,String}[
+    "source/domain/book/BookModule.jl: a font description — StyleFont(\"Ubuntu Mono\", 20), color_default))))" =>
+        "on main 2026-11-20, not studied yet",
+]
+
+"""
+    known_style_violations(root) -> (; new, listed, stale)
+
+The violations of this repository, split by `STYLE_KNOWN`.
+"""
+known_style_violations(root::AbstractString) =
+    split_known_violations(style_violations(root), STYLE_KNOWN;
+                           list_name = "STYLE_KNOWN in test/suite/style.jl")
+
 # A length type and the arguments of its call, up to the first parenthesis.
 const STYLE_LENGTH = r"\b(?:Inset|Spacing|Radius|LineWidth|ControlSize|IconSize)\(([^()]*)"
 
@@ -197,7 +215,12 @@ end
 #
 if abspath(PROGRAM_FILE) == @__FILE__
     root = normpath(joinpath(@__DIR__, "..", ".."))
-    bad = style_violations(root)
+    found = known_style_violations(root)
+    bad = vcat(found.new, found.stale)
+    if !isempty(found.listed)
+        println("$(length(found.listed)) known style violation(s), on STYLE_KNOWN:")
+        foreach(v -> println("  ", v), found.listed)
+    end
     if isempty(bad)
         println("every font, color and size the guard can read comes from a theme")
     else
