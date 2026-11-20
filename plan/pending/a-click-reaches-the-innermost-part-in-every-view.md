@@ -1690,21 +1690,21 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
   **D12 in the three places** (2026-11-20, owner: "yes" to the three fixes
   before the rest of step 6), one commit each:
-    - [x] The list (27f20c957). The text of a row reads like the text of a control
+    - [x] The list (e2f67864e). The text of a row reads like the text of a control
       (`_read_control_text`): only an Alt press puts the caret there, an
       Alt+double click selects it, and a drag and a key go on from that caret.
       A point on a row, on its text too, maps back to the row, so a move names
       the row and the row lights, as before 5bc6a0a6f. The tests of 5bc6a0a6f
       and 08097161f expect the row again, and a new test of `WidgetPointTest`
       checks a plain click and an Alt+click on the text of a row.
-    - [x] The label cells of a table (392041fea). A cell keeps what a header keeps of the
+    - [x] The label cells of a table (e58e52723). A cell keeps what a header keeps of the
       answer of its content (`_find_control_answer`): every answer but a
       selection in a text that takes no key, so a plain click on the text of a
       label chooses the row, as the comment of `_wt_route_cell_click` said
       before f23a0d65f. Both kinds of table: the grid (`_wt_route_cell_click`)
       and the list of rows (`_read_table_cell_press`). A caret in a text field
       and a toggle of a checkbox stay.
-    - [x] The rows of the research and the workflow view (78d880608). A rule on the answer
+    - [x] The rows of the research and the workflow view (eb37f6cb3). A rule on the answer
       of the child (`read_outline_row_click`, the outline slice, from the
       `read_gesture` of a `MouseClick` of each view): a plain click whose answer
       is the caret in a text that the view drew in the row of a record chooses
@@ -1732,7 +1732,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     load (the walk ran beside it); test_research 388 and test_workflow 323
     pass. In test_dataframes, `DataFrameCellTest:98` expected the cell for a
     plain click on the text of a label, as 9a58b1e78 (D7) made it; before this
-    plan the click selected the row. The test (fdfc98743) now expects the row on the text
+    plan the click selected the row. The test (7bc742aca) now expects the row on the text
     and on the padding, and the cell for an Alt+click, because the text of a
     label has no place in the frame. Run 10 of the click walk has 1736 lines,
     75 more than run 9:
@@ -1745,6 +1745,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     - 15 fewer in `examples/chart` and `examples/chart_inspector`: an Alt+click
       in a cell of a grid now gives the caret (`_find_control_answer`), and an
       Alt+double click there is drawn.
+
+  **D12 landed** (2026-11-20, owner: "Land first, test only if needed"). The
+  7 commits rebased with no conflict over main 85e19ab32, and main moved
+  forward to f2217e288. No test ran after the rebase: the commits of main
+  after the check change only the SDL and the video backend and plans, and
+  D12 changes none of these files. Not pushed. The step 6 commits before D12
+  were pushed by another session (origin/main 85d954847).
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
