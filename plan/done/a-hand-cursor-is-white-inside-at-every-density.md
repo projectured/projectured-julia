@@ -86,4 +86,13 @@ Decisions (mine, the owner asked for the fix in both backends):
    - `test_video_pointer_shape` passes 41 of 41, and `test_video_layering` passes.
      `test_application_video` records a pointer over a part that is not a hand, so
      it does not reach the image, and I did not run it.
-3. [ ] Look at the images of both backends at the densities 1 and 2.
+3. [x] Look at the images of both backends at the densities 1 and 2. Done:
+   - The SDL hands at 1, 1.5 and 2, enlarged on a light and a dark background:
+     each one is white inside, with black lines and a white outline that shows on
+     the dark background.
+   - The video hands, old and new, at 1 and 2 on gray: the old ones are gray inside,
+     the new ones white, at the same places.
+   - A script on the real display (`DISPLAY=:0`, the x11 driver, no window) made a
+     color cursor from the pixels of each hand at 1 and 2. SDL takes the surface
+     in the byte order red, green, blue, alpha. The offscreen driver of the tests
+     makes no cursor, so only this script checks that call.
