@@ -2,9 +2,9 @@
 
 > **Status (2026-11-20): approved, in progress.** The code of steps 1 to 5 and 8 to 10 and
 > the mechanism of step 7 are committed; their tests pass in a process with no package
-> (67 checks). The check of the whole suites waits for room in the memory of the machine.
-> Steps 6, 7 (which parts are slow) and 9 (the markers of the known failures) need the
-> record of that check. The owner asked for this plan on
+> (67 checks). The whole run of the branch is recorded; the run of the base commit, which
+> step 1 and the markers of step 9 need, waits for room in the memory of the machine. Step 6
+> moved to the plan `the-tests-start-from-a-compiled-image`. The owner asked for this plan on
 > 2026-11-20 and approved it for implementation the same day ("yes"). The work is on the branch
 > `tests-run-fast` in the worktree `projectured-julia-tests-run-fast`, and later in omnet-julia in
 > the worktree `omnet-julia-tests-run-fast`.
@@ -23,7 +23,7 @@ The table gives each idea and the step of this plan that does it.
 
 | Idea | Step |
 |---|---|
-| I1. Large tests in separate functions (owner) | 1, 6 |
+| I1. Large tests in separate functions (owner) | 1; the split of the slow parts moved to the plan `the-tests-start-from-a-compiled-image` |
 | I2. Filters for large groups of the same kind (owner) | 3 |
 | I3. Parallel runs (owner) | 5 |
 | I4. A record of the time and the memory of each test function | 2 |
@@ -217,11 +217,11 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   can be `alone`, for example the omnet engine tests that need `-t 4`. The supervisor runs
   such a part when no other part runs. **Done when:** a run of `test_platform` with three
   workers gives the same counts as the run of step 1.
-- [ ] 6. **Split the slow parts (I1).** Use the record of step 2. Split each part that takes
-  more than 60 s at the boundaries of its top-level testsets, into functions in the table. A
-  walk over the examples gets one entry for each domain, which calls the walk with the filter
-  of step 3. **Done when:** no part of the record takes more than 60 s, except the parts that
-  have no testset boundary. The plan names those parts.
+- 6. **Split the slow parts (I1). Moved** to step 5 of
+  [the-tests-start-from-a-compiled-image.md](the-tests-start-from-a-compiled-image.md), with
+  the word of the owner on 2026-11-20 ("yes"). The record of the whole run shows that 85 % of
+  the time of the parts is compile. A piece of a split part compiles the shared code again, so
+  a split gains little now. When the workers start from a compiled image, that cost is gone.
 - [ ] 7. **Two levels (P8, I9).** Mark the slow parts in the tables, from the record. The
   walks over all examples, the click walk, and the omnet presentation tests are slow. **Done
   when:** `test_platform(level = :fast)` runs only the fast parts, and the testing guide and
@@ -316,8 +316,8 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
 
 ## 7. Not in this plan
 
-- Threads in one process (section 3). If the record of step 2 shows that the compile while the
-  tests run is a large part of the time, a new plan can look at threads again.
+- Threads in one process (section 3). The record shows that the compile is 85 % of the time;
+  the plan `the-tests-start-from-a-compiled-image` takes the compile first.
 - The fixed waits in the tests: 159 calls of `sleep` in projectured-julia and 93 in omnet-julia.
 - The causes of the omnet hang and of the memory cap of `test_ide`. This plan only limits their
   cost.
