@@ -93,11 +93,7 @@ end
     list = WidgetList(["one", "two", "three"]; width = 200)
     editor, move! = _pl_make_editor(list)
     move!(20, 55)
-    # On the text of a row the pointer names the caret there, in that row (D4),
-    # and the row lights.
-    target = get_mouse_target(list)
-    @test target isa ConcreteReference &&
-          collect(get_reference_steps(target))[1:2] == collect(get_reference_steps(_pl_path(_pl_element("items", 2)...)))
+    @test get_mouse_target(list) == _pl_path(_pl_element("items", 2)...)
     @test _pl_count_lights(editor) == 1
     move!(390, 290)
     @test _pl_count_lights(editor) == 0

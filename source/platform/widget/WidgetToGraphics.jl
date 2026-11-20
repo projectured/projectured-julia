@@ -12167,9 +12167,8 @@ function map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListTo
     find_node_reference(iomap.output, rows[k]; depth = 1)
 end
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-# A point on the text of a row is the caret at the character there, and a point
-# on the padding of a row is that item, the reference that a click there selects
-# (D4). A place of the characters of a row is that place in its item.
+# A point on a row, on its text too, is that item, the reference that a click
+# there selects. A place of the characters of a row is that place in its item.
 function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
     iomap isa WidgetListToGraphicsCanvasIoMap || return nothing
     point = find_reference_point(reference)
@@ -12177,9 +12176,7 @@ function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
                                 map_drawn_place_backward(iomap.drawn, iomap.output, reference)
     _is_point_on_canvas(iomap.output, point) || return nothing
     row = _find_list_row_at(p, iomap, point.y)
-    row == 0 && return nothing
-    caret = find_drawn_caret(iomap.drawn, iomap.output, point.x, point.y, p.measure)
-    caret === nothing ? make_widget_list_selection(row) : annotate_reference_types(iomap.input, caret)
+    row == 0 ? nothing : make_widget_list_selection(row)
 end
 
 # The row of the list at `y` of its canvas, from the first row down; `0` when no
@@ -12209,11 +12206,11 @@ function read_gesture(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphics
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
-    # The text of a row takes the caret as the text of a label does, and a click
-    # off the text chooses the row (D4). Only a press, a drag and a key read the
-    # text: a query of the commands reads the list, which binds none of its own.
+    # A plain click on a row chooses it, on its text too. The text of a row reads
+    # like the text of a control: only a press with Alt puts the caret there, an
+    # Alt+double click selects it, and a drag and a key go on from that caret.
     if evt isa Union{MouseDown, MouseClick, DragMove, DragEnd, KeyDown, KeyPress}
-        text = _read_drawn_text(p, iomap, evt)
+        text = _read_control_text(p, iomap, evt)
         text === nothing || return text
     end
     n = length(collect(w.items))

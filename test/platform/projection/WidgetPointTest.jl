@@ -34,8 +34,8 @@ end
 end
 
 # A list that is given an edge scrolls its rows in a pane at its position, and the
-# rows stand at the origin of the pane, so a point on the text of a row maps into
-# that row: the caret at the character there (D4).
+# rows stand at the origin of the pane, so a point on the text of a row maps to
+# that row.
 @testset "a list in its pane maps a point on a row to that row" begin
     projection = _projection()
     list = WidgetList(["Apples", "Bananas", "Cherries"]; position = Point2D(40, 40), width = 200)
@@ -46,8 +46,8 @@ end
     for (k, name) in enumerate(("Apples", "Bananas", "Cherries"))
         t = only(t for t in texts if t[3] == name)
         point = PointReferenceStep(t[1] + 2 - Int(output.x), t[2] + 2 - Int(output.y))
-        steps = collect(get_reference_steps(strip_reference_types(map_reference_backward(projection, iomap, point))))
-        @test steps == [FieldReferenceStep("items"), _at(k), RangeReferenceStep(0, 0)]
+        @test strip_reference_types(map_reference_backward(projection, iomap, point)) ==
+              _path(FieldReferenceStep("items"), _at(k))
     end
 end
 
@@ -56,6 +56,24 @@ end
     @test _map(list, 5, 5) == _path(FieldReferenceStep("items"), _at(1))
     @test _map(list, 5, 45) == _path(FieldReferenceStep("items"), _at(2))
     @test _map(list, 5, 300) === nothing
+end
+
+# A plain click on the text of a row chooses the row, as a click on its padding
+# does. Only an Alt+click puts the caret at the character there.
+@testset "a plain click on the text of a row chooses the row, and an Alt+click puts the caret" begin
+    list = WidgetList(["Apples", "Bananas", "Cherries"]; width = 200)
+    projection = _projection()
+    iomap = print_document(projection, list)
+    t = only(t for t in _collect_task_view_texts(get_iomap_output(iomap)) if t[3] == "Bananas")
+    steps(path) = collect(get_reference_steps(strip_reference_types(path)))
+    click(modifiers) =
+        read_intent(projection, iomap, MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0))
+    plain = click(ModifierKeys())
+    @test plain isa ReplaceSelectionOperation && steps(plain.path) == [FieldReferenceStep("items"), _at(2)]
+    alt = click(ModifierKeys(alt = true))
+    @test alt isa ReplaceSelectionOperation && steps(alt.path)[1:2] == [FieldReferenceStep("items"), _at(2)] &&
+          last(steps(alt.path)) isa RangeReferenceStep
+    @test _map(list, t[1] + 2, t[2] + 2) == _path(FieldReferenceStep("items"), _at(2))
 end
 
 @testset "a split pane maps into the pane under the point" begin
