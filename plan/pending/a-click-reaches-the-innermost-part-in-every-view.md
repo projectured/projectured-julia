@@ -1726,6 +1726,25 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     label cell still puts the caret until the release chooses the row, so a
     plain drag there selects a range of the text (E2). A row of a list takes
     no plain press or drag on its text.
+
+    The check for a land, rebased over main 18817ba15: test_platform has the
+    15 failures of main and the known error of `TaskWorkItemTest:171` under
+    load (the walk ran beside it); test_research 388 and test_workflow 323
+    pass. In test_dataframes, `DataFrameCellTest:98` expected the cell for a
+    plain click on the text of a label, as 9a58b1e78 (D7) made it; before this
+    plan the click selected the row. The test (fdfc98743) now expects the row on the text
+    and on the padding, and the cell for an Alt+click, because the text of a
+    label has no place in the frame. Run 10 of the click walk has 1736 lines,
+    75 more than run 9:
+    - 90 more `plain:nothing` in the research and the workflow examples. A
+      plain click on a text that the view drew in the row of a record chooses
+      the record, and for the summary line of a study, the title of a section
+      and the row of the root item that record is the root, an empty path,
+      which the walk counts as nothing. The backward map gave the same record
+      before 78a488df9.
+    - 15 fewer in `examples/chart` and `examples/chart_inspector`: an Alt+click
+      in a cell of a grid now gives the caret (`_find_control_answer`), and an
+      Alt+double click there is drawn.
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
