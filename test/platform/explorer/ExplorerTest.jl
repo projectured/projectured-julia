@@ -2107,6 +2107,36 @@ function test_explorer()
         @test occursin(r"\.content_view\.view\..*\.value\.value\{1\}$", selected())
     end
 
+    @testset "a JSON file in a card that shows by itself keeps its caret in the view of the card" begin
+        root = mktempdir()
+        path = joinpath(root, "data.json")
+        write(path, "{\"name\": \"abc\"}")
+        card = DashboardCard("Data", make_file_tab(path))
+        explorer = Explorer(ExplorerSection("Explorer", Any[Dashboard("Board", Any[card])]))
+        editor, backend = _explorer_window_editor(explorer)
+        try
+            frame!() = (drain_operations!(editor); run_frame!(editor))
+            evaluate_operation(editor, AcquireDocumentOperation(explorer))
+            _explorer_window_press!(editor, backend, _explorer_open_chevron(backend, "Board"))
+            _explorer_window_press!(editor, backend, _explorer_click(backend, "Data"))
+            foreach(_ -> frame!(), 1:3)
+            @test get_navigator_page(explorer.navigator) === card
+            @test card.content_view !== nothing
+            texts = filter(entry -> occursin("abc", entry[1]), _nav_texts(backend))
+            @test !isempty(texts)
+            (_, x, y) = texts[argmax([entry[2] for entry in texts])]
+            _explorer_window_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 1.0))
+            frame!()
+            selected() = string(strip_reference_types(get_selection(editor.document)))
+            @test occursin(r"\.content_view\.view\.content(\.content)?\.entries\[1\]\.value\.value\{0\}$", selected())
+            _explorer_window_press!(editor, backend, KeyPress('x'; time = 2.0))
+            frame!()
+            @test _nav_has_text(backend, "xabc")
+        finally
+            foreach(step -> step(editor), editor.stop_steps)
+        end
+    end
+
     @testset "a dashboard holds the content of its cards, and a file in a card watches its file" begin
         root = mktempdir()
         try

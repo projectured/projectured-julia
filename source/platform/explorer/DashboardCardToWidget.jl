@@ -63,6 +63,12 @@ function map_reference_forward(p::DashboardCardToWidget, iomap, reference)
     # The title is the widget of the card, as in a dashboard.
     steps[1] == FieldReferenceStep("title") &&
         return annotate_reference_types(iomap.output, extend_reference(EmptyReference(), _LONE_CARD_STEPS...))
+    # A path through the view of the card is a path of what the card draws.
+    length(steps) >= 2 && steps[1] == _CARD_VIEW_STEPS[1] && steps[2] == _CARD_VIEW_STEPS[2] &&
+        _get_card_own_view(iomap.input) !== nothing &&
+        return annotate_reference_types(iomap.output,
+                                        extend_reference(EmptyReference(), _LONE_CARD_STEPS..., _LONE_CARD_BODY_STEPS...,
+                                                         steps[3:end]...))
     steps[1] == FieldReferenceStep("content") ||
         return invoke(map_reference_forward, Tuple{Projection,Any,Any}, p, iomap, reference)
     annotate_reference_types(iomap.output,
@@ -85,6 +91,12 @@ function map_reference_backward(p::DashboardCardToWidget, iomap, reference)
                 inside == body[1:length(inside)] &&
                     return extend_reference(EmptyReference(), FieldReferenceStep("content"))
             elseif inside[1:length(body)] == body
+                # A view that keeps a selection of its own takes the path through its
+                # slot, so the card has a caret of its own.
+                shown = inside[(length(body) + 1):end]
+                _get_card_own_view(iomap.input) !== nothing && !isempty(shown) &&
+                    !(first(shown) isa ProjectionReferenceStep) &&
+                    return extend_reference(EmptyReference(), _CARD_VIEW_STEPS..., shown...)
                 below = _find_view_content_steps(iomap.input, inside[(length(body) + 1):end])
                 below === nothing && return nothing
                 return extend_reference(EmptyReference(), FieldReferenceStep("content"), below...)
