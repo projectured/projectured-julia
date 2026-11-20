@@ -112,6 +112,33 @@ function test_research_to_widget()
             end
         end
 
+        # A plain click on a text that the view drew in the row of a record, such as
+        # its id, chooses the item, as a click on the rest of the row does. Only an
+        # Alt+click puts the caret in such a text.
+        @testset "a plain click on a text that the view drew in a row chooses the item, and an Alt+click puts the caret there" begin
+            document = _make_small_research_study()
+            editor = _make_research_view_editor(document)
+            function drawn(operation)
+                operation isa ReplaceSelectionOperation || return false
+                step = last(collect(get_reference_steps(strip_reference_types(operation.path))))
+                step isa ProjectionReferenceStep && step.projection isa Union{ResearchItemToWidget, ResearchStudyToWidget}
+            end
+            hit = nothing
+            for y in 0:6:1500, x in 0:6:1300
+                operation = read_intent(editor.projection, editor.iomap,
+                                        MouseClick(:left, x, y, 1, ModifierKeys(alt = true); time = 0.0))
+                drawn(operation) && (hit = (x, y, operation); break)
+            end
+            @test hit !== nothing
+            if hit !== nothing
+                x, y, caret = hit
+                steps = collect(get_reference_steps(strip_reference_types(caret.path)))
+                plain = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+                @test plain isa ReplaceSelectionOperation &&
+                      collect(get_reference_steps(strip_reference_types(plain.path))) == steps[1:(end - 1)]
+            end
+        end
+
         @testset "a key types into the statement that holds the caret" begin
             study = _make_small_research_study()
             editor = _make_research_view_editor(study)

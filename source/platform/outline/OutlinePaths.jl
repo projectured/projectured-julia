@@ -78,7 +78,7 @@ A text that the view drew inside the row of a whole slot, such as the id or the
 time of a record, is a part of the output of the view. With `introduce`, a
 function of the path of the record in the input and of `reference`, a place in
 the row maps to the record and the step of the view that `introduce` answers, so
-a plain click puts the caret into that text and an Alt+double click selects it. When
+an Alt+click puts the caret into that text and an Alt+double click selects it. When
 `introduce` answers `nothing`, as for the mark of the row or a gap, the place maps
 to the record.
 """
@@ -134,6 +134,45 @@ function make_outline_row_text_reference(projection, iomap, record, reference)
     document = try_evaluate_reference(iomap.input, record)
     make_introduced_reference(projection, document === nothing ? iomap.input : document,
                               annotate_reference_types(iomap.output, strip_reference_types(reference)))
+end
+
+"""
+    read_outline_row_click(projection, iomap, click; answer = nothing) -> Operation or nothing
+
+The rule of a view of an outline for a click: a plain click whose `answer`, the
+answer of the child, is the caret in a text that `projection` drew in the row of
+a record ([`make_outline_row_text_reference`](@ref)), such as its id, chooses the
+record, as a click on the rest of the row does. Only an Alt+click puts the caret
+in such a text. Any other click goes to the default rules of the stage
+(`read_gesture`). A view passes its `read_gesture` of a `MouseClick` to it.
+"""
+function read_outline_row_click(projection, iomap, click::MouseClick; answer = nothing)
+    record = _find_row_text_record(projection, click, answer)
+    record === nothing || return ReplaceSelectionOperation(_annotate_outline_path(iomap.input, record))
+    invoke(read_gesture, Tuple{Projection, Any, Any}, projection, iomap, click; answer)
+end
+
+# The path of the record whose row holds the text that `answer` puts the caret in,
+# for a plain click, when `projection` drew that text; `nothing` otherwise.
+function _find_row_text_record(projection, click::MouseClick, answer)
+    (click.button === :left && click.count == 1 && click.modifiers == ModifierKeys()) || return nothing
+    answer isa ReplaceSelectionOperation || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(answer.path)))
+    isempty(steps) && return nothing
+    step = last(steps)
+    (step isa ProjectionReferenceStep && step.projection === projection) || return nothing
+    _is_outline_caret(collect(get_reference_steps(strip_reference_types(step.output_path)))) || return nothing
+    _make_outline_reference(steps[1:(end - 1)])
+end
+
+# `path` with the types of the nodes of `input` on it, or as it is when it does not
+# resolve there.
+function _annotate_outline_path(input, path)
+    try
+        annotate_reference_types(input, path)
+    catch
+        path
+    end
 end
 
 """

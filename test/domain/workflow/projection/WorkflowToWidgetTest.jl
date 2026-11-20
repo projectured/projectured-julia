@@ -99,6 +99,33 @@ function test_workflow_to_widget()
             end
         end
 
+        # A plain click on a text that the view drew in the row of a record, such as
+        # its id, chooses the node, as a click on the rest of the row does. Only an
+        # Alt+click puts the caret in such a text.
+        @testset "a plain click on a text that the view drew in a row chooses the node, and an Alt+click puts the caret there" begin
+            document = make_workflow_document_example()
+            editor = _make_workflow_view_editor(document)
+            function drawn(operation)
+                operation isa ReplaceSelectionOperation || return false
+                step = last(collect(get_reference_steps(strip_reference_types(operation.path))))
+                step isa ProjectionReferenceStep && step.projection isa Union{WorkflowNodeToWidget, WorkflowEntryToWidget}
+            end
+            hit = nothing
+            for y in 0:6:1500, x in 0:6:1300
+                operation = read_intent(editor.projection, editor.iomap,
+                                        MouseClick(:left, x, y, 1, ModifierKeys(alt = true); time = 0.0))
+                drawn(operation) && (hit = (x, y, operation); break)
+            end
+            @test hit !== nothing
+            if hit !== nothing
+                x, y, caret = hit
+                steps = collect(get_reference_steps(strip_reference_types(caret.path)))
+                plain = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+                @test plain isa ReplaceSelectionOperation &&
+                      collect(get_reference_steps(strip_reference_types(plain.path))) == steps[1:(end - 1)]
+            end
+        end
+
         @testset "a node is its row, and an edit of a title builds no row" begin
             workflow = make_workflow_document_example()
             projection = WorkflowNodeToWidget()

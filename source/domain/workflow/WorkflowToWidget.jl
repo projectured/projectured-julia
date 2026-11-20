@@ -121,6 +121,11 @@ function map_reference_backward(p::_WorkflowProjection, iomap::WorkflowToWidgetI
     end
 end
 
+# A plain click on a text that the view drew in the row of a record, such as its
+# id, chooses the record; an Alt+click puts the caret there.
+read_gesture(p::_WorkflowProjection, iomap::WorkflowToWidgetIoMap, click::MouseClick; answer = nothing) =
+    read_outline_row_click(p, iomap, click; answer)
+
 # Every document that one build made holds its part of the image of the selection
 # and of the part under the pointer of the input, by the slots of the same build.
 _route_workflow_paths!(p, input, slots, output, embedded) =
