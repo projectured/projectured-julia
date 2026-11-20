@@ -62,7 +62,7 @@ export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen,
        show_document!
 export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_window_place, is_window_placed,
-       has_window_frame, find_screen_window_at
+       has_window_frame, find_screen_window_at, is_window_made
 export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
        make_top_center_place, compute_anchored_place, find_display_area, FixedPlacement, make_fixed_placement,
        find_screen_reference, find_window_box, make_window_center_placement

@@ -564,6 +564,7 @@ include("../../../test/platform/shell/FileDialogTest.jl")
 include("../../../test/platform/shell/TrackingScreenTest.jl")
 include("../../../test/platform/shell/EscapeQuittingTest.jl")
 include("../../../test/platform/shell/DragTrackingTest.jl")
+include("../../../test/platform/shell/TabWindowTest.jl")
 include("../../../test/platform/shell/DragPointerShapeTest.jl")
 include("../../../test/platform/shell/PointerLightTest.jl")
 

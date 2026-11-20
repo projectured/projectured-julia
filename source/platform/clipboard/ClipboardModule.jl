@@ -43,6 +43,7 @@ using ..SelectionModule
 using ..TextModule
 using ..EditorModule
 using ..FocusModule
+using ..ScreenModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_copy_memo,

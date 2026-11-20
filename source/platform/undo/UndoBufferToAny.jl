@@ -260,8 +260,17 @@ of the `settings` wrapper of the same editor say, when that wrapper is on.
 """
 function wrap_editor!(::Val{:undo}, layer::Symbol, argument, parts::EditorParts)
     parts.document isa UndoBuffer && return parts
-    content = parts.document
-    settings = get(parts.arguments, :settings, nothing)
+    parts.document = wrap_window_content(Val(:undo), argument, parts.document;
+                                         arguments = parts.arguments, backend = parts.backend)
+    parts.projection = RecursiveProjection(TypeDispatchingProjection(
+        UndoBuffer => UndoBufferToAnyProjection(), Any => parts.projection))
+    parts
+end
+
+# The buffer of a window: each window has an undo history of its own.
+function wrap_window_content(::Val{:undo}, argument, content; arguments, backend)
+    content isa UndoBuffer && return content
+    settings = get(arguments, :settings, nothing)
     buffer = settings isa Settings ?
         UndoBuffer(content; capacity = get_setting_cell(
             get_settings_group!(settings, HistorySettings), :undo_capacity)) :
@@ -270,10 +279,7 @@ function wrap_editor!(::Val{:undo}, layer::Symbol, argument, parts::EditorParts)
     inner === nothing || replace_selection!(buffer,
         concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
                           strip_reference_types(inner)))
-    parts.document = buffer
-    parts.projection = RecursiveProjection(TypeDispatchingProjection(
-        UndoBuffer => UndoBufferToAnyProjection(), Any => parts.projection))
-    parts
+    buffer
 end
 
 get_wrapper_layers(::Val{:undo}) = (:container => 5,)

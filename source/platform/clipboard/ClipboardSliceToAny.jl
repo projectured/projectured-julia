@@ -528,10 +528,28 @@ end
 # clipboard document, or `nothing` when the child has none.
 function _read_content_gesture(iomap, gesture)
     name, child = _slice_active(iomap)
-    answer = read_intent(child.projection, iomap.recursion, Intent(gesture), child)
+    answer = read_intent(child.projection, iomap.recursion,
+                         Intent(_put_in_selection_window(iomap.input, gesture)), child)
     operation = answer isa Intent ? answer.operation : answer
     operation isa Operation || return nothing
     reroot_operation(operation, (FieldReferenceStep(name),))
+end
+
+# `gesture` as the input of the window that holds the selection of `clipboard`,
+# when the clipboard wraps a screen, which reads the input of a window; else
+# `gesture` as it is.
+function _put_in_selection_window(clipboard, gesture)
+    screen = clipboard.content
+    screen isa ScreenDocument || return gesture
+    selection = get_selection(clipboard)
+    selection isa ConcreteReference || return gesture
+    steps = collect(get_reference_steps(strip_reference_types(selection)))
+    (length(steps) >= 3 && steps[1] == FieldReferenceStep("content") &&
+     steps[2] == FieldReferenceStep("windows") && steps[3] isa RangeReferenceStep) || return gesture
+    index = steps[3].stop
+    windows = screen.windows
+    1 <= index <= length(windows) || return gesture
+    WindowInput(windows[index].id, gesture)
 end
 
 # Delete and Backspace with no modifier: the keys that take a whole selected
@@ -783,9 +801,12 @@ end
 # out of its slot.
 function read_gesture(p::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, gesture;
                       answer = nothing)
-    own = read_projection_gesture(p, iomap, gesture)
+    # Around a screen a key comes in the window that has the focus; the rules read
+    # the key.
+    key = gesture isa WindowInput ? gesture.event : gesture
+    own = read_projection_gesture(p, iomap, key)
     own === nothing || return own
-    answer === nothing && _is_delete_key(gesture) && (whole = _read_whole_delete(p, iomap)) !== nothing &&
+    answer === nothing && _is_delete_key(key) && (whole = _read_whole_delete(p, iomap)) !== nothing &&
         return whole
     invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, gesture; answer)
 end

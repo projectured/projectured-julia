@@ -46,6 +46,7 @@ const test_shell = TestSuite("ProjecturedPlatform", [
     test_tracking_screen,
     test_escape_quitting,
     test_drag_tracking,
+    test_tab_window,
     test_drag_pointer_shape,
     test_pointer_light,
 ])
@@ -53,4 +54,5 @@ const test_shell = TestSuite("ProjecturedPlatform", [
 export test_shell, test_shell_completeness, test_window_wrap,
        test_widget_tooltip,
        test_context_menu_window, test_window_shell, test_window_wrappers, test_file_dialog,
-       test_tracking_screen, test_escape_quitting, test_drag_tracking, test_drag_pointer_shape, test_pointer_light
+       test_tracking_screen, test_escape_quitting, test_drag_tracking, test_tab_window,
+       test_drag_pointer_shape, test_pointer_light

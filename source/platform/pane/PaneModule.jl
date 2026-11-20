@@ -110,12 +110,14 @@ export PaneTreeToWidget, PaneTreeToWidgetIoMap,
 export save_user_interface, load_user_interface
 export get_pane_file_group
 export TabDocuments
+export OpenPaneWindowOperation
 
 
 include("PaneDocument.jl")
 include("PaneSurgery.jl")
 include("PaneGeometry.jl")
 include("PaneProgram.jl")
+include("PaneWindow.jl")
 include("PaneTabMenu.jl")
 include("PaneGestures.jl")
 include("PaneToWidget.jl")

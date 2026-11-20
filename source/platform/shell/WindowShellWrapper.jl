@@ -48,28 +48,38 @@ function wrap_editor!(::Val{:shell}, layer::Symbol, argument, parts::EditorParts
     options = argument === true ? (;) : argument
     measure = get(options, :measure, FontFileMeasure())
     appearance = get(options, :appearance, get(parts.arguments, :appearance, Appearance()))
-    recorded = Tuple(keyword for keyword in RECORDED_TOOLS if haskey(parts.arguments, keyword))
+    parts.document = wrap_window_content(Val(:shell), argument, parts.document;
+                                         arguments = parts.arguments, backend = parts.backend)
+    parts.projection = make_window_shell_projection(parts.projection; measure, appearance)
+    append!(parts.opened_window_projections,
+            make_opened_window_projections(; gesture_help = false, measure, appearance))
+    parts
+end
+
+# The bands of a window around its content: each window has a menu bar, a toolbar
+# and a status bar of its own, and its status bar follows its own content. A tool
+# and a menu that the host passes are copied for each window, because no two
+# windows may hold one widget; a copy keeps the value of a cell that computes.
+function wrap_window_content(::Val{:shell}, argument, content; arguments, backend)
+    content isa WidgetShell && return content
+    options = argument === true ? (;) : argument
+    recorded = Tuple(keyword for keyword in RECORDED_TOOLS if haskey(arguments, keyword))
     about = get(options, :about, nothing)
-    document = parts.document
     # The Help menu offers a tool of a wrapper only when that wrapper is on.
-    gesture_help = haskey(parts.arguments, :gesture_help)
-    command_palette = haskey(parts.arguments, :command_palette)
-    menus = collect(Any, get(options, :menus, ()))
-    parts.document = make_window_shell_document(document;
+    gesture_help = haskey(arguments, :gesture_help)
+    command_palette = haskey(arguments, :command_palette)
+    menus = Any[copy_document(menu) for menu in get(options, :menus, ())]
+    make_window_shell_document(content;
         menu_bar = about === nothing ?
             make_window_menu_bar(; recorded, extra = menus, gesture_help, command_palette) :
             make_window_menu_bar(; recorded, extra = menus, about, gesture_help, command_palette),
         toolbar = make_window_toolbar(; assistant = get(options, :assistant, nothing),
                                         explorer = get(options, :explorer, nothing),
                                         files = get(options, :files, nothing), recorded,
-                                        assistant_list = haskey(parts.arguments, :assistant_list),
-                                        extra = collect(Any, get(options, :tools, ()))),
+                                        assistant_list = haskey(arguments, :assistant_list),
+                                        extra = Any[copy_document(tool) for tool in get(options, :tools, ())]),
         status_bar = get(options, :status_bar, true) ?
-            make_window_status_bar(document; extra = _make_thread_notice(parts.backend)) : nothing)
-    parts.projection = make_window_shell_projection(parts.projection; measure, appearance)
-    append!(parts.opened_window_projections,
-            make_opened_window_projections(; gesture_help = false, measure, appearance))
-    parts
+            make_window_status_bar(content; extra = _make_thread_notice(backend)) : nothing)
 end
 
 # The notice that a code unit of the window has no thread of its own, as a

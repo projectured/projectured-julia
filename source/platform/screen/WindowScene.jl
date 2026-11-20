@@ -193,7 +193,10 @@ documents of the inner wrappers around the screen.
   reports.
 - `opened_window_projections` puts rows in front of those of the other
   wrappers, for the windows that open later. A row matches by the first type
-  that the document is, so the rows of the host decide first.
+  that the document is, so the rows of the host decide first. After all of them,
+  a window whose content is of the kind of the content of the first window draws
+  through the projection of the first window, so a second window of tabs draws as
+  the first.
 - `inner_wrappers` goes to `make_tracking_screen`, after the `window_wrappers`
   that the other wrappers of the editor give in the editor parts, such as the
   `tooltip` and `context_menu` wrappers, which keep the tooltip window and the
@@ -204,8 +207,7 @@ The gesture tracker reads the limits of its recognitions from the
 is on.
 """
 function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorParts)
-    _is_window_backend(parts.backend) || return parts
-    get_wrapped_document(parts.document) isa ScreenDocument && return parts
+    is_window_made(parts) || return parts
     options = argument === true ? (;) : argument
     title = get(options, :title, nothing)
     title === nothing &&
@@ -219,10 +221,16 @@ function wrap_editor!(::Val{:window}, layer::Symbol, argument, parts::EditorPart
     end
     prepend!(parts.opened_window_projections,
              get(options, :opened_window_projections, Pair{Type,Any}[]))
+    # A window that opens later with a content of the kind of the first window, such
+    # as a window of tabs with its bands, draws as the first window does. The rows of
+    # the host and of the other wrappers decide first.
+    first_kind = Base.typename(typeof(parts.document)).wrapper
+    rows = vcat(parts.opened_window_projections,
+                Pair{Type,Any}[first_kind => NestingProjection(parts.projection;
+                                                               recursion = IdentityProjection())])
     parts.document, parts.projection = make_tracking_screen(
         make_window_scene(parts.document, string(title); width = width, height = height),
-        make_window_scene_projection(parts.projection;
-            opened_window_projections = parts.opened_window_projections);
+        make_window_scene_projection(parts.projection; opened_window_projections = rows);
         inner_wrappers = vcat(parts.window_wrappers, get(options, :inner_wrappers, [])),
         recognitions = _make_window_recognitions(parts))
     parts
@@ -235,6 +243,19 @@ function _make_window_recognitions(parts::EditorParts)
     settings isa Settings || return make_standard_recognitions()
     make_standard_recognitions(get_settings_group!(settings, PointerSettings))
 end
+
+"""
+    is_window_made(parts::EditorParts) -> Bool
+
+Whether the wrapper `window` puts the root of `parts` in a window of a screen: the
+wrapper is on, the backend draws windows, and the root is no screen yet. A wrapper
+that acts around the screen when there is one, and around the root when there is
+none, such as the clipboard, asks it in the layer `:window`, before the window is
+made.
+"""
+is_window_made(parts::EditorParts) =
+    haskey(parts.arguments, :window) && _is_window_backend(parts.backend) &&
+    !(get_wrapped_document(parts.document) isa ScreenDocument)
 
 get_wrapper_layers(::Val{:window}) = (:window => 0,)
 is_wrapper_default(::Val{:window}) = true

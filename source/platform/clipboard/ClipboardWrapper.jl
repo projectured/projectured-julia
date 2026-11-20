@@ -65,19 +65,37 @@ offers, all of them by default; a window whose documents must not be cut leaves
 `:cut` out. `collection = true` keeps a collection of copies instead of one.
 `to_text` is the text that a copy of an object writes to the system clipboard,
 a `Document -> String`; with none, a copy of an object leaves it as it is.
-It is off by default. It acts around the chrome of the `shell` wrapper and the
-cycle of the focus, so the walk and the clipboard reach into the bands too.
+It is off by default. The walk acts in each window, around the chrome of the
+`shell` wrapper and the cycle of the focus, so it reaches into the bands too. The
+clipboard is one for all windows: when the editor has a window, it goes around the
+screen, inside the trackers, so a copy in one window pastes in another, and it
+offers no `:toggle`, because it would show the stored slice in place of the
+screen. With no window, it goes around the root.
 """
 function wrap_editor!(::Val{:clipboard}, layer::Symbol, argument, parts::EditorParts)
     options = argument === true ? (;) : argument
     collection = get(options, :collection, false)
-    parts.projection = make_clipboard_projection(SelectionWalkingProjection(inner = parts.projection);
-                                                 collection,
-                                                 to_text = get(options, :to_text, nothing),
-                                                 offered_gestures = get(options, :gestures,
-                                                                        CLIPBOARD_GESTURES))
+    to_text = get(options, :to_text, nothing)
+    gestures = get(options, :gestures, CLIPBOARD_GESTURES)
+    # The walk of the objects is the work of each window.
+    if layer === :container
+        parts.projection = SelectionWalkingProjection(inner = parts.projection)
+        return parts
+    end
+    if is_window_made(parts)
+        # One clipboard for every window of the screen: it goes around the screen,
+        # inside the trackers, so a copy in one window pastes in another. It shows
+        # no stored slice in place of what it wraps, because it wraps the screen.
+        shared = Tuple(gesture for gesture in gestures if gesture !== :toggle)
+        push!(parts.window_wrappers, (document, projection) ->
+            (make_clipboard_document(document; collection),
+             make_clipboard_projection(projection; collection, to_text, offered_gestures = shared)))
+        return parts
+    end
+    parts.projection = make_clipboard_projection(parts.projection; collection, to_text,
+                                                 offered_gestures = gestures)
     parts.document = make_clipboard_document(parts.document; collection)
     parts
 end
 
-get_wrapper_layers(::Val{:clipboard}) = (:container => 30,)
+get_wrapper_layers(::Val{:clipboard}) = (:container => 30, :window => -30)

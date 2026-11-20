@@ -103,6 +103,59 @@ object. The kernel passes the value on and never reads it.
 make_wrapper_argument(::Val, argument) = argument
 
 """
+    wrap_window_content(::Val{keyword}, argument, content; arguments, backend) -> content
+
+The layer that the wrapper of `keyword` puts around `content`, the content of a
+window of the screen, such as an undo history or the bands of a window. By default
+`content` as it is: a wrapper that only changes the projection puts no layer.
+
+A wrapper of the layer `:container` that puts a document around the root adds a
+method, and its [`wrap_editor!`](@ref) calls it for the first window. A window
+that opens later gets the same layers in the same order from
+[`make_window_content`](@ref). `argument` is the argument of the wrapper,
+`arguments` holds the argument of each wrapper that is on, by its keyword, and
+`backend` is the backend of the editor, or `nothing`. The method changes nothing
+but what it answers.
+"""
+wrap_window_content(::Val, argument, content; arguments, backend) = content
+
+"""
+    WindowLayers(arguments, backend)
+
+The wrappers that an editor was built with, as [`make_window_content`](@ref) needs
+them: the argument of each wrapper that is on, by its keyword, and the backend.
+[`build_editor`](@ref) keeps them as a document of the session of the editor.
+"""
+struct WindowLayers
+    arguments::Dict{Symbol,Any}
+    backend::Union{Backend,Nothing}
+end
+
+"""
+    make_window_content(editor, content) -> content
+    make_window_content(layers::WindowLayers, content) -> content
+
+`content` with the layers that the first window of `editor` has around its root:
+the [`wrap_window_content`](@ref) of each wrapper of the layer `:container` that is
+on, from the inside out, as [`build_editor`](@ref) applied them. A window that opens
+later with a root of the same kind, such as a tree of tabs, gets them, so it reads
+and draws as the first window does.
+"""
+function make_window_content(layers::WindowLayers, content)
+    for (keyword, layer) in _order_wrapper_steps(layers.arguments)
+        layer === :container || continue
+        content = wrap_window_content(Val(keyword), layers.arguments[keyword], content;
+                                      arguments = layers.arguments, backend = layers.backend)
+    end
+    content
+end
+
+make_window_content(editor::Editor, content) =
+    make_window_content(get_session_document!(() -> WindowLayers(Dict{Symbol,Any}(), nothing),
+                                              editor, WindowLayers),
+                        content)
+
+"""
     make_document_projection(document; arguments...) -> Projection
 
 The projection of an editor on `document` when the caller names none.
@@ -130,8 +183,8 @@ Make an editor on `document` with its wrappers:
 3. Apply them with [`wrap_editor!`](@ref), layer by layer from the inside out,
    and in the order of their numbers inside a layer.
 4. Make the editor with [`make_editor`](@ref), give it the stop steps of the
-   wrappers, which its loop runs when it ends, and run the start steps of the
-   wrappers.
+   wrappers, which its loop runs when it ends, keep the arguments of the wrappers
+   as its [`WindowLayers`](@ref), and run the start steps of the wrappers.
 
 `devices`, `feeds`, `fault_policy` and `clock` go to `make_editor` as they are, so a
 document that animates with a clock of its own gets an editor with that clock.
@@ -153,6 +206,7 @@ function build_editor(document::Document, projection;
                          devices = devices, feeds = parts.feeds,
                          fault_policy = fault_policy, clock = clock)
     append!(editor.stop_steps, parts.stop_steps)
+    get_session_document!(() -> WindowLayers(parts.arguments, backend), editor, WindowLayers)
     for step in parts.start_steps
         step(editor)
     end
