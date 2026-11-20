@@ -1,8 +1,9 @@
 # The tests run fast
 
-> **Status (2026-11-20): proposed.** The owner asked for this plan on 2026-11-20. No step is
-> done. The plan waits for the approval of the owner. The work covers projectured-julia and
-> omnet-julia.
+> **Status (2026-11-20): approved, in progress, step 1.** The owner asked for this plan on
+> 2026-11-20 and approved it for implementation the same day ("yes"). The work is on the branch
+> `tests-run-fast` in the worktree `projectured-julia-tests-run-fast`, and later in omnet-julia in
+> the worktree `omnet-julia-tests-run-fast`.
 
 ## 1. The purpose
 
@@ -115,10 +116,10 @@ four worker processes fit in the memory budget and use the four cores of the sui
 
 ## 4. Decisions
 
-Each decision is proposed by the assistant. It counts as approved when the owner approves the
-plan.
+Each decision is proposed by the assistant. The owner approved them with the plan on
+2026-11-20.
 
-- **P1. A suite is a table of parts** (proposed by the assistant). The suite file holds a
+- **P1. A suite is a table of parts** (proposed by the assistant, approved with the plan on 2026-11-20). The suite file holds a
   constant vector of the part functions, for example `const PLATFORM_PARTS = [test_collection,
   test_table_interface, …]`. `test_platform(; keywords...)` calls the runner with that table.
   The runner calls each part through the table, so Julia compiles a part only when it runs. An
@@ -126,49 +127,49 @@ plan.
   settings: `test_catalog => (limit = Minute(20), level = :slow)`. Rejected: a runner that
   reads the calls from the text of the suite file. The text is not a value of the program, and
   a comment or a line break makes the read wrong.
-- **P2. The runner lives in `ProjecturedKernelTest`** (proposed by the assistant). It uses only
+- **P2. The runner lives in `ProjecturedKernelTest`** (proposed by the assistant, approved with the plan on 2026-11-20). It uses only
   `Base`, `Dates`, and `Test`. The test packages of both repositories depend on it already, or
   get it as a test dependency. Rejected: a copy in each repository.
 - **P3. The record is one line for each part, in a file of tab-separated values** (proposed by
-  the assistant). The columns: repository, commit, suite, part, pass, fail, error, broken,
+  the assistant, approved with the plan on 2026-11-20). The columns: repository, commit, suite, part, pass, fail, error, broken,
   result (`done`, `timeout`, `memory`, `crash`), time, compile time, garbage collection time,
   allocated bytes, live bytes after a full collection, and the peak resident memory of the
   process. The runner also prints one line when each part ends, because a nested testset
   prints its summary only at the end. Rejected: a JSON record, because a JSON writer needs a
   package.
-- **P4. One filter keyword, `only`, and its opposite, `skip`** (proposed by the assistant). Each
+- **P4. One filter keyword, `only`, and its opposite, `skip`** (proposed by the assistant, approved with the plan on 2026-11-20). Each
   takes a `String` (a part of the name) or a `Regex`. A suite filters the names of its parts. A
   walk over the examples filters the names of its examples, `domain/name/variant`, as
   `catalog` does. Rejected: one keyword for each kind of group.
-- **P5. Parallel runs use worker processes, not threads** (proposed by the assistant), for the
+- **P5. Parallel runs use worker processes, not threads** (proposed by the assistant, approved with the plan on 2026-11-20), for the
   reasons of section 3. Rejected: threads in one process.
-- **P6. A supervisor starts the workers** (proposed by the assistant). It is a script,
+- **P6. A supervisor starts the workers** (proposed by the assistant, approved with the plan on 2026-11-20). It is a script,
   `tool/run-tests.jl`, that loads no package, so it needs little memory and starts at once. It
   sends the name of the next part to a worker on the standard input of the worker. The worker
   sends the line of the record back on its standard output. The worker function,
   `run_test_worker()`, is in `ProjecturedKernelTest`. Rejected: a supervisor that loads the
   test packages, because a fault in a part then ends the supervisor too.
-- **P7. A time limit for each part** (proposed by the assistant). The default is 10 minutes. An
+- **P7. A time limit for each part** (proposed by the assistant, approved with the plan on 2026-11-20). The default is 10 minutes. An
   entry of the table can give its own limit. At the limit, the worker prints the stacks of all
   tasks. Then the supervisor records `timeout`, stops the worker, and starts a new worker for
   the next part. A worker that the memory cap stops gets the result `memory` in the same way.
-- **P8. Two levels** (proposed by the assistant). Each entry is `:fast` unless the table marks it
+- **P8. Two levels** (proposed by the assistant, approved with the plan on 2026-11-20). Each entry is `:fast` unless the table marks it
   `:slow`. The keyword `level = :fast` runs only the fast parts. The default, `level = :all`,
   keeps the meaning of `test_platform()` as it is now. The tests on GitHub run all parts.
-- **P9. The parts of what changed** (proposed by the assistant). `test_changed(; base =
+- **P9. The parts of what changed** (proposed by the assistant, approved with the plan on 2026-11-20). `test_changed(; base =
   "main")` reads the changed files from `git diff --name-only`. A part belongs to the folder of
   the file that defines it (`functionloc`). A change in `source/<layer>/<slice>` selects the
   parts in `test/<layer>/<slice>` and the parts of every slice above it, from
   `PLATFORM_SLICE_EDGES`. A change in the kernel selects all parts. A changed test file
   selects its own parts. In omnet-julia, a change in a package selects the parts of its test
   package and of the test packages above it.
-- **P10. No extra run of main** (proposed by the assistant). Each known failure of main gets the
+- **P10. No extra run of main** (proposed by the assistant, approved with the plan on 2026-11-20). Each known failure of main gets the
   marker of the convention that exists. Then an unmarked `Fail` or `Error` on a branch is a
   regression, and no run of main is needed to see it. The supervisor also keeps the record of
   each run of a commit of main in `~/.cache/projectured-test-records/<repository>/<commit>.tsv`.
   `compare_records(a, b)` prints the parts whose counts changed. Rejected: a folder in
   `/var/tmp`, because the end of a task removes the folders that it made there.
-- **P11. A worker that stays open** (proposed by the assistant). `tool/run-tests.jl --stay
+- **P11. A worker that stays open** (proposed by the assistant, approved with the plan on 2026-11-20). `tool/run-tests.jl --stay
   <folder>` keeps one worker open. The worker loads `Revise` when the environment has it. For
   each request file in `<folder>/requests`, it calls `revise()`, runs the parts, writes the
   record and the log into `<folder>/results`, and writes a `.done` file. `tool/run-tests.jl
