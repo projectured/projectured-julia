@@ -235,5 +235,19 @@ function test_video_pointer_shape()
         @test count(p -> maximum(p) < 40 || minimum(p) > 215, pixels) ==
               count(p -> maximum(p) < 40 || minimum(p) > 215, near)
     end
+    # A hand is white inside at the densities 1 and 2, though Lucide draws its glyph
+    # with lines only. The point inside is the hot spot of the open and the closed
+    # hand, and a point of the palm below the finger of the pointing hand.
+    inside = Dict(:open_hand => (0, 0), :closed_hand => (0, 0), :pointing_hand => (6, 14))
+    for (shape, (dx, dy)) in inside, density in (1, 2)
+        picture = GraphicsCanvas(VIDEO._make_pointer_shape_graphics(shape, 30, 30; density); w = 60, h = 60)
+        filename = tempname() * ".bmp"
+        write_image(picture, filename; width = 60, height = 60, background = (0x80, 0x80, 0x80, 0xff),
+                    supersample = 1, density)
+        pixels = _read_bmp_pixels(filename)
+        rm(filename; force = true)
+        @test size(pixels) == (60 * density, 60 * density)
+        @test minimum(pixels[(30 + dy) * density + 1, (30 + dx) * density + 1]) > 215
+    end
 end
 end

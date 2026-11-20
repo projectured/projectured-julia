@@ -72,6 +72,18 @@ Decisions (mine, the owner asked for the fix in both backends):
      pixels, and a ring of ink with a gap of one pixel, which the outline closes,
      and a gap of three pixels, which stays open. The naming guard and
      `test_sdl_layering` pass.
-2. [ ] The video hands as an image of `make_glyph_cursor_pixels` at the density of
-   the take; `test_video_pointer_shape` checks that each hand is white inside.
+2. [x] The video hands as an image of `make_glyph_cursor_pixels` at the density of
+   the take; `test_video_pointer_shape` checks that each hand is white inside. Done:
+   - `_make_pointer_shape_graphics` takes `density`, and `_make_pointer_graphics`
+     gives it the density of the take. The overlay draws at the density of the
+     frame, and the renderer scales it by the supersample, as it did the text.
+   - A probe drew each hand in the old and the new form at the densities 1 and 2.
+     The box of the drawn pixels is the same for each pair, so each hot spot stays
+     at its place. At the point inside, the old hand shows the gray background and
+     the new hand is white, at both densities.
+   - The point inside the pointing hand is (6, 14) logical pixels from its hot
+     spot, in the palm below the finger.
+   - `test_video_pointer_shape` passes 41 of 41, and `test_video_layering` passes.
+     `test_application_video` records a pointer over a part that is not a hand, so
+     it does not reach the image, and I did not run it.
 3. [ ] Look at the images of both backends at the densities 1 and 2.

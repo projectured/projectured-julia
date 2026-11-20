@@ -379,27 +379,31 @@ const _POINTER_OUTLINES = Dict{Symbol,Vector{Tuple{Int,Int}}}(
                    (-1, 0), (-6, -8)],
     :crossed_circle => [(-6, -5), (-5, -6), (6, 5), (5, 6)])
 
-# The shapes of the pointer that are drawn as a glyph of the Lucide font, black with
-# a white outline, and where the hot spot is in the em of the glyph, as a part of
-# its size: the tip of the finger of the pointing hand, the middle of a hand.
+# The shapes of the pointer that are drawn as the picture of a glyph of the Lucide
+# font (`make_glyph_cursor_pixels`): black with a white outline, and white inside.
+# Each one has the place of its hot spot in the em of the glyph, as a part of its
+# size: the tip of the finger of the pointing hand, the middle of a hand.
 const _POINTER_GLYPHS = Dict{Symbol,Tuple{Char,Float64,Float64}}(
     :pointing_hand => (Char(0xe1e8), 0.34, 0.04),
     :open_hand     => (Char(0xe1d7), 0.5, 0.5),
     :closed_hand   => (Char(0xe1e6), 0.5, 0.5))
 const _POINTER_GLYPH_SIZE = 22
 
-# The picture of the pointer of `shape` with its hot spot at `(x, y)`: the arrow
-# for `:default` and for a shape that this backend does not draw.
-function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int)
+# The picture of the pointer of `shape` with its hot spot at `(x, y)`, for a frame
+# at `density`: the arrow for `:default` and for a shape that this backend does not
+# draw. The picture of a glyph has an outline of one device pixel or more on each
+# side of the box of the glyph.
+function _make_pointer_shape_graphics(shape::Symbol, x::Int, y::Int; density::Real = 1)
     # @style: a mark of the recording, not the look of the editor
-    if haskey(_POINTER_GLYPHS, shape)
-        glyph, across, down = _POINTER_GLYPHS[shape]
-        font = with_font_size(StyleFont("Lucide", 20), _POINTER_GLYPH_SIZE)
-        left = x - round(Int, across * _POINTER_GLYPH_SIZE)
-        top = y - round(Int, down * _POINTER_GLYPH_SIZE)
-        outline = Any[GraphicsText(string(glyph), left + dx, top + dy; font, color = color_white)
-                      for dx in -1:1, dy in -1:1 if (dx, dy) != (0, 0)]
-        return Any[outline; GraphicsText(string(glyph), left, top; font, color = color_black)]
+    picture = haskey(_POINTER_GLYPHS, shape) ?
+        make_glyph_cursor_pixels(_POINTER_GLYPHS[shape][1], _POINTER_GLYPH_SIZE, density) : nothing
+    if picture !== nothing
+        _, across, down = _POINTER_GLYPHS[shape]
+        _, width, height = picture
+        outline = max(1, round(Int, density)) / density
+        left = x - round(Int, across * _POINTER_GLYPH_SIZE + outline)
+        top = y - round(Int, down * _POINTER_GLYPH_SIZE + outline)
+        return Any[GraphicsImage(left, top, round(Int, width / density), round(Int, height / density), picture)]
     end
     elements = Any[]
     shape === :crossed_circle &&
@@ -456,7 +460,7 @@ function _make_pointer_graphics(backend::VideoBackend, canvas::GraphicsCanvas)
     end
     zoom = backend.drawn_zoom
     shape = find_pointer_shape(canvas, round(Int, x / zoom), round(Int, y / zoom))
-    append!(elements, _make_pointer_shape_graphics(shape, x, y))
+    append!(elements, _make_pointer_shape_graphics(shape, x, y; density = backend.density))
     elements
 end
 
