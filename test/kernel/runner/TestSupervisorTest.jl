@@ -181,10 +181,12 @@ function test_supervised_runs()
         end
         code, text = request(fixture, "stay_suite")
         @test code == 0
-        has_revise = occursin("applied the changes of the files with Revise", text)
         write_fixture("2")
         code, text = request(fixture, "stay_suite")
-        # With Revise the changed file runs in its new form, in the same worker.
+        # The open worker says whether it has Revise. With Revise, the changed file
+        # runs in its new form, in the same worker.
+        has_revise = occursin("applied the changes of the files with Revise", text)
+        @test has_revise || occursin("The workers have no Revise", text)
         @test code == (has_revise ? 1 : 0)
         if has_revise
             write_fixture("1 +")                         # Revise can not apply this
