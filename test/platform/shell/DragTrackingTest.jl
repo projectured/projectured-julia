@@ -274,5 +274,110 @@ end
     end
 end
 
+# ── A drag across two windows ───────────────────────────────────────────────
+
+# Two windows side by side, each with a tab tree: `W` at (0, 0) holds the groups
+# `a b` and `c`, and `V` at (500, 0) holds the group `x y`. Each window is 400 by
+# 300, so the screen has a gap of 100 pixels between them.
+function _dt_two_window_editor()
+    tab(name) = PaneTab(name, WidgetLabel(name))
+    left = PaneGroup(PaneTab[tab("a"), tab("b")])
+    right = PaneGroup(PaneTab[tab("c")])
+    first = PaneTree(PaneSplit(:vertical, [left, right]))
+    other = PaneGroup(PaneTab[tab("x"), tab("y")])
+    second = PaneTree(other)
+    screen = ScreenDocument([
+        WindowDocument(; id = :W, title = "W", x = 0, y = 0, width = 400, height = 300, content = first),
+        WindowDocument(; id = :V, title = "V", x = 500, y = 0, width = 400, height = 300, content = second)])
+    pane = make_pane_projection_example(measure = _dt_measure())
+    opened = Pair{Type,Any}[PaneTree => ProjecturedPlatform.ProjectionAlgebraModule.NestingProjection(
+                                pane; recursion = ProjecturedPlatform.ProjectionAlgebraModule.IdentityProjection());
+                            make_opened_window_projections(; measure = _dt_measure())]
+    composed = make_window_scene_projection(pane; opened_window_projections = opened)
+    document, projection = make_tracking_screen(screen, composed)
+    backend = HeadlessBackend()
+    editor = Editor(document, projection; backend = backend, devices = Device[Keyboard(), Mouse()])
+    run_frame!(editor)
+    (editor, backend, (first = first, left = left, right = right, second = second, other = other))
+end
+
+@testset "the window under a point of the screen" begin
+    editor, _, _ = _dt_two_window_editor()
+    screen = get_wrapped_document(editor.document)
+    @test find_screen_window_at(screen, :W, 10, 20) == (:W, 10, 20)
+    @test find_screen_window_at(screen, :W, 530, 20) == (:V, 30, 20)     # in the frame of V
+    @test find_screen_window_at(screen, :V, -480, 20) == (:W, 20, 20)    # from V back to W
+    @test find_screen_window_at(screen, :W, 450, 20) === nothing        # the gap between them
+    @test find_screen_window_at(screen, :W, 10, 400) === nothing        # below both
+end
+
+@testset "a tab dragged over another window shows where it would land there" begin
+    editor, backend, t = _dt_two_window_editor()
+    place = _dt_place_of(editor, "b")
+    @test place !== nothing
+    if place !== nothing
+        x, y = place[1] + 3, place[2] + 4
+        _dt_send!(editor, backend, MouseMove(x, y; time = 0.9))
+        _dt_down!(editor, backend, x, y, 1.0)
+        _dt_held!(editor, backend, x + 12, y, 1.1)
+        @test t.first.drag.started
+        # Every move comes in `W`, which holds the press. Over the strip of `V`:
+        # the tree of `V` keeps where the tab would land, and `W` shows nothing.
+        _dt_held!(editor, backend, 530, 6, 1.2)
+        @test t.second.drop !== nothing
+        @test t.second.drop.target === t.other
+        @test t.second.drop.zone === :strip
+        @test t.first.drop === nothing
+        @test editor.document.content.drop_window === :V
+        # Back over the right group of `W`: `V` puts its mark away.
+        _dt_held!(editor, backend, 300, 150, 1.3)
+        @test t.second.drop === nothing
+        @test t.first.drop.target === t.right
+        @test editor.document.content.drop_window === :W
+        # In the gap between the windows no window takes the tab.
+        _dt_held!(editor, backend, 450, 150, 1.4)
+        @test t.first.drop === nothing
+        @test t.second.drop === nothing
+        @test editor.document.content.drop_window === nothing
+        # Over `V` again, and Escape: the leave puts the mark away.
+        _dt_held!(editor, backend, 700, 150, 1.5)
+        @test t.second.drop !== nothing
+        _dt_send!(editor, backend, KeyDown(:escape, _DT_NONE; time = 1.6))
+        @test t.second.drop === nothing
+        @test t.first.drag === nothing
+        @test _dt_drag_path(editor) === nothing
+        @test [get_pane_tab_title_string(t.left.tabs[i]) for i in 1:2] == ["a", "b"]
+    end
+end
+
+@testset "a release in another window or between the windows moves no tab yet" begin
+    editor, backend, t = _dt_two_window_editor()
+    place = _dt_place_of(editor, "b")
+    @test place !== nothing
+    if place !== nothing
+        x, y = place[1] + 3, place[2] + 4
+        _dt_send!(editor, backend, MouseMove(x, y; time = 0.9))
+        _dt_down!(editor, backend, x, y, 1.0)
+        _dt_held!(editor, backend, x + 12, y, 1.1)
+        _dt_held!(editor, backend, 530, 6, 1.2)
+        @test t.second.drop !== nothing
+        _dt_up!(editor, backend, 530, 6, 1.3)
+        # `V` got the drop and put its mark away; a tab of another tree is the work
+        # of step 5 of the plan.
+        @test t.second.drop === nothing
+        @test t.first.drag === nothing
+        @test length(t.left.tabs) == 2
+        @test length(t.other.tabs) == 2
+        # Between the windows: the drag ends, and nothing moves.
+        _dt_down!(editor, backend, x, y, 2.0)
+        _dt_held!(editor, backend, x + 12, y, 2.1)
+        _dt_held!(editor, backend, 450, 150, 2.2)
+        _dt_up!(editor, backend, 450, 150, 2.3)
+        @test t.first.drag === nothing
+        @test _dt_drag_path(editor) === nothing
+        @test length(t.left.tabs) == 2
+    end
+end
+
 end # @testset
 end # test_drag_tracking
