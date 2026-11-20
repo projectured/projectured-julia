@@ -20,22 +20,20 @@ end
 
 Run this package's whole suite: the layering guard and every formula test.
 """
-function test_formula()
-    @testset "ProjecturedFormula" begin
-        test_formula_layering()
-        test_formula_to_syntax()
-        test_formula_theme()
-        test_formula_file()
-        test_formula_math()
-        test_formula_names()
-        test_formula_evaluation()
-        test_formula_stored_value()
-        test_formula_task()
-        test_formula_task_waits_for_a_busy_editor()
-        test_formula_grid()
-        test_formula_frame_guards()
-    end
-end
+const test_formula = TestSuite("ProjecturedFormula", [
+    test_formula_layering,
+    test_formula_to_syntax,
+    test_formula_theme,
+    test_formula_file,
+    test_formula_math,
+    test_formula_names,
+    test_formula_evaluation,
+    test_formula_stored_value,
+    test_formula_task,
+    test_formula_task_waits_for_a_busy_editor,
+    test_formula_grid,
+    test_formula_frame_guards,
+])
 
 export test_formula, test_formula_layering, test_formula_to_syntax, test_formula_theme,
        test_formula_file, test_formula_math, test_formula_names,

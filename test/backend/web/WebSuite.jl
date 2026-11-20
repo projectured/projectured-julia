@@ -22,11 +22,9 @@ end
 
 Run the whole suite of `ProjecturedWeb`: the layering guard and every test of the package.
 """
-function test_web()
-    @testset "ProjecturedWeb" begin
-        test_web_layering()
-        test_web_backend()
-    end
-end
+const test_web = TestSuite("ProjecturedWeb", [
+    test_web_layering,
+    test_web_backend,
+])
 
 export test_web, test_web_layering, test_web_backend

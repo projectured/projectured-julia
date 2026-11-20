@@ -23,13 +23,11 @@ recorded answer of the Models API, the alias a backend with no key names, the
 factory registration, the tool schema, one live request that skips itself when
 no key is exported, and the translation of a stream body into events.
 """
-function test_anthropic()
-    @testset "ProjecturedAnthropic" begin
-        test_anthropic_layering()
-        test_anthropic_model()
-        test_anthropic_stream()
-    end
-end
+const test_anthropic = TestSuite("ProjecturedAnthropic", [
+    test_anthropic_layering,
+    test_anthropic_model,
+    test_anthropic_stream,
+])
 
 export test_anthropic, test_anthropic_layering, test_anthropic_model
 export test_anthropic_stream

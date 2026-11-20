@@ -20,12 +20,10 @@ end
 
 Run this package's whole suite: the layering guard and every book test.
 """
-function test_book()
-    @testset "ProjecturedBook" begin
-        test_book_layering()
-        test_book_to_syntax()
-        test_book_theme()
-    end
-end
+const test_book = TestSuite("ProjecturedBook", [
+    test_book_layering,
+    test_book_to_syntax,
+    test_book_theme,
+])
 
 export test_book, test_book_layering, test_book_to_syntax, test_book_theme

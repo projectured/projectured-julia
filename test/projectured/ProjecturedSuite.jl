@@ -230,57 +230,6 @@ include("projection/NaturalNotationTest.jl")
 include("projection/NaturalRegistryTest.jl")
 
 """
-    test_documents()
-
-Umbrella-only document suites — the per-layer document tests now run inside
-`test_kernel()` / `test_platform()` / `test_domain()`.
-"""
-function test_documents()
-    @testset "Documents" begin
-        test_constraint_solver()     # Tulip-backed LP constraint layout
-        test_serialization()         # round-trips the ProjecturedExample fixtures
-        test_workflow_file()         # a workflow in a .pred file, with markers into other files
-        test_file_format_contract()  # each format of the session, with every domain loaded
-        test_research_combinations() # the items of a study in a report, a workflow card and a window
-        test_pivot_data_frame()      # a pivot of a data frame, against DataFrames
-        test_formula_examples()      # the formula examples take a key and Enter
-    end
-end
-
-"""
-    test_projections()
-
-Umbrella-only projection suites (example/editor/SDL-coupled) — the per-layer
-projection tests now run inside `test_platform()` / `test_domain()`.
-"""
-function test_projections()
-    @testset "Projections" begin
-        test_template_structural_locality()
-        test_graphics_structural_locality()
-        test_gesture_map()
-        test_gesture_help()
-        test_text_range_selection()
-        test_text_keys()
-        test_text_clipboard()
-        test_db_catalog_sql()
-        test_widget_popup_example()
-        test_tooltip()
-        test_reference_inspector_text()
-        test_text_ink_inside_viewports()
-        test_split_pane_drag()
-        test_dragging()
-        test_write_image()
-        test_record_video()
-        test_assistant_conversation_video()
-        test_dirty_rect()
-        test_console_backend()
-        test_write_pdf()
-        test_web_backend()
-        test_backend_choice()
-    end
-end
-
-"""
     test_domain_examples()
 
 Walk the printer over every concrete-domain example. The registry the sweep
@@ -471,71 +420,51 @@ function test_documentation()
 end
 
 """
-    test_all()
+    test_documents()
 
-The full suite: the static guards, the three engine test packages and the twenty
-domain test packages, then [`test_integration`](@ref).
+Umbrella-only document suites — the per-layer document tests now run inside
+`test_kernel()` / `test_platform()` / `test_domain()`.
 """
-function test_all()
-    @testset "Projectured" begin
-    # The static guards of the rules that a program can check.
-    test_tree()
-    test_naming()
-    test_arguments()
-    test_exports()
-    test_documentation()
-    test_style()
-    # The per-package suites: the kernel unit tests, the platform's documents and
-    # projections, every domain, and the layering guard of each package.
-    test_kernel()
-    test_platform()
-    test_json()
-    test_yaml()
-    test_git()
-    test_xml()
-    test_markdown()
-    test_rst()
-    test_book()
-    test_workflow()
-    test_research()
-    test_math()
-    test_julia()
-    test_sql()
-    test_database()
-    test_graph()
-    test_chart()
-    test_sequencechart()
-    test_dbcatalog()
-    test_formula()
-    test_fsm()
-    test_process()
-    test_pivot()
-    test_anthropic()
-    test_ollama()
-    test_acp()
-    test_languageserver()
-    test_dataframes()
-    test_integration()
-    end
-end
+const test_documents = TestSuite("Documents", [
+    test_constraint_solver,      # Tulip-backed LP constraint layout
+    test_serialization,          # round-trips the ProjecturedExample fixtures
+    test_workflow_file,          # a workflow in a .pred file, with markers into other files
+    test_file_format_contract,   # each format of the session, with every domain loaded
+    test_research_combinations,  # the items of a study in a report, a workflow card and a window
+    test_pivot_data_frame,       # a pivot of a data frame, against DataFrames
+    test_formula_examples,       # the formula examples take a key and Enter
+])
 
 """
-    test_repository()
+    test_projections()
 
-The tests of the umbrella that read this repository and not only its packages:
-the package graph, from the `Project.toml` files under `package/`, and the
-integrations that the umbrella loads, in new processes in `environment/all`. An installed
-package has no repository, so the release test of `Projectured` leaves them out.
+Umbrella-only projection suites (example/editor/SDL-coupled) — the per-layer
+projection tests now run inside `test_platform()` / `test_domain()`.
 """
-function test_repository()
-    @testset "repository" begin
-        test_package_graph()
-        test_umbrella_loads_integrations()
-        test_integrations_load_with_extensions()
-        test_packages_declare_triggers()
-        test_essential_names()
-    end
-end
+const test_projections = TestSuite("Projections", [
+    test_template_structural_locality,
+    test_graphics_structural_locality,
+    test_gesture_map,
+    test_gesture_help,
+    test_text_range_selection,
+    test_text_keys,
+    test_text_clipboard,
+    test_db_catalog_sql,
+    test_widget_popup_example,
+    test_tooltip,
+    test_reference_inspector_text,
+    test_text_ink_inside_viewports,
+    test_split_pane_drag,
+    test_dragging,
+    test_write_image,
+    test_record_video,
+    test_assistant_conversation_video,
+    test_dirty_rect,
+    test_console_backend,
+    test_write_pdf,
+    test_web_backend,
+    test_backend_choice,
+])
 
 """
     test_integration()
@@ -546,105 +475,166 @@ database. They need the packages and nothing of this repository, so the release
 test of `Projectured` runs them. CI runs them in a job of its own, with
 [`test_repository`](@ref).
 """
-function test_integration()
-    @testset "integration" begin
+const test_integration = TestSuite("integration", [
     # Every concrete-domain example through the printer.
-    test_domain_examples()
+    test_domain_examples,
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
     # name is exported by two modules with different bindings, so bare `using
     # ..XxxModule` can never become ambiguous. The per-package guards cannot
     # see this.
-    test_export_collision_checker()
-    test_export_collisions()
+    test_export_collision_checker,
+    test_export_collisions,
     # The corpus a search answers on when a window declares what it can draw:
     # thousands of names, with the questions a person asks of them.
-    test_search_scale()
-    test_search_corpus()
-    test_call_site()
-    test_search_ranking()
+    test_search_scale,
+    test_search_corpus,
+    test_call_site,
+    test_search_ranking,
     # Umbrella integration: everything below needs the example registry, the
     # editor loop, or an opt-in backend package (Sdl/Tulip/Odbc/Video).
-    test_documents()
-    test_projections()
+    test_documents,
+    test_projections,
     # The generated atomic-example catalog: printer/reader/repl/position-navigation
     # over every discovered `domain/name/variant` pair, routed by terminal.
-    test_catalog()
+    test_catalog,
     # Is the catalog exhaustive? The printers are the list of what it owes.
-    test_catalog_coverage()
-    test_natural_renders_every_atom()
-    test_natural_round_trips_every_atom()
-    test_natural_notation()
-    test_natural_registry()
-    test_printers()
-    test_text_runs_hold_no_break()
-    test_text_blocks_hold_only_lines()
-    test_readers()
-    test_position_navigations()
-    test_position_navigations_complete()
-    test_repls()
-    test_typeins()
+    test_catalog_coverage,
+    test_natural_renders_every_atom,
+    test_natural_round_trips_every_atom,
+    test_natural_notation,
+    test_natural_registry,
+    test_printers,
+    test_text_runs_hold_no_break,
+    test_text_blocks_hold_only_lines,
+    test_readers,
+    test_position_navigations,
+    test_position_navigations_complete,
+    test_repls,
+    test_typeins,
     # Character-editing round trip over the generated text atoms (the tester the
     # catalog's default set omits); every text atom types cleanly under the default
     # text projection.
-    test_catalog_typeins()
-    test_mcp_tools()
-    test_search_tools_registered()
-    test_whole_surface_documentation()
-    test_conversation_serialization()
-    test_conversation_transcript()
-    test_parse_markdown_blocks()
-    test_document_insertion()
+    test_catalog_typeins,
+    test_mcp_tools,
+    test_search_tools_registered,
+    test_whole_surface_documentation,
+    test_conversation_serialization,
+    test_conversation_transcript,
+    test_parse_markdown_blocks,
+    test_document_insertion,
     # Every gesture that makes a recorded change is taken back, and the document
     # returns to the text it had.
-    test_undo_round_trip()
+    test_undo_round_trip,
     # A JSON part of a Markdown document, in the view of the document and at a
     # place of its own.
-    test_markdown_json_view()
+    test_markdown_json_view,
     # The guards of the first window and of the gestures of the binary are
     # measurements: `tool/measure-compile-ahead.jl` runs them, by hand and before
     # each release, as documentation/design/compile-ahead.md (U7) says.
     # Every gesture that changes no document leaves the history as it was.
-    test_history_sweep()
-    test_file_watch_window()
-    test_julia_typein()
-    test_conversation_editor()
-    test_assistant_mvp()
-    test_assistant_stream()
-    test_window_frame_guards()
-    test_assistant_duplicate()
-    test_message_log_feed()
-    test_frame_statistics_feed()
-    test_application()
-    test_clipboard_edits()
-    test_file_workloads()
-    test_scroll_work()
-    test_pointed_part()
-    test_insertion_in_tab()
-    test_tool_views()
-    test_selection_inspector()
-    test_gesture_log_in_tab()
-    test_message_log()
-    test_file_tab()
-    test_user_interface_file()
-    test_evaluator_toplevel()
-    test_evaluator_duplicate()
-    test_value_viewer()
-    test_referenced_document_editor()
-    test_assistant_verbs()
-    test_assistant_documentation()
-    test_gallery_wrappers()
-    test_mouse_clicks()
-    test_click_roundtrips()
-    test_text_navigation_invariants_all()
-    test_json_content_clicks_clean_all()
-    test_collapse_roundtrip()
-    test_tree_navigations()
-    test_tree_navigations_complete()
-    test_table_navigation()
-    test_table_cell_editing()
-    test_odbc_database_no_db()
-    end
-end
+    test_history_sweep,
+    test_file_watch_window,
+    test_julia_typein,
+    test_conversation_editor,
+    test_assistant_mvp,
+    test_assistant_stream,
+    test_window_frame_guards,
+    test_assistant_duplicate,
+    test_message_log_feed,
+    test_frame_statistics_feed,
+    test_application,
+    test_clipboard_edits,
+    test_file_workloads,
+    test_scroll_work,
+    test_pointed_part,
+    test_insertion_in_tab,
+    test_tool_views,
+    test_selection_inspector,
+    test_gesture_log_in_tab,
+    test_message_log,
+    test_file_tab,
+    test_user_interface_file,
+    test_evaluator_toplevel,
+    test_evaluator_duplicate,
+    test_value_viewer,
+    test_referenced_document_editor,
+    test_assistant_verbs,
+    test_assistant_documentation,
+    test_gallery_wrappers,
+    test_mouse_clicks,
+    test_click_roundtrips,
+    test_text_navigation_invariants_all,
+    test_json_content_clicks_clean_all,
+    test_collapse_roundtrip,
+    test_tree_navigations,
+    test_tree_navigations_complete,
+    test_table_navigation,
+    test_table_cell_editing,
+    test_odbc_database_no_db,
+])
+
+"""
+    test_all()
+
+The full suite: the static guards, the three engine test packages and the twenty
+domain test packages, then [`test_integration`](@ref).
+"""
+const test_all = TestSuite("Projectured", [
+    # The static guards of the rules that a program can check.
+    test_tree,
+    test_naming,
+    test_arguments,
+    test_exports,
+    test_documentation,
+    test_style,
+    # The per-package suites: the kernel unit tests, the platform's documents and
+    # projections, every domain, and the layering guard of each package.
+    test_kernel,
+    test_platform,
+    test_json,
+    test_yaml,
+    test_git,
+    test_xml,
+    test_markdown,
+    test_rst,
+    test_book,
+    test_workflow,
+    test_research,
+    test_math,
+    test_julia,
+    test_sql,
+    test_database,
+    test_graph,
+    test_chart,
+    test_sequencechart,
+    test_dbcatalog,
+    test_formula,
+    test_fsm,
+    test_process,
+    test_pivot,
+    test_anthropic,
+    test_ollama,
+    test_acp,
+    test_languageserver,
+    test_dataframes,
+    test_integration,
+])
+
+"""
+    test_repository()
+
+The tests of the umbrella that read this repository and not only its packages:
+the package graph, from the `Project.toml` files under `package/`, and the
+integrations that the umbrella loads, in new processes in `environment/all`. An installed
+package has no repository, so the release test of `Projectured` leaves them out.
+"""
+const test_repository = TestSuite("repository", [
+    test_package_graph,
+    test_umbrella_loads_integrations,
+    test_integrations_load_with_extensions,
+    test_packages_declare_triggers,
+    test_essential_names,
+])
 
 """
     test_table()
@@ -653,13 +643,11 @@ Narrow runner for the table selection + grid-navigation suites
 (`test_table_selection` and `test_table_navigation`), and the editing inside a
 cell (`test_table_cell_editing`).
 """
-function test_table()
-    @testset "Table" begin
-        test_table_selection()
-        test_table_navigation()
-        test_table_cell_editing()
-    end
-end
+const test_table = TestSuite("Table", [
+    test_table_selection,
+    test_table_navigation,
+    test_table_cell_editing,
+])
 
 export test_all, test_integration, test_repository, test_umbrella_loads_integrations, test_integrations_load_with_extensions,
        test_packages_declare_triggers, test_essential_names, test_documents, test_projections, test_domain_examples,

@@ -343,8 +343,6 @@ include("../../../test/platform/editor/CatalogRunner.jl")
 include("../../../test/platform/editor/CollapseRoundtripTest.jl")
 include("../../../test/platform/editor/PaneConstructTest.jl")
 include("../../../test/platform/application/ApplicationWorkloadTest.jl")
-include("../../../test/platform/PlatformSuite.jl")
-
 
 # The suites of the slices that had a package of their own, each in its own
 # namespace, so that the helpers of two of them do not collide. This package
@@ -355,7 +353,7 @@ module FaultTests
 using Test
 import ProjecturedPlatform
 # The shared static layering guard lives at the bottom of the test-package DAG.
-using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedKernelTest: check_layering, get_package_source_root, TestSuite
 using ProjecturedPlatform.CollectionModule
 using ProjecturedPlatform.FaultViewModule
 using ProjecturedKernel.CellModule
@@ -494,7 +492,7 @@ module HelpTests
 using Test
 import ProjecturedPlatform
 # The shared static layering guard lives at the bottom of the test-package DAG.
-using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedKernelTest: check_layering, get_package_source_root, TestSuite
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.ProjectionModule
@@ -577,7 +575,7 @@ module UndoTests
 using Test
 import ProjecturedPlatform
 # The shared static layering guard lives at the bottom of the test-package DAG.
-using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedKernelTest: check_layering, get_package_source_root, TestSuite
 using ProjecturedPlatform.CollectionModule
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
@@ -605,6 +603,7 @@ end # module UndoTests
 module FileChangeTests
 
 using Test
+using ProjecturedKernelTest: TestSuite
 import ProjecturedPlatform
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
@@ -671,5 +670,9 @@ for _part in (FaultTests, FileSystemTests, ConversationTests, HelpTests, ShellTe
         _n === nameof(_part) || Core.eval(@__MODULE__, Expr(:export, _n))
     end
 end
+
+# The suite of the platform names the parts of every slice above, also the suites
+# of the slices that the loop above binds, so it loads after them.
+include("../../../test/platform/PlatformSuite.jl")
 
 end # module ProjecturedPlatformTest

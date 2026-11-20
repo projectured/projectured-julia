@@ -20,13 +20,11 @@ end
 
 Run this package's whole suite: the layering guard and every yaml test.
 """
-function test_yaml()
-    @testset "ProjecturedYAML" begin
-        test_yaml_layering()
-        test_yaml_parser()
-        test_yaml_file_note()
-        test_yaml_theme()
-    end
-end
+const test_yaml = TestSuite("ProjecturedYAML", [
+    test_yaml_layering,
+    test_yaml_parser,
+    test_yaml_file_note,
+    test_yaml_theme,
+])
 
 export test_yaml, test_yaml_layering, test_yaml_parser, test_yaml_theme, test_yaml_file_note

@@ -31,14 +31,13 @@ function test_odbc_layering()
 end
 
 "Run the ODBC database + catalog suite (skips when no DB is reachable)."
-function test_odbc()
-    @testset "ProjecturedODBC" begin
-        test_odbc_adapter()
-        test_odbc_database_no_db()
-        test_odbc_database()
-        test_db_catalog()
-        test_db_catalog_syntax()
-    end
-end
+
+const test_odbc = TestSuite("ProjecturedODBC", [
+    test_odbc_adapter,
+    test_odbc_database_no_db,
+    test_odbc_database,
+    test_db_catalog,
+    test_db_catalog_syntax,
+])
 
 export test_odbc, test_odbc_layering, test_odbc_adapter, test_odbc_database, test_odbc_database_no_db, test_db_catalog, test_db_catalog_syntax

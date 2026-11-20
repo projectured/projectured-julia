@@ -21,11 +21,9 @@ end
 
 Run this package's whole suite: the layering guard and every database test.
 """
-function test_database()
-    @testset "ProjecturedDatabase" begin
-        test_database_layering()
-        test_database_documents()
-    end
-end
+const test_database = TestSuite("ProjecturedDatabase", [
+    test_database_layering,
+    test_database_documents,
+])
 
 export test_database, test_database_layering, test_database_documents

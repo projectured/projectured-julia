@@ -20,17 +20,15 @@ end
 
 Run this package's whole suite: the layering guard and every git test.
 """
-function test_git()
-    @testset "ProjecturedGit" begin
-        test_git_layering()
-        test_git_parse()
-        test_git_reading()
-        test_git_range()
-        test_git_views()
-        test_git_gestures()
-        test_git_verbs()
-    end
-end
+const test_git = TestSuite("ProjecturedGit", [
+    test_git_layering,
+    test_git_parse,
+    test_git_reading,
+    test_git_range,
+    test_git_views,
+    test_git_gestures,
+    test_git_verbs,
+])
 
 export test_git, test_git_layering, test_git_parse, test_git_reading, test_git_range, test_git_views,
        test_git_gestures, test_git_verbs

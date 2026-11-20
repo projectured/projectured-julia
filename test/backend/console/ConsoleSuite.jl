@@ -22,11 +22,9 @@ end
 
 Run the whole suite of `ProjecturedConsole`: the layering guard and every test of the package.
 """
-function test_console()
-    @testset "ProjecturedConsole" begin
-        test_console_layering()
-        test_console_backend()
-    end
-end
+const test_console = TestSuite("ProjecturedConsole", [
+    test_console_layering,
+    test_console_backend,
+])
 
 export test_console, test_console_layering, test_console_backend

@@ -22,12 +22,10 @@ Run this package's whole suite: the layering guard, the requests and answers of
 the relevance model with a stand-in for the network, and one live request that
 skips itself when no key is exported.
 """
-function test_openrouter()
-    @testset "ProjecturedOpenRouter" begin
-        test_openrouter_layering()
-        test_openrouter_relevance()
-        test_openrouter_live()
-    end
-end
+const test_openrouter = TestSuite("ProjecturedOpenRouter", [
+    test_openrouter_layering,
+    test_openrouter_relevance,
+    test_openrouter_live,
+])
 
 export test_openrouter, test_openrouter_layering, test_openrouter_relevance, test_openrouter_live

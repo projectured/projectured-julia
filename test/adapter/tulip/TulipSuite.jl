@@ -16,10 +16,9 @@ function test_tulip_layering()
 end
 
 "Run the Tulip constraint-solver suite."
-function test_tulip()
-    @testset "ProjecturedTulip" begin
-        test_constraint_solver()
-    end
-end
+
+const test_tulip = TestSuite("ProjecturedTulip", [
+    test_constraint_solver,
+])
 
 export test_tulip, test_tulip_layering, test_constraint_solver

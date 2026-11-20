@@ -8,7 +8,7 @@ module ProjecturedPrecompileTest
 
 using Test
 using ProjecturedPrecompile
-using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedKernelTest: check_layering, get_package_source_root, TestSuite
 
 include("../../../test/tool/precompile/PrecompileSuite.jl")
 

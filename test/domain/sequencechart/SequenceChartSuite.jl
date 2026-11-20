@@ -20,18 +20,16 @@ end
 
 Run this package's whole suite: the layering guard and every sequencechart test.
 """
-function test_sequencechart()
-    @testset "ProjecturedSequenceChart" begin
-        test_sequencechart_layering()
-        test_sequencechart_geometry()
-        test_sequencechart_projection()
-        test_sequencechart_scale()
-        test_sequencechart_selection()
-        test_sequencechart_theme()
-        test_sequencechart_verbs()
-        test_sequencechart_view_gestures()
-    end
-end
+const test_sequencechart = TestSuite("ProjecturedSequenceChart", [
+    test_sequencechart_layering,
+    test_sequencechart_geometry,
+    test_sequencechart_projection,
+    test_sequencechart_scale,
+    test_sequencechart_selection,
+    test_sequencechart_theme,
+    test_sequencechart_verbs,
+    test_sequencechart_view_gestures,
+])
 
 export test_sequencechart, test_sequencechart_layering, test_sequencechart_projection, test_sequencechart_geometry
 export test_sequencechart_scale, test_sequencechart_selection, test_sequencechart_theme, test_sequencechart_verbs

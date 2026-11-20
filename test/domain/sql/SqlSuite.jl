@@ -20,18 +20,16 @@ end
 
 Run this package's whole suite: the layering guard and every sql test.
 """
-function test_sql()
-    @testset "ProjecturedSQL" begin
-        test_sql_layering()
-        test_sql_parser()
-        test_sql_to_syntax()
-        test_sql_theme()
-        test_sql_insert_update_selection()
-        test_sql_to_syntax_selection()
-        test_sql_ddl()
-        test_sql_ddl_selection()
-    end
-end
+const test_sql = TestSuite("ProjecturedSQL", [
+    test_sql_layering,
+    test_sql_parser,
+    test_sql_to_syntax,
+    test_sql_theme,
+    test_sql_insert_update_selection,
+    test_sql_to_syntax_selection,
+    test_sql_ddl,
+    test_sql_ddl_selection,
+])
 
 export test_sql, test_sql_layering, test_sql_parser
 export test_sql_to_syntax, test_sql_theme, test_sql_insert_update_selection, test_sql_to_syntax_selection

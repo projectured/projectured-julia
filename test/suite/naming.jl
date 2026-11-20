@@ -214,8 +214,9 @@ end
 """
     suite_violations(root) -> Vector{String}
 
-A test package exports `test_<slice>()` and the static guard
-`test_<slice>_layering()` beside it, and its suite file is `<Slice>Suite.jl`.
+A test package exports its suite `test_<slice>`, a `TestSuite` that runs with
+`test_<slice>()`, and the static guard `test_<slice>_layering()` beside it, and its
+suite file is `<Slice>Suite.jl`.
 The case of the slice is the case of its module, which an acronym in the name
 of the package does not change: `ProjecturedJSONTest` has `JsonSuite.jl`, as
 `ProjecturedJSON` has `JsonModule`.
@@ -251,7 +252,7 @@ function suite_violations(root::AbstractString)
             push!(out, "$(relpath(dir, root)) holds no $(stem)Suite.jl for $entry")
         code = join((_naming_code(root, relpath(joinpath(dir, f), root))
                      for f in readdir(dir) if endswith(f, ".jl")), "\n")
-        occursin(Regex("function\\s+test_$(slice)\\s*\\("), code) ||
+        occursin(Regex("const\\s+test_$(slice)\\s*=\\s*TestSuite\\("), code) ||
             push!(out, "$(relpath(dir, root)) defines no test_$(slice)() for $entry")
         occursin(Regex("function\\s+test_$(slice)_layering\\s*\\("), code) ||
             push!(out, "$(relpath(dir, root)) defines no test_$(slice)_layering() for $entry")

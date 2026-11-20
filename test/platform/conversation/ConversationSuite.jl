@@ -3,24 +3,22 @@
 
 Run every conversation test of the platform.
 """
-function test_conversation()
-    @testset "ProjecturedPlatform" begin
-        test_assistant_api()
-        test_assistant_overview()
-        test_assistant_list()
-        test_conversation_theme()
-        test_external_agent_turn()
-        test_agent_work()
-        test_assistant_work()
-        test_agent_terminal()
-        test_assistant_rounds()
-        test_assistant_wake()
-        test_assistant_picture()
-        test_conversation_tree()
-        test_draft_press()
-        test_control_bar_light()
-    end
-end
+const test_conversation = TestSuite("ProjecturedPlatform", [
+    test_assistant_api,
+    test_assistant_overview,
+    test_assistant_list,
+    test_conversation_theme,
+    test_external_agent_turn,
+    test_agent_work,
+    test_assistant_work,
+    test_agent_terminal,
+    test_assistant_rounds,
+    test_assistant_wake,
+    test_assistant_picture,
+    test_conversation_tree,
+    test_draft_press,
+    test_control_bar_light,
+])
 
 export test_conversation
 export test_assistant_api

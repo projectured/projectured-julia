@@ -22,19 +22,8 @@ function test_shell_completeness()
         end
         delete!(defined, "test_shell")
         delete!(defined, "test_shell_completeness")
-        # The body of `test_shell` and nothing else: a docstring above it names
-        # the same functions in the same shape, and counting those would count
-        # every call twice.
-        called = String[]
-        inside = false
-        for line in eachline(joinpath(directory, "ShellSuite.jl"))
-            startswith(line, "function test_shell()") && (inside = true; continue)
-            inside || continue
-            startswith(line, "end") && break
-            stripped = strip(line)
-            endswith(stripped, "()") && startswith(stripped, "test_") &&
-                push!(called, stripped[1:end-2])
-        end
+        # The parts in the table of `test_shell`.
+        called = [entry.name for entry in test_shell.entries]
         @test isempty(setdiff(defined, Set(called)))
         @test length(called) == length(Set(called))
     end
@@ -46,22 +35,20 @@ end
 Run this package's whole suite: the layering guard, the window wrap, and the
 features of a window as wrappers of `build_editor`.
 """
-function test_shell()
-    @testset "ProjecturedPlatform" begin
-        test_shell_completeness()
-        test_window_wrap()
-        test_widget_tooltip()
-        test_context_menu_window()
-        test_window_shell()
-        test_window_wrappers()
-        test_file_dialog()
-        test_tracking_screen()
-        test_escape_quitting()
-        test_drag_tracking()
-        test_drag_pointer_shape()
-        test_pointer_light()
-    end
-end
+const test_shell = TestSuite("ProjecturedPlatform", [
+    test_shell_completeness,
+    test_window_wrap,
+    test_widget_tooltip,
+    test_context_menu_window,
+    test_window_shell,
+    test_window_wrappers,
+    test_file_dialog,
+    test_tracking_screen,
+    test_escape_quitting,
+    test_drag_tracking,
+    test_drag_pointer_shape,
+    test_pointer_light,
+])
 
 export test_shell, test_shell_completeness, test_window_wrap,
        test_widget_tooltip,

@@ -3,10 +3,8 @@
 
 Run this package's whole suite: the layering guard and every undo test.
 """
-function test_undo()
-    @testset "ProjecturedPlatform" begin
-        test_undo_buffer()
-    end
-end
+const test_undo = TestSuite("ProjecturedPlatform", [
+    test_undo_buffer,
+])
 
 export test_undo, test_undo_buffer

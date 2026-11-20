@@ -20,26 +20,24 @@ end
 
 Run this package's whole suite: the layering guard and every julia test.
 """
-function test_julia()
-    @testset "ProjecturedJulia" begin
-        test_julia_layering()
-        test_julia_parser()
-        test_julia_file_note()
-        test_julia_expression()
-        test_julia_definition()
-        test_julia_duplicate()
-        test_julia_roster()
-        test_julia_workload_file()
-        test_julia_to_syntax()
-        test_julia_theme()
-        test_julia_code_pieces()
-        test_julia_file_view()
-        test_julia_typein()
-        test_conversation_editor()
-        test_julia_tooltip()
-        test_tooltip_window()
-    end
-end
+const test_julia = TestSuite("ProjecturedJulia", [
+    test_julia_layering,
+    test_julia_parser,
+    test_julia_file_note,
+    test_julia_expression,
+    test_julia_definition,
+    test_julia_duplicate,
+    test_julia_roster,
+    test_julia_workload_file,
+    test_julia_to_syntax,
+    test_julia_theme,
+    test_julia_code_pieces,
+    test_julia_file_view,
+    test_julia_typein,
+    test_conversation_editor,
+    test_julia_tooltip,
+    test_tooltip_window,
+])
 
 export test_julia, test_julia_layering, test_julia_parser, test_julia_file_note, test_julia_definition
 export test_julia_expression, test_julia_duplicate, test_julia_roster, test_julia_workload_file, test_julia_to_syntax, test_julia_theme, test_julia_code_pieces, test_julia_file_view

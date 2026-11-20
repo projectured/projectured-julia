@@ -43,34 +43,33 @@ function test_sdl_layering()
 end
 
 "Run the whole SDL backend suite."
-function test_sdl()
-    @testset "ProjecturedSDL" begin
-        test_sdl_layering()
-        test_dirty_rect()
-        test_laid_out_canvas()
-        test_partial_paint()
-        test_paint_fault()
-        test_sdl_keysym()
-        test_device_config()
-        test_sdl_font_metrics_agree()
-        test_sdl_text_baseline_ink()
-        test_sdl_text_pen_positions()
-        test_input_coalescing()
-        test_sdl_pointer_shape()
-        test_sdl_wait_wake()
-        test_sdl_system_colors()
-        test_native_window()
-        test_sdl_held_frames()
-        test_sdl_workload()
-        test_write_image()
-        test_tree_render()
-        test_dashboard_render()
-        test_layout_render()
-        test_part_picture()
-        test_image_file_read()
-        test_file_rewrite_read()
-    end
-end
+
+const test_sdl = TestSuite("ProjecturedSDL", [
+    test_sdl_layering,
+    test_dirty_rect,
+    test_laid_out_canvas,
+    test_partial_paint,
+    test_paint_fault,
+    test_sdl_keysym,
+    test_device_config,
+    test_sdl_font_metrics_agree,
+    test_sdl_text_baseline_ink,
+    test_sdl_text_pen_positions,
+    test_input_coalescing,
+    test_sdl_pointer_shape,
+    test_sdl_wait_wake,
+    test_sdl_system_colors,
+    test_native_window,
+    test_sdl_held_frames,
+    test_sdl_workload,
+    test_write_image,
+    test_tree_render,
+    test_dashboard_render,
+    test_layout_render,
+    test_part_picture,
+    test_image_file_read,
+    test_file_rewrite_read,
+])
 
 export test_sdl, test_sdl_layering, test_dirty_rect, test_laid_out_canvas, test_partial_paint, test_paint_fault, test_sdl_keysym, test_device_config, test_sdl_font_metrics_agree, test_sdl_text_baseline_ink,
        test_sdl_text_pen_positions,

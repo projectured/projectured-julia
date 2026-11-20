@@ -26,14 +26,12 @@ Run the whole suite of `ProjecturedPrecompile`: the layering guard, the parts of
 the recording and of the measurement, and a probe package at each value of its
 two preferences.
 """
-function test_precompile()
-    @testset "ProjecturedPrecompile" begin
-        test_precompile_layering()
-        test_precompile_recording()
-        test_precompile_measurement()
-        test_compile_ahead()
-    end
-end
+const test_precompile = TestSuite("ProjecturedPrecompile", [
+    test_precompile_layering,
+    test_precompile_recording,
+    test_precompile_measurement,
+    test_compile_ahead,
+])
 
 export test_precompile, test_precompile_layering, test_precompile_recording,
        test_precompile_measurement, test_compile_ahead

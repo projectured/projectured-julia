@@ -20,20 +20,18 @@ end
 
 Run this package's whole suite: the layering guard and every pivot test.
 """
-function test_pivot()
-    @testset "ProjecturedPivot" begin
-        test_pivot_layering()
-        test_pivot_cross_table()
-        test_pivot_table_projection()
-        test_pivot_zone_edits()
-        test_pivot_cell_views()
-        test_pivot_chart_views()
-        test_pivot_totals()
-        test_pivot_group_view()
-        test_pivot_derived_dimensions()
-        test_pivot_table_display()
-        test_pivot_assistant_api()
-    end
-end
+const test_pivot = TestSuite("ProjecturedPivot", [
+    test_pivot_layering,
+    test_pivot_cross_table,
+    test_pivot_table_projection,
+    test_pivot_zone_edits,
+    test_pivot_cell_views,
+    test_pivot_chart_views,
+    test_pivot_totals,
+    test_pivot_group_view,
+    test_pivot_derived_dimensions,
+    test_pivot_table_display,
+    test_pivot_assistant_api,
+])
 
 export test_pivot, test_pivot_layering, test_pivot_cross_table, test_pivot_table_projection, test_pivot_zone_edits, test_pivot_cell_views, test_pivot_chart_views, test_pivot_totals, test_pivot_group_view, test_pivot_derived_dimensions, test_pivot_table_display, test_pivot_assistant_api

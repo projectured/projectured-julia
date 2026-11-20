@@ -25,13 +25,11 @@ end
 Run the whole suite of `ProjecturedBuilder`: the layering guard, the binaries and
 the release copy.
 """
-function test_builder()
-    @testset "ProjecturedBuilder" begin
-        test_builder_layering()
-        test_build_executable()
-        test_launcher_output()
-        test_package_release()
-    end
-end
+const test_builder = TestSuite("ProjecturedBuilder", [
+    test_builder_layering,
+    test_build_executable,
+    test_launcher_output,
+    test_package_release,
+])
 
 export test_builder, test_builder_layering, test_build_executable, test_package_release, test_launcher_output

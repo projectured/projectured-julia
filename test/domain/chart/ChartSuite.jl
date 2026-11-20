@@ -20,18 +20,16 @@ end
 
 Run this package's whole suite: the layering guard and every chart test.
 """
-function test_chart()
-    @testset "ProjecturedChart" begin
-        test_chart_layering()
-        test_chart_projection()
-        test_chart_scale()
-        test_chart_theme()
-        test_chart_pie()
-        test_chart_verbs()
-        test_chart_tab()
-        test_chart_view_gestures()
-    end
-end
+const test_chart = TestSuite("ProjecturedChart", [
+    test_chart_layering,
+    test_chart_projection,
+    test_chart_scale,
+    test_chart_theme,
+    test_chart_pie,
+    test_chart_verbs,
+    test_chart_tab,
+    test_chart_view_gestures,
+])
 
 export test_chart, test_chart_layering, test_chart_projection, test_chart
 export test_chart_scale, test_chart_theme, test_chart_pie, test_chart_verbs, test_chart_tab

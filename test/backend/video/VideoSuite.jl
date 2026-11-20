@@ -16,17 +16,16 @@ function test_video_layering()
 end
 
 "Run this package's whole suite: the layering guard and every video test."
-function test_video()
-    @testset "ProjecturedVideo" begin
-        test_video_layering()
-        test_record_video()
-        test_video_pointer_shape()
-        test_video_restamp_event()
-        test_video_render_settings()
-        test_json_build_live()
-        test_application_video()
-    end
-end
+
+const test_video = TestSuite("ProjecturedVideo", [
+    test_video_layering,
+    test_record_video,
+    test_video_pointer_shape,
+    test_video_restamp_event,
+    test_video_render_settings,
+    test_json_build_live,
+    test_application_video,
+])
 
 export test_video, test_video_layering, test_record_video, test_video_pointer_shape, test_video_restamp_event,
        test_video_render_settings, test_json_build_live,

@@ -22,13 +22,11 @@ Run this package's whole suite: the layering guard, the translation of the
 updates of an agent, the connection against a fake agent in this process, and
 the transport with a real child process.
 """
-function test_acp()
-    @testset "ProjecturedACP" begin
-        test_acp_layering()
-        test_acp_update()
-        test_acp_connection()
-        test_acp_transport()
-    end
-end
+const test_acp = TestSuite("ProjecturedACP", [
+    test_acp_layering,
+    test_acp_update,
+    test_acp_connection,
+    test_acp_transport,
+])
 
 export test_acp, test_acp_layering, test_acp_update, test_acp_connection, test_acp_transport

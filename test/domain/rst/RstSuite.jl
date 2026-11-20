@@ -20,18 +20,16 @@ end
 
 Run this package's whole suite: the layering guard and every rst test.
 """
-function test_rst()
-    @testset "ProjecturedRST" begin
-        test_rst_layering()
-        test_rst_parser()
-        test_rst_round_trip()
-        test_rst_embed_card()
-        test_rst_theme()
-        test_rst_to_syntax()
-        test_rst_link_target()
-        test_rst_link_gestures()
-    end
-end
+const test_rst = TestSuite("ProjecturedRST", [
+    test_rst_layering,
+    test_rst_parser,
+    test_rst_round_trip,
+    test_rst_embed_card,
+    test_rst_theme,
+    test_rst_to_syntax,
+    test_rst_link_target,
+    test_rst_link_gestures,
+])
 
 export test_rst, test_rst_layering, test_rst_parser
 export test_rst_round_trip, test_rst_embed_card, test_rst_theme, test_rst_to_syntax, test_rst_link_target, test_rst_link_gestures

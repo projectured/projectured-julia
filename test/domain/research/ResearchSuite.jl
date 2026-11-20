@@ -20,19 +20,17 @@ end
 
 Run this package's whole suite: the layering guard and every research test.
 """
-function test_research()
-    @testset "ProjecturedResearch" begin
-        test_research_layering()
-        test_research_document()
-        test_research_edits()
-        test_research_to_widget()
-        test_research_walkthrough()
-        test_research_map_to_graph()
-        test_research_roster()
-        test_research_explorer()
-        test_research_assistant_api()
-    end
-end
+const test_research = TestSuite("ProjecturedResearch", [
+    test_research_layering,
+    test_research_document,
+    test_research_edits,
+    test_research_to_widget,
+    test_research_walkthrough,
+    test_research_map_to_graph,
+    test_research_roster,
+    test_research_explorer,
+    test_research_assistant_api,
+])
 
 export test_research, test_research_layering, test_research_document, test_research_edits,
        test_research_to_widget, test_research_walkthrough, test_research_map_to_graph, test_research_roster,

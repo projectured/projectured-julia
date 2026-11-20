@@ -22,11 +22,9 @@ end
 
 Run the whole suite of `ProjecturedPDF`: the layering guard and every test of the package.
 """
-function test_pdf()
-    @testset "ProjecturedPDF" begin
-        test_pdf_layering()
-        test_write_pdf()
-    end
-end
+const test_pdf = TestSuite("ProjecturedPDF", [
+    test_pdf_layering,
+    test_write_pdf,
+])
 
 export test_pdf, test_pdf_layering, test_write_pdf

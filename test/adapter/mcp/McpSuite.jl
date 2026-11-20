@@ -24,13 +24,11 @@ end
 
 Run the whole suite of `ProjecturedMCP`: the layering guard and every test of the package.
 """
-function test_mcp()
-    @testset "ProjecturedMCP" begin
-        test_mcp_layering()
-        test_mcp_resources()
-        test_mcp_tools()
-        test_mcp_frame_guards()
-    end
-end
+const test_mcp = TestSuite("ProjecturedMCP", [
+    test_mcp_layering,
+    test_mcp_resources,
+    test_mcp_tools,
+    test_mcp_frame_guards,
+])
 
 export test_mcp, test_mcp_layering, test_mcp_frame_guards

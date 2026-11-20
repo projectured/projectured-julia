@@ -113,13 +113,50 @@ layered-architecture guard) followed by the umbrella integration tests
 mouse-click / click-round-trip sweeps — see
 [test/ProjecturedTest.jl](../../package/ProjecturedTest/src/ProjecturedTest.jl)).
 
-`test_all` is just a `@testset` that calls the per-package functions in
-sequence; pick the one you actually need and skip the rest. `test_integration()`
+`test_all` is a suite: a table of the per-package suites, which it runs in
+sequence. Pick the one you need and skip the rest. `test_integration()`
 runs the umbrella integration tests alone, and `test_repository()` the tests of
 the umbrella that read this repository (the package graph). The builder has its
 own test package, `ProjecturedBuilderTest` (`test_builder()`).
 [The time and the memory of each part](#the-time-and-the-memory-of-each-part)
 gives what each of them costs.
+
+## A suite is a table of parts
+
+A suite is a value of the type `TestSuite`: the name of its testset and a table
+of its parts, in the order they run. A part is a function with no argument that
+runs tests. An entry of the table can also be another suite, which runs as a
+testset inside the testset of the suite. Call the suite to run it:
+
+```julia
+const test_json = TestSuite("ProjecturedJSON", [
+    test_json_layering,
+    test_json_parser,
+    test_json_document,
+])
+
+julia> test_json()
+```
+
+The runner calls each part through the table, at run time, so Julia compiles a
+part only when it runs. A function that names each of its parts in its body
+makes Julia compile all of them before the first test runs. For
+`test_platform`, that compile alone needs more than 8 GB.
+
+Each part runs in a testset of its own, with the name of the part. So a part that
+throws records an error, and the parts after it still run.
+
+To add a test, write its function and add the function to the table of the
+suite of its folder. A test that takes an argument becomes a part through a
+function with no argument and a name:
+
+```julia
+TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)")
+```
+
+The runner is in
+[test/kernel/runner/SuiteRunner.jl](../../test/kernel/runner/SuiteRunner.jl),
+in `ProjecturedKernelTest`, so every test package can use it.
 
 ## Per-package tests
 
@@ -206,7 +243,7 @@ the two runs. Each other part took less than 60 s and less than 1.5 GB.
 
 To measure a part again:
 
-1. Find the name of the part in the body of `test_all()` in
+1. Find the name of the part in the table of `test_all` in
    [ProjecturedSuite.jl](../../test/projectured/ProjecturedSuite.jl).
 2. Run the part in a process of its own under `/usr/bin/time`. `%e` is the
    time in seconds, and `%M` is the peak resident memory in KB.

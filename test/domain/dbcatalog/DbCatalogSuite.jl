@@ -20,19 +20,17 @@ end
 
 Run this package's whole suite: the layering guard and every dbcatalog test.
 """
-function test_dbcatalog()
-    @testset "ProjecturedDBCatalog" begin
-        test_dbcatalog_layering()
-        test_db_catalog_column_to_sql()
-        test_db_catalog_table_to_sql()
-        test_db_catalog_schema_to_sql()
-        test_db_catalog_database_to_sql()
-        test_db_catalog_rdbms_to_sql()
-        test_db_catalog_marker_eligible()
-        test_db_catalog_sql()
-        test_dbcatalog_theme()
-    end
-end
+const test_dbcatalog = TestSuite("ProjecturedDBCatalog", [
+    test_dbcatalog_layering,
+    test_db_catalog_column_to_sql,
+    test_db_catalog_table_to_sql,
+    test_db_catalog_schema_to_sql,
+    test_db_catalog_database_to_sql,
+    test_db_catalog_rdbms_to_sql,
+    test_db_catalog_marker_eligible,
+    test_db_catalog_sql,
+    test_dbcatalog_theme,
+])
 
 export test_dbcatalog, test_dbcatalog_layering, test_db_catalog_column_to_sql
 export test_db_catalog_table_to_sql, test_db_catalog_schema_to_sql, test_db_catalog_database_to_sql

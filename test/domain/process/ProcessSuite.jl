@@ -20,17 +20,15 @@ end
 
 Run this package's whole suite: the layering guard and every process test.
 """
-function test_process()
-    @testset "ProjecturedProcess" begin
-        test_process_layering()
-        test_process_document()
-        test_process_debug()
-        test_process_diagram()
-        test_process_to_julia_code()
-        test_process_to_syntax()
-        test_process_theme()
-    end
-end
+const test_process = TestSuite("ProjecturedProcess", [
+    test_process_layering,
+    test_process_document,
+    test_process_debug,
+    test_process_diagram,
+    test_process_to_julia_code,
+    test_process_to_syntax,
+    test_process_theme,
+])
 
 export test_process, test_process_layering, test_process_document, test_process
 export test_process_debug, test_process_diagram, test_process_to_julia_code
