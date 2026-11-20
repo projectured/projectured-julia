@@ -179,6 +179,25 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   main, which the `.git` file of a worktree names, so `git` in the sandbox fails. So the helper
   mounts both the seed build and each worktree at one neutral path of each repository, and the
   main checkout stays where it is.
+- **Step 3, the helper (2026-11-21).** `workspace/bin/julia-worktree`: `seed` compiles the
+  environments of the main checkouts at the neutral paths of `~/.cache/julia-work` into
+  `~/.cache/julia-seed/<julia>` (the first seed: 542 s for projectured-julia and 657 s for
+  omnet-julia, 2.4 GB, peak 13.2 GB with 3 tasks); `new` and `depot` make a worktree and its
+  depot as a hard-link copy of the seed; `run WORKTREE [--with WORKTREE]... -- COMMAND` runs
+  the command in `bwrap` with each repository at its neutral path, so `git` and the relative
+  paths of the environments work there.
+- **Step 2, the lister.** The first worker of a run took 11 GB to load the 27 test packages of
+  omnet-julia, and stopped at its cap. The lister now takes a new worker for each package of
+  the command line.
+- **Step 5, the session (A8) and the map (A11) are in the runner.** A session keeps a warm
+  worker for each package; the worker that waited the longest ends when a new worker needs
+  memory or a place. `--coverage FOLDER` writes the lines of each part and `FOLDER/map.tsv`;
+  `--changed BASE --coverage-map PATH` runs each part that executed a changed line, by the
+  name of the function for a changed signature or a new method, and the rule of the folders
+  for what runs at load and for a new file. The tests of the runner pass, 75 of 75.
+- **A name that hides a function of Base** was the cause of two faults of the filter of
+  `tests-run-fast` and of one of mine: a keyword `only` or `count` hides `Base.only` or
+  `Base.count` in its function. A guard of the naming rules could find it.
 - **Found along the way:** the recorded call list of `ProjecturedJulia` is stale (539 of 3186
   calls no longer resolve), so that package compiles more at each load; step 4 records it again.
 
