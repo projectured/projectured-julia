@@ -238,7 +238,21 @@ The names that a model may write carry the mark `For the assistant.` in their do
 
 ### The shape of the pointer during the drag of a tab
 
-A tab of the tree is an open hand under the pointer, because a press there can drag it. When the drag starts, after the small move, the tree says the shape of the drag to the screen with `make_screen_pointer_shape_operation`: the closed hand while a group takes the tab at the pointer, and the crossed circle while none does. It says it again at a `DragMove` only when the kind of the landing changes, and gives the shape back at its `DragEnd` and its `DragCancel`. See [screen.md](../screen/screen.md#the-shape-of-the-pointer-during-a-drag).
+A tab of the tree is an open hand under the pointer, because a press there can drag it. When the drag starts, after the small move, the tree says the shape of the drag to the screen with `make_screen_pointer_shape_operation`: the closed hand while a group takes the tab at the pointer, and the crossed circle while none does. The tree under the pointer says it again at a `DragOver` only when the kind of the landing changes, and at a move where it has no group; outside every window the held tab says the closed hand, because a release there opens a window. The held tab gives the shape back at its `DragEnd` and its `DragCancel`. See [screen.md](../screen/screen.md#the-shape-of-the-pointer-during-a-drag).
+
+### Windows of tabs
+
+Each window of the editor that shows tabs has a tree of its own, inside the same layers as the first window: an undo history and the menu bar, the toolbar and the status bar. `OpenPaneWindowOperation(tab; title, x, y, width, height)` opens such a window with one tab and gives the tab the focus: its evaluation builds the tree, puts the layers around it with `make_window_content(editor, tree)` of the kernel, and opens the window on the screen. The screen draws a window whose content is of the kind of the content of the first window with the projection of the first window.
+
+A tab moves between windows in three ways:
+
+- **Out.** A release of the drag of a tab outside every window moves the tab to a new window with its upper left corner at the pointer, and the size of the pane that it came from, at least 400 by 300 pixels. While the pointer is outside, a small window with no frame shows the icon and the name of the tab next to it (`PaneTabLabelOperation`). The item "Move to new window" of the menu of a tab does the same, with a window that the backend places. The only tab of a window does not go out, because the result would be the same window at another place, and its item is greyed.
+- **Across.** A drop on a strip or a pane of the tree of another window moves the tab there (`MovePaneTabAcrossOperation`), as a drop inside one tree moves it. A window whose last tab leaves it closes.
+- **Back.** A window that a tab went out to is a window like any other, so a tab goes back across.
+
+`MovePaneTabToWindowOperation` and `MovePaneTabAcrossOperation` carry their documents and go to the editor as they are, marked as view state, so no history records them: a move from one window to another is no edit of one window. Their evaluation takes the tab out with `make_pane_remove_tab_operation`, which releases nothing, and puts it in with `acquire = false`, so the tab keeps its one holder and what it shows keeps its work. Their point moves into the frame of the screen on the way up (`map_operation_position`).
+
+The close button of a window of tabs closes its tabs: the content of the window reads the `WindowClose` before the screen removes the window, and the tree answers `ReleaseDocumentOperation` for each of its tabs. The close of the last window quits the editor.
 
 ### The tabs of an editor
 
@@ -271,6 +285,7 @@ The shell slice puts a pane tree in the content of a window; see [shell.md](../s
 - **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../../plan/done/declared-api-is-a-list-of-names.md).
 - **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../../plan/done/duplicate-a-pane.md).
 - **A maximize is a view of the layout.** The tree keeps the maximized group in a field and the layout stays, so a restore is exact and costs one layout. A split pane closes a slot whose maximum is 0, so the other groups keep their IO maps. See [plan/done/maximize-a-pane.md](../../../../plan/done/maximize-a-pane.md).
+- **A window of tabs is a window like the first.** Each wrapper that puts a layer around the tabs has a second method for a new window, so a host that turns a wrapper off gets the same layers in every window, and one clipboard serves all windows. See [plan/pending/a-tab-moves-along-its-strip-and-between-windows.md](../../../../plan/pending/a-tab-moves-along-its-strip-and-between-windows.md).
 - **A new tab is filled by a paste.** The caret is in the text of the insertion, and the paste of the clipboard package replaces an insertion of every domain at its caret. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
@@ -293,7 +308,7 @@ save_user_interface("session.pred")
 `editor` is a running editor whose document holds a pane tree.
 
 - Examples: `pane_example` and `empty_pane_example`, built by `make_pane_projection_example` in `example/platform/PaneProjectionExample.jl`.
-- Tests: `test_pane_surgery()`, `test_pane_geometry()`, `test_pane_to_widget()`, `test_pane_reader()`, `test_pane_gestures()`, `test_pane_drag()`, `test_split_pane_drag()`, `test_pane_rename()` and `test_pane_construct()` under `test/platform/`, and `test_user_interface_file()` in `test/projectured/editor/`. The package has no suite of its own.
+- Tests: `test_pane_surgery()`, `test_pane_geometry()`, `test_pane_to_widget()`, `test_pane_reader()`, `test_pane_gestures()`, `test_pane_drag()`, `test_split_pane_drag()`, `test_pane_rename()`, `test_pane_construct()` and `test_tab_window()` under `test/platform/`, and `test_user_interface_file()` in `test/projectured/editor/`. The package has no suite of its own.
 
 ## Limits
 

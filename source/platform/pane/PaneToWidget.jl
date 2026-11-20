@@ -783,6 +783,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
         return Intent(gesture, _read_tab_drag(iomap, state, gesture))
     gesture isa DragOver && return Intent(gesture, _read_tab_drag_over(iomap, gesture, change.operation))
     gesture isa DragDrop && return Intent(gesture, _read_tab_drop(iomap, gesture, change.operation))
+    # The window of the tree closes: its tabs are released.
+    gesture isa WindowClose && return Intent(gesture, _release_pane_tree_tabs(tree))
     state === nothing && is_outward_gesture(gesture) &&
         return Intent(gesture, _read_pane_outward(p, iomap, change))
     payload = change.operation === nothing ? gesture : change.operation
@@ -864,9 +866,10 @@ end
 #
 # A drag of a tab has two sides, and each keeps its own transient state on its tree:
 #
-#   * `PaneTree.drag` holds `(group, index, origin, started)` while a tab of this tree
-#     is held: where it came from, the point of the press, and whether the drag has
-#     started. The tree is the part whose drag is on: it starts the drag after the
+#   * `PaneTree.drag` holds `(group, index, origin, started, outside)` while a tab of
+#     this tree is held: where it came from, the point of the press, whether the drag
+#     has started, and whether the pointer is outside every window, where the label
+#     of the tab follows it. The tree is the part whose drag is on: it starts the drag after the
 #     small move, so a press that does not move is still a click, and the drag
 #     wrapper then sends it `DragMove`, `DragEnd` and `DragCancel` by its path.
 #   * `PaneTree.drop` holds `(target, zone, place, dragged)` while a drag that carries
@@ -904,7 +907,7 @@ function _press_tab(iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation, o
     group isa PaneGroup || return nothing
     (1 <= operation.tab_index <= length(group.tabs)) || return nothing
     _drag_write(iomap.input, (group = group, index = operation.tab_index, origin = origin,
-                              started = false))
+                              started = false, outside = false))
 end
 
 # The thing that the drag of tab `index` of `group` of `tree` carries.
@@ -938,12 +941,50 @@ end
 # takes the tab, the crossed circle where none does.
 _get_tab_drop_shape(target) = target === nothing ? :crossed_circle : :closed_hand
 
-# The parts of the drag of a held tab, which come by the path of the tree: the
-# release and a cancel end the drag. Where the tab lands is the work of the tree
-# under the pointer, which reads `DragOver` and `DragDrop`.
+# The parts of the drag of a held tab, which come by the path of the tree. Where the
+# tab lands in a window is the work of the tree under the pointer, which reads
+# `DragOver` and `DragDrop`. Outside every window the label of the tab follows the
+# pointer, and a release there moves the tab to a new window. The release and a
+# cancel end the drag.
 function _read_tab_drag(iomap::PaneTreeToWidgetIoMap, state, gesture)
-    gesture isa DragMove && return nothing
-    CompoundOperation(Any[_drag_write(iomap.input, nothing), make_screen_pointer_shape_operation(nothing)])
+    tree = iomap.input
+    gesture isa DragMove && return _read_tab_outside(iomap, state, gesture)
+    ends = Any[_drag_write(tree, nothing), make_screen_pointer_shape_operation(nothing)]
+    state.outside && push!(ends, ReplaceViewStateOperation(PaneTabLabelOperation(nothing)))
+    if gesture isa DragEnd && gesture.outside && can_move_pane_tab_out(tree) &&
+       1 <= state.index <= length(state.group.tabs)
+        width, height = _get_group_pixel_size(iomap, state.group)
+        move = MovePaneTabToWindowOperation(tree, state.group, state.group.tabs[state.index];
+                                            x = gesture.x, y = gesture.y, width, height)
+        pushfirst!(ends, ReplaceViewStateOperation(move))
+    end
+    CompoundOperation(ends)
+end
+
+# A move of a held tab: outside every window its label follows the pointer, and back
+# over a window the label goes. The only tab of a window shows no label, because a
+# release outside moves it nowhere.
+function _read_tab_outside(iomap::PaneTreeToWidgetIoMap, state, move::DragMove)
+    tree = iomap.input
+    if move.outside && can_move_pane_tab_out(tree) && 1 <= state.index <= length(state.group.tabs)
+        label = ReplaceViewStateOperation(PaneTabLabelOperation(move.x, move.y, state.group.tabs[state.index]))
+        state.outside && return label
+        return CompoundOperation(Any[_drag_write(tree, merge(state::NamedTuple, (outside = true,))), label,
+                                     make_screen_pointer_shape_operation(_get_tab_drop_shape(state.group))])
+    end
+    state.outside || return nothing
+    CompoundOperation(Any[_drag_write(tree, merge(state::NamedTuple, (outside = false,))),
+                          ReplaceViewStateOperation(PaneTabLabelOperation(nothing))])
+end
+
+# The size in pixels of the pane of `group`, at least the least size of a window, for
+# a window that a tab of it goes out to.
+function _get_group_pixel_size(iomap::PaneTreeToWidgetIoMap, group::PaneGroup)
+    point = _get_view_point(iomap, 0, 0)
+    r = get_pane_rectangle(iomap.input, group)
+    (point === nothing || r === nothing) && return (800, 600)
+    (max(_PANE_WINDOW_MINIMUM[1], round(Int, r.w * point.width)),
+     max(_PANE_WINDOW_MINIMUM[2], round(Int, r.h * point.height)))
 end
 
 # A drag that carries a tab is over the tree at the point of `gesture`: the tree
@@ -975,15 +1016,21 @@ function _read_tab_drag_over(iomap::PaneTreeToWidgetIoMap, gesture::DragOver, st
 end
 
 # The release of a drag that carries a tab, at the point of `gesture`: the tab moves
-# where it lands, and the tree puts away where it would land.
+# where it lands, and the tree puts away where it would land. A tab of the tree of
+# another window moves across, and no history records that move.
 function _read_tab_drop(iomap::PaneTreeToWidgetIoMap, gesture::DragDrop, strip_answer)
     dragged = gesture.dragged
     _is_tab_dragged(dragged) || return nothing
     tree = iomap.input
     clear = getfield(tree, :drop)[] === nothing ? nothing : _drop_write(tree, nothing)
-    (_is_held_tab(dragged) && dragged.tree === tree) || return clear
+    _is_held_tab(dragged) || return clear
     target, zone, place = _find_tab_landing(iomap, dragged, gesture.x, gesture.y, strip_answer)
     target === nothing && return clear
+    if dragged.tree !== tree
+        move = MovePaneTabAcrossOperation(dragged.tree, dragged.group, dragged.group.tabs[dragged.index],
+                                          tree, target, zone, place)
+        return _join_tab_operations(ReplaceViewStateOperation(move), clear)
+    end
     drop = _drop_operation(tree, (group = dragged.group, index = dragged.index,
                                   target = target, zone = zone, place = place))
     _join_tab_operations(drop, clear)

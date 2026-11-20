@@ -76,12 +76,15 @@ end
         _dt_held!(editor, backend, 300, 150, 1.2)
         @test tree.drop.target === right
         @test _dps_shape(editor, 300, 150) === :closed_hand
-        # Outside the view of the tree, no group takes the tab.
+        # Outside the window no group takes the tab, but a release there opens a new
+        # window with it: the hand holds it, and its label follows the pointer.
         _dt_held!(editor, backend, 600, 500, 1.3)
         @test tree.drop === nothing
-        @test _dps_shape(editor, 600, 500) === :crossed_circle
+        @test _dps_screen(editor).pointer_shape === :closed_hand
+        @test any(window -> window.id === :pane_tab_label, _dps_screen(editor).windows)
         _dt_held!(editor, backend, 300, 150, 1.4)
         @test _dps_screen(editor).pointer_shape === :closed_hand
+        @test !any(window -> window.id === :pane_tab_label, _dps_screen(editor).windows)
         _dt_up!(editor, backend, 300, 150, 1.5)
         @test _dps_screen(editor).pointer_shape === nothing
         @test tree.drag === nothing

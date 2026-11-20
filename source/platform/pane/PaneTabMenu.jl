@@ -108,6 +108,9 @@ function _make_tab_menu(tree::PaneTree, group::PaneGroup, index::Integer)
              "Split horizontally — the new pane below"),
         item(maximized ? "Restore layout" : "Maximize group", maximize,
              "Maximize the focused group, or give back the layout"),
+        item("Move to new window",
+             can_move_pane_tab_out(tree) ?
+                 ReplaceViewStateOperation(MovePaneTabToWindowOperation(tree, group, tab)) : nothing),
         WidgetSeparator(),
         item("Add to explorer", AddExplorerEntryOperation(_get_tab_document(tab))),
         WidgetSeparator(),

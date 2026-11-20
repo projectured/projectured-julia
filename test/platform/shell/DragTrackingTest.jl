@@ -350,8 +350,10 @@ end
     end
 end
 
-@testset "a release in another window or between the windows moves no tab yet" begin
+@testset "a release in another window moves the tab there, and one between the windows opens a window" begin
     editor, backend, t = _dt_two_window_editor()
+    screen = get_wrapped_document(editor.document)
+    moved = t.left.tabs[2]
     place = _dt_place_of(editor, "b")
     @test place !== nothing
     if place !== nothing
@@ -362,20 +364,34 @@ end
         _dt_held!(editor, backend, 530, 6, 1.2)
         @test t.second.drop !== nothing
         _dt_up!(editor, backend, 530, 6, 1.3)
-        # `V` got the drop and put its mark away; a tab of another tree is the work
-        # of step 5 of the plan.
+        # `V` takes the tab, puts its mark away, and `W` keeps its other tabs.
         @test t.second.drop === nothing
         @test t.first.drag === nothing
-        @test length(t.left.tabs) == 2
-        @test length(t.other.tabs) == 2
-        # Between the windows: the drag ends, and nothing moves.
+        @test [get_pane_tab_title_string(tab) for tab in t.left.tabs] == ["a"]
+        @test length(t.other.tabs) == 3
+        @test any(tab -> tab === moved, t.other.tabs)
+        @test count(window -> window.style === :normal, screen.windows) == 2
+    end
+    run_frame!(editor)
+    place = _dt_place_of(editor, "a")
+    @test place !== nothing
+    if place !== nothing
+        x, y = place[1] + 3, place[2] + 4
+        # Between the windows: the tab goes to a new window at the pointer.
+        _dt_send!(editor, backend, MouseMove(x, y; time = 1.9))
         _dt_down!(editor, backend, x, y, 2.0)
         _dt_held!(editor, backend, x + 12, y, 2.1)
         _dt_held!(editor, backend, 450, 150, 2.2)
         _dt_up!(editor, backend, 450, 150, 2.3)
         @test t.first.drag === nothing
         @test _dt_drag_path(editor) === nothing
-        @test length(t.left.tabs) == 2
+        windows = [window for window in screen.windows if window.style === :normal]
+        @test length(windows) == 3
+        @test (windows[3].x, windows[3].y) == (450, 150)
+        @test [get_pane_tab_title_string(tab) for group in get_pane_groups(windows[3].content)
+                                               for tab in group.tabs] == ["a"]
+        @test [get_pane_tab_title_string(tab) for group in get_pane_groups(t.first)
+                                               for tab in group.tabs] == ["c"]
     end
 end
 

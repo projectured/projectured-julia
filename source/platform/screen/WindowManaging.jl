@@ -82,11 +82,20 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     # remove it from both input and output here — the same dual-mutation the
     # manager performs for a CloseWindowOperation bubbling up from below, so the
     # close is owned in one place rather than relying on evaluate_operation.
+    #
+    # The content of the window reads the close first, so what it shows can end, as
+    # a window of tabs releases its tabs. The close of the last window that is no
+    # popup, tooltip or dialog quits the editor.
     if window_input isa WindowInput && window_input.event isa WindowClose
         win = _find_window(iomap.input, window_input.window_id)
         win === nothing && return Intent(change.gesture, nothing)
+        heard = win.style === :normal ? read_intent(p.inner, recursion, change, iomap.inner_iomap).operation : nothing
         given_back = _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
-        return Intent(change.gesture, given_back)
+        last = win.style === :normal && !any(window -> window.style === :normal, iomap.input.windows)
+        answers = Any[operation for operation in (heard, given_back, last ? QuitEditorOperation() : nothing)
+                      if operation isa Operation]
+        return Intent(change.gesture,
+                      isempty(answers) ? nothing : length(answers) == 1 ? answers[1] : CompoundOperation(answers))
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the default window or a tooltip.

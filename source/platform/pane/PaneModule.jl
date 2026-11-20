@@ -87,7 +87,8 @@ export get_pane_path, get_pane_collection_path,
        get_pane_tab_reference, make_pane_focus_operation, make_pane_show_operation,
        find_pane_maximized_group, make_pane_maximize_operation, make_pane_restore_operation,
        get_pane_tab_name_path, get_pane_content_path, make_pane_title_caret_operation,
-       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_close_other_tabs_operation,
+       make_pane_open_tab_operation, make_pane_close_tab_operation, make_pane_remove_tab_operation,
+       make_pane_close_other_tabs_operation,
        make_pane_close_tabs_to_the_right_operation, make_pane_split_operation,
        make_pane_duplicate_tab_operation,
        make_pane_move_tab_operation, make_pane_drop_split_operation, make_pane_resize_operation,
@@ -110,7 +111,9 @@ export PaneTreeToWidget, PaneTreeToWidgetIoMap,
 export save_user_interface, load_user_interface
 export get_pane_file_group
 export TabDocuments
-export OpenPaneWindowOperation
+export OpenPaneWindowOperation, MovePaneTabToWindowOperation, MovePaneTabAcrossOperation,
+       PaneTabLabelOperation,
+       can_move_pane_tab_out
 
 
 include("PaneDocument.jl")

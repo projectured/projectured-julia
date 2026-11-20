@@ -525,11 +525,12 @@ end
 # ── Open a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_open_tab_operation(tree, group, tab; index, focus = true) -> Operation | Nothing
+    make_pane_open_tab_operation(tree, group, tab; index, focus = true, acquire = true) -> Operation | Nothing
 
 Insert `tab` into `group` at the 1-based `index` (the end by default), and with
-`focus` focus it. One `make_insert_elements_operation` splice, and the acquire of what
-the tab shows (`AcquireDocumentOperation`). A focused tab whose content is the empty
+`focus` focus it. One `make_insert_elements_operation` splice, and with `acquire`
+the acquire of what the tab shows (`AcquireDocumentOperation`). A tab that comes
+from another window is held already, and takes `acquire = false`. A focused tab whose content is the empty
 placeholder takes the selection on that content, as a whole, so a paste fills it. A
 focused tab whose content holds a selection of its own, such as the caret of a new
 evaluator, takes the focus along that selection, so the root holds the selection the
@@ -538,7 +539,7 @@ each selection that names a tab after the new one names the same tab after the
 insert, and an empty group shows its first tab.
 """
 function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
-                                 index = nothing, focus::Bool = true)
+                                 index = nothing, focus::Bool = true, acquire::Bool = true)
     tabs_path = get_pane_collection_path(tree, group, :tabs)
     tabs_path === nothing && return nothing
     n = length(group.tabs)
@@ -547,13 +548,14 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     pairs === nothing && return nothing
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
+    held = acquire ? Any[AcquireDocumentOperation(tab)] : Any[]
     focus || return CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab]),
                                           _make_insert_selection_shifts(tree, group, :tabs, at)...,
-                                          AcquireDocumentOperation(tab)])
+                                          held...])
     _with_focus_restore(tree, group,
         CompoundOperation(Any[make_insert_elements_operation(tabs_path, at, Any[tab];
                                                              selection = _make_new_tab_cursor(pairs, tab)),
-                              AcquireDocumentOperation(tab)]))
+                              held...]))
 end
 
 # A tab holds each layer of what it shows, from its content inward, such as the
@@ -670,15 +672,26 @@ to the neighbouring group when the group goes. Otherwise the focus stays on its
 tab, and each group shows the tab that it showed.
 """
 function make_pane_close_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
+    close = make_pane_remove_tab_operation(tree, group, index)
+    close === nothing && return nothing
+    CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index])])
+end
+
+"""
+    make_pane_remove_tab_operation(tree, group, index) -> Operation | Nothing
+
+Take tab `index` out of `group` as [`make_pane_close_tab_operation`](@ref) does, the
+group and the focus too, and release nothing: the tab goes on somewhere else, such
+as in a window of its own, so what it shows keeps its work.
+"""
+function make_pane_remove_tab_operation(tree::PaneTree, group::PaneGroup, index::Integer)
     n = length(group.tabs)
     (1 <= index <= n) || return nothing
-    close = if _is_focus_in(tree, group, index)
+    if _is_focus_in(tree, group, index)
         n > 1 ? _close_one_tab(tree, group, index, n) : _close_group(tree, group)
     else
         n > 1 ? _close_unfocused_tab(tree, group, index) : _close_unfocused_group(tree, group)
     end
-    close === nothing && return nothing
-    CompoundOperation(Any[close, ReleaseDocumentOperation(group.tabs[index])])
 end
 
 # The close of tab `index` of `group`, which does not have the focus.
@@ -848,7 +861,7 @@ end
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """
-    make_pane_split_operation(tree, group; orientation, side, tab, focus = true) -> Operation | Nothing
+    make_pane_split_operation(tree, group; orientation, side, tab, focus = true, acquire = true) -> Operation | Nothing
 
 Split `group` and put `tab` in the new pane. `orientation` is `:vertical` (the
 new pane sits beside) or `:horizontal` (it sits above or below); `side` is
@@ -861,11 +874,15 @@ sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
 
 With `focus` the new tab takes the focus. With `focus = false` the focus stays on
-what it names, along its new path, and the new group shows its one tab.
+what it names, along its new path, and the new group shows its one tab. With
+`acquire` the split acquires what the tab shows; a tab that comes from another
+window is held already, and takes `acquire = false`.
 """
 function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation::Symbol,
-                                   side::Symbol, tab::PaneTab, focus::Bool = true)
+                                   side::Symbol, tab::PaneTab, focus::Bool = true,
+                                   acquire::Bool = true)
     new_group = PaneGroup(PaneTab[tab])
+    held = acquire ? Any[AcquireDocumentOperation(tab)] : Any[]
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)
     parent === nothing && return nothing
@@ -892,7 +909,7 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
             make_insert_elements_operation(elements_path, at, Any[new_group]),
             _write_weights(tree, owner, weights),
             moves...,
-            AcquireDocumentOperation(tab)])
+            held...])
         return focus ? _with_focus_restore(tree, new_group, joined) : joined
     end
 
@@ -905,10 +922,10 @@ function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation
     push!(pairs, (new_group, FieldReferenceStep("tabs")))
     push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
     focus || return CompoundOperation(Any[write, _make_wrap_selection_moves(tree, group, split)...,
-                                          AcquireDocumentOperation(tab)])
+                                          held...])
     cursor = _make_new_tab_cursor(pairs, tab)
     _with_focus_restore(tree, new_group,
-        CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), AcquireDocumentOperation(tab)]))
+        CompoundOperation(Any[write, ReplaceSelectionOperation(cursor), held...]))
 end
 
 # The operations that keep the selections of `group` when `split` takes its slot

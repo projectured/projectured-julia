@@ -275,26 +275,103 @@ suites of the packages that it touches run against the baseline of main.
     windows, and Escape.
   - `test_drag_tracking` 92 of 92 at `f2decb134`. Its last test said that a release in
     another window moves no tab; step 5 changes it to the moves of step 5.
-- [ ] 3. **The layers of a new window** (D4, D7, D8, P10, P11, P12).
+- [x] 3. **The layers of a new window** (D4, D7, D8, P10, P11, P12). (Done 2026-11-20.)
   `wrap_window_content` with the methods of the undo wrapper and the shell wrapper; the
   editor keeps the layers; the clipboard around the screen; the row of P12. A function
   of the pane package opens a window with a given tab and the layers. Test: open a
   second window by code with one tab; Ctrl+O and Ctrl+P fire in it; Ctrl+Z in it undoes
   only its own edit; a copy in window 1 pastes in window 2. The omnet IDE suites run,
   because the IDE window passes options to the clipboard wrapper.
-- [ ] 4. **A tab goes out** (D2, D3, P6, P7). A release with `outside = true` opens the
-  window of step 3 with the tab, at the place of P6. While the pointer is outside, the
-  label of D3 follows it. The item "Move to new window" in the menu of a tab. Test: a
-  drag of `b` from `a b c` to 200 px outside gives a second window with `b` at the
-  pointer and leaves `a c`; the label is shown while outside and is gone after the
-  release; the only tab of a window does not go out.
-- [ ] 5. **A tab goes back, and the close of a window** (D5, P8, P9). A drop into the
-  strip or a pane of another window moves the tab there, and an empty window closes. The
-  close button of a tab window closes its tabs, and the close of the last tab window
-  quits. A save of the layout (`save_user_interface`) keeps every window, and a load
-  gives them back. Test: drag `b` from window 2, its only tab, between `a` and `c` of
-  window 1 gives `a b c` and one window; the close of window 2 with `b d` releases `b`
-  and `d`; no undo history holds a move between windows.
+
+  Found in the work (2026-11-20):
+  - **The function of a layer** (changes P10). It is
+    `wrap_window_content(::Val{keyword}, argument, content; arguments, backend)`:
+    `arguments` and `backend` are keywords, because the shell needs the backend for the
+    notice of its status bar. `build_editor` keeps the wrappers that are on as the
+    session document `WindowLayers`, and `make_window_content(editor, content)` applies
+    the layer of each wrapper of the layer `:container`, from the inside out. An editor
+    with no such document gives no layers.
+  - **The bands of each window.** The shell makes a menu bar, a toolbar and a status bar
+    for each window with the same functions as for the first window. A tool and a menu
+    that the host passes are copied for each window, because no two windows can hold one
+    widget.
+  - **The place of the clipboard** (changes P11). With a window, the clipboard goes
+    around the screen as an inner wrapper of the screen (`parts.window_wrappers`), and
+    the walk of the objects stays in the layer `:container`. A wrapper around a screen
+    prints the screen at its own place, as the trackers, the context menu and the
+    tooltip window do, so the clipboard does not add the step `content` for a screen
+    (`_make_content_context`). A key of the clipboard goes to the window that holds the
+    selection (`_put_in_selection_window`). With no window, the clipboard stays around
+    the root in the layer `:container`, as on main, so it stays inside the gesture log.
+  - **No collection with a window.** `collection = true` with a window is refused with
+    an error. The collection draws its copies beside the content, and a screen has no
+    place for them. The omnet IDE passes no collection.
+  - **The row of P12 goes first.** The shell adds the row
+    `WidgetShell => WidgetShellToGraphicsCanvas` to the rows of later windows, which
+    draws a shell as a widget. So the row of the kind of the first window goes before
+    all the rows of the wrappers.
+  - **The shared clipboard has no toggle** (D9): the wrapper offers its gestures
+    without `:toggle` when it wraps the screen.
+- [x] 4. **A tab goes out** (D2, D3, P6, P7). (Done 2026-11-20.) A release with
+  `outside = true` opens the window of step 3 with the tab, at the place of P6. While the
+  pointer is outside, the label of D3 follows it. The item "Move to new window" in the
+  menu of a tab. Test: a drag of `b` from `a b c` to 200 px outside gives a second window
+  with `b` at the pointer and leaves `a c`; the label is shown while outside and is gone
+  after the release; the only tab of a window does not go out.
+
+  Found in the work (2026-11-20):
+  - **Three operations.** `PaneTabLabelOperation(x, y, tab)` opens or moves the label, a
+    window `:pane_tab_label` of the style `:tooltip`, 16 px right of and 12 px below the
+    pointer; `PaneTabLabelOperation(nothing)` closes it. `MovePaneTabToWindowOperation`
+    takes the tab out with `make_pane_remove_tab_operation`, a close that releases
+    nothing, and then runs `OpenPaneWindowOperation` with `acquire = false`.
+    `PaneTree.drag` gets the field `outside`, so the tree knows when to close the label.
+  - **The points.** Each of the three operations has a method of
+    `map_operation_position`, so the readers move its point into the frame of the screen
+    on the way up. The place `(-1, -1)` lets the backend choose, and stays.
+  - **No history** (P9). The tree marks each of them with `ReplaceViewStateOperation`, so
+    no undo buffer records it. The operation runs the remove at the place of the tree
+    with `reroot_operation`, which no undo buffer sees either.
+  - **The size.** The drag gives the new window the size of the pane that the tab came
+    from, at least 400 × 300 px (`_PANE_WINDOW_MINIMUM`). The item "Move to new window"
+    opens a window of 800 × 600 px at the place that the backend chooses. The item is off
+    when `can_move_pane_tab_out(tree)` is false, that is for the only tab (P7).
+  - **The pointer outside the window.** The hand stays closed outside the window, because
+    a release there moves the tab, and the label shows; `DragPointerShapeTest` had the
+    crossed circle there and now checks the hand and the label.
+  - **A new window acquires its tab.** `OpenPaneWindowOperation` acquires what its tab
+    shows, as the open of a tab does; a tab that comes from another window takes
+    `acquire = false`.
+- [ ] 5. **A tab goes back, and the close of a window** (D5, P8, P9). (Done 2026-11-20,
+  but the save of the layout, which waits for a decision of the owner.) A drop into the strip or a pane of another window moves the tab there, and an empty
+  window closes. The close button of a tab window closes its tabs, and the close of the
+  last tab window quits. A save of the layout (`save_user_interface`) keeps every window,
+  and a load gives them back. Test: drag `b` from window 2, its only tab, between `a` and
+  `c` of window 1 gives `a b c` and one window; the close of window 2 with `b d` releases
+  `b` and `d`; no undo history holds a move between windows.
+
+  Found in the work (2026-11-20):
+  - **The move across.** The tree under the pointer reads the `DragDrop` of a tab of
+    another tree and answers `MovePaneTabAcrossOperation`, marked as view state. It runs
+    the remove at the place of the source tree and the insert at the place of the target
+    tree, each with `reroot_operation`. The insert takes `acquire = false`, as the open
+    of a tab and the split now can, because the tab is held already. When the source
+    tree has no tab left, its window closes (`_find_pane_tree_window`).
+  - **The close of a window.** The window manager gives `WindowClose` to the content of a
+    normal window first, and the tree answers the release of each of its tabs
+    (`_release_pane_tree_tabs`). When no normal window is left, the manager adds
+    `QuitEditorOperation`. A popup, a tooltip, a dialog and the label do not count.
+  - **The save of the layout fails on main too.** `save_user_interface` writes the whole
+    document of the editor. With windows, that is the screen, and the save fails at
+    `WindowDocument.id`, a `Symbol`, which a `.pred` file can not write. Before that, it
+    failed at the first `UndoBuffer` with a step, because the buffer wrote its steps. No
+    code saves an editor with windows: the tests save a tree or a shell in a fake editor.
+    A row of `pred_arguments` for `UndoBuffer` that writes its content alone, as
+    `ClipboardSlice` and `GestureLog` do, and the test of the save, wait outside the
+    branch until the owner decides the scope.
+  - **Step 2 test changed.** The last test of `DragTrackingTest.jl` now checks the moves:
+    a release over the strip of `V` moves the tab there, and a release between the
+    windows opens a third window at the pointer.
 - [ ] 6. **The guides and the live check.** The guides of the pane, the drag tracker,
   the screen and the shell describe the new rules. A live check on SDL with two real
   windows: a reorder, a tab out to a new window, a tab back, a copy and paste between
