@@ -108,6 +108,10 @@ function test_undo_buffer()
             ReplaceViewStateOperation(_write_first("x")), _write_first("y")]))
         # A timer that a reader sets edits no document.
         @test !is_undo_step(nothing, SetTimerOperation(:dwell, 1.0))
+        # An open of a page, a file or an address shows a document and edits none.
+        @test !is_undo_step(nothing, OpenPageOperation(nothing, EmptyReference(), :here; target = "guide.md"))
+        @test !is_undo_step(nothing, OpenFileOperation("guide.md"))
+        @test !is_undo_step(nothing, OpenUrlOperation(Url("https://julialang.org")))
         # A compound that carries a write is kept.
         @test is_undo_step(nothing, CompoundOperation(Any[_write_first("x"),
                                                           ReplaceSelectionOperation(EmptyReference())]))

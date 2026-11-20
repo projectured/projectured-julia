@@ -139,6 +139,41 @@ function test_markdown_link_gestures()
         @test opened.file_wrap(file) isa Navigator
     end
 
+    @testset "a double click on a link to a file opens one tab of it, and the page of the link keeps no edit" begin
+        folder = mktempdir()
+        guide = joinpath(folder, "guide.md")
+        write(guide, "# Guide\n")
+        page = joinpath(folder, "page.pred")
+        write(page, "Dashboard(\n    title = \"Walk\",\n    cards = [\n        DashboardCard(\n" *
+                    "            title = \"Progress\",\n            content = md\"\"\"\n" *
+                    "            Read the [guide](guide.md) first.\"\"\",\n        ),\n    ],\n)\n")
+        backend = HeadlessBackend()
+        measure = FixedMeasure(8, 12, 4, 0)
+        start = PaneGroup(PaneTab[PaneTab("start", PrimitiveString("x"))])
+        editor = build_editor(PaneTree(start), make_tabs_projection(NaturalToGraphics(; measure); measure);
+                              backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = (; title = "W", width = 1200, height = 800), tabs = false,
+                              appearance = false, settings = false)
+        run_frame!(editor)
+        run_with_evaluation_editor(editor) do
+            show_pane!(open_file!(page))
+        end
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        foreach(_ -> frame!(), 1:3)
+        click = platform._nav_click(backend, "guide")
+        @test click !== nothing
+        # Both clicks of the double click come in one frame, as when the frame before
+        # them is slow.
+        window = first(editor.iomap.output.windows)
+        push_event!(backend, WindowInput(window.id, click))
+        push_event!(backend, WindowInput(window.id, MouseClick(:left, click.x, click.y, 2, ModifierKeys(); time = 0.0)))
+        foreach(_ -> frame!(), 1:3)
+        tabs = [tab for group in get_pane_groups(get_window_tree(; editor)) for tab in group.tabs]
+        @test count(tab -> find_shown_file_path(tab.content) == abspath(guide), tabs) == 1
+        # The open of the guide is no edit of the page.
+        @test has_unsaved_edits(find_open_file_document(page; editor).content) == false
+    end
+
     @testset "the tooltip of a link shows its target" begin
         root = parse_markdown(_MARKDOWN_LINK_SOURCE)
         link = only(child for child in root.elements[2].content if child isa MarkdownLink)

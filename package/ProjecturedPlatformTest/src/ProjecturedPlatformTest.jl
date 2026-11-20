@@ -595,6 +595,8 @@ using ProjecturedPlatform.NaturalModule: NaturalToGraphics
 using ProjecturedPlatform.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsViewport
 using ProjecturedPlatform.StyleModule: FixedMeasure
 using ProjecturedPlatform.PrimitiveModule: PrimitiveString
+using ProjecturedPlatform.WidgetModule: OpenPageOperation, OpenFileOperation
+using ProjecturedPlatform.LinkModule: OpenUrlOperation, Url
 
 include("../../../test/platform/undo/UndoBufferTest.jl")
 include("../../../test/platform/undo/UndoSuite.jl")
