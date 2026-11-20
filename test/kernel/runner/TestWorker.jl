@@ -68,7 +68,10 @@ with its fields separated by tabs, and answers with lines that start with
 [`WORKER_LINE_PREFIX`](@ref) on `output`:
 
 - `load PACKAGE`: load the package, or include the file when `PACKAGE` ends with
-  `.jl`; answer `loaded PACKAGE SECONDS`.
+  `.jl`, with `Revise.includet` when Revise is loaded; answer `loaded PACKAGE SECONDS`.
+- `revise`: apply the changes of the files with Revise; answer `revised yes`, or
+  `revised no` when Revise is not loaded. A change that Revise can not apply
+  gets the answer `failed`.
 - `list PACKAGE SUITE ONLY SKIP BASE`, where a plain test function is a suite of
   one part: answer one line `part INDEX SUITEPATH NAME LIMIT ALONE` for each part
   that [`list_parts`](@ref) chooses, then `listed COUNT`. A filter is empty for
@@ -106,11 +109,23 @@ function _worker_command(output::IO, command, arguments)
     if command == "load"
         package = arguments[1]
         seconds = @elapsed if endswith(package, ".jl")
-            Base.include(Main, package)
+            if isdefined(Main, :Revise)
+                Base.invokelatest(getglobal(Main, :Revise).includet, Main, package)
+            else
+                Base.include(Main, package)
+            end
         else
             Core.eval(Main, Expr(:using, Expr(:., Symbol(package))))
         end
         _worker_answer(output, "loaded", package, round(seconds; digits = 1))
+    elseif command == "revise"
+        if isdefined(Main, :Revise)
+            sleep(1.0)                                   # Revise sees a write a moment later
+            Base.invokelatest(getglobal(Main, :Revise).revise; throw = true)
+            _worker_answer(output, "revised", "yes")
+        else
+            _worker_answer(output, "revised", "no")
+        end
     elseif command == "list"
         package, name, only_text, skip_text, base = arguments
         suite = _worker_suite(package, name)

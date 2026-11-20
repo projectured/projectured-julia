@@ -238,6 +238,28 @@ prints each part whose result or counts changed, and each new part. So a run of
 a branch needs no run of `main` beside it, when a run of that commit of `main`
 stored its record. `compare_records(base, other)` compares two record files.
 
+### A session that stays open
+
+`--stay FOLDER` keeps the workers open. Each worker loads Revise first when the
+environment has it, so after an edit a run needs no new load:
+
+```bash
+julia --project=environment/all tool/run-tests.jl --stay /var/tmp/my-session &
+julia --project=environment/all tool/run-tests.jl --send /var/tmp/my-session \
+    --only widget ProjecturedPlatformTest test_platform
+julia --project=environment/all tool/run-tests.jl --send /var/tmp/my-session --stop
+```
+
+`--send` writes the other arguments as a request into `FOLDER/requests`, waits
+for its end, prints its output, and gives its exit code. Before each request,
+each worker applies the changes of the files with Revise. When Revise can not
+apply a change, that worker stops and a new one starts, which loads the files
+again; `--restart` in a request starts new workers in any case. The output, the
+record and the exit code of a request stay in `FOLDER/results`.
+
+In the REPL, Revise does the same for a person: `test_platform(only = "widget")`
+runs again after an edit, with no new load.
+
 ## Per-package tests
 
 | Function | What it covers |

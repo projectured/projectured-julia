@@ -5,7 +5,8 @@ The supervisor of `tool/run-tests.jl`, with real worker processes: each part of 
 suite gets a result, a part that passes its time limit gets `timeout` and the
 parts after it still run, the record file holds one line for each part, two
 workers run parts at the same time, a part alone runs beside no other part, and
-the record of a commit of main is stored and compared with a run of a branch.
+the record of a commit of main is stored and compared with a run of a branch, and
+a session keeps its worker and runs each request with the changes of the files.
 """
 function test_supervised_runs()
     @testset "a supervised run gives each part a result, and a part that hangs stops no other" begin
@@ -125,6 +126,48 @@ function test_supervised_runs()
             @test occursin("new      s/c", text)
             @test !occursin("s/a", text)
         end
+    end
+
+    @testset "a session keeps its worker, and a request runs the files in their new form" begin
+        folder = mktempdir()
+        fixture = joinpath(folder, "StayFixture.jl")
+        write_fixture(answer) = write(fixture, """
+            module StayFixture
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            answer() = $answer
+            checked() = @test answer() == 1
+            const stay_suite = TestSuite("stay", [checked])
+            end
+            """)
+        write_fixture("1")
+        session_output = IOBuffer()
+        options = TestRunOptions(stay = joinpath(folder, "session"), limit = 120.0)
+        session = errormonitor(@async run_test_session(options; output = session_output))
+        request(arguments...) = begin
+            output = IOBuffer()
+            code = send_test_request(joinpath(folder, "session"), [arguments...];
+                                     output, wait_seconds = 300)
+            (code, String(take!(output)))
+        end
+        code, text = request(fixture, "stay_suite")
+        @test code == 0
+        has_revise = occursin("applied the changes of the files with Revise", text)
+        write_fixture("2")
+        code, text = request(fixture, "stay_suite")
+        # With Revise the changed file runs in its new form, in the same worker.
+        @test code == (has_revise ? 1 : 0)
+        if has_revise
+            write_fixture("1 +")                         # Revise can not apply this
+            code, text = request(fixture, "stay_suite")
+            @test occursin("Revise could not apply the changes of the files", text)
+            @test code == 2
+        end
+        write_fixture("1")
+        code, text = request("--restart", fixture, "stay_suite")
+        @test code == 0
+        @test request("--stop") == (0, "")
+        @test timedwait(() -> istaskdone(session), 60.0) == :ok && fetch(session) == 0
     end
 
     @testset "the command line of the supervisor" begin

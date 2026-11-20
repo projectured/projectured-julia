@@ -30,8 +30,11 @@ processes (1); `memory_bytes`, the memory that a
 worker may use (6 GiB); `limit`, the seconds of a part that names no limit of its
 own (600); `only` and `skip`, the filters in the form of the command line;
 `changed`, a base commit whose changes choose the parts (none);
-`record`, the path of the record file (none); and `suites`, the pairs of a
-package and the name of a suite in it.
+`record`, the path of the record file (none); `stay` and `send`, the folder of
+the requests of a session ([`run_test_session`](@ref)), to keep a worker open or to
+send it a request (none); `restart`, a request that starts new workers first;
+`stop`, a request that ends the session; and `suites`, the pairs of a package
+and the name of a suite in it.
 """
 Base.@kwdef mutable struct TestRunOptions
     project::String = something(Base.active_project(), "")
@@ -43,6 +46,10 @@ Base.@kwdef mutable struct TestRunOptions
     skip::String = ""
     changed::String = ""
     record::String = ""
+    stay::String = ""
+    send::String = ""
+    restart::Bool = false
+    stop::Bool = false
     suites::Vector{Tuple{String, String}} = Tuple{String, String}[]
 end
 
@@ -64,6 +71,12 @@ const _RUN_TESTS_USAGE = """
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
       --changed BASE   run only the parts that the changes since the commit BASE reach
       --record PATH    add one line of tab-separated values for each part to PATH
+      --stay FOLDER    keep the workers open, with Revise, and run each request that
+                       FOLDER/requests receives, before each one with the changes of the files
+      --send FOLDER    send the other arguments to the session of FOLDER as a request,
+                       wait for its end, print its output and give its exit code
+      --restart        (a request) start new workers before the run
+      --stop           (a request) end the session
     """
 
 function _read_size(text::AbstractString)
@@ -85,7 +98,10 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
     k = 1
     while k <= length(words)
         word = words[k]
-        if startswith(word, "--")
+        if word in ("--restart", "--stop")
+            word == "--restart" ? (options.restart = true) : (options.stop = true)
+            k += 1
+        elseif startswith(word, "--")
             k == length(words) && error("$word needs a value")
             value = words[k + 1]
             word == "--project" ? (options.project = value) :
@@ -97,6 +113,8 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             word == "--skip" ? (options.skip = value) :
             word == "--changed" ? (options.changed = value) :
             word == "--record" ? (options.record = value) :
+            word == "--stay" ? (options.stay = value) :
+            word == "--send" ? (options.send = value) :
             error("no option $word")
             k += 2
         else
@@ -135,7 +153,10 @@ mutable struct _Worker
 end
 
 function _worker_command(options::TestRunOptions)
-    script = "redirect_stderr(stdout); using ProjecturedKernelTest; run_test_worker(); " *
+    # A worker of a session loads Revise first, when the environment has it, so
+    # that Revise follows the files of the packages after it.
+    revise = isempty(options.stay) ? "" : "try; using Revise; catch; end; "
+    script = "redirect_stderr(stdout); $(revise)using ProjecturedKernelTest; run_test_worker(); " *
              "ccall(:_exit, Cvoid, (Cint,), 0)"
     hint = string(div(options.memory_bytes * 4, 5 * 2^20), "M")
     flags = ["--startup-file=no", "-t", string(options.threads), "--project=$(options.project)",
@@ -143,8 +164,9 @@ function _worker_command(options::TestRunOptions)
     `$(Base.julia_cmd()) $flags`
 end
 
-function _start_worker(number::Int, options::TestRunOptions, events::Channel, output::IO,
-                       is_prefixed::Bool)
+# Start a worker whose output goes to `sink[]`, the stream of the run at that time.
+function _start_worker(number::Int, options::TestRunOptions, events::Channel,
+                       sink::Base.RefValue{IO}, is_prefixed::Bool)
     process = open(_worker_command(options), "r+")
     worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false)
     errormonitor(@async begin
@@ -153,7 +175,7 @@ function _start_worker(number::Int, options::TestRunOptions, events::Channel, ou
                 fields = String.(split(line[length(_SUPERVISOR_PREFIX) + 1:end], '\t'))
                 put!(events, (number, fields))
             else
-                println(output, is_prefixed ? "[w$number] " : "", line)
+                println(sink[], is_prefixed ? "[w$number] " : "", line)
             end
         end
         wait(process)
@@ -216,6 +238,8 @@ function run_test_supervisor(arguments::AbstractVector{<:AbstractString}; output
         println(output, sprint(showerror, error), "\n", _RUN_TESTS_USAGE)
         return 2
     end
+    isempty(options.stay) || return run_test_session(options; output)
+    isempty(options.send) || return send_test_request(options.send, arguments; output)
     isempty(options.suites) && (println(output, _RUN_TESTS_USAGE); return 2)
     run_test_supervisor(options; output)
 end
@@ -223,39 +247,58 @@ end
 function run_test_supervisor(options::TestRunOptions; output::IO = stdout)
     events = Channel{Tuple{Int, Vector{String}}}(Inf)
     ticker = Timer(_ -> put!(events, (0, ["tick"])), 1.0; interval = 1.0)
+    sink = Ref{IO}(output)
     workers = _Worker[]
     columns = String[]
-    records = Dict{String, String}[]
     try
-        push!(workers, _start_worker(1, options, events, output, options.workers > 1))
-        queue = _list_queued_parts(first(workers), options, events, columns, output)
-        queue === nothing && return 2
-        most = max(1, div(_usable_cpus(), options.threads))
-        if options.workers > most
-            println(output, "$(options.workers) workers need more CPUs than the $(_usable_cpus()) ",
-                    "that this process may use; $most run.")
-        end
-        count = min(options.workers, most, max(1, length(queue)))
-        for number in 2:count
-            push!(workers, _start_worker(number, options, events, output, true))
-        end
-        _run_queued_parts!(workers, queue, options, events, columns, records, output)
-        _print_summary(output, records)
-        root = _git_text(pwd(), `rev-parse --show-toplevel`)
-        isempty(root) || store_and_compare_records(records, columns, root; output)
-        all(r -> r["result"] == "done" && r["fail"] == "0" && r["error"] == "0", records) ? 0 : 1
+        push!(workers, _start_worker(1, options, events, sink, options.workers > 1))
+        _wait_ready(first(workers), events, columns) ||
+            (println(output, "The first worker ended before it was ready."); return 2)
+        _run_request!(workers, options, events, columns, sink, output)
     finally
         close(ticker)
-        for worker in workers
-            process_running(worker.process) || continue
-            try
-                _send(worker, "quit")
-            catch
-            end
-            timedwait(() -> !process_running(worker.process), 10.0)
-            process_running(worker.process) && kill(worker.process, Base.SIGKILL)
-        end
+        _end_workers(workers)
     end
+end
+
+function _end_workers(workers)
+    for worker in workers
+        process_running(worker.process) || continue
+        try
+            _send(worker, "quit")
+        catch
+        end
+        timedwait(() -> !process_running(worker.process), 10.0)
+        process_running(worker.process) && kill(worker.process, Base.SIGKILL)
+    end
+end
+
+# The answers "columns" and "ready" of a new worker; false when it ends first.
+_wait_ready(worker::_Worker, events::Channel, columns::Vector{String}) =
+    _wait_answer(f -> f[1] == "columns" && isempty(columns) && append!(columns, f[2:end]),
+                 worker, events, ("ready",)) !== nothing
+
+# One run with the open `workers`: list the parts with the first, start the other
+# workers, run the parts, print the summary, store or compare the records, and
+# give the exit code.
+function _run_request!(workers, options, events, columns, sink, output)
+    records = Dict{String, String}[]
+    queue = _list_queued_parts(first(workers), options, events, columns, output)
+    queue === nothing && return 2
+    most = max(1, div(_usable_cpus(), options.threads))
+    if options.workers > most
+        println(output, "$(options.workers) workers need more CPUs than the $(_usable_cpus()) ",
+                "that this process may use; $most run.")
+    end
+    count = min(options.workers, most, max(1, length(queue)))
+    for number in length(workers) + 1:count
+        push!(workers, _start_worker(number, options, events, sink, true))
+    end
+    _run_queued_parts!(workers, queue, options, events, columns, records, sink, output)
+    _print_summary(output, records)
+    root = _git_text(pwd(), `rev-parse --show-toplevel`)
+    isempty(root) || store_and_compare_records(records, columns, root; output)
+    all(r -> r["result"] == "done" && r["fail"] == "0" && r["error"] == "0", records) ? 0 : 1
 end
 
 # The next answer of `worker` whose first field is in `kinds`, with the
@@ -275,11 +318,6 @@ _answer_text(fields) = fields === nothing ? "the worker ended" : join(fields[2:e
 
 function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Channel,
                             columns::Vector{String}, output::IO)
-    keep_columns(fields) = fields[1] == "columns" && append!(columns, fields[2:end])
-    if _wait_answer(keep_columns, worker, events, ("ready",)) === nothing
-        println(output, "The first worker ended before it was ready.")
-        return nothing
-    end
     queue = _QueuedPart[]
     for (package, suite) in options.suites
         if !(package in worker.loaded)
@@ -324,13 +362,13 @@ end
 # Each worker that runs no part takes the next part of the queue, in its order.
 # A part that runs alone waits until no other part runs, and no part starts
 # beside it.
-function _run_queued_parts!(workers, queue, options, events, columns, records, output)
+function _run_queued_parts!(workers, queue, options, events, columns, records, sink, output)
     next = 1
     is_prefixed = length(workers) > 1
     while true
         for (k, worker) in enumerate(workers)
             if worker.is_ended && next <= length(queue)
-                workers[k] = worker = _start_worker(worker.number, options, events, output,
+                workers[k] = worker = _start_worker(worker.number, options, events, sink,
                                                     is_prefixed)
             end
             next <= length(queue) || continue
@@ -551,4 +589,150 @@ function store_and_compare_records(records, columns, root::AbstractString; outpu
                 "stores one.")
     end
     nothing
+end
+
+"""
+    run_test_session(options; output = stdout) -> Int
+
+Keep the workers open, and run each request that the folder `options.stay`
+receives in `requests/`, in the order of the names of the request files. A
+request is a file of the arguments of `tool/run-tests.jl`, one on each line, as
+[`send_test_request`](@ref) writes it; it names the suites, the filters and the
+limit, and the session gives the environment, the threads, the memory and the
+count of the workers. Before each run, each worker applies the changes of the
+files with Revise. When Revise can not apply them, that worker stops and a new
+one starts, which loads the files again; the request `--restart` starts new
+workers in any case. The output of a request goes to `results/<name>.log`, its
+record to `results/<name>.tsv`, and its exit code to `results/<name>.done`. The
+request `--stop` ends the session.
+"""
+function run_test_session(options::TestRunOptions; output::IO = stdout)
+    requests = joinpath(options.stay, "requests")
+    results = joinpath(options.stay, "results")
+    mkpath(requests)
+    mkpath(results)
+    events = Channel{Tuple{Int, Vector{String}}}(Inf)
+    ticker = Timer(_ -> put!(events, (0, ["tick"])), 1.0; interval = 1.0)
+    sink = Ref{IO}(output)
+    workers = _Worker[]
+    columns = String[]
+    try
+        println(output, "The session waits for requests in $requests.")
+        while true
+            names = sort(filter(name -> endswith(name, ".request"), readdir(requests)))
+            if isempty(names)
+                number, fields = take!(events)           # a tick, or the end of a worker
+                k = findfirst(w -> w.number == number, workers)
+                first(fields) == "ended" && k !== nothing && (workers[k].is_ended = true)
+                continue
+            end
+            stem = first(splitext(first(names)))
+            path = joinpath(requests, first(names))
+            arguments = filter(!isempty, readlines(path))
+            rm(path)
+            done(code) = write(joinpath(results, stem * ".done"), "$code\n")
+            request = try
+                read_test_run_options(arguments)
+            catch error
+                write(joinpath(results, stem * ".log"), sprint(showerror, error), "\n")
+                done(2)
+                continue
+            end
+            request.stop && (done(0); return 0)
+            request.project = options.project
+            request.threads = options.threads
+            request.workers = options.workers
+            request.memory_bytes = options.memory_bytes
+            request.stay = options.stay
+            "--limit" in arguments || (request.limit = options.limit)
+            request.record = joinpath(results, stem * ".tsv")
+            code = open(joinpath(results, stem * ".log"), "w") do log
+                sink[] = log
+                try
+                    _run_session_request!(workers, request, events, columns, sink, log)
+                catch error
+                    println(log, "The request failed: ", sprint(showerror, error))
+                    2
+                finally
+                    sink[] = output
+                end
+            end
+            done(code)
+            println(output, "Request $stem: exit code $code.")
+        end
+    finally
+        close(ticker)
+        _end_workers(workers)
+    end
+end
+
+# Stop `worker` and wait for its end.
+function _stop_and_wait!(worker::_Worker, events::Channel)
+    _stop_worker!(worker)
+    _wait_answer(_ -> nothing, worker, events, ())
+    worker.is_ended = true
+end
+
+function _run_session_request!(workers, request, events, columns, sink, log)
+    revised = String[]
+    for worker in workers
+        worker.is_ended && continue
+        if request.restart
+            _stop_and_wait!(worker, events)
+            continue
+        end
+        _send(worker, "revise")
+        fields = _wait_answer(_ -> nothing, worker, events, ("revised", "failed"))
+        if fields === nothing
+            worker.is_ended = true
+        elseif fields[1] == "failed"
+            println(log, "Revise could not apply the changes of the files (",
+                    join(fields[2:end], " "), "); a new worker starts.")
+            _stop_and_wait!(worker, events)
+        else
+            push!(revised, fields[2])
+        end
+    end
+    if "yes" in revised
+        println(log, "The workers applied the changes of the files with Revise.")
+    elseif "no" in revised
+        println(log, "The workers have no Revise; a change of a file needs --restart.")
+    end
+    if isempty(workers) || first(workers).is_ended
+        worker = _start_worker(1, request, events, sink, request.workers > 1)
+        isempty(workers) ? push!(workers, worker) : (workers[1] = worker)
+        _wait_ready(worker, events, columns) ||
+            (println(log, "The first worker ended before it was ready."); return 2)
+    end
+    _run_request!(workers, request, events, columns, sink, log)
+end
+
+"""
+    send_test_request(folder, arguments; output = stdout, wait_seconds = 3600) -> Int
+
+Send `arguments`, without `--send FOLDER`, as a request to the session of
+`folder` ([`run_test_session`](@ref)); wait at most `wait_seconds` for its end;
+print its output to `output`; and give its exit code, or 2 when no answer comes.
+"""
+function send_test_request(folder::AbstractString, arguments::AbstractVector{<:AbstractString};
+                           output::IO = stdout, wait_seconds::Real = 3600)
+    words = String.(arguments)
+    k = findfirst(==("--send"), words)
+    k === nothing || deleteat!(words, k:k + 1)
+    requests = joinpath(folder, "requests")
+    mkpath(requests)
+    stem = string(round(Int, time() * 1000), "-", getpid())
+    # A file with another name first, then the request whole, so the session never
+    # reads half of it.
+    hidden = joinpath(requests, "." * stem)
+    write(hidden, join(words, '\n') * "\n")
+    mv(hidden, joinpath(requests, stem * ".request"))
+    done = joinpath(folder, "results", stem * ".done")
+    if timedwait(() -> isfile(done), Float64(wait_seconds); pollint = 0.5) != :ok
+        println(output, "The session of $folder gave no answer in $wait_seconds s.")
+        return 2
+    end
+    log = joinpath(folder, "results", stem * ".log")
+    isfile(log) && print(output, read(log, String))
+    parse(Int, strip(read(done, String)))
 end
