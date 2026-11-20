@@ -234,6 +234,43 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   **Done when:** a test file that changes after the start of the worker runs in its new form,
   with no new load, and a change of a struct starts a new worker.
 
+### What the implementation found
+
+- **Step 1.** A suite is a callable constant: `const test_platform = TestSuite("ProjecturedPlatform",
+  [...])`. So `test_platform()` works as before, `test_all` lists `test_platform` and opens it
+  into its parts, and no new name is exported. A part with an argument is
+  `TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)")`. The
+  settings of an entry are keywords of `TestPart` (`limit` in seconds, `is_alone`), not pairs.
+  A constant needs its parts at load time, so `PlatformSuite.jl` loads at the end of
+  `ProjecturedPlatformTest`, after the loop that binds the suites of the slices. The naming guard
+  asks for `const test_<slice> = TestSuite(`, and the shell guard reads the table, not the text.
+  A script compared the calls of each old suite function with the entries of its table: 53
+  suites in projectured-julia and 8 in omnet-julia, no difference.
+- **Step 1, omnet-julia.** Many omnet test packages have no projectured dependency, for example
+  `OmnetUnitsTest`. They keep their suite functions, and `test/runtests.jl` runs each as one
+  plain part. The suites of `OmnetIdeTest`, `OmnetLegacyTest` and `OmnetPresentationTest`
+  become tables; these three packages get `ProjecturedKernelTest` as a direct dependency. A
+  suite that includes a file in its testset (`test_simulator`, `test_cosim_presentation`) stays
+  a function.
+- **Step 2.** `live_bytes` is the memory that the last garbage collection kept; the runner forces
+  no collection, which would cost about a second for each part. A commit with changes that are
+  not committed gets a `+`. The testsets of the runner are `DefaultTestSet`s under a parent of
+  any type, because a nested `@testset` takes the type of its parent and only a
+  `DefaultTestSet` gives counts.
+- **Step 3.** The names of the `examples` registry have no domain prefix, so the filter is
+  `test_printers(only = "json")`; the catalog names are `domain/name/variant`, so
+  `test_catalog(only = "json/")`. Each loop over `examples`, `platform_examples` and
+  `domain_examples` in a test function takes the filter, 20 functions in projectured-julia and
+  3 in omnet-julia.
+- **Step 4.** The supervisor code is `test/kernel/runner/TestSupervisor.jl`. `tool/run-tests.jl`
+  includes it, and `ProjecturedKernelTest` includes it too, so `test_supervised_runs` runs it with
+  real workers. On SIGUSR1, Julia 1.13 prints the stacks of its threads and a profile of one
+  second; the supervisor stops the worker 5 s later. A worker runs each command in the newest
+  world, so it sees the module that an earlier `load` defined. A worker also runs a plain test
+  function as a suite of one part, so the supervisor runs the static guards and the omnet
+  suites that stay functions.
+- **Step 5.** The count of workers is at most the usable CPUs divided by `--threads`.
+
 ## 6. Rule of runs and measurements
 
 - Every Julia process of this plan runs with `bounded-run`.
