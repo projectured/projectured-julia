@@ -1,8 +1,9 @@
 # Main stays green
 
-> **Status (2026-11-20): proposed.** The owner asked for this work on 2026-11-20. No step is
-> done. The plan waits for the approval of the owner. It covers projectured-julia and
-> omnet-julia.
+> **Status (2026-11-20): approved, in progress.** The owner asked for this work on 2026-11-20
+> and approved the plan for implementation the same day ("yes, implement it"). The work is on
+> the branch `main-stays-green` in the worktrees `projectured-julia-main-stays-green` and
+> `omnet-julia-main-stays-green`. Step 1 runs.
 
 ## 1. The purpose
 
@@ -62,38 +63,38 @@ So this plan does two things:
 
 ## 3. Decisions
 
-Each decision is proposed by the assistant. It counts as approved when the owner approves the
-plan.
+Each decision is proposed by the assistant. The owner approved them with the plan on
+2026-11-20.
 
-- **G1. Green means one thing in each repository** (proposed by the assistant). In
+- **G1. Green means one thing in each repository** (proposed by the assistant, approved with the plan on 2026-11-20). In
   projectured-julia: a run of all parts of the suites of the CI matrix and of the static
   guards with `tool/run-tests.jl` gives 0 `Fail` and 0 `Error`, and each part ends in its time
   limit and its memory. The CI run on GitHub is green too. In omnet-julia: the same for each
   suite that `test/runtests.jl` calls. The suites that run only on request (the suites that
   call a model, the sweeps that no suite calls) are not part of green.
 - **G2. A known failure gets the marker that exists, at the narrowest place** (proposed by the
-  assistant). The place is one assertion, one example of a walk, or one entry of the list of a
+  assistant, approved with the plan on 2026-11-20). The place is one assertion, one example of a walk, or one entry of the list of a
   guard. A guard (exports, arguments, documentation, style, layering, slice edges, catalog
   coverage) gets a list of its known entries, each with its reason. Then a new entry still
   fails the guard. Rejected: one marker for a whole testset or a whole guard, because it hides
   the next fault of the same place.
 - **G3. A check that fails only at some times gets no `@test_broken`** (proposed by the
-  assistant). A pass of `@test_broken` is an error, so such a marker makes the run red at
+  assistant, approved with the plan on 2026-11-20). A pass of `@test_broken` is an error, so such a marker makes the run red at
   times. A check of a result that waits a fixed time gets a wait for its condition, with a
   bound that holds under the load of the shared machine. A check of speed (a time, or a ratio
   of times) gets `@test_skip` with a `# @broken:` reason. A check is in this group when its
   result differs between two runs of one commit, between the run and CI, or when a note names
   it.
-- **G4. A part that hangs or passes its memory is not green** (proposed by the assistant). A
+- **G4. A part that hangs or passes its memory is not green** (proposed by the assistant, approved with the plan on 2026-11-20). A
   hang gets a fix of its race when the cause is clear from its stacks. Else the case that
   hangs gets `@test_skip` with the reason. A part that needs more memory than a worker gets a
   split at its top-level testsets, or the documented run gets workers with the memory that
   the largest part needs, at most 8 GB.
 - **G5. A check that depends on the other packages in its process gets `@test_skip`** (proposed
-  by the assistant), with the reason and the name of the package that changes its result. A
+  by the assistant, approved with the plan on 2026-11-20), with the reason and the name of the package that changes its result. A
   `@test_broken` can not work here, because the check passes in one process and fails in
   the other.
-- **G6. The rule that keeps main green** (proposed by the assistant):
+- **G6. The rule that keeps main green** (proposed by the assistant, approved with the plan on 2026-11-20):
   - Before a land on `main`, the branch runs all parts of its repository. The land needs 0
     unmarked `Fail`, 0 `Error`, and an end of each part.
   - A branch adds no marker to a check that passes on `main`. A new marker for a fault that
@@ -103,14 +104,18 @@ plan.
     in the same way.
   - A red CI run on `main` is a fault of `main`. The session that pushed fixes it, or marks it
     with the word of the owner, before more work lands.
-- **G7. The CI job of `test_integration` ends in its time** (proposed by the assistant). It
+- **G7. The CI job of `test_integration` ends in its time** (proposed by the assistant, approved with the plan on 2026-11-20). It
   splits into two or three jobs with the filters `only` and `skip` of the runner, each under
   180 minutes. Rejected: a larger limit, because one job of more than 3 hours makes each run
   slow.
 - **G8. This plan does the markers, not step 9 of `the-tests-run-fast`** (proposed by the
-  assistant). Step 9 there keeps the store of the records of `main` and `compare_records`,
-  which are done. This plan starts after the branch `tests-run-fast` lands in both
-  repositories, because it uses the runner, and because that branch changes each suite file.
+  assistant, approved with the plan on 2026-11-20). Step 9 there keeps the store of the records
+  of `main` and `compare_records`, which are done (commit `cd1874d5c` on the branch
+  `tests-run-fast` says so). This plan uses the runner of that branch, and that branch changes
+  each suite file. So the branch `main-stays-green` starts on a merge of `main` and
+  `tests-run-fast`: `d732e6e2b` in projectured-julia (`main` `8e792dc15` with `89417570d`) and
+  `bae20cf4a` in omnet-julia (`main` `21d013f2f` with `16c3069c3`). After `tests-run-fast`
+  lands, `git rebase --onto main <merge> main-stays-green` moves only the commits of this plan.
 
 ## 4. Steps
 
