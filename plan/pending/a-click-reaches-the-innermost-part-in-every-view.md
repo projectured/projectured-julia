@@ -271,6 +271,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   Rejected (B of Q1): a plain click chooses the row, and a double click puts
   the caret in the cell; then a click does not put the caret where the mouse
   is, which D1 says.
+  D12 replaces the first rule for a row that a plain click chooses: the plain
+  click on its text chooses the row, and only the Alt+click puts the caret.
 - **D5 (owner, 2026-11-10). A widget records the part of each drawn line.**
   The owner chose A of Q2 ("Option A"), after the question "Which widget and
   what line?" was answered with the card title: `WidgetCardToGraphicsCanvas`
@@ -341,6 +343,21 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   end of the part, as a text editor does with a range, "but if there's no
   meaningful caret selection on that part, then I would move to siblings, like a
   selected column in a table, or a selected image in a list".
+- **D12 (owner, 2026-11-20). A plain click on the text of a row chooses the
+  row.** The owner, after step 6 so far landed: "why did you change the
+  WidgetList plain click on an element to place the caret when we agreed that
+  existing important behaviors don't change. Isn't that the point of the list
+  widget to be able to select an item with a click? ... Shouldn't the caret
+  click be an override click which forces the caret and keep the plain click to
+  select a row?" D9 and D10 hold, and they replace the first rule of D4: a row
+  of a list, a label cell of a table of rows and the row of a record in an
+  outline keep their plain click, the choice of the row, also on their text.
+  The Alt+click of D10 is the click that forces the caret there; the Alt+double
+  click, the keys and a drag from the caret stay. The assistant followed D4 and
+  did not check it against D9, in three places on main: the list
+  (5bc6a0a6f), the label cells of a table (f23a0d65f) and the rows of the
+  research and the workflow view (78a488df9). A tree takes the same rule when
+  its texts are done.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -1670,6 +1687,45 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   with no conflict over main 66b437f73, and main moved forward to 7c05bfa0e.
   Not pushed. The rest of step 6 goes on in the same branch: the texts of the
   tree, the choice list, the Alt+click on a tab title and the views of §4.
+
+  **D12 in the three places** (2026-11-20, owner: "yes" to the three fixes
+  before the rest of step 6), one commit each:
+    - [x] The list (27f20c957). The text of a row reads like the text of a control
+      (`_read_control_text`): only an Alt press puts the caret there, an
+      Alt+double click selects it, and a drag and a key go on from that caret.
+      A point on a row, on its text too, maps back to the row, so a move names
+      the row and the row lights, as before 5bc6a0a6f. The tests of 5bc6a0a6f
+      and 08097161f expect the row again, and a new test of `WidgetPointTest`
+      checks a plain click and an Alt+click on the text of a row.
+    - [x] The label cells of a table (392041fea). A cell keeps what a header keeps of the
+      answer of its content (`_find_control_answer`): every answer but a
+      selection in a text that takes no key, so a plain click on the text of a
+      label chooses the row, as the comment of `_wt_route_cell_click` said
+      before f23a0d65f. Both kinds of table: the grid (`_wt_route_cell_click`)
+      and the list of rows (`_read_table_cell_press`). A caret in a text field
+      and a toggle of a checkbox stay.
+    - [x] The rows of the research and the workflow view (78d880608). A rule on the answer
+      of the child (`read_outline_row_click`, the outline slice, from the
+      `read_gesture` of a `MouseClick` of each view): a plain click whose answer
+      is the caret in a text that the view drew in the row of a record chooses
+      the record. The backward map stays as 78a488df9 made it, so an Alt+click
+      and an Alt+double click name the text, and a move names it too (D8).
+
+    Checked (2026-11-20): test_widget_point 33, test_widget_table 19,
+    test_widget_table_cell_policy 21, test_widget_table_list 272,
+    test_widget_table_part_selection 79, test_mouse_target_move 93,
+    test_scroll_pane_hover 27, test_pointer_light 23, test_outline 34,
+    test_widget_label_caret 129, test_widget_table_header_levels 42,
+    test_research_to_widget 123 and test_workflow_to_widget 74, all pass. The
+    outline slice must import `EventModule` for `ModifierKeys`; without it
+    every click on a view of an outline stops with an `UndefVarError`, and
+    only the tests of the views find it, because the platform tests do not
+    click a view of an outline.
+
+    The difference that stays: a plain press (MouseDown) on the text of a
+    label cell still puts the caret until the release chooses the row, so a
+    plain drag there selects a range of the text (E2). A row of a list takes
+    no plain press or drag on its text.
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
