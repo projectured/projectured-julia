@@ -40,6 +40,22 @@ function _collect_draft_texts(node, ox = 0, oy = 0, found = Tuple{Int,Int,String
     found
 end
 
+# The count of the rectangles with a size that the window drew over the point
+# `(x, y)`.
+function _count_drawn_rects(node, x, y, ox = 0, oy = 0)
+    node isa Cell && return _count_drawn_rects(node[], x, y, ox, oy)
+    if node isa GraphicsCanvas
+        return sum((_count_drawn_rects(element, x, y, ox + Int(node.x), oy + Int(node.y))
+                    for element in node.elements); init = 0)
+    elseif node isa GraphicsViewport
+        return _count_drawn_rects(node.content, x, y, ox + Int(node.x), oy + Int(node.y))
+    elseif node isa GraphicsRect
+        (left, top) = (ox + Int(node.x), oy + Int(node.y))
+        return Int(left <= x < left + Int(node.w) && top <= y < top + Int(node.h))
+    end
+    0
+end
+
 """
     test_draft_press()
 
@@ -72,5 +88,36 @@ function test_draft_press()
         press(MouseClick(:left, x + 400, y + 8, none; time = 0.0))
         @test a.draft.parts[end].content.value == "hello"
         @test caret() == (5, 5)
+    end
+end
+
+"""
+    test_control_bar_light()
+
+A control of the row under the composer of an assistant lights while the pointer
+is on it, and the light goes off when the pointer leaves it.
+"""
+function test_control_bar_light()
+    @testset "a control of the row under the composer lights under the pointer" begin
+        a = Assistant(; llm = FakeLlm("ok"))
+        (editor, backend) = _draft_press_editor(a, _make_draft_press_projection())
+        content() = last(rendered_output(backend)).windows[1].content
+        clock = Ref(0.0)
+        move(x, y) = _press_draft!(editor, backend, MouseMove(x, y; time = (clock[] += 1.0)))
+        drawn = _collect_draft_texts(content())
+        (label_x, label_y, _) = drawn[findfirst(t -> t[3] == "Wakes left:", drawn)]
+        # The glyphs of the stop and the camera button are on the line of the label,
+        # to its left; each button also draws its empty label. The camera is the
+        # nearer one.
+        icons = filter(t -> t[1] < label_x && abs(t[2] - label_y) < 12 && !isempty(t[3]), drawn)
+        @test length(icons) == 2
+        (x, y, _) = icons[argmax([t[1] for t in icons])]
+        (x, y) = (x + 4, y + 6)
+        at_rest = _count_drawn_rects(content(), x, y)
+        move(x, y)
+        @test _count_drawn_rects(content(), x, y) == at_rest + 1
+        # Onto the transcript: the light goes off.
+        move(x, 40)
+        @test _count_drawn_rects(content(), x, y) == at_rest
     end
 end

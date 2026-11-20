@@ -18,6 +18,7 @@ function test_conversation()
         test_assistant_picture()
         test_conversation_tree()
         test_draft_press()
+        test_control_bar_light()
     end
 end
 
@@ -35,3 +36,4 @@ export test_assistant_wake
 export test_assistant_picture
 export test_conversation_tree
 export test_draft_press
+export test_control_bar_light

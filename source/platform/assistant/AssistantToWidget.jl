@@ -129,6 +129,14 @@ function print_document(projection::AssistantToWidgetSplitPane,
     # assistant's selection names. The part under the pointer follows the same map.
     set_output_path_computations!(column, a, path -> map_reference_forward(projection, iomap, path);
                                   dormant = false)
+    # Each widget of the row holds its part of the paths of the split pane, so a
+    # control lights while the pointer is on it.
+    row_steps = (FieldReferenceStep("elements"), RangeReferenceStep(length(panes) - 1, length(panes)),
+                 FieldReferenceStep("child"))
+    follow_widget_output!(row, a, path -> begin
+        image = map_reference_forward(projection, iomap, path)
+        image === nothing ? nothing : find_drawn_child_path(strip_reference_types(image), row_steps)
+    end)
     iomap
 end
 
