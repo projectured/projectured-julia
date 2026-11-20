@@ -104,6 +104,19 @@ Each decision is proposed by the assistant. The owner approved them with the pla
 - **A10. The images compile in the background** (proposed by the assistant, 2026-11-20). After a
   request, the session compiles the images of the changed packages with the free cores, so a
   new worker loads fresh images and does not compile them first.
+- **A11. The parts of a change come from a map of what each part runs** (proposed by the
+  assistant, approved by the owner on 2026-11-20: "Agreed"). `test_changed` chooses by files
+  and folders now: a changed file of a package reaches the tests of each package that depends
+  on it, so a change in one widget file reaches most tests. A run of `main` with code coverage
+  writes, for each part, the lines that it executes: a worker clears the coverage data of
+  Julia before a part and writes it after the part (`jl_clear_coverage_data`,
+  `jl_write_coverage_data`; checked in Julia 1.13.1 on 2026-11-20). The map belongs to its
+  commit, as a record does. A branch takes the diff against its base: each part that executed
+  a changed line runs, and each part of a changed test file. A change that runs at load and
+  not in a part (a `struct`, a `const`, a macro, a signature, a new method) and a new file
+  keep the rule of today, so nothing is missed. The map of `main` comes from a run of its own
+  after each land, in the background, and merges a few runs, so a line that a part runs only
+  at some times is in it.
 - **A6. A worker of the tests starts from a compiled image** (proposed by the assistant). This
   is the plan `the-tests-start-from-a-compiled-image`, which moves into this plan as step 4:
   first the measure of what an image saves, then the questions of its design to the owner,
@@ -132,9 +145,9 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `the-tests-start-from-a-compiled-image`. **Done when:** the compile is less than 30 % of the
   time of the parts in a run of all parts, or the owner decides on another goal at its
   questions.
-- [ ] 5. **The cycle (A8, A9, A10).** The session keeps a worker for each package, the
-  runner starts workers by the memory of its job, `bounded-run grow`, and the compile in the
-  background. Measure the cycle: an edit in one slice of the platform, then the result of the
+- [ ] 5. **The cycle (A8, A9, A10, A11).** The session keeps a worker for each package, the
+  runner starts workers by the memory of its job, `bounded-run grow`, the compile in the
+  background, and the map of what each part runs. Measure the cycle: an edit in one slice of the platform, then the result of the
   fast parts that it reaches, in a worktree of step 3. **Done when:** that cycle takes less than
   a tenth of a run of the platform suite from a new worktree today, and its number is in this
   plan.
