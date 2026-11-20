@@ -140,6 +140,7 @@ struct _QueuedPart
     name::String
     limit::Float64
     is_alone::Bool
+    is_retry::Bool
 end
 
 _part_place(part::_QueuedPart) = part.path * "/" * part.name
@@ -345,7 +346,8 @@ function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Ch
             fields[1] == "listed" && break
             limit = parse(Float64, fields[5])
             push!(queue, _QueuedPart(package, suite, fields[2], fields[3], fields[4],
-                                     limit > 0 ? limit : options.limit, fields[6] == "true"))
+                                     limit > 0 ? limit : options.limit, fields[6] == "true",
+                                     false))
         end
     end
     println(output, "$(length(queue)) parts to run.")
@@ -397,10 +399,23 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
             worker.is_ended = true
             worker.is_ending = true
             if worker.part !== nothing
+                part = worker.part
                 result = !isempty(worker.stop) ? worker.stop :
                          worker.process.termsignal == Base.SIGKILL ? "memory" : "crash"
-                println(output, "The worker ended during $(_part_place(worker.part)): $result.")
-                _keep_record!(records, _stopped_record(worker, result, columns), columns, options)
+                if result == "memory" && !part.is_retry
+                    # A worker grows with each part that it runs, so the part that it
+                    # ran at the stop is not always the cause: it runs once more, first
+                    # in a new worker.
+                    println(output, "The worker ended during $(_part_place(part)): memory; ",
+                            "the part runs again in a new worker.")
+                    retry = _QueuedPart(part.package, part.suite, part.index, part.path,
+                                        part.name, part.limit, part.is_alone, true)
+                    insert!(queue, next, retry)
+                else
+                    println(output, "The worker ended during $(_part_place(part)): $result.")
+                    _keep_record!(records, _stopped_record(worker, result, columns), columns,
+                                  options)
+                end
                 worker.part = nothing
             end
         elseif worker.is_ending

@@ -197,8 +197,9 @@ Each part gets a time limit: the `limit` of its entry, such as
 `TestPart(test_catalog; limit = 20 * 60)`, or else the `--limit` of the run, 600 s
 by default. At the limit, the worker prints its stacks, the supervisor stops it,
 records the result `timeout`, and starts a new worker for the next part. A worker
-over its `--memory` gets the result `memory`, and a worker that ends during a
-part the result `crash`. So a part that hangs costs its limit, and no result of
+over its `--memory` stops. A worker grows with each part that it runs, so its part
+runs once more in a new worker, and a second stop gives it the result `memory`. A
+worker that ends during a part gives the part the result `crash`. So a part that hangs costs its limit, and no result of
 another part is lost. At the end, the supervisor prints a summary, the parts
 that did not pass, and the ten slowest parts. Its exit code is 0 when each part
 ended and passed. `--help` gives the options.

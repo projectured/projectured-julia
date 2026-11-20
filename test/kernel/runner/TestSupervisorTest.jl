@@ -4,7 +4,8 @@
 The supervisor of `tool/run-tests.jl`, with real worker processes: each part of a
 suite gets a result, a part that passes its time limit gets `timeout` and the
 parts after it still run, the record file holds one line for each part, two
-workers run parts at the same time, a part alone runs beside no other part, and
+workers run parts at the same time, a part alone runs beside no other part, a part
+over the memory runs once more before it gets the result `memory`, and
 the record of a commit of main is stored and compared with a run of a branch, and
 a session keeps its worker and runs each request with the changes of the files.
 """
@@ -88,6 +89,34 @@ function test_supervised_runs()
         @test start("alone") >= max(stop("a"), stop("b"))
         @test start("d") >= stop("alone")
         @test occursin("[w2] ", String(take!(output)))
+    end
+
+    @testset "a part over the memory runs once more in a new worker, then gets memory" begin
+        folder = mktempdir()
+        fixture = joinpath(folder, "MemoryFixture.jl")
+        write(fixture, """
+            module MemoryFixture
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            const held = Any[]
+            function grows()
+                push!(held, ones(UInt8, 1500 * 2^20))    # 1.5 GiB, held
+                sleep(60)
+                @test true
+            end
+            const memory_suite = TestSuite("memory", [TestPart(grows; name = "grows"),
+                                                      TestPart(() -> (@test true); name = "after")])
+            end
+            """)
+        record = joinpath(folder, "record.tsv")
+        output = IOBuffer()
+        code = run_test_supervisor(["--memory", "1G", "--limit", "120", "--record", record,
+                                    fixture, "memory_suite"]; output)
+        text = String(take!(output))
+        @test code == 1
+        @test occursin("memory; the part runs again in a new worker", text)
+        @test [(r.part, r.result) for r in read_part_records(record)] ==
+              [("grows", "memory"), ("after", "done")]
     end
 
     @testset "the record of a commit of main is stored, and a branch run is compared with it" begin
