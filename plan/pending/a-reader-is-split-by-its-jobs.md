@@ -1043,3 +1043,30 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
   process and the time in the facts of a failed task). That run was at 13.5G of its 14G cap,
   with a frame of 33 s; alone, `test_task_group_verbs()` passes 87/87 three times on main and
   on the branch, so the failure comes from the load and not from the change.
+- **2026-11-19/20, step 7: the runs.** Each job ran in a process of its own with no network
+  (bwrap), so no test reached a model server. Main: projectured 0ae98a75b with omnet
+  21d013f2f (the branch `no-ollama-in-suites`, landed on omnet main 2026-11-19, takes the
+  model tests out of the suites). Branch: projectured reader-split with omnet d44b8279f and
+  inet bec5a98.
+  - The precompile of omnet-julia gives no warning on either side, but the one that says the
+    registry cannot be downloaded.
+  - `test_legacy()`: the same on both sides, 3512 pass, 23 fail, 68 error, 1 broken.
+  - `test_legacy_result()`: the same, 307 of 307.
+  - `test_presentation()`: the same failure lines, but `CheckpointViewTest.jl:188`, which
+    failed on main only. That test reads the state of the session before the archive ends,
+    so it fails at random under load. The suite does not end in 4 h on either side: it stays
+    in the navigation walk over `omnet/omnet_workbench`, after the notebook tests. The 12 tests
+    after the walk use no assistant.
+  - `test_ide()`: the branch gives 2745 pass, 23 fail, 12 error, 3 broken. The run of main
+    stopped at its memory cap of 12 G in the build of the image, near the end; up to that
+    point the failure lines are the same. The branch has one more failure,
+    `IdeWorkloadTest.jl:160`: the build of the image warns that 554 of the 3186 recorded calls
+    of ProjecturedJulia no longer resolve. On main the same list has 527 such calls, so the
+    test most probably fails on main too; step 8 records the list again.
+  - inet-julia `test_queuing()`: the same on both sides, 422 pass, 21 fail, 16 error, at the
+    same lines. The packages of inet-julia compile with no warning; the one warning on both
+    sides is the stale list of ProjecturedJulia (527 calls on main, 554 on the branch).
+  - Found: other sessions landed 37 commits on projectured main after 0ae98a75b. A trial
+    merge has no conflict, but six new test calls take the 3-argument form (three in
+    `ChartProjectionTest.jl`, one each in `JsonFileViewContentTest.jl`,
+    `JsonUndoBufferViewTest.jl` and `JsonViewNaturalRowTest.jl`), so the rebase changes them.
