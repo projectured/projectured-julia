@@ -380,24 +380,32 @@ record_saved_state!(content) = nothing
 
 """
     has_unsaved_edits(content) -> Union{Bool, Nothing}
+    has_unsaved_edits(file::FileDocument) -> Union{Bool, Nothing}
 
 Whether `content`, what a file holds, has edits since its file was read or saved.
-A history answers it from its steps. The default answers `nothing`, for a content
-that keeps no history and so can not say.
+A history answers it from its steps. A file answers it for its content. The
+default answers `nothing`, for a content that keeps no history and so can not say.
 
-Use it to tell whether the file that holds a content differs from what the content is now.
+Use it to tell whether an open file, or the file that holds a content, differs
+from what the content is now.
 
 # Example
 
-    has_unsaved_edits(content_1)
+    has_unsaved_edits(find_open_file_document("notes.md"))
 
-See also `compute_file_text`.
+See also `compute_file_text`, `get_file_disk_state`.
 
 For the assistant.
 """
 function has_unsaved_edits end
 
 has_unsaved_edits(content) = nothing
+
+# A file whose node is its own content keeps no history around it.
+function has_unsaved_edits(file::FileDocument)
+    content = get_file_content(file)
+    content === file ? nothing : has_unsaved_edits(content)
+end
 
 """
     compute_file_stamp(path) -> Union{Tuple, Nothing}

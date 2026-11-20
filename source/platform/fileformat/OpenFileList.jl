@@ -62,11 +62,15 @@ evaluation, or of the loop that runs the calling code. Each editor has its own,
 made at the first call with its table. With no editor, a new list, which nothing
 fills.
 
+The answer is a document, and its field `files` holds the file documents:
+iterate `files`, not the list itself.
+
 Use it to read the files that a window shows, as the explorer does.
 
 # Example
 
-    length(get_session_open_file_list().files)
+    files_1 = get_session_open_file_list().files
+    unsaved_1 = count(file -> has_unsaved_edits(file) === true, files_1)
 
 See also `find_open_file_document` and `has_unsaved_edits`.
 

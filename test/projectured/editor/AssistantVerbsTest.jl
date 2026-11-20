@@ -72,6 +72,26 @@ function test_assistant_verbs()
         history = string(describe_undo_history(; editor))
         @test startswith(history, "To take back, newest last:")
         @test length(split(history, '\n')) == 2
+        # The history of the file of a part: the tab, the file and a part of the
+        # content each give it, and the file counts as edited. The acquire of the
+        # tabs, which puts the file in the open files, applies at the first drain.
+        drain_operations!(editor)
+        path = joinpath(directory, "people.json")
+        file = find_open_file_document(path; editor)
+        for part in (find_pane("people.json"; editor), file, people[1])
+            lines = split(string(describe_undo_history(part; editor)), '\n')
+            @test lines[1] == "To take back, newest last:" && length(lines) == 2
+        end
+        @test describe_undo_history(PrimitiveString("x"); editor) == "That part keeps no history."
+        @test has_unsaved_edits(file) === true
+        @test get_file_disk_state(file).band === nothing
+        # The assistant writes each name by itself.
+        for code in ("has_unsaved_edits(find_open_file_document($(repr(path))))",
+                     "get_file_disk_state(find_open_file_document($(repr(path)))).read_count",
+                     "describe_undo_history(find_pane(\"people.json\"))", "Explorer")
+            @test !occursin("UndefVarError", _run_assistant_code(editor, code))
+        end
+        @test occursin("true", _run_assistant_code(editor, "has_unsaved_edits(find_open_file_document($(repr(path))))"))
         @test occursin("To take back", _run_assistant_code(editor, "describe_undo_history()"))
     end
 

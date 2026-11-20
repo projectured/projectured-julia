@@ -96,10 +96,12 @@ assistants, and any document that a person adds.
 
 # Example
 
-    explorer_1 = Explorer(get_session_explorer_content())
-    open_pane!(explorer_1)
+    section_1 = ExplorerSection("Study", Any[get_session_task_group_list()])
+    open_pane!(Explorer(section_1))
 
-See also `ExplorerSection` and `get_session_explorer_content`.
+See also `ExplorerSection`, `find_explorer_content` and `open_explorer_page!`.
+
+For the assistant.
 """
 @document struct Explorer <: Document
     tree::Any                         # DocumentTree

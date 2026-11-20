@@ -207,9 +207,31 @@ end
 """
     get_file_disk_state(file) -> FileDiskState
 
-The state of `file` against its file on disk, the value of its `disk` field.
+The state of `file` against its file on disk, the value of its `disk` field:
+- `band` is the band "changed on disk" while the file on disk changed under edits
+  that no save wrote, or `nothing`.
+- `file_stamp` is the time and the size of the file at the last read, load or save.
+- `read_count` counts the changes of the file that the watch reported, and
+  `loaded_count` the change whose text the document holds. While `read_count` is
+  past `loaded_count`, the document reads its file when a view of it is drawn.
+
+Use it to find out whether an open file differs from its file on disk, and whether
+a page shows the band of a change on disk.
+
+# Example
+
+    notes_1 = find_open_file_document("notes.md")
+    state_1 = get_file_disk_state(notes_1)
+    println(state_1.band !== nothing, " ", state_1.read_count, " ", state_1.loaded_count)
+
+See also `find_open_file_document`, `has_unsaved_edits`, `reload_file_from_disk!`.
+
+For the assistant.
 """
+function get_file_disk_state end
+
 get_file_disk_state(f) = unwrap_cell(getfield(f, :disk))
+get_file_disk_state(file::ReferencedDocument) = get_file_disk_state(get_document(file))
 
 # The state against the disk is what a view of the file shows, not what the file
 # says, and a walk of the document does not enter it.

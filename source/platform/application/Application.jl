@@ -402,6 +402,8 @@ const EDITOR_SYSTEM =
     "- `execute_julia_code` runs Julia in the window. Put the whole source in its " *
     "`code` argument: a call with no code does nothing and costs the round. A " *
     "variable that one call binds at the top level is still bound in the next call. " *
+    "Each name of the index is in scope by itself, so write it without its module; no " *
+    "package name, such as ProjecturedPlatform, is in scope. " *
     "The variable `editor` is the running editor, and a verb acts on it, so the code " *
     "does not pass it. Code that needs no document of the window, such as a long " *
     "computation, runs with `background` set to true, so the person can go on working.\n" *

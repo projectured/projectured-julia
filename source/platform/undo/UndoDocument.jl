@@ -478,20 +478,26 @@ end
 
 """
     describe_undo_history(; editor = get_evaluation_editor()) -> String
+    describe_undo_history(part; editor = get_evaluation_editor()) -> String
 
 The changes of the window that the tool `undo` and Ctrl+Z take back, and the
 changes that the tool `redo` puts back, newest last: one line each, in the words
 that say what the change did. The changes are those of the person and those of
 an assistant alike. A window with no history says so.
 
-Use it to answer "what did I just do?", to say what changed last, or to see what
-the tool `undo` would take back before you call it.
+With `part`, the changes of the history of that part: a tab, a file and a content
+of a file each give the history of their file. A part with no history says so.
+
+Use it to answer "what did I just do?", to say what changed last, to see what
+the tool `undo` would take back before you call it, or to see why a file counts as
+edited.
 
 # Example
 
     println(describe_undo_history())
+    println(describe_undo_history(find_pane("notes.md")))
 
-See also `find_selected_part`, `print_natural_text`.
+See also `find_selected_part`, `print_natural_text`, `has_unsaved_edits`.
 
 For the assistant.
 """
@@ -500,18 +506,55 @@ function describe_undo_history end
 function describe_undo_history(; editor = get_evaluation_editor())
     run_on_editor_task!(editor; description = "describe_undo_history") do
         buffer = find_undo_buffer(getfield(editor, :document))
-        buffer === nothing && return "This window keeps no history."
-        undo = [entry.label for entry in buffer.undo_entries]
-        redo = [entry.label for entry in buffer.redo_entries]
-        lines = String[isempty(undo) ? "Nothing to take back." :
-                       "To take back, newest last:"]
-        append!(lines, "  " .* undo)
-        if !isempty(redo)
-            push!(lines, "To put back, newest last:")
-            append!(lines, "  " .* redo)
-        end
-        join(lines, "\n")
+        buffer === nothing ? "This window keeps no history." : _describe_undo_entries(buffer)
     end
+end
+
+function describe_undo_history(part; editor = get_evaluation_editor())
+    run_on_editor_task!(editor; description = "describe_undo_history") do
+        buffer = _find_part_undo_buffer(getfield(editor, :document), part)
+        buffer === nothing ? "That part keeps no history." : _describe_undo_entries(buffer)
+    end
+end
+
+# The lines of the steps of `buffer` to take back and to put back, newest last.
+function _describe_undo_entries(buffer::UndoBuffer)
+    undo = [entry.label for entry in buffer.undo_entries]
+    redo = [entry.label for entry in buffer.redo_entries]
+    lines = String[isempty(undo) ? "Nothing to take back." :
+                   "To take back, newest last:"]
+    append!(lines, "  " .* undo)
+    if !isempty(redo)
+        push!(lines, "To put back, newest last:")
+        append!(lines, "  " .* redo)
+    end
+    join(lines, "\n")
+end
+
+# The mark of a walk that leaves the path of a part.
+struct _NotOnPath end
+
+# The history of `part`: the one that it shows through the fields that a person
+# edits, as a tab and a file show the history of the file; else the innermost one
+# on the path of the part from `root`, as a content of a file is in the history of
+# its file; else `nothing`.
+function _find_part_undo_buffer(root, part)
+    node = get_document(part)
+    for _ in 1:16
+        node isa UndoBuffer && return node
+        field = get_edited_field(node)
+        field === nothing && break
+        node = getproperty(node, field)
+    end
+    part isa ReferencedDocument || return nothing
+    found = root isa UndoBuffer ? root : nothing
+    node = root
+    for step in get_reference_steps(strip_reference_types(get_reference(part)))
+        node = try_evaluate_reference(node, extend_reference(EmptyReference(), step), _NotOnPath())
+        node isa _NotOnPath && return nothing
+        node isa UndoBuffer && (found = node)
+    end
+    node === get_document(part) ? found : nothing
 end
 
 """
