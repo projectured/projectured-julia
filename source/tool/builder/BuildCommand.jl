@@ -134,6 +134,10 @@ const BUILD_OPTIONS = [
     ("--strip-metadata", "--strip-metadata",
      "remove docstrings and source locations from the\n" *
      "image"),
+    ("--strip-uncompiled=", "--strip-uncompiled=<form>",
+     "what the image keeps of a call that it holds no\n" *
+     "machine code for: code drops its inferred code,\n" *
+     "entries drops the call. Not with a reactive build"),
     ("--cpu-target=", "--cpu-target=<target>",
      "the processors the binary runs on (default: native,\n" *
      "the processor of this machine)"),
@@ -355,6 +359,11 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
             keywords[:debug_info] = _parse_integer_build_option(argument, key)
         elseif key == "--strip-metadata"
             keywords[:strip_metadata] = true
+        elseif key == "--strip-uncompiled="
+            form = Symbol(_get_build_option_value(argument, key))
+            form in STRIP_UNCOMPILED_FORMS[2:end] ||
+                error("--strip-uncompiled is code or entries, not $(repr(String(form)))")
+            keywords[:strip_uncompiled] = form
         elseif key == "--cpu-target="
             keywords[:cpu_target] = _get_build_option_value(argument, key)
         elseif key == "--log="

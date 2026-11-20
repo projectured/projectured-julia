@@ -226,6 +226,7 @@ end
 # not depend on the Julia that runs it.
 function _choose_reactive_build(reactive::Union{Bool,Symbol}, output::AbstractString,
                                 incremental::Bool, performance_counters::Bool, compile::Bool;
+                                strip_uncompiled::Symbol = :none,
                                 reactive_julia::Bool = has_reactive_julia(),
                                 find_missing_part = _find_missing_reactive_part)
     reactive === true && compile && !reactive_julia &&
@@ -233,10 +234,13 @@ function _choose_reactive_build(reactive::Union{Bool,Symbol}, output::AbstractSt
               "Julia has no reactive compiler.\n" * describe_reactive_build())
     reactive === :auto || return reactive
     stored = isdir(joinpath(output, REACTIVE_STORE))
-    compile || return stored && incremental && !performance_counters
-    if !incremental || performance_counters
+    compile || return stored && incremental && !performance_counters && strip_uncompiled === :none
+    if !incremental || performance_counters || strip_uncompiled !== :none
+        asked = !incremental ? "a fresh image" :
+                performance_counters ? "the performance counters" :
+                "an image without the calls that it holds no machine code for"
         stored && @info "build_executable: $output holds a reactive store, but this build " *
-                        "asks for " * (incremental ? "the performance counters" : "a fresh image") *
+                        "asks for " * asked *
                         ", which a rebuild can not give, so it builds plain, and the store " *
                         "goes with the old output"
         return false
@@ -270,6 +274,7 @@ end
 function _check_reactive_options(reactive, incremental::Bool, performance_counters::Bool,
                                  tracked, refresh_trace::Bool, image::Symbol,
                                  delta_optimization::Integer, found::Bool, trimmed::Bool;
+                                 strip_uncompiled::Symbol = :none,
                                  linked::Bool = Sys.islinux())
     reactive isa Bool ||
         error("build_executable: `reactive` is true, false or :auto, not $(repr(reactive))")
@@ -296,6 +301,10 @@ function _check_reactive_options(reactive, incremental::Bool, performance_counte
     reactive && !incremental &&
         error("build_executable: a reactive build is an incremental build that goes on " *
               "from its own previous image; it can not also start from a fresh one")
+    strip_uncompiled !== :none && reactive &&
+        error("build_executable: `strip_uncompiled` drops calls from the image that it " *
+              "writes, and a reactive rebuild goes on from the image of its founding build; " *
+              "build with `reactive = false`")
     performance_counters && reactive &&
         error("build_executable: `performance_counters` is compiled into a fresh image, " *
               "and a reactive rebuild keeps the image of its founding build; build with " *
@@ -334,8 +343,9 @@ function _make_reactive_steps(context::BuildContext, name::AbstractString, packa
         trace_workload = write_trace_workload(context, project, packages)
         nothing
     end
+    # `strip_uncompiled` is always `:none` here: `_check_reactive_options` refuses it.
     compile_app = (project, out, program; force, optimization, debug_info, strip_metadata,
-                   cpu_target, incremental, filter_stdlibs) -> begin
+                   strip_uncompiled, cpu_target, incremental, filter_stdlibs) -> begin
         watched = tracked === nothing ?
             reduce(vcat, [collect_tracked_sources(context, String(package)) for package in packages];
                    init = Pair{String,String}[]) : tracked

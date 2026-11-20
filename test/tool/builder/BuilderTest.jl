@@ -704,6 +704,52 @@ function test_build_executable()
             @test !choose(:auto, false; compile = false)
         end
 
+        @testset "a build drops what the image holds of a call with no machine code" begin
+            module_of = ProjecturedBuilder.BuilderModule
+            # The form reaches the image writer as an option of Julia.
+            @test module_of._add_strip_uncompiled(`-O3`, :none) == `-O3`
+            @test module_of._add_strip_uncompiled(`-O3`, :entries) == `-O3 --strip-uncompiled=entries`
+            # The build record says what the image lacks.
+            function record(form)
+                project = build_executable(_test_context(); name = "strip_$(form)",
+                                           packages = [A_PACKAGE], main = :(begin 0 end),
+                                           compile = false, strip_uncompiled = form)
+                module_file = only(filter(f -> endswith(f, ".jl"), readdir(joinpath(project, "src"))))
+                read(joinpath(project, "src", module_file), String)
+            end
+            @test occursin("for native, without the calls that it holds no machine code for",
+                           record(:entries))
+            @test occursin("without the inferred code of the calls that it holds no machine code for",
+                           record(:code))
+            @test !occursin("no machine code", record(:none))
+            @test_throws ErrorException record(:everything)
+            # A Julia whose image writer does not know the option refuses a build
+            # that compiles, before it writes anything.
+            if !module_of._has_strip_uncompiled_option()
+                @test_throws ErrorException build_executable(_test_context(); name = "strip",
+                    packages = [A_PACKAGE], main = :(begin 0 end), reactive = false,
+                    strip_uncompiled = :entries)
+            end
+            # A rebuild goes on from the image of its founding build, so a reactive
+            # build refuses the option, and `:auto` builds plain.
+            @test_throws ErrorException module_of._check_reactive_options(
+                true, true, false, nothing, false, :overlay, 3, false, false;
+                strip_uncompiled = :entries, linked = true)
+            @test module_of._check_reactive_options(
+                false, true, false, nothing, false, :overlay, 3, false, false;
+                strip_uncompiled = :entries, linked = true) === nothing
+            chosen = mktempdir() do output
+                module_of._choose_reactive_build(:auto, output, true, false, true;
+                    strip_uncompiled = :code, reactive_julia = true, find_missing_part = () -> nothing)
+            end
+            @test chosen === false
+            # The command line takes the two forms that strip something.
+            parse(arguments) = parse_build_arguments(arguments; fixed = "projectured")[3]
+            @test parse(["--strip-uncompiled=entries"]) == Dict{Symbol,Any}(:strip_uncompiled => :entries)
+            @test parse(["--strip-uncompiled=code"]) == Dict{Symbol,Any}(:strip_uncompiled => :code)
+            @test_throws ErrorException parse(["--strip-uncompiled=none"])
+        end
+
         @testset "a build prelinks one code variant with a runtime that can" begin
             choose = ProjecturedBuilder.BuilderModule._choose_prelink
             @test !choose(false, "native", true)

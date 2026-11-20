@@ -93,8 +93,8 @@ _has_prelink_option() = :sysimage_prelink in fieldnames(Base.JLOptions)
 
 """
     compile_linked_app!(project, output, name; force, optimization, debug_info,
-                        strip_metadata, cpu_target, incremental, filter_stdlibs,
-                        prelink) -> String
+                        strip_metadata, strip_uncompiled, cpu_target, incremental,
+                        filter_stdlibs, prelink) -> String
 
 Compile `project` into `output` as a program that holds its image: the image
 through `create_app` with no executable of PackageCompiler, then
@@ -105,10 +105,12 @@ pointers that a start of a prelinked image writes (`--sysimage-prelink=yes`).
 function compile_linked_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                              force::Bool = true, optimization::Integer = 3,
                              debug_info::Integer = 1, strip_metadata::Bool = false,
+                             strip_uncompiled::Symbol = :none,
                              cpu_target::AbstractString = "", incremental::Bool = true,
                              filter_stdlibs::Bool = false, prelink::Bool = true)
     arguments = `-O$(optimization) -g$(debug_info)`
     strip_metadata && (arguments = `$arguments --strip-metadata`)
+    arguments = _add_strip_uncompiled(arguments, strip_uncompiled)
     prelink && (arguments = `$arguments --sysimage-prelink=yes`)
     @info "Compiling $name" incremental prelink
     # Splatted in only when it has a value: `create_app` takes a `String` and

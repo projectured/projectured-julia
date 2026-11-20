@@ -39,6 +39,40 @@ explicitly, and nothing else does; every other build compiles for `native`.
 """
 const PORTABLE_CPU_TARGET = ""
 
+"""
+    STRIP_UNCOMPILED_FORMS
+
+The values of `strip_uncompiled` of [`build_executable`](@ref): `:none`, `:code`
+and `:entries`. The image writer of Julia takes the last two as
+`--strip-uncompiled=code` and `--strip-uncompiled=entries`.
+"""
+const STRIP_UNCOMPILED_FORMS = (:none, :code, :entries)
+
+# What the build record says of each form, after the levels of the compile.
+const STRIP_UNCOMPILED_RECORD = Dict(
+    :none => "",
+    :code => ", without the inferred code of the calls that it holds no machine code for",
+    :entries => ", without the calls that it holds no machine code for")
+
+# A Julia whose image writer drops the calls with no machine code declares
+# `--strip-uncompiled`, and it becomes a field of `Base.JLOptions`.
+_has_strip_uncompiled_option() = :strip_uncompiled in fieldnames(Base.JLOptions)
+
+# Refused before anything is written. A build that compiles nothing needs no such
+# Julia, so a test can describe the build on any Julia.
+function _check_strip_uncompiled(form::Symbol, compile::Bool)
+    form in STRIP_UNCOMPILED_FORMS ||
+        error("build_executable: `strip_uncompiled` is one of " *
+              join(repr.(STRIP_UNCOMPILED_FORMS), ", ") * ", not $(repr(form))")
+    form === :none || !compile || _has_strip_uncompiled_option() ||
+        error("build_executable: `strip_uncompiled = $(repr(form))` needs a Julia whose " *
+              "image writer knows --strip-uncompiled, and this Julia does not")
+    nothing
+end
+
+_add_strip_uncompiled(arguments::Cmd, form::Symbol) =
+    form === :none ? arguments : `$arguments --strip-uncompiled=$(form)`
+
 _create_app(args...; kwargs...) =
     Base.invokelatest(getfield(Base.require(PACKAGE_COMPILER), :create_app),
                       args...; kwargs...)
@@ -164,7 +198,7 @@ end
                        performance_counters, fonts, assets, usage, log_level, imports,
                        init, stand_ins,
                        incremental, filter_stdlibs, optimization, debug_info,
-                       strip_metadata, cpu_target, output, compile, resolve,
+                       strip_metadata, strip_uncompiled, cpu_target, output, compile, resolve,
                        precompile, force, logfile, extra_info, after_write,
                        prelink, compile_app, reactive, tracked, refresh_trace, server,
                        image, delta_optimization, found, compact, trimmed) -> String
@@ -224,6 +258,12 @@ output directory.
   already. A distribution build — one a person is handed — asks for
   `incremental = false`, so what they get is the image that holds what it needs
   and no more; the record inside a binary says which it is.
+- `strip_uncompiled` — what the image keeps of a call that it holds no machine
+  code for, an entry that only a compilation at run time reads: `:none` keeps it
+  whole, `:code` drops its inferred code and its line table, `:entries` drops the
+  entry. A compilation that needs it infers the call again. It needs a Julia whose
+  image writer knows `--strip-uncompiled`, and a build that is not reactive,
+  because a rebuild goes on from the image of its founding build.
 - `cpu_target` — which machines the binary RUNS on, a separate question from
   `incremental`, which asks which image it is built ON. It defaults to
   `native`, on its own terms and whatever `incremental` says. A distribution
@@ -240,7 +280,7 @@ output directory.
   without it.
 - `compile_app` — the function that turns the written package into a bundle:
   `compile_app(project, output, name; force, optimization, debug_info,
-  strip_metadata, cpu_target, incremental, filter_stdlibs)`. By default, on
+  strip_metadata, strip_uncompiled, cpu_target, incremental, filter_stdlibs)`. By default, on
   Linux, [`compile_linked_app!`](@ref): the launcher of this builder linked with
   the image into one program, prelinked when `prelink` holds; on another
   system, [`compile_app!`](@ref), with the launcher of PackageCompiler. A caller
@@ -311,6 +351,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             optimization::Integer = 3,
                             debug_info::Integer = 1,
                             strip_metadata::Bool = false,
+                            strip_uncompiled::Symbol = :none,
                             cpu_target::AbstractString = get(ENV, "PROJECTURED_CPU_TARGET", "native"),
                             output::AbstractString = joinpath(context.root, "build", String(name)),
                             compile::Bool = true,
@@ -336,6 +377,7 @@ function build_executable(context::BuildContext; name::AbstractString,
         error("build_executable: `debug_info` is 0 to 2, not $debug_info")
     isempty(packages) &&
         error("build_executable: a binary with no package holds nothing")
+    _check_strip_uncompiled(strip_uncompiled, compile)
     precompile_calls in PRECOMPILE_CALLS_VALUES ||
         error("build_executable: `precompile_calls` is one of " *
               join(PRECOMPILE_CALLS_VALUES, ", ") * ", not $(repr(precompile_calls))")
@@ -348,9 +390,11 @@ function build_executable(context::BuildContext; name::AbstractString,
             (project, out, program; keywords...) ->
                 compile_linked_app!(project, out, program; keywords..., prelink)
     end
-    reactive = _choose_reactive_build(reactive, output, incremental, performance_counters, compile)
+    reactive = _choose_reactive_build(reactive, output, incremental, performance_counters, compile;
+                                      strip_uncompiled)
     _check_reactive_options(reactive, incremental, performance_counters, tracked,
-                            refresh_trace, image, delta_optimization, found, trimmed)
+                            refresh_trace, image, delta_optimization, found, trimmed;
+                            strip_uncompiled)
     if reactive
         extra_info *= REACTIVE_RECORD_LINE
         caller_after_write = after_write
@@ -389,8 +433,8 @@ function build_executable(context::BuildContext; name::AbstractString,
               join(["$package needs $dependency" for (package, dependency) in missing_sources], ", "))
 
     info = build_info(; name, packages, main, precompile_calls, preferences,
-                        optimization, debug_info, cpu_target, assets, incremental,
-                        log_level, extra_info, stand_ins)
+                        optimization, debug_info, strip_uncompiled, cpu_target, assets,
+                        incremental, log_level, extra_info, stand_ins)
     project = write_app_package(context; name, packages, imports, init, main,
                                  info, usage, log_level, stand_ins)
     write_preferences(preferences, project)
@@ -403,7 +447,8 @@ function build_executable(context::BuildContext; name::AbstractString,
     compile || return project
 
     compile! = () -> compile_app(project, output, name; force, optimization, debug_info,
-                                  strip_metadata, cpu_target, incremental, filter_stdlibs)
+                                  strip_metadata, strip_uncompiled, cpu_target, incremental,
+                                  filter_stdlibs)
     if logfile === nothing
         compile!()
     else
@@ -425,7 +470,8 @@ end
 
 """
     compile_app!(project, output, name; force, optimization, debug_info,
-                  strip_metadata, cpu_target, incremental, filter_stdlibs) -> String
+                  strip_metadata, strip_uncompiled, cpu_target, incremental,
+                  filter_stdlibs) -> String
 
 Compile `project` into `output`, with the launcher of PackageCompiler: one
 executable, `name => "julia_main"`, and nothing more.
@@ -437,10 +483,12 @@ reactive build compiles through `materialize_app`.
 """
 function compile_app!(project::AbstractString, output::AbstractString, name::AbstractString;
                        force::Bool = true, optimization::Integer = 3, debug_info::Integer = 1,
-                       strip_metadata::Bool = false, cpu_target::AbstractString = "",
+                       strip_metadata::Bool = false, strip_uncompiled::Symbol = :none,
+                       cpu_target::AbstractString = "",
                        incremental::Bool = true, filter_stdlibs::Bool = false)
     arguments = `-O$(optimization) -g$(debug_info)`
     strip_metadata && (arguments = `$arguments --strip-metadata`)
+    arguments = _add_strip_uncompiled(arguments, strip_uncompiled)
     @info "Compiling $name" incremental
     # Splatted in only when it has a value: `create_app` takes a `String` and
     # refuses `nothing`, so an absent one has to be absent rather than empty.
@@ -470,8 +518,8 @@ get_smoke_flag() = "--build-info"
 
 """
     build_info(; name, packages, main, precompile_calls, preferences, optimization,
-                 debug_info, cpu_target, assets, incremental, log_level,
-                 extra_info, stand_ins) -> String
+                 debug_info, strip_uncompiled, cpu_target, assets, incremental,
+                 log_level, extra_info, stand_ins) -> String
 
 What went into a binary, as text. It becomes a constant read at module scope, so
 it is compiled into the image and `--build-info` prints it. Written from the same
@@ -481,7 +529,8 @@ values the build used, so it cannot drift from what was built.
 a caller whose build does something this core does not know about.
 """
 function build_info(; name, packages, main, precompile_calls = "recorded", preferences,
-                      optimization, debug_info, cpu_target, assets = Pair{String,String}[],
+                      optimization, debug_info, strip_uncompiled::Symbol = :none,
+                      cpu_target, assets = Pair{String,String}[],
                       incremental::Bool = false, log_level::Symbol = :warn,
                       extra_info::AbstractString = "", stand_ins = StandIn[])
     lines = ["$name, built $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM")) by ProjecturedBuilder",
@@ -489,7 +538,8 @@ function build_info(; name, packages, main, precompile_calls = "recorded", prefe
              "main: " * string(Base.remove_linenums!(copy(main))),
              "precompile_calls: " * String(precompile_calls),
              "compiled at -O$optimization -g$debug_info" *
-                 (isempty(cpu_target) ? "" : " for $cpu_target"),
+                 (isempty(cpu_target) ? "" : " for $cpu_target") *
+                 STRIP_UNCOMPILED_RECORD[strip_uncompiled],
              "logs from $log_level and up, unless --log-level says another"]
     for (source, target) in assets
         push!(lines, "asset: $source -> $target")
