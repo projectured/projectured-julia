@@ -86,6 +86,24 @@ Each decision is proposed by the assistant. The owner approved them with the pla
   only; when its parts are done, it ends, and a new worker takes the next package. The runner
   starts a worker when its memory, from the record of its package, fits in the memory of the
   run, so the count of workers follows the memory and the cores. Step 2 does it.
+- **A8. The cycle runs in a session that stays open** (proposed by the assistant on 2026-11-20
+  after the owner: "Ultimately the goal is to change the code, compile quickly what's changed,
+  test what's necessary, repeat while utilizing the most resources dynamically without
+  risking oom killing. It's ok to do more comprehensive testing when landing. The cycle must be
+  way faster."). A package image holds a whole package, so a change in the kernel or the
+  platform compiles every image above it again. A worker that stays open with Revise takes a
+  changed function in seconds and compiles only what a test calls. So the cycle is a session of
+  the runner (`--stay`): a request applies the changed files with Revise and runs the fast
+  parts that the change reaches. A worker keeps one package (A7) and stays warm between
+  requests; when another package needs its memory, the worker that waited the longest ends.
+- **A9. The memory is used to the full, with no OOM of the run** (proposed by the assistant,
+  2026-11-20). The runner reads the cap and the use of its own job, and starts a worker when
+  its estimate fits. A worker has the highest OOM score of the job, so a worker that passes
+  the cap is the one that the kernel ends, and its part runs again. `bounded-run grow NAME SIZE`
+  raises the cap of a running job when the budget has room.
+- **A10. The images compile in the background** (proposed by the assistant, 2026-11-20). After a
+  request, the session compiles the images of the changed packages with the free cores, so a
+  new worker loads fresh images and does not compile them first.
 - **A6. A worker of the tests starts from a compiled image** (proposed by the assistant). This
   is the plan `the-tests-start-from-a-compiled-image`, which moves into this plan as step 4:
   first the measure of what an image saves, then the questions of its design to the owner,
@@ -114,7 +132,13 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `the-tests-start-from-a-compiled-image`. **Done when:** the compile is less than 30 % of the
   time of the parts in a run of all parts, or the owner decides on another goal at its
   questions.
-- [ ] 5. **The rule of the agents.** Write into both `CLAUDE.md` files and the testing guide:
+- [ ] 5. **The cycle (A8, A9, A10).** The session keeps a worker for each package, the
+  runner starts workers by the memory of its job, `bounded-run grow`, and the compile in the
+  background. Measure the cycle: an edit in one slice of the platform, then the result of the
+  fast parts that it reaches, in a worktree of step 3. **Done when:** that cycle takes less than
+  a tenth of a run of the platform suite from a new worktree today, and its number is in this
+  plan.
+- [ ] 6. **The rule of the agents.** Write into both `CLAUDE.md` files and the testing guide:
   make a worktree with the helper of step 3; after a change, run `test_changed(level = :fast)`;
   before a land, run all parts with the caps of the record; give a job the cores and the
   memory that its record names. Tell the owner the line that each agent needs to rebase and
