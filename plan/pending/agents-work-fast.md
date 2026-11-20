@@ -78,6 +78,14 @@ Each decision is proposed by the assistant. The owner approved them with the pla
   change, and only the changed packages and the packages above them compile. The same binding
   lets omnet-julia run against a worktree of projectured-julia with no special environment.
   Step 3 measures this first; if it does not hold, the step stops and the owner decides.
+- **A7. A worker loads only the package of its parts** (proposed by the assistant on 2026-11-20
+  after the plan; the owner: "If we can bring down the memory consumption then we can run more
+  workers and speed up the cycle"). Now each worker loads every test package of the run, so
+  each holds the memory of all, and some checks fail beside packages that they do not need. The
+  runner groups the parts by the package that defines them, and a worker loads that package
+  only; when its parts are done, it ends, and a new worker takes the next package. The runner
+  starts a worker when its memory, from the record of its package, fits in the memory of the
+  run, so the count of workers follows the memory and the cores. Step 2 does it.
 - **A6. A worker of the tests starts from a compiled image** (proposed by the assistant). This
   is the plan `the-tests-start-from-a-compiled-image`, which moves into this plan as step 4:
   first the measure of what an image saves, then the questions of its design to the owner,
@@ -93,7 +101,7 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `main-stays-green` in projectured-julia, and the list and the marks of omnet-julia. Land and
   push `tests-run-fast` and `main-stays-green` in both repositories. **Done when:** both are on
   `main` and pushed, and a run of all parts on `main` has no unmarked `Fail` or `Error`.
-- [ ] 2. **Tight memory and more cores (A2, A3, A4).** Change `bounded-run` and the runner.
+- [ ] 2. **Tight memory and more cores (A2, A3, A4, A7).** Change `bounded-run` and the runner.
   Run `bounded-run selftest`. **Done when:** a run of all parts of projectured-julia with the
   caps of its record and 8 workers on 16 cores is green, and its time and its peak are in this
   plan.
