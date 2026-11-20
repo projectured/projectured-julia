@@ -294,6 +294,31 @@ function test_build_executable()
                   Set(["libsamplerate_jll", "Libiconv_jll"])
         end
 
+        @testset "each build carries no sound libraries unless it asks for them" begin
+            TOML = ProjecturedBuilder.BuilderModule.TOML
+            # The written package of a build: its dependencies, its stand-in
+            # folders and its module, which holds the build record.
+            function read_build(name; keywords...)
+                project = build_executable(_test_context(); name, packages = [A_PACKAGE],
+                                           main = :(begin 0 end), compile = false,
+                                           keywords...)
+                module_file = only(filter(f -> endswith(f, ".jl"),
+                                          readdir(joinpath(project, "src"))))
+                (TOML.parsefile(joinpath(project, "Project.toml"))["deps"],
+                 isdir(joinpath(project, "stand_in")) ?
+                     readdir(joinpath(project, "stand_in")) : String[],
+                 read(joinpath(project, "src", module_file), String))
+            end
+            deps, folders, source = read_build("silent")
+            @test deps["alsa_plugins_jll"] == "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
+            @test folders == ["alsa_plugins_jll"]
+            @test occursin("stand-in: alsa_plugins_jll, which this binary does not carry", source)
+            deps, folders, source = read_build("sound"; stand_ins = StandIn[])
+            @test !haskey(deps, "alsa_plugins_jll")
+            @test isempty(folders)
+            @test !occursin("stand-in:", source)
+        end
+
         @testset "an archive carries the licence texts of what it holds" begin
             # The texts of the colour data that the program holds are in the repository.
             repository = normpath(joinpath(@__DIR__, "..", "..", ".."))
@@ -476,10 +501,12 @@ function test_build_executable()
             written = TOML.parsefile(joinpath(project, "LocalPreferences.toml"))
             @test written["ProjecturedKernel"]["performance_counters"] == true
 
-            # A preference of a package that the build names adds nothing.
+            # A preference of a package that the build names adds nothing: the
+            # package holds what the build names and the stand-ins of every build.
             project_toml, source, _ = write_reader_package(
                 [make_baked_preference(A_PACKAGE, "probe", 1)])
-            @test Set(keys(project_toml["deps"])) == Set([A_PACKAGE])
+            @test Set(keys(project_toml["deps"])) ==
+                  Set([A_PACKAGE; [stand_in.name for stand_in in PROJECTURED_STAND_INS]])
             @test !occursin("import $A_PACKAGE", source)
         end
 

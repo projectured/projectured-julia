@@ -202,7 +202,9 @@ output directory.
   `:debug`, `:info`, `:warn`, `:error` or `:none`. Every binary answers
   `--log-level=<level>` over it, so this is the default and not the answer.
 - `imports`, `init` and `stand_ins` — passed on to [`write_app_package`](@ref)
-  unchanged; the build record names each stand-in.
+  unchanged; the build record names each stand-in. The default of `stand_ins` is
+  [`PROJECTURED_STAND_INS`](@ref), so no binary carries the sound libraries. A
+  binary that plays sound passes `stand_ins = StandIn[]`.
 - `after_write` — a function called with the directory of the written package,
   after the package and its preferences are there and before it is resolved.
   A caller that must put another file into the package, or read what the last
@@ -302,7 +304,7 @@ function build_executable(context::BuildContext; name::AbstractString,
                             log_level::Symbol = :warn,
                             imports = String[],
                             init::Union{Nothing,Expr,AbstractString} = nothing,
-                            stand_ins = StandIn[],
+                            stand_ins = PROJECTURED_STAND_INS,
                             after_write = nothing,
                             incremental::Bool = true,
                             filter_stdlibs::Bool = false,

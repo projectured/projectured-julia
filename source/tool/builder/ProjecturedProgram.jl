@@ -22,12 +22,15 @@ const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSDL", :SdlBackend),
 """
     PROJECTURED_STAND_INS
 
-The JLL packages that a `projectured` binary does not carry, as
-`"<name>" => "<uuid>"`: [`write_app_package`](@ref) puts an empty stand-in in
-their place. `SDL2_jll` and SimpleDirectMediaLayer load `alsa_plugins_jll`,
-and it brings FFmpeg, which is built with `--enable-nonfree` and so may not be
-given to anyone, and PulseAudio with GPL-3 and AGPL-3 libraries. The application
-plays no sound: it starts SDL for video only.
+The JLL packages that a binary does not carry, as `"<name>" => "<uuid>"`:
+[`write_app_package`](@ref) puts an empty stand-in in their place. It is the
+default of `stand_ins` in [`build_executable`](@ref), so it holds for each binary
+that this builder builds, in this repository and in the repositories that use it.
+`SDL2_jll` and SimpleDirectMediaLayer load `alsa_plugins_jll`, and it brings
+FFmpeg, which is built with `--enable-nonfree` and so may not be given to anyone,
+and PulseAudio with GPL-3 and AGPL-3 libraries. No binary plays sound: the
+platform starts SDL for video only. A binary with no SDL gets an empty package,
+which costs nothing.
 
 It keeps two of the dependencies of the real one: the libraries of `SDL2_jll`
 link `libsamplerate.so.0` and `libiconv.so.2`, and `SDL2_jll` names neither JLL.
@@ -340,7 +343,6 @@ function build_projectured_executable(; name::AbstractString = "projectured",
                      usage = make_projectured_usage(collect(backends)),
                      fonts = true,
                      assets = PROJECTURED_ASSETS,
-                     stand_ins = PROJECTURED_STAND_INS,
                      kwargs...)
 end
 
