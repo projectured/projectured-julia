@@ -83,6 +83,42 @@ function part_home(run, package::AbstractString)
     (home, join(string.(path), ".") * "." * string(name))
 end
 
+# The count of the coverage files that this worker wrote.
+const _COVERAGE_COUNT = Ref(0)
+
+"""
+    run_covered(run_record, suite, name)
+
+Run `run_record()`, the run of the part `name` of `suite`. When the environment names a
+folder in PROJECTURED_TEST_COVERAGE, as `--coverage` of the runner does, the coverage data
+of Julia is cleared before the part and written after it into a file of `FOLDER/parts`,
+and `FOLDER/index.tsv` gets the line `FILE SUITE NAME`. So each file holds the lines that
+one part executed, and none that the load of the packages executed.
+"""
+function run_covered(run_record, suite::AbstractString, name::AbstractString)
+    folder = get(ENV, "PROJECTURED_TEST_COVERAGE", "")
+    isempty(folder) && return run_record()
+    ccall(:jl_clear_coverage_data, Cvoid, ())
+    record = run_record()
+    mkpath(joinpath(folder, "parts"))
+    file = joinpath(folder, "parts", string(getpid(), "-", _COVERAGE_COUNT[] += 1, ".info"))
+    ccall(:jl_write_coverage_data, Cvoid, (Cstring,), file)
+    open(io -> write(io, string(basename(file), '\t', suite, '\t', name, '\n')),
+         joinpath(folder, "index.tsv"), "a")
+    record
+end
+
+# The answers `part … HOME LOCATOR` of `parts`, then `listed COUNT`.
+function _answer_parts(output::IO, package::AbstractString, parts)
+    for listed in parts
+        home, locator = part_home(listed.part.run, package)
+        _worker_answer(output, "part", _index_text(listed.index), listed.suite,
+                       listed.part.name, listed.part.limit, listed.part.is_alone,
+                       home, locator)
+    end
+    _worker_answer(output, "listed", length(parts))
+end
+
 # The function that `locator` names: its modules from `Main`, then its name.
 function _located_function(locator::AbstractString)
     names = Symbol.(split(locator, '.'))
@@ -190,13 +226,27 @@ function _worker_command(output::IO, command, arguments)
             reached = reached_test_paths(root, changed_files(root; base); slice_edges = edges)
             filter!(listed -> _is_reached(_part_path(listed.part, root), reached), parts)
         end
-        for listed in parts
-            home, locator = part_home(listed.part.run, package)
-            _worker_answer(output, "part", _index_text(listed.index), listed.suite,
-                           listed.part.name, listed.part.limit, listed.part.is_alone,
-                           home, locator)
-        end
-        _worker_answer(output, "listed", length(parts))
+        _answer_parts(output, package, parts)
+    elseif command == "select"
+        package, name, only_text, skip_text, base, level, map_path = arguments
+        suite = _worker_suite(package, name)
+        parts = list_parts(suite; only = read_name_filter(only_text),
+                           skip = read_name_filter(skip_text), level = Symbol(level))
+        first_part = _first_part(suite)
+        file = first_part === nothing ? "" : _method_file(first_part.run)
+        root = _git_text(isfile(file) ? dirname(file) : pwd(), `rev-parse --show-toplevel`)
+        covered, fallback, uncovered = select_covered_parts(read_coverage_map(map_path), root, base)
+        package_module = getglobal(Main, _package_package_modulename(package))
+        edges = isdefined(package_module, :TEST_SLICE_EDGES) ?
+            getglobal(package_module, :TEST_SLICE_EDGES) : Dict{String, Any}()
+        reached = isempty(fallback) ? String[] : reached_test_paths(root, fallback; slice_edges = edges)
+        filter!(listed -> (listed.suite * "/" * listed.part.name) in covered ||
+                          (!isempty(reached) && _is_reached(_part_path(listed.part, root), reached)),
+                parts)
+        isempty(uncovered) ||
+            println(output, "No part executes the changed lines ", join(first(uncovered, 10), ", "),
+                    length(uncovered) > 10 ? " and $(length(uncovered) - 10) more." : ".")
+        _answer_parts(output, package, parts)
     elseif command == "run"
         package, name, index = arguments
         suite = _worker_suite(package, name)
@@ -207,8 +257,9 @@ function _worker_command(output::IO, command, arguments)
         part_record = nothing
         redirect_stdin(devnull) do
             @testset HeldTestSet "worker" begin
-                part_record = run_part(part; suite = path, repository = source[1],
-                                       commit = source[2])
+                part_record = run_covered(path, part.name) do
+                    run_part(part; suite = path, repository = source[1], commit = source[2])
+                end
             end
         end
         values = (_record_text(getfield(part_record, column)) for column in PART_RECORD_COLUMNS)
@@ -220,8 +271,9 @@ function _worker_command(output::IO, command, arguments)
         part_record = nothing
         redirect_stdin(devnull) do
             @testset HeldTestSet "worker" begin
-                part_record = run_part(part; suite = path, repository = source[1],
-                                       commit = source[2])
+                part_record = run_covered(path, part.name) do
+                    run_part(part; suite = path, repository = source[1], commit = source[2])
+                end
             end
         end
         values = (_record_text(getfield(part_record, column)) for column in PART_RECORD_COLUMNS)

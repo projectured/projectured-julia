@@ -14,6 +14,7 @@
 # ============================================================================
 
 include("GitText.jl")
+include("CoverageMap.jl")
 
 const _SUPERVISOR_PREFIX = "@@test-worker@@\t"
 
@@ -44,6 +45,9 @@ Base.@kwdef mutable struct TestRunOptions
     memory_bytes::Int = 6 * 2^30
     memory_total::Int = 0
     memory_from::String = ""
+    coverage::String = ""
+    coverage_root::String = ""
+    coverage_map::String = ""
     limit::Float64 = 600.0
     only::String = ""
     skip::String = ""
@@ -76,6 +80,14 @@ const _RUN_TESTS_USAGE = """
                        memory fits
       --memory-from PATH  a record of an earlier run: a worker gets 1.25 times the peak of
                        the parts of its package there, at least 1.5G and at most --memory
+      --coverage FOLDER  run the workers with code coverage of the files beside this
+                       repository, and write the lines that each part executes into FOLDER,
+                       and at the end the map of them into FOLDER/map.tsv
+      --coverage-root PATH  the folder whose files the coverage holds (default: the folder
+                       that holds this repository)
+      --coverage-map PATH  with --changed: choose the parts by this map of the base commit,
+                       each part that executed a changed line; the rule of --changed for
+                       what the map can not place
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
@@ -121,6 +133,9 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             word == "--memory" ? (options.memory_bytes = _read_size(value)) :
             word == "--memory-total" ? (options.memory_total = _read_size(value)) :
             word == "--memory-from" ? (options.memory_from = value) :
+            word == "--coverage" ? (options.coverage = abspath(value)) :
+            word == "--coverage-root" ? (options.coverage_root = abspath(value)) :
+            word == "--coverage-map" ? (options.coverage_map = abspath(value)) :
             word == "--limit" ? (options.limit = parse(Float64, value)) :
             word == "--only" ? (options.only = value) :
             word == "--skip" ? (options.skip = value) :
@@ -182,7 +197,14 @@ function _worker_command(options::TestRunOptions, memory::Int = options.memory_b
     hint = string(div(memory * 4, 5 * 2^20), "M")
     flags = ["--startup-file=no", "-t", string(options.threads), "--project=$(options.project)",
              "--heap-size-hint=$hint", "-e", script]
-    `$(Base.julia_cmd()) $flags`
+    isempty(options.coverage) && return `$(Base.julia_cmd()) $flags`
+    # The coverage of each file beside this repository: the code of the sibling
+    # repositories too, at the same paths for each worktree that julia-worktree runs.
+    root = isempty(options.coverage_root) ? dirname(_git_text(pwd(), `rev-parse --show-toplevel`)) :
+           options.coverage_root
+    mkpath(options.coverage)
+    addenv(`$(Base.julia_cmd()) --code-coverage=@$root $flags`,
+           "PROJECTURED_TEST_COVERAGE" => options.coverage)
 end
 
 # Start a worker whose output goes to `sink[]`, the stream of the run at that time.
@@ -321,6 +343,11 @@ function _run_request!(workers, options, events, columns, sink, output)
     _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
                        count, memory, total, is_per_home = isempty(options.stay))
     _print_summary(output, records)
+    if !isempty(options.coverage)
+        lines = write_coverage_map(options.coverage, joinpath(options.coverage, "map.tsv"))
+        println(output, "The map of what each part runs: $lines lines, in ",
+                joinpath(options.coverage, "map.tsv"), ".")
+    end
     root = _git_text(pwd(), `rev-parse --show-toplevel`)
     isempty(root) || store_and_compare_records(records, columns, root; output)
     all(r -> r["result"] == "done" && r["fail"] == "0" && r["error"] == "0", records) ? 0 : 1
@@ -367,8 +394,13 @@ function _list_queued_parts(workers, options::TestRunOptions, events::Channel,
             push!(worker.loaded, package)
             println(output, "Loaded $package in $(fields[3]) s.")
         end
-        _send(worker, "list", package, suite, options.only, options.skip, options.changed,
-              options.level)
+        if !isempty(options.changed) && !isempty(options.coverage_map)
+            _send(worker, "select", package, suite, options.only, options.skip, options.changed,
+                  options.level, options.coverage_map)
+        else
+            _send(worker, "list", package, suite, options.only, options.skip, options.changed,
+                  options.level)
+        end
         while true
             fields = _wait_answer(_ -> nothing, worker, events, ("part", "listed", "failed"))
             if fields === nothing || fields[1] == "failed"

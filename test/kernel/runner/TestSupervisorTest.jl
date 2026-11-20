@@ -271,6 +271,61 @@ function test_supervised_runs()
         @test first_end <= second_start
     end
 
+    @testset "a run with coverage writes a map, and a change runs the parts that execute it" begin
+        repository = mktempdir()
+        git(words...) = run(pipeline(`git -C $repository $words`; stdout = devnull, stderr = devnull))
+        git("init", "-q")
+        git("config", "user.email", "test@example.com")
+        git("config", "user.name", "test")
+        lib = joinpath(repository, "CoveredLib.jl")
+        source = """
+            module CoveredLib
+            function alpha(x)
+                y = x + 1
+                return y * 2
+            end
+            function beta(x)
+                z = x - 1
+                return z * 3
+            end
+            end
+            """
+        write(lib, source)
+        tests = joinpath(repository, "CoveredTests.jl")
+        write(tests, """
+            isdefined(Main, :CoveredLib) || Base.include(Main, $(repr(lib)))
+            module CoveredTests
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            alpha_part() = @test Main.CoveredLib.alpha(1) == 4
+            beta_part() = @test Main.CoveredLib.beta(1) == 0
+            const covered_suite = TestSuite("covered", [TestPart(alpha_part), TestPart(beta_part)])
+            end
+            """)
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        coverage = mktempdir()
+        output = IOBuffer()
+        @test run_test_supervisor(["--coverage", coverage, "--coverage-root", repository,
+                                   tests, "covered_suite"]; output) == 0
+        map = read_coverage_map(joinpath(coverage, "map.tsv"))
+        lines = get(map, lib, Dict{Int, Vector{String}}())
+        @test get(lines, 4, String[]) == ["covered/alpha_part"]
+        @test get(lines, 8, String[]) == ["covered/beta_part"]
+        function chosen(text)
+            write(lib, text)
+            record = joinpath(mktempdir(), "record.tsv")
+            run_test_supervisor(["--changed", "HEAD", "--coverage-map", joinpath(coverage, "map.tsv"),
+                                 "--record", record, tests, "covered_suite"]; output = IOBuffer())
+            isfile(record) ? sort([r.part for r in read_part_records(record)]) : String[]
+        end
+        # A change in the body of beta runs the part that executes beta.
+        @test chosen(replace(source, "return z * 3" => "return z * 3 + 0")) == ["beta_part"]
+        # A change of the signature of alpha runs each part that executes a method of alpha.
+        @test chosen(replace(source, "function alpha(x)" => "function alpha(x::Integer)")) == ["alpha_part"]
+        write(lib, source)
+    end
+
     @testset "the command line of the supervisor" begin
         options = read_test_run_options(["--memory", "800M", "--limit", "30", "--only", "r\"^a\"",
                                          "--workers", "3", "P", "test_p", "Q", "test_q"])
