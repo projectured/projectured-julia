@@ -201,10 +201,83 @@ function test_supervised_runs()
         @test timedwait(() -> istaskdone(session), 60.0) == :ok && fetch(session) == 0
     end
 
+    @testset "a worker loads only the home of its part, and another home gets a new worker" begin
+        folder = mktempdir()
+        leaf = joinpath(folder, "LeafFixture.jl")
+        write(leaf, """
+            module LeafFixture
+            using Test
+            # The worker of this part has loaded this file and no other fixture.
+            leaf_alone() = @test !isdefined(Main, :UmbrellaFixture)
+            end
+            """)
+        umbrella = joinpath(folder, "UmbrellaFixture.jl")
+        write(umbrella, """
+            isdefined(Main, :LeafFixture) || Base.include(Main, $(repr(leaf)))
+            module UmbrellaFixture
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            using Main.LeafFixture: leaf_alone
+            umbrella_part() = @test isdefined(Main, :UmbrellaFixture)
+            const umbrella_suite = TestSuite("umbrella", [
+                TestPart(leaf_alone), TestPart(umbrella_part),
+                TestPart(() -> (@test isdefined(Main, :UmbrellaFixture)); name = "closure"),
+            ])
+            end
+            """)
+        record = joinpath(folder, "record.tsv")
+        output = IOBuffer()
+        code = run_test_supervisor(["--record", record, leaf, "leaf_alone", umbrella, "umbrella_suite"];
+                                   output)
+        @test code == 0
+        @test [(r.suite, r.part, r.pass) for r in read_part_records(record)] ==
+              [("leaf_alone", "leaf_alone", 1), ("umbrella", "leaf_alone", 1),
+               ("umbrella", "umbrella_part", 1), ("umbrella", "closure", 1)]
+    end
+
+    @testset "a worker starts when its memory from the record fits beside the others" begin
+        folder = mktempdir()
+        log = joinpath(folder, "times.txt")
+        files = map(("A", "B")) do letter
+            file = joinpath(folder, "Memory$(letter)Fixture.jl")
+            write(file, """
+                module Memory$(letter)Fixture
+                using Test
+                using Main.ProjecturedKernelTest: TestPart, TestSuite
+                function part_$(letter)()
+                    open(io -> println(io, "start $(letter) ", time()), $(repr(log)), "a")
+                    sleep(1.0)
+                    open(io -> println(io, "end $(letter) ", time()), $(repr(log)), "a")
+                    @test true
+                end
+                const suite_$(letter) = TestSuite("$(letter)", [TestPart(part_$(letter))])
+                end
+                """)
+            file
+        end
+        # A peak of 2.4 GiB asks for 3 GiB, so two such workers do not fit in 4 GiB.
+        earlier = joinpath(folder, "earlier.tsv")
+        write(earlier, "suite\tpart\tpeak_bytes\nA\tpart_A\t$(round(Int, 2.4 * 2^30))\n" *
+                       "B\tpart_B\t$(round(Int, 2.4 * 2^30))\n")
+        output = IOBuffer()
+        code = run_test_supervisor(["--workers", "2", "--threads", "1", "--memory", "4G",
+                                    "--memory-total", "4G", "--memory-from", earlier,
+                                    files[1], "suite_A", files[2], "suite_B"]; output)
+        @test code == 0
+        times = Dict(Tuple(split(line)[1:2]) => parse(Float64, split(line)[3]) for line in readlines(log))
+        first_end = min(times[("end", "A")], times[("end", "B")])
+        second_start = max(times[("start", "A")], times[("start", "B")])
+        @test first_end <= second_start
+    end
+
     @testset "the command line of the supervisor" begin
         options = read_test_run_options(["--memory", "800M", "--limit", "30", "--only", "r\"^a\"",
                                          "--workers", "3", "P", "test_p", "Q", "test_q"])
         @test options.workers == 3
+        @test read_test_run_options(["--workers", "auto", "--memory-total", "10G", "--memory-from",
+                                     "r.tsv", "P", "test_p"]) isa TestRunOptions
+        @test read_test_run_options(["--workers", "auto", "P", "test_p"]).workers == 0
+        @test read_test_run_options(["--memory-total", "10G", "P", "test_p"]).memory_total == 10 * 2^30
         @test options.memory_bytes == 800 * 2^20
         @test options.limit == 30.0
         @test read_name_filter(options.only) == r"^a"

@@ -42,6 +42,8 @@ Base.@kwdef mutable struct TestRunOptions
     threads::Int = 2
     workers::Int = 1
     memory_bytes::Int = 6 * 2^30
+    memory_total::Int = 0
+    memory_from::String = ""
     limit::Float64 = 600.0
     only::String = ""
     skip::String = ""
@@ -66,8 +68,13 @@ const _RUN_TESTS_USAGE = """
       --project PATH   the environment of the workers (default: the active project)
       --threads N      the threads of each worker (default: 2)
       --workers N      the worker processes that run parts at the same time (default: 1),
-                       at most the usable CPUs divided by the threads of a worker
-      --memory SIZE    the memory of a worker, such as 6G or 800M (default: 6G)
+                       at most the usable CPUs divided by the threads of a worker; auto
+                       is that most
+      --memory SIZE    the most memory of a worker, such as 6G or 800M (default: 6G)
+      --memory-total SIZE  the memory of all workers together (default: workers × memory);
+                       a worker starts when its memory fits
+      --memory-from PATH  a record of an earlier run: a worker gets 1.25 times the peak of
+                       the parts of its package there, at least 1.5G and at most --memory
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
@@ -109,8 +116,10 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             value = words[k + 1]
             word == "--project" ? (options.project = value) :
             word == "--threads" ? (options.threads = parse(Int, value)) :
-            word == "--workers" ? (options.workers = parse(Int, value)) :
+            word == "--workers" ? (options.workers = value == "auto" ? 0 : parse(Int, value)) :
             word == "--memory" ? (options.memory_bytes = _read_size(value)) :
+            word == "--memory-total" ? (options.memory_total = _read_size(value)) :
+            word == "--memory-from" ? (options.memory_from = value) :
             word == "--limit" ? (options.limit = parse(Float64, value)) :
             word == "--only" ? (options.only = value) :
             word == "--skip" ? (options.skip = value) :
@@ -141,6 +150,8 @@ struct _QueuedPart
     limit::Float64
     is_alone::Bool
     is_retry::Bool
+    home::String                # the package that a worker loads for the part
+    locator::String             # the function of the part, or "" to run it by its place
 end
 
 _part_place(part::_QueuedPart) = part.path * "/" * part.name
@@ -155,15 +166,16 @@ mutable struct _Worker
     stop_time::Float64
     is_ending::Bool             # stopped: its answers count no more
     is_ended::Bool
+    memory::Int                 # the memory that it may use
 end
 
-function _worker_command(options::TestRunOptions)
+function _worker_command(options::TestRunOptions, memory::Int = options.memory_bytes)
     # A worker of a session loads Revise first, when the environment has it, so
     # that Revise follows the files of the packages after it.
     revise = isempty(options.stay) ? "" : "try; using Revise; catch; end; "
     script = "redirect_stderr(stdout); $(revise)using ProjecturedKernelTest; run_test_worker(); " *
              "ccall(:_exit, Cvoid, (Cint,), 0)"
-    hint = string(div(options.memory_bytes * 4, 5 * 2^20), "M")
+    hint = string(div(memory * 4, 5 * 2^20), "M")
     flags = ["--startup-file=no", "-t", string(options.threads), "--project=$(options.project)",
              "--heap-size-hint=$hint", "-e", script]
     `$(Base.julia_cmd()) $flags`
@@ -171,9 +183,10 @@ end
 
 # Start a worker whose output goes to `sink[]`, the stream of the run at that time.
 function _start_worker(number::Int, options::TestRunOptions, events::Channel,
-                       sink::Base.RefValue{IO}, is_prefixed::Bool)
-    process = open(_worker_command(options), "r+")
-    worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false)
+                       sink::Base.RefValue{IO}, is_prefixed::Bool;
+                       memory::Int = options.memory_bytes)
+    process = open(_worker_command(options, memory), "r+")
+    worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false, memory)
     errormonitor(@async begin
         for line in eachline(process)
             if startswith(line, _SUPERVISOR_PREFIX)
@@ -291,15 +304,16 @@ function _run_request!(workers, options, events, columns, sink, output)
     queue = _list_queued_parts(first(workers), options, events, columns, output)
     queue === nothing && return 2
     most = max(1, div(_usable_cpus(), options.threads))
-    if options.workers > most
-        println(output, "$(options.workers) workers need more CPUs than the $(_usable_cpus()) ",
+    wanted = options.workers == 0 ? most : options.workers
+    if wanted > most
+        println(output, "$wanted workers need more CPUs than the $(_usable_cpus()) ",
                 "that this process may use; $most run.")
     end
-    count = min(options.workers, most, max(1, length(queue)))
-    for number in length(workers) + 1:count
-        push!(workers, _start_worker(number, options, events, sink, true))
-    end
-    _run_queued_parts!(workers, queue, options, events, columns, records, sink, output)
+    count = min(wanted, most, max(1, length(queue)))
+    memory = _home_memory(queue, options)
+    total = options.memory_total > 0 ? options.memory_total : count * options.memory_bytes
+    _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
+                       count, memory, total, is_per_home = isempty(options.stay))
     _print_summary(output, records)
     root = _git_text(pwd(), `rev-parse --show-toplevel`)
     isempty(root) || store_and_compare_records(records, columns, root; output)
@@ -345,9 +359,12 @@ function _list_queued_parts(worker::_Worker, options::TestRunOptions, events::Ch
             end
             fields[1] == "listed" && break
             limit = parse(Float64, fields[5])
+            # A session keeps its workers with every package, and runs a part by its place.
+            home, locator = isempty(options.stay) && length(fields) >= 8 ?
+                (fields[7], fields[8]) : (package, "")
             push!(queue, _QueuedPart(package, suite, fields[2], fields[3], fields[4],
                                      limit > 0 ? limit : options.limit, fields[6] == "true",
-                                     false))
+                                     false, home, locator))
         end
     end
     println(output, "$(length(queue)) parts to run.")
@@ -357,48 +374,111 @@ end
 function _give_part!(worker::_Worker, part::_QueuedPart)
     worker.part = part
     worker.stop = ""
-    if part.package in worker.loaded
+    package = isempty(part.locator) ? part.package : part.home
+    if package in worker.loaded
         worker.started = time()
     else
         worker.started = 0.0
-        _send(worker, "load", part.package)
+        _send(worker, "load", package)
     end
-    _send(worker, "run", part.package, part.suite, part.index)
+    isempty(part.locator) ? _send(worker, "run", part.package, part.suite, part.index) :
+                            _send(worker, "call", part.locator, part.path, part.name)
 end
 
-# Each worker that runs no part takes the next part of the queue, in its order.
-# A part that runs alone waits until no other part runs, and no part starts
-# beside it.
-function _run_queued_parts!(workers, queue, options, events, columns, records, sink, output)
-    next = 1
-    is_prefixed = length(workers) > 1
-    while true
-        for (k, worker) in enumerate(workers)
-            if worker.is_ended && next <= length(queue)
-                workers[k] = worker = _start_worker(worker.number, options, events, sink,
-                                                    is_prefixed)
-            end
-            next <= length(queue) || continue
-            (worker.is_ending || worker.part !== nothing) && continue
-            is_alone_running = any(w -> w.part !== nothing && w.part.is_alone, workers)
-            is_others_running = any(w -> w.part !== nothing, workers)
-            is_alone_running && break
-            queue[next].is_alone && is_others_running && break
-            _give_part!(worker, queue[next])
-            next += 1
+# The least memory of a worker that `--memory-from` gives.
+const _LEAST_WORKER_MEMORY = 3 * 2^29
+
+# The memory of a worker for each home of `queue`: from the peaks of its parts in the
+# record of `--memory-from`, or `--memory` for a home with a part that it lacks.
+function _home_memory(queue, options::TestRunOptions)
+    peaks = Dict{String, Int}()
+    if !isempty(options.memory_from) && isfile(options.memory_from)
+        for row in last(_read_record_rows(options.memory_from))
+            peak = tryparse(Int, get(row, "peak_bytes", ""))
+            peak === nothing || (peaks[_record_key(row)] = max(peak, get(peaks, _record_key(row), 0)))
         end
-        all(w -> w.part === nothing, workers) && next > length(queue) && return
-        number, fields = take!(events)
+    end
+    memory = Dict{String, Int}()
+    for part in queue
+        peak = get(peaks, part.path * "/" * part.name, 0)
+        need = peak == 0 ? options.memory_bytes :
+               clamp(round(Int, 1.25 * peak), _LEAST_WORKER_MEMORY, options.memory_bytes)
+        memory[part.home] = max(get(memory, part.home, 0), need)
+    end
+    memory
+end
+
+# Each of `count` places holds a worker. A worker that runs no part takes the next
+# part of the queue. With `is_per_home`, a worker holds the home package of its parts
+# only: it takes a part of that home first, and a part of another home goes to a new
+# worker in its place. A new worker starts when its memory fits in `total` beside the
+# workers that run, or when no other worker runs. A part that runs alone waits until
+# no other part runs, and no part starts beside it.
+function _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
+                            count::Int = length(workers), memory = Dict{String, Int}(),
+                            total::Int = count * options.memory_bytes, is_per_home::Bool = false)
+    remaining = copy(queue)
+    is_prefixed = count > 1
+    live = [w for w in workers if !w.is_ended]
+    places = Union{_Worker, Nothing}[k <= length(live) ? live[k] : nothing for k in 1:count]
+    number = maximum((w.number for w in workers); init = 0)
+    is_live(w) = w !== nothing && !w.is_ended
+    is_busy(w) = is_live(w) && (w.is_ending || w.part !== nothing)
+    held() = sum((w.memory for w in places if is_live(w)); init = 0)
+    need(part) = get(memory, part.home, options.memory_bytes)
+    takes(w, part) = !is_per_home || isempty(w.loaded) || w.loaded == Set([part.home])
+    while true
+        if is_per_home
+            # A worker that waits and whose home has no part left ends, and frees its memory.
+            for (k, w) in enumerate(places)
+                if is_live(w) && !is_busy(w) && !isempty(w.loaded) && !any(p -> takes(w, p), remaining)
+                    w.is_ending = w.is_ended = true
+                    process_running(w.process) && kill(w.process, Base.SIGKILL)
+                    places[k] = nothing
+                end
+            end
+        end
+        for k in 1:count
+            isempty(remaining) && break
+            worker = places[k]
+            is_busy(worker) && continue
+            any(w -> is_live(w) && w.part !== nothing && w.part.is_alone, places) && break
+            is_others_running = any(w -> is_live(w) && w.part !== nothing, places)
+            choice = is_live(worker) ? something(findfirst(p -> takes(worker, p), remaining), 1) : 1
+            part = remaining[choice]
+            part.is_alone && is_others_running && break
+            if is_live(worker) && !takes(worker, part)
+                # A worker with another package ends; a new worker takes the part.
+                worker.is_ending = worker.is_ended = true
+                process_running(worker.process) && kill(worker.process, Base.SIGKILL)
+                places[k] = worker = nothing
+            end
+            if !is_live(worker)
+                held() + need(part) <= total || !is_others_running || break
+                number += 1
+                worker = _start_worker(number, options, events, sink, is_prefixed;
+                                       memory = need(part))
+                push!(workers, worker)
+                places[k] = worker
+            end
+            deleteat!(remaining, choice)
+            _give_part!(worker, part)
+        end
+        all(w -> !is_live(w) || w.part === nothing, places) && isempty(remaining) && return
+        sender, fields = take!(events)
         kind = first(fields)
         if kind == "tick"
             _check_workers!(workers, options, output)
             continue
         end
-        worker = workers[findfirst(w -> w.number == number, workers)]
+        found = findfirst(w -> w.number == sender, workers)
+        found === nothing && continue
+        worker = workers[found]
         if kind == "ended"
+            was_counted = !worker.is_ended
             worker.is_ended = true
             worker.is_ending = true
-            if worker.part !== nothing
+            if was_counted && worker.part !== nothing
                 part = worker.part
                 result = !isempty(worker.stop) ? worker.stop :
                          worker.process.termsignal == Base.SIGKILL ? "memory" : "crash"
@@ -409,15 +489,16 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                     println(output, "The worker ended during $(_part_place(part)): memory; ",
                             "the part runs again in a new worker.")
                     retry = _QueuedPart(part.package, part.suite, part.index, part.path,
-                                        part.name, part.limit, part.is_alone, true)
-                    insert!(queue, next, retry)
+                                        part.name, part.limit, part.is_alone, true,
+                                        part.home, part.locator)
+                    pushfirst!(remaining, retry)
                 else
                     println(output, "The worker ended during $(_part_place(part)): $result.")
                     _keep_record!(records, _stopped_record(worker, result, columns), columns,
                                   options)
                 end
-                worker.part = nothing
             end
+            worker.part = nothing
         elseif worker.is_ending
             continue                                     # the answer of a stopped worker
         elseif kind == "loaded"
@@ -448,9 +529,9 @@ function _check_workers!(workers, options::TestRunOptions, output::IO)
                 worker.stop = "timeout"
                 worker.stop_time = now
                 _stop_worker!(worker, 10)                # SIGUSR1: Julia prints its stacks
-            elseif _resident_bytes(worker.process) > options.memory_bytes
+            elseif _resident_bytes(worker.process) > worker.memory
                 println(output, "The part $place uses more than ",
-                        "$(div(options.memory_bytes, 2^20)) MiB; the worker stops.")
+                        "$(div(worker.memory, 2^20)) MiB; the worker stops.")
                 worker.stop = "memory"
                 worker.stop_time = now
                 _stop_worker!(worker)

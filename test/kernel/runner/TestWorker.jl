@@ -49,6 +49,44 @@ end
 _package_package_modulename(package::AbstractString) =
     Symbol(endswith(package, ".jl") ? first(splitext(basename(package))) : package)
 
+# The file that defined each module that a `load` of a file defined, by its name.
+const _LOADED_FILES = Dict{Symbol, String}()
+
+"""
+    part_home(run, package) -> (home, locator)
+
+Where a worker finds the function `run` of a part with no other package loaded: the
+package that defines it, or the file of a fixture that a `load` included, and the
+name of the function with its modules, such as `"ProjecturedJSONTest.test_json_document"`.
+A part whose function has no name of its own in its module, such as a closure, gets
+`(package, "")`: the package of the suite, which runs it by its place.
+"""
+function part_home(run, package::AbstractString)
+    run isa Function || return (String(package), "")
+    mod, name = parentmodule(run), nameof(run)
+    (isdefined(mod, name) && getfield(mod, name) === run) || return (String(package), "")
+    path = fullname(mod)
+    if first(path) === :Main
+        length(path) >= 2 || return (String(package), "")
+        home = get(_LOADED_FILES, path[2], "")
+        path = path[2:end]
+    else
+        home = String(first(path))
+    end
+    isempty(home) && return (String(package), "")
+    (home, join(string.(path), ".") * "." * string(name))
+end
+
+# The function that `locator` names: its modules from `Main`, then its name.
+function _located_function(locator::AbstractString)
+    names = Symbol.(split(locator, '.'))
+    value = getglobal(Main, first(names))
+    for name in names[2:end]
+        value = getglobal(value, name)
+    end
+    value
+end
+
 # The suite `name` of `package`. A plain test function is a suite of one part.
 function _worker_suite(package::AbstractString, name::AbstractString)
     suite = getglobal(getglobal(Main, _package_package_modulename(package)), Symbol(name))
@@ -79,9 +117,13 @@ with its fields separated by tabs, and answers with lines that start with
   keeps only the parts that the changes since `BASE` reach
   ([`reached_test_paths`](@ref)), with the `TEST_SLICE_EDGES` of the package when
   it has them. `LEVEL` is `all`, `fast` or `slow`.
+- `list` gives each part two more fields, `HOME LOCATOR` ([`part_home`](@ref)):
+  the package that defines the function of the part, and its name.
 - `run PACKAGE SUITE INDEX`: run the part at `INDEX`, with no standard input;
   answer `record` and the values of its [`PartRecord`](@ref), in the order of
   `PART_RECORD_COLUMNS`.
+- `call LOCATOR SUITEPATH NAME`: run the function that `LOCATOR` names as the part
+  `NAME` of `SUITEPATH`, after a `load` of its home only; answer as `run` does.
 - `quit`: end the loop.
 
 When it starts, the worker answers `columns` and the names of
@@ -114,6 +156,7 @@ function _worker_command(output::IO, command, arguments)
             else
                 Base.include(Main, package)
             end
+            _LOADED_FILES[_package_package_modulename(package)] = String(package)
         else
             Core.eval(Main, Expr(:using, Expr(:., Symbol(package))))
         end
@@ -142,8 +185,10 @@ function _worker_command(output::IO, command, arguments)
             filter!(listed -> _is_reached(_part_path(listed.part, root), reached), parts)
         end
         for listed in parts
+            home, locator = part_home(listed.part.run, package)
             _worker_answer(output, "part", _index_text(listed.index), listed.suite,
-                           listed.part.name, listed.part.limit, listed.part.is_alone)
+                           listed.part.name, listed.part.limit, listed.part.is_alone,
+                           home, locator)
         end
         _worker_answer(output, "listed", length(parts))
     elseif command == "run"
@@ -153,6 +198,19 @@ function _worker_command(output::IO, command, arguments)
         path = only(listed.suite for listed in list_parts(suite)
                     if _index_text(listed.index) == index)
         source = _source_commit(suite)
+        part_record = nothing
+        redirect_stdin(devnull) do
+            @testset HeldTestSet "worker" begin
+                part_record = run_part(part; suite = path, repository = source[1],
+                                       commit = source[2])
+            end
+        end
+        values = (_record_text(getfield(part_record, column)) for column in PART_RECORD_COLUMNS)
+        _worker_answer(output, "record", values...)
+    elseif command == "call"
+        locator, path, name = arguments
+        part = TestPart(_located_function(locator); name = String(name))
+        source = _source_commit(TestSuite(String(path), [part]))
         part_record = nothing
         redirect_stdin(devnull) do
             @testset HeldTestSet "worker" begin
