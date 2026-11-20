@@ -1066,7 +1066,15 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
   - inet-julia `test_queuing()`: the same on both sides, 422 pass, 21 fail, 16 error, at the
     same lines. The packages of inet-julia compile with no warning; the one warning on both
     sides is the stale list of ProjecturedJulia (527 calls on main, 554 on the branch).
-  - Found: other sessions landed 37 commits on projectured main after 0ae98a75b. A trial
-    merge has no conflict, but six new test calls take the 3-argument form (three in
-    `ChartProjectionTest.jl`, one each in `JsonFileViewContentTest.jl`,
-    `JsonUndoBufferViewTest.jl` and `JsonViewNaturalRowTest.jl`), so the rebase changes them.
+- **2026-11-20, the rebase over main 8e792dc15.** Other sessions landed 66 commits on main
+  after 0ae98a75b. One conflict: main adds `keep_held_arrangement(operation, ::Nothing, ...)`
+  next to the wrapper of `ArrangingProjection` that step 6 removes; the rebase keeps the new
+  line and removes the wrapper. The parser of the files then finds no 3-argument definition
+  and eight 3-argument calls, all in tests of the new main: three in `ChartProjectionTest.jl`,
+  one each in `JsonFileViewContentTest.jl`, `JsonUndoBufferViewTest.jl`,
+  `JsonViewNaturalRowTest.jl`, `PaneReaderTest.jl` and `WidgetPointTest.jl`. They take the
+  4-argument form (commit bf0b2926b). Five readers have lines of the new main: the anchored
+  layout, the viewing projection, the undo buffer, the rows of a list and the table. On main
+  each of the first three had a 3-argument wrapper that put the payload in the gesture
+  field, so a call with an operation takes the same path on the branch. The table declines
+  an operation, as before, and the list gives its gesture to the default reader.
