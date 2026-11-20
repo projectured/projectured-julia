@@ -27,9 +27,9 @@ function test_data_frame_cells()
                                  tag = [:x1, :y1, :z1], price = [1.5, missing, 2.5])
         texts_of(io) = [t[3] for t in _data_frame_texts(io.output)]
         place_of(io, text) = only((t[1], t[2]) for t in _data_frame_texts(io.output) if t[3] == text)
-        function press(io, x, y)
+        function press(io, x, y, modifiers = ModifierKeys())
             change = read_intent(projection, nothing,
-                                 Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0), nothing), io)
+                                 Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing), io)
             change isa Intent ? change.operation : change
         end
         table_of(io) = _data_frame_table_iomap(io).input
@@ -85,26 +85,28 @@ function test_data_frame_cells()
             @test entry.document isa PrimitiveInsertion && entry.document.placeholder == "missing"
         end
 
-        @testset "a click on a label opens no cell: on its text it selects the cell, and on its padding the row" begin
+        @testset "a click on a label opens no cell: on its text and on its padding it selects the row, and an Alt+click the cell" begin
             view = DataFrameView(make_frame())
             io = print_document(projection, nothing, view, context())
             (x, y) = place_of(io, "y1")
-            # The text of the label has no place in the frame, so the cell, which
-            # takes no key, is selected whole.
-            op = press(io, x + 2, y + 2)
+            row = ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(1, 2),
+                                                                                  EmptyReference()))
+            for at in (x + 2, x - 1)
+                op = press(io, at, y + 2)
+                @test op isa ReplaceSelectionOperation
+                evaluate_operation(_DataFrameFilterEditor(view), op)
+                @test isempty(view.edits)
+                @test strip_reference_types(get_selection(view)) == row
+            end
+            # An Alt+click puts the caret in the text of the label, which has no
+            # place in the frame, so the cell, which takes no key, is selected whole.
+            op = press(io, x + 2, y + 2, ModifierKeys(alt = true))
             @test op isa ReplaceSelectionOperation
             evaluate_operation(_DataFrameFilterEditor(view), op)
             @test isempty(view.edits)
             @test strip_reference_types(get_selection(view)) ==
                   ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(1, 2),
                       ConcreteReference(RangeReferenceStep(3, 4), EmptyReference())))
-            op = press(io, x - 1, y + 2)
-            @test op isa ReplaceSelectionOperation
-            evaluate_operation(_DataFrameFilterEditor(view), op)
-            @test isempty(view.edits)
-            @test strip_reference_types(get_selection(view)) ==
-                  ConcreteReference(FieldReferenceStep("rows"), ConcreteReference(RangeReferenceStep(1, 2),
-                                                                                  EmptyReference()))
         end
 
         # The path of the view of the caret at `k` in the cell in row `r` of the
