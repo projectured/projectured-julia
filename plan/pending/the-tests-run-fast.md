@@ -3,8 +3,9 @@
 > **Status (2026-11-20): approved, in progress.** The code of steps 1 to 5 and 8 to 10 and
 > the mechanism of step 7 are committed; their tests pass in a process with no package
 > (67 checks). The whole run of the branch is recorded; the run of the base commit, which
-> step 1 and the markers of step 9 need, waits for room in the memory of the machine. Step 6
-> moved to the plan `the-tests-start-from-a-compiled-image`. The owner asked for this plan on
+> step 1 needs, waits for room in the memory of the machine. Step 6 moved to the plan
+> `the-tests-start-from-a-compiled-image`, and the markers of step 9 to the plan
+> `main-stays-green`. The owner asked for this plan on
 > 2026-11-20 and approved it for implementation the same day ("yes"). The work is on the branch
 > `tests-run-fast` in the worktree `projectured-julia-tests-run-fast`, and later in omnet-julia in
 > the worktree `omnet-julia-tests-run-fast`.
@@ -172,7 +173,8 @@ Each decision is proposed by the assistant. The owner approved them with the pla
   regression, and no run of main is needed to see it. The supervisor also keeps the record of
   each run of a commit of main in `~/.cache/projectured-test-records/<repository>/<commit>.tsv`.
   `compare_records(a, b)` prints the parts whose counts changed. Rejected: a folder in
-  `/var/tmp`, because the end of a task removes the folders that it made there.
+  `/var/tmp`, because the end of a task removes the folders that it made there. The plan
+  `main-stays-green` adds the markers (its decision G8); this plan adds the store.
 - **P11. A worker that stays open** (proposed by the assistant, approved with the plan on 2026-11-20). `tool/run-tests.jl --stay
   <folder>` keeps one worker open. The worker loads `Revise` when the environment has it. For
   each request file in `<folder>/requests`, it calls `revise()`, runs the parts, writes the
@@ -230,9 +232,10 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   `--changed` to the supervisor. **Done when:** a change in one file of
   `source/platform/widget` selects the parts of the widget slice and of the slices above it,
   and a change in the kernel selects all parts.
-- [ ] 9. **No extra run of main (P10, I7).** Mark the 15 known failures of `test_platform` and
-  the known failures of omnet-julia, each with its reason. Add the store of the records of
-  main and `compare_records`. **Done when:** a run of main has no unmarked failure, and a
+- [ ] 9. **No extra run of main (P10, I7).** Add the store of the records of main and
+  `compare_records`. The markers of the known failures of main, in projectured-julia and in
+  omnet-julia, moved to the plan `main-stays-green` (its decision G8). The session of that plan
+  reported on 2026-11-20 that the owner approved it ("yes, implement it"). **Done when:** a
   branch run is compared with the stored record of its base commit.
 - [ ] 10. **A worker that stays open (P11, I5).** Add `--stay` and `--send` to the supervisor.
   **Done when:** a test file that changes after the start of the worker runs in its new form,
