@@ -255,14 +255,26 @@ suites of the packages that it touches run against the baseline of main.
     (`ApplicationTest.jl:1050`). The application test of a tab drop drove the drop with
     `DragMove` and `DragEnd` and now sends `DragOver` and `DragDrop`, as the tracker
     does; `test_dragging` errors 4 times in a stub that is no IO map, in code this branch
-    does not change. Both wait for a run in a check worktree, because the memory budget
-    of the machine had no room.
-- [ ] 2. **The gestures across windows** (D6, P3, P4, P5). The field `outside` on
-  `DragMove` and `DragEnd`, and two windows of the editor. The guide of the drag tracker
-  gets the new rule. Test in `test/platform/shell/DragTrackingTest.jl`, with two windows
-  at known places on a headless backend: the window under the pointer gets `DragOver`,
-  the window that the pointer left gets the leave, and a release outside gives
-  `outside = true`.
+    does not change. A run in a check worktree at `f2decb134` and one on a clean worktree
+    of main `18817ba15` gave the same: `test_dragging` 10 passes and the same 4 errors on
+    both, `test_application` 421 passes on the branch and 420 on main, with the one
+    failure at `ApplicationTest.jl:1050` and 2 broken on both.
+- [x] 2. **The gestures across windows** (D6, P3, P4, P5). (Done 2026-11-20.) The field
+  `outside` on `DragMove` and `DragEnd`, and two windows of the editor. The guide of the
+  drag tracker gets the new rule. Test in `test/platform/shell/DragTrackingTest.jl`, with
+  two windows at known places on a headless backend: the window under the pointer gets
+  `DragOver`, the window that the pointer left gets the leave, and a release outside
+  gives `outside = true`.
+
+  Found in the work (2026-11-20):
+  - The code of the field `outside` and of the send to the window under the pointer came
+    with step 1, because the reorder needed the same gestures. Step 2 added the tests of
+    two windows (`_dt_two_window_editor`: `W` at `(0, 0)` and `V` at `(500, 0)`, each 400
+    by 300): the window under a point of the screen, the mark in `V` while every move
+    comes in `W`, the leave when the pointer goes back or into the gap between the
+    windows, and Escape.
+  - `test_drag_tracking` 92 of 92 at `f2decb134`. Its last test said that a release in
+    another window moves no tab; step 5 changes it to the moves of step 5.
 - [ ] 3. **The layers of a new window** (D4, D7, D8, P10, P11, P12).
   `wrap_window_content` with the methods of the undo wrapper and the shell wrapper; the
   editor keeps the layers; the clipboard around the screen; the row of P12. A function
