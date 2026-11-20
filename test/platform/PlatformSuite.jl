@@ -184,7 +184,7 @@ undo, file change and display slices.
 const test_platform = TestSuite("ProjecturedPlatform", [
     test_platform_layering,
     test_platform_slice_edges,
-    test_platform_examples,
+    TestPart(test_platform_examples; level = :slow),
     test_collection,
     test_table_interface,
     test_mouse_target_field,
@@ -215,7 +215,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
     test_graphics,
     test_pointer_shape,
     test_affine_transform,
-    test_image,
+    TestPart(test_image; level = :slow),
     test_image_head,
     test_font_metrics,
     test_text_measure,
@@ -356,7 +356,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
     test_roster_facets,
     test_roster_program,
     test_document_tree,
-    test_explorer,
+    TestPart(test_explorer; level = :slow),
     test_explorer_row_notes,
     test_background_work,
     test_document_decoration,
@@ -439,7 +439,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
     test_collapse_roundtrip,
     TestPart(() -> test_part_click(text_example); name = "test_part_click(text_example)"),
     test_application_workload,
-    test_window_workload,
+    TestPart(test_window_workload; level = :slow),
     test_file_workload,
 
     # the suites of the slices that had a test package of their own

@@ -430,7 +430,7 @@ const test_documents = TestSuite("Documents", [
     test_serialization,          # round-trips the ProjecturedExample fixtures
     test_workflow_file,          # a workflow in a .pred file, with markers into other files
     test_file_format_contract,   # each format of the session, with every domain loaded
-    test_research_combinations,  # the items of a study in a report, a workflow card and a window
+    TestPart(test_research_combinations; level = :slow),  # the items of a study in a report, a workflow card and a window
     test_pivot_data_frame,       # a pivot of a data frame, against DataFrames
     test_formula_examples,       # the formula examples take a key and Enter
 ])
@@ -477,13 +477,13 @@ test of `Projectured` runs them. CI runs them in a job of its own, with
 """
 const test_integration = TestSuite("integration", [
     # Every concrete-domain example through the printer.
-    test_domain_examples,
+    TestPart(test_domain_examples; level = :slow),
     # PAR-QUALIFIED-EXTENSION's precondition, and cross-package by nature: no
     # name is exported by two modules with different bindings, so bare `using
     # ..XxxModule` can never become ambiguous. The per-package guards cannot
     # see this.
     test_export_collision_checker,
-    test_export_collisions,
+    TestPart(test_export_collisions; level = :slow, limit = 3000),
     # The corpus a search answers on when a window declares what it can draw:
     # thousands of names, with the questions a person asks of them.
     test_search_scale,
@@ -496,20 +496,20 @@ const test_integration = TestSuite("integration", [
     test_projections,
     # The generated atomic-example catalog: printer/reader/repl/position-navigation
     # over every discovered `domain/name/variant` pair, routed by terminal.
-    test_catalog,
+    TestPart(test_catalog; level = :slow, limit = 1800),
     # Is the catalog exhaustive? The printers are the list of what it owes.
     test_catalog_coverage,
-    test_natural_renders_every_atom,
+    TestPart(test_natural_renders_every_atom; level = :slow),
     test_natural_round_trips_every_atom,
     test_natural_notation,
     test_natural_registry,
-    test_printers,
+    TestPart(test_printers; level = :slow),
     test_text_runs_hold_no_break,
     test_text_blocks_hold_only_lines,
     test_readers,
-    test_position_navigations,
+    TestPart(test_position_navigations; level = :slow),
     test_position_navigations_complete,
-    test_repls,
+    TestPart(test_repls; level = :slow),
     test_typeins,
     # Character-editing round trip over the generated text atoms (the tester the
     # catalog's default set omits); every text atom types cleanly under the default
@@ -532,19 +532,19 @@ const test_integration = TestSuite("integration", [
     # measurements: `tool/measure-compile-ahead.jl` runs them, by hand and before
     # each release, as documentation/design/compile-ahead.md (U7) says.
     # Every gesture that changes no document leaves the history as it was.
-    test_history_sweep,
+    TestPart(test_history_sweep; level = :slow),
     test_file_watch_window,
     test_julia_typein,
     test_conversation_editor,
     test_assistant_mvp,
     test_assistant_stream,
-    test_window_frame_guards,
+    TestPart(test_window_frame_guards; level = :slow),
     test_assistant_duplicate,
     test_message_log_feed,
-    test_frame_statistics_feed,
-    test_application,
-    test_clipboard_edits,
-    test_file_workloads,
+    TestPart(test_frame_statistics_feed; level = :slow),
+    TestPart(test_application; level = :slow),
+    TestPart(test_clipboard_edits; level = :slow),
+    TestPart(test_file_workloads; level = :slow),
     test_scroll_work,
     test_pointed_part,
     test_insertion_in_tab,
@@ -558,15 +558,15 @@ const test_integration = TestSuite("integration", [
     test_evaluator_duplicate,
     test_value_viewer,
     test_referenced_document_editor,
-    test_assistant_verbs,
+    TestPart(test_assistant_verbs; level = :slow),
     test_assistant_documentation,
     test_gallery_wrappers,
-    test_mouse_clicks,
-    test_click_roundtrips,
-    test_text_navigation_invariants_all,
+    TestPart(test_mouse_clicks; level = :slow),
+    TestPart(test_click_roundtrips; level = :slow),
+    TestPart(test_text_navigation_invariants_all; level = :slow),
     test_json_content_clicks_clean_all,
     test_collapse_roundtrip,
-    test_tree_navigations,
+    TestPart(test_tree_navigations; level = :slow),
     test_tree_navigations_complete,
     test_table_navigation,
     test_table_cell_editing,

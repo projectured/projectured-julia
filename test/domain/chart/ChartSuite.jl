@@ -22,7 +22,7 @@ Run this package's whole suite: the layering guard and every chart test.
 """
 const test_chart = TestSuite("ProjecturedChart", [
     test_chart_layering,
-    test_chart_projection,
+    TestPart(test_chart_projection; level = :slow),
     test_chart_scale,
     test_chart_theme,
     test_chart_pie,

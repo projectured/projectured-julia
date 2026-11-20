@@ -61,7 +61,7 @@ const test_sdl = TestSuite("ProjecturedSDL", [
     test_sdl_system_colors,
     test_native_window,
     test_sdl_held_frames,
-    test_sdl_workload,
+    TestPart(test_sdl_workload; level = :slow),
     test_write_image,
     test_tree_render,
     test_dashboard_render,

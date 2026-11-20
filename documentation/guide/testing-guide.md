@@ -181,6 +181,16 @@ Each part has a level, `:fast` or `:slow`. A slow part has
 leaves the slow parts out, `level = :slow` runs only them, and the default,
 `level = :all`, runs both. The supervisor takes `--level fast`.
 
+The slow parts are those that took more than 60 s in the record of a whole run:
+the walks over every example and over the catalog, the click walks, the workloads
+of a window, and a few large suites. After a change, run the narrowest test, then
+`test_changed(level = :fast)`. Before a land, run all the parts:
+
+```bash
+julia --project=environment/all tool/run-tests.jl --workers 2 --record /var/tmp/all.tsv \
+    ProjecturedTest test_all
+```
+
 ### Worker processes and a time limit
 
 `tool/run-tests.jl` runs the parts of one or more suites in worker processes.
