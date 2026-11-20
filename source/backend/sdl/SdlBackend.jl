@@ -6085,77 +6085,104 @@ _get_shape_cursor!(backend::SdlBackend, shape::Symbol) =
             _make_glyph_cursor(glyph, _get_window_unit_ratio(backend.display.density))
     end
 
-# A cursor that shows the image of `glyph` (`_make_glyph_cursor_image`), with its
-# hot spot in the middle. The arrow of the system when the glyph does not draw.
+# A cursor that shows the pixels of `glyph` (`make_glyph_cursor_pixels`), with its
+# hot spot in the middle. The arrow of the system when the glyph does not draw. SDL
+# converts the pixels to ARGB8888 for the cursor.
 function _make_glyph_cursor(glyph::Char, ratio::Float64)
-    image = _make_glyph_cursor_image(glyph, ratio)
-    image === nothing && return SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW)
-    info = unsafe_load(image)
-    cursor = SDL_CreateColorCursor(image, Cint(info.w ÷ 2), Cint(info.h ÷ 2))
-    SDL_FreeSurface(image)
+    picture = make_glyph_cursor_pixels(glyph, _GLYPH_CURSOR_SIZE, ratio)
+    picture === nothing && return SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW)
+    bytes, width, height = picture
+    cursor = GC.@preserve bytes begin
+        image = SDL_CreateRGBSurfaceFrom(pointer(bytes), Int32(width), Int32(height), Int32(32),
+                                         Int32(4 * width), 0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)
+        made = image == C_NULL ? C_NULL : SDL_CreateColorCursor(image, Cint(width ÷ 2), Cint(height ÷ 2))
+        image == C_NULL || SDL_FreeSurface(image)
+        made
+    end
     cursor == C_NULL ? SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW) : cursor
 end
 
-# The image of the cursor of `glyph` of the Lucide font, in ARGB8888: the glyph in
-# black with a white outline, so that it shows on any background, and white where
-# the outline closes in, as a cursor of a theme is. Lucide draws a glyph with lines
-# only, so without the fill the background shows through the middle of a hand.
-# `nothing` when the glyph does not draw. The caller frees the image.
-function _make_glyph_cursor_image(glyph::Char, ratio::Float64)
-    handle = _get_font(with_font_size(StyleFont("Lucide", 20), _GLYPH_CURSOR_SIZE), ratio)  # @style: the cursor of the system, not the look of the editor
-    black = _render_glyph(handle, glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
-    white = _render_glyph(handle, glyph, SDL_Color(0xff, 0xff, 0xff, 0xff))
-    image = nothing
-    if black !== nothing && white !== nothing
-        info = unsafe_load(black[1])
-        outline = max(1, round(Int, ratio))
-        width, height = Int(info.w) + 2 * outline, Int(info.h) + 2 * outline
-        surface = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(width), Cint(height),
-                                                 Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
-        if surface != C_NULL
-            SDL_FillRect(surface, C_NULL, SDL_MapRGBA(unsafe_load(surface).format, 0x00, 0x00, 0x00, 0x00))
-            for glyph_surface in (white[1], black[1])
-                SDL_SetSurfaceBlendMode(glyph_surface, SDL_BLENDMODE_BLEND)
-            end
-            for dx in -outline:outline, dy in -outline:outline
-                (dx == 0 && dy == 0) && continue
-                SDL_BlitSurface(white[1], C_NULL, surface,
-                                Ref(SDL_Rect(Cint(outline + dx), Cint(outline + dy), info.w, info.h)))
-            end
-            SDL_BlitSurface(black[1], C_NULL, surface,
-                            Ref(SDL_Rect(Cint(outline), Cint(outline), info.w, info.h)))
-            _fill_enclosed_pixels!(surface)
-            image = surface
-        end
+"""
+    make_glyph_cursor_pixels(glyph::Char, glyph_size::Integer, ratio::Real) -> (bytes, width, height) or nothing
+
+The picture of a cursor that shows `glyph` of the Lucide font at `glyph_size`
+logical pixels, with `ratio` device pixels in a logical pixel. The glyph is black
+with a white outline, so that it shows on any background, and it is white where
+its outline closes in, as a hand of a cursor theme is. Lucide draws a glyph with
+lines only, so without the white middle the background shows through a hand.
+`nothing` when the glyph does not draw.
+
+The picture is the data of a `GraphicsImage`: `bytes` holds `width * height`
+pixels, row by row, each one red, green, blue and alpha.
+
+# Example
+
+    bytes, width, height = make_glyph_cursor_pixels(Char(0xe1d7), 19, 2.0)
+    GraphicsImage(10, 10, width ÷ 2, height ÷ 2, (bytes, width, height))
+
+See also `GraphicsImage`.
+"""
+function make_glyph_cursor_pixels(glyph::Char, glyph_size::Integer, ratio::Real)
+    # The glyph renders with no video of SDL, so a caller with no backend gets it too.
+    TTF_WasInit() == 0 && TTF_Init()
+    font = with_font_size(StyleFont("Lucide", 20), Int(glyph_size))  # @style: the cursor of the system, not the look of the editor
+    rendered = _render_glyph(_get_font(font, Float64(ratio)), glyph, SDL_Color(0x00, 0x00, 0x00, 0xff))
+    rendered === nothing && return nothing
+    ink = _read_surface_alpha(rendered[1])
+    SDL_FreeSurface(rendered[1])
+    ink === nothing && return nothing
+    pixels = _make_cursor_pixels(ink, max(1, round(Int, ratio)))
+    height, width = size(pixels)
+    bytes = Vector{UInt8}(undef, 4 * width * height)
+    for row in 1:height, column in 1:width
+        pixel, at = pixels[row, column], 4 * ((row - 1) * width + column - 1)
+        bytes[at+1:at+4] .= ((pixel >> 16) % UInt8, (pixel >> 8) % UInt8, pixel % UInt8, (pixel >> 24) % UInt8)
     end
-    black === nothing || SDL_FreeSurface(black[1])
-    white === nothing || SDL_FreeSurface(white[1])
-    image
+    (bytes, width, height)
 end
 
-# Paint opaque white each pixel of the ARGB8888 `surface` that its opaque pixels
-# close in (`_fill_enclosed_pixels!` of a matrix).
-function _fill_enclosed_pixels!(surface::Ptr{SDL_Surface})
-    info = unsafe_load(surface)
-    pitch = Int(info.pitch)
+# The alpha of each pixel of `surface`, a matrix of rows, or `nothing` when SDL can
+# not convert the surface.
+function _read_surface_alpha(surface::Ptr{SDL_Surface})
+    argb = SDL_ConvertSurfaceFormat(surface, UInt32(SDL_PIXELFORMAT_ARGB8888), UInt32(0))
+    argb == C_NULL && return nothing
+    info = unsafe_load(argb)
     first_pixel = Ptr{UInt32}(info.pixels)
-    get_row(row) = first_pixel + (row - 1) * pitch
-    pixels = [unsafe_load(get_row(row), column) for row in 1:Int(info.h), column in 1:Int(info.w)]
-    _fill_enclosed_pixels!(pixels)
-    for row in 1:Int(info.h), column in 1:Int(info.w)
-        unsafe_store!(get_row(row), pixels[row, column], column)
-    end
-    surface
+    alpha = [(unsafe_load(first_pixel + (row - 1) * Int(info.pitch), column) >> 24) % UInt8
+             for row in 1:Int(info.h), column in 1:Int(info.w)]
+    SDL_FreeSurface(argb)
+    alpha
 end
 
-# Paint opaque white each pixel of the ARGB `pixels`, a matrix of rows, that its
-# opaque pixels close in. A pixel is outside when a path of pixels that are not
-# opaque, each one above, below, left or right of the one before, joins it to the
-# edge of the matrix. Each pixel that is not outside and not opaque becomes white.
-# A path never goes from one pixel to a diagonal one, so a diagonal line of opaque
-# pixels closes in what it surrounds.
+# The pixels of a cursor, ARGB values in a matrix of rows, from the `ink`, the
+# coverage of each pixel of its glyph, with an outline of `outline` pixels on each
+# side. The coverage of the outline at a pixel is the largest ink in the square of
+# `outline` pixels around it. A pixel has that coverage as its alpha, and the gray
+# of black ink over white. Then `_fill_enclosed_pixels!` makes the line opaque and
+# the middle white.
+function _make_cursor_pixels(ink::AbstractMatrix{UInt8}, outline::Int)
+    rows, columns = size(ink)
+    padded = zeros(UInt8, rows + 2 * outline, columns + 2 * outline)
+    padded[outline+1:outline+rows, outline+1:outline+columns] .= ink
+    every = CartesianIndices(padded)
+    reach = CartesianIndex(outline, outline)
+    pixels = map(every) do index
+        alpha = UInt32(maximum(view(padded, max(first(every), index - reach):min(last(every), index + reach))))
+        gray = UInt32(0xff - padded[index])
+        alpha << 24 | gray << 16 | gray << 8 | gray
+    end
+    _fill_enclosed_pixels!(pixels)
+end
+
+# Make each wall of the ARGB `pixels`, a matrix of rows, opaque, and paint opaque
+# white each pixel that the walls close in. A wall is a pixel that is at least half
+# opaque: the lines of a small glyph are smoothed, so few of their pixels are fully
+# opaque. A pixel is outside when a path of pixels that are not walls, each one
+# above, below, left or right of the one before, joins it to the edge of the matrix.
+# A path never goes from one pixel to a diagonal one, so a diagonal line of walls
+# closes in what it surrounds.
 function _fill_enclosed_pixels!(pixels::AbstractMatrix{UInt32})
-    is_opaque(pixel) = pixel >> 24 == 0xff
+    is_wall(pixel) = pixel >> 24 >= 0x80
     outside = falses(size(pixels))
     rows, columns = axes(pixels)
     pending = [index for index in CartesianIndices(pixels)
@@ -6163,14 +6190,18 @@ function _fill_enclosed_pixels!(pixels::AbstractMatrix{UInt32})
     steps = (CartesianIndex(1, 0), CartesianIndex(-1, 0), CartesianIndex(0, 1), CartesianIndex(0, -1))
     while !isempty(pending)
         index = pop!(pending)
-        checkbounds(Bool, pixels, index) && !outside[index] && !is_opaque(pixels[index]) || continue
+        checkbounds(Bool, pixels, index) && !outside[index] && !is_wall(pixels[index]) || continue
         outside[index] = true
         for step in steps
             push!(pending, index + step)
         end
     end
     for index in CartesianIndices(pixels)
-        outside[index] || is_opaque(pixels[index]) || (pixels[index] = 0xffffffff)
+        if is_wall(pixels[index])
+            pixels[index] |= 0xff000000
+        elseif !outside[index]
+            pixels[index] = 0xffffffff
+        end
     end
     pixels
 end

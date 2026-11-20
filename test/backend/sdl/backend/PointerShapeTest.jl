@@ -66,15 +66,18 @@ function test_sdl_pointer_shape()
             end
         end
 
-        @testset "a hand cursor is white at its hot spot, in the middle of the hand" begin
-            for glyph in values(ProjecturedSDL.SdlModule._GLYPH_OF_SHAPE)
-                image = ProjecturedSDL.SdlModule._make_glyph_cursor_image(glyph, 2.0)
-                @test image !== nothing
-                image === nothing && continue
-                info = unsafe_load(image)
-                middle_row = Ptr{UInt32}(info.pixels) + (Int(info.h) ÷ 2) * Int(info.pitch)
-                @test unsafe_load(middle_row, Int(info.w) ÷ 2 + 1) == 0xffffffff
-                _SDL.SDL_FreeSurface(image)
+        # At a density of 1 the glyph is 19 pixels, and its smoothed lines are about
+        # 1.6 pixels wide, so few of their pixels are fully opaque. The hot spot is
+        # opaque, and white up to the smoothing of a line near it.
+        @testset "a hand cursor is white at its hot spot, at the densities 1, 1.5 and 2" begin
+            for glyph in values(ProjecturedSDL.SdlModule._GLYPH_OF_SHAPE), ratio in (1.0, 1.5, 2.0)
+                picture = ProjecturedSDL.make_glyph_cursor_pixels(glyph, ProjecturedSDL.SdlModule._GLYPH_CURSOR_SIZE, ratio)
+                @test picture !== nothing
+                picture === nothing && continue
+                bytes, width, height = picture
+                at = 4 * ((height ÷ 2) * width + width ÷ 2)
+                @test bytes[at+4] == 0xff
+                @test all(>=(0xf0), bytes[at+1:at+3])
             end
         end
 
@@ -98,11 +101,11 @@ function test_sdl_pointer_shape()
     @testset "a glyph cursor is white where its outline closes in" begin
         fill_enclosed! = ProjecturedSDL.SdlModule._fill_enclosed_pixels!
         clear, line, white = 0x00000000, 0xff000000, 0xffffffff
-        # A square ring with a half transparent pixel inside.
+        # A square ring with a pixel inside that is a quarter opaque.
         ring = fill(clear, 5, 5)
         ring[2:4, [2, 4]] .= line
         ring[[2, 4], 3] .= line
-        ring[3, 3] = 0x80ffffff
+        ring[3, 3] = 0x40ffffff
         expected = copy(ring)
         expected[3, 3] = white
         @test fill_enclosed!(copy(ring)) == expected
@@ -120,6 +123,33 @@ function test_sdl_pointer_shape()
             expected[index...] = white
         end
         @test fill_enclosed!(copy(diamond)) == expected
+        # A ring of pixels that are half opaque closes in its middle, and its
+        # pixels become opaque.
+        half_ring = map(pixel -> pixel == line ? 0x80000000 : pixel, ring)
+        expected = map(pixel -> pixel == 0x80000000 ? line : pixel, half_ring)
+        expected[3, 3] = white
+        @test fill_enclosed!(copy(half_ring)) == expected
+    end
+
+    @testset "the outline of a glyph cursor closes a gap of one pixel in its ink" begin
+        make_pixels = ProjecturedSDL.SdlModule._make_cursor_pixels
+        # A square ring of ink that covers a little more than half of each pixel,
+        # with a gap in its top side.
+        ink = zeros(UInt8, 7, 7)
+        ink[2:6, [2, 6]] .= 0x90
+        ink[[2, 6], 2:6] .= 0x90
+        narrow, wide = copy(ink), copy(ink)
+        narrow[2, 4] = 0x00
+        wide[2, 3:5] .= 0x00
+        # The outline of one pixel adds a pixel on each side, so the middle pixel
+        # (4, 4) of the ink is (5, 5) of the cursor.
+        pixels = make_pixels(narrow, 1)
+        @test size(pixels) == (9, 9)
+        @test pixels[5, 5] == 0xffffffff
+        @test pixels[3, 3] == 0xff6f6f6f
+        @test pixels[1, 1] >> 24 == 0x00
+        # A gap of three pixels stays open, so the middle stays clear.
+        @test make_pixels(wide, 1)[5, 5] >> 24 == 0x00
     end
 
     @testset "the cursor library searches the icon folders of the system" begin

@@ -33,11 +33,11 @@ using .SdlModule: SdlBackend, open_offscreen_renderer, close_offscreen_renderer,
                   GraphicsCanvasToImageFile, write_offscreen_frames!,
                   make_offscreen_paint_state, render_offscreen_changes!,
                   write_offscreen_frame_with_overlay!, write_offscreen_picture_with_overlay!,
-                  run_sdl_window_workload
+                  run_sdl_window_workload, make_glyph_cursor_pixels
 export SdlBackend, write_image, open_offscreen_renderer, close_offscreen_renderer, with_offscreen_zoom,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
-       write_offscreen_picture_with_overlay!, run_sdl_window_workload
+       write_offscreen_picture_with_overlay!, run_sdl_window_workload, make_glyph_cursor_pixels
 
 # A person who names this package gets the names that most users call.
 using ProjecturedPlatform.EssentialsModule

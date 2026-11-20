@@ -32,7 +32,7 @@ import ..DisplayModule: send_workload_inputs!, has_workload_inputs
 export SdlBackend, open_offscreen_renderer, with_offscreen_zoom, close_offscreen_renderer,
        GraphicsCanvasToImageFile, write_offscreen_frames!, make_offscreen_paint_state,
        render_offscreen_changes!, write_offscreen_frame_with_overlay!,
-       write_offscreen_picture_with_overlay!, run_sdl_window_workload
+       write_offscreen_picture_with_overlay!, run_sdl_window_workload, make_glyph_cursor_pixels
 
 include("SdlBackend.jl")
 include("SdlHeldFrames.jl")
