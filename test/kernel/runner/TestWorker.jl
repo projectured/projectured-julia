@@ -49,10 +49,12 @@ end
 _package_module_name(package::AbstractString) =
     Symbol(endswith(package, ".jl") ? first(splitext(basename(package))) : package)
 
+# The suite `name` of `package`. A plain test function is a suite of one part.
 function _worker_suite(package::AbstractString, name::AbstractString)
     suite = getglobal(getglobal(Main, _package_module_name(package)), Symbol(name))
-    suite isa TestSuite || error("$package.$name is no TestSuite")
-    suite
+    suite isa TestSuite && return suite
+    suite isa Function && return TestSuite(String(name), [TestPart(suite)])
+    error("$package.$name is no TestSuite and no function")
 end
 
 _index_text(index::Vector{Int}) = join(index, '.')
@@ -67,7 +69,8 @@ with its fields separated by tabs, and answers with lines that start with
 
 - `load PACKAGE`: load the package, or include the file when `PACKAGE` ends with
   `.jl`; answer `loaded PACKAGE SECONDS`.
-- `list PACKAGE SUITE ONLY SKIP`: answer one line `part INDEX SUITEPATH NAME LIMIT ALONE`
+- `list PACKAGE SUITE ONLY SKIP`, where a plain test function is a suite of one
+  part: answer one line `part INDEX SUITEPATH NAME LIMIT ALONE`
   for each part that [`list_parts`](@ref) chooses, then `listed COUNT`. A filter
   is empty for none, `r"…"` for a `Regex`, or a part of a name.
 - `run PACKAGE SUITE INDEX`: run the part at `INDEX`, with no standard input;

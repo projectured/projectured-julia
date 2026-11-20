@@ -14,6 +14,7 @@ function test_supervised_runs()
             module SupervisedFixture
             using Test
             using Main.ProjecturedKernelTest: TestPart, TestSuite
+            plain_test() = @test true
             const fixture_suite = TestSuite("fixture", [
                 TestPart(() -> (@test true); name = "passes"),
                 TestPart(() -> (@test 1 == 2); name = "fails"),
@@ -25,17 +26,19 @@ function test_supervised_runs()
         record = joinpath(folder, "record.tsv")
         output = IOBuffer()
         code = run_test_supervisor(["--limit", "120", "--memory", "4G", "--record", record,
-                                    fixture, "fixture_suite"]; output)
+                                    fixture, "fixture_suite", fixture, "plain_test"]; output)
         text = String(take!(output))
         @test code == 1
         records = read_part_records(record)
         @test [(r.part, r.result) for r in records] ==
-              [("passes", "done"), ("fails", "done"), ("hangs", "timeout"), ("after", "done")]
-        @test [(r.pass, r.fail) for r in records] == [(1, 0), (0, 1), (0, 0), (2, 0)]
-        @test all(r -> r.suite == "fixture", records)
+              [("passes", "done"), ("fails", "done"), ("hangs", "timeout"), ("after", "done"),
+               ("plain_test", "done")]
+        @test [(r.pass, r.fail) for r in records] == [(1, 0), (0, 1), (0, 0), (2, 0), (1, 0)]
+        @test [r.suite for r in records] ==
+              ["fixture", "fixture", "fixture", "fixture", "plain_test"]
         @test occursin("The part fixture/hangs takes more than 3 s", text)
-        @test occursin("Summary: 4 parts (3 done, 1 timeout); 3 pass, 1 fail, 0 error, 0 broken.",
-                       text)
+        @test occursin(
+            "Summary: 5 parts (4 done, 1 timeout); 4 pass, 1 fail, 0 error, 0 broken.", text)
     end
 
     @testset "two workers run two parts at the same time, and a part alone runs beside none" begin
@@ -46,12 +49,23 @@ function test_supervised_runs()
             module ParallelFixture
             using Test
             using Main.ProjecturedKernelTest: TestPart, TestSuite
-            mark(what, name) = open(io -> println(io, what, " ", name, " ", time()), $(repr(log)), "a")
-            timed(name, seconds; is_alone = false) =
-                TestPart(() -> (mark("start", name); sleep(seconds); mark("end", name); @test true);
+            const LOG = $(repr(log))
+            mark(what, name) = open(io -> println(io, what, " ", name, " ", time()), LOG, "a")
+            has_started(name) =
+                isfile(LOG) && any(line -> startswith(line, "start \$name "), readlines(LOG))
+            # A part that waits until `other` started, at most a minute.
+            function waits_for(name, other)
+                mark("start", name)
+                timedwait(() -> has_started(other), 60.0)
+                mark("end", name)
+                @test true
+            end
+            timed(name; is_alone = false) =
+                TestPart(() -> (mark("start", name); sleep(0.5); mark("end", name); @test true);
                          name, is_alone)
             const parallel_suite = TestSuite("parallel", [
-                timed("a", 3), timed("b", 3), timed("alone", 1; is_alone = true), timed("d", 1),
+                TestPart(() -> waits_for("a", "b"); name = "a"), timed("b"),
+                timed("alone"; is_alone = true), timed("d"),
             ])
             end
             """)
