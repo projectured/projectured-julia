@@ -146,6 +146,37 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   projectured-julia, then omnet-julia. Before the land, rebase each branch on `main`, run all
   parts again, and mark the new failures of `main` by G2 to G5.
 
+### What the implementation found
+
+- **The runs of step 1** run in the detached checkout `projectured-julia-main-stays-green-base`
+  at the merge `d732e6e2b`, with its own depot, so that the marks of step 2 do not change a run
+  while it goes. The command: `tool/run-tests.jl --workers 2 --threads 2 --record …` over
+  `ProjecturedTest test_all`, `ProjecturedTest test_repository` and the ten suites of the CI
+  matrix that `test_all` does not call (OpenRouter, Console, PDF, Web, MCP, SDL, Tulip, Video,
+  ODBC, Builder), with the default worker memory of 6 GB, the default limit of 600 s, `taskset
+  -c 24-27`, and `bwrap --unshare-net`.
+- **"All tests" in omnet-julia is more than `test/runtests.jl`.** That file calls 11 test
+  packages and three suites of its own. It does not call 15 test packages, among them
+  `OmnetIdeTest` (`test_ide`), the ten legacy sample packages, `OmnetLegacyResultTest`,
+  `OmnetCosimPresentationTest`, `OmnetDynamicsTest` and `OmnetMeasureTest`. So G1 for
+  omnet-julia covers the suite of each test package, except a suite that calls a model.
+- **The runner can not run `test/runtests.jl` of omnet-julia as a part.** A worker includes a
+  `.jl` file into `Main`, and that file runs the whole suite when it loads. So the whole run of
+  omnet-julia names the suite of each test package, and the three suites that only
+  `test/runtests.jl` defines run in one small process of their own.
+- **A guard keeps a list of its known violations** (`test/suite/known.jl`). The key of an entry
+  is the text of the violation without its line number. A listed violation does not fail the
+  guard, and its test counts it as broken. A violation that no entry excuses fails, and so does
+  an entry that excuses none. The guards of arguments (6), exports (37), style (1) and
+  documentation (10) have their lists. The exports guard had a list of modules that are not
+  migrated yet; its new list is narrower, one violation for each entry. `check_layering` and
+  `check_slice_edges` take the keyword `known` in the same form.
+- **A worker of the runner loads every test package of the run.** So a check whose result
+  depends on the packages in its process gives one result in CI, where each test package has
+  its own environment, and another in the run of all parts. The notes of earlier sessions name
+  `ProjecturedMCP` (an agent turn starts an MCP server for a fake editor), the Markdown domain
+  (`WorkPlanTest.jl:122`, `:125`) and the umbrella.
+
 ## 5. The list
 
 Step 1 fills this section.
