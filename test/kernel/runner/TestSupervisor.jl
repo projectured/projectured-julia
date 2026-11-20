@@ -13,6 +13,8 @@
 # result `memory`, and a worker that ends during a part the result `crash`.
 # ============================================================================
 
+include("GitText.jl")
+
 const _SUPERVISOR_PREFIX = "@@test-worker@@\t"
 
 # The seconds between the request for the stacks and the stop of a worker.
@@ -239,6 +241,8 @@ function run_test_supervisor(options::TestRunOptions; output::IO = stdout)
         end
         _run_queued_parts!(workers, queue, options, events, columns, records, output)
         _print_summary(output, records)
+        root = _git_text(pwd(), `rev-parse --show-toplevel`)
+        isempty(root) || store_and_compare_records(records, columns, root; output)
         all(r -> r["result"] == "done" && r["fail"] == "0" && r["error"] == "0", records) ? 0 : 1
     finally
         close(ticker)
@@ -447,4 +451,104 @@ function _print_summary(output::IO, records)
         seconds = string(round(parse(Float64, r["seconds"]); digits = 1), " s")
         println(output, lpad(seconds, 10), "  ", r["suite"], "/", r["part"])
     end
+end
+
+"""
+    test_record_store() -> String
+
+The folder of the stored records of the commits of `main`: the value of
+`PROJECTURED_TEST_RECORDS` when it is set, or else
+`~/.cache/projectured-test-records`. The record of a commit is the file
+`<repository>/<commit>.tsv` in it.
+"""
+test_record_store() =
+    get(ENV, "PROJECTURED_TEST_RECORDS", joinpath(homedir(), ".cache", "projectured-test-records"))
+
+# The columns and the rows of a record file.
+function _read_record_rows(path::AbstractString)
+    lines = filter(!isempty, readlines(path))
+    isempty(lines) && return (String[], Dict{String, String}[])
+    columns = String.(split(first(lines), '\t'))
+    (columns, [Dict(zip(columns, String.(split(line, '\t')))) for line in lines[2:end]])
+end
+
+_record_key(row) = get(row, "suite", "") * "/" * get(row, "part", "")
+_record_counts(row) =
+    Tuple(get(row, column, "") for column in ("result", "pass", "fail", "error", "broken"))
+_counts_text(row) = "$(row["result"]): $(row["pass"]) pass, $(row["fail"]) fail, " *
+                    "$(row["error"]) error, $(row["broken"]) broken"
+
+# Print each row of `rows` whose result or counts differ from the row of the same
+# part in `base_rows`, or that `base_rows` has not; give their count.
+function _compare_rows(base_rows, rows, output::IO)
+    known = Dict(_record_key(row) => row for row in base_rows)
+    differences = 0
+    for row in rows
+        key = _record_key(row)
+        if !haskey(known, key)
+            println(output, "  new      $key: $(_counts_text(row))")
+            differences += 1
+        elseif _record_counts(known[key]) != _record_counts(row)
+            println(output, "  changed  $key: $(_counts_text(known[key])) -> $(_counts_text(row))")
+            differences += 1
+        end
+    end
+    differences
+end
+
+"""
+    compare_records(base, other; output = stdout) -> Int
+
+Print each part of the record file `other` whose result or counts differ from the
+part of the same suite and name in the record file `base`, or that `base` has
+not, and give the count of these parts.
+"""
+compare_records(base::AbstractString, other::AbstractString; output::IO = stdout) =
+    _compare_rows(last(_read_record_rows(base)), last(_read_record_rows(other)), output)
+
+_short_commit(root, revision) = _git_text(root, `rev-parse --short=12 $revision`)
+
+"""
+    store_and_compare_records(records, columns, root; output = stdout) -> Nothing
+
+After a run in the repository at `root`: when each record is of one commit of
+`main` with no change that is not committed, store the records in
+[`test_record_store`](@ref), in place of the stored records of the same parts.
+Then, for a run of another commit, compare it with the stored record of the
+commit where the branch left `main`, or say that no record of it is stored.
+"""
+function store_and_compare_records(records, columns, root::AbstractString; output::IO = stdout)
+    isempty(records) && return nothing
+    store = joinpath(test_record_store(), repository_name(root))
+    commits = unique(r["commit"] for r in records if !isempty(get(r, "commit", "")))
+    commit = length(commits) == 1 ? only(commits) : ""
+    is_main = !isempty(commit) && !endswith(commit, "+") &&
+              success(pipeline(`git -C $root merge-base --is-ancestor $commit main`;
+                               stderr = devnull))
+    if is_main
+        path = joinpath(store, commit * ".tsv")
+        mkpath(store)
+        now = Set(_record_key(r) for r in records)
+        stored = isfile(path) ? last(_read_record_rows(path)) : Dict{String, String}[]
+        kept = [r for r in stored if !(_record_key(r) in now)]
+        open(path, "w") do io
+            println(io, join(columns, '\t'))
+            for row in vcat(kept, records)
+                println(io, join((get(row, column, "") for column in columns), '\t'))
+            end
+        end
+        println(output, "Stored the record of commit $commit of main in $path.")
+    end
+    fork = _short_commit(root, _git_text(root, `merge-base HEAD main`))
+    (isempty(fork) || commit == fork) && return nothing
+    base = joinpath(store, fork * ".tsv")
+    if isfile(base)
+        println(output, "Compared with the stored record of main at $fork:")
+        _compare_rows(last(_read_record_rows(base)), records, output) == 0 &&
+            println(output, "  no part differs.")
+    else
+        println(output, "No record of main at $fork is stored; a run of the same suites on it ",
+                "stores one.")
+    end
+    nothing
 end

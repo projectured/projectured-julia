@@ -226,6 +226,18 @@ supervisor takes `--changed main`:
 It prints the changed files and the test folders that they reach. It is a quick
 check after a change. Run the whole suites before a land.
 
+### The stored records of main
+
+After a run, the supervisor stores its records when the run is of one commit of
+`main` with no change that is not committed: in
+`~/.cache/projectured-test-records/<repository>/<commit>.tsv`, or under the folder
+that `PROJECTURED_TEST_RECORDS` names. A later run of the same commit replaces the
+records of the parts that it runs again. A run of a branch is then compared with
+the stored record of the commit where the branch left `main`. The supervisor
+prints each part whose result or counts changed, and each new part. So a run of
+a branch needs no run of `main` beside it, when a run of that commit of `main`
+stored its record. `compare_records(base, other)` compares two record files.
+
 ## Per-package tests
 
 | Function | What it covers |

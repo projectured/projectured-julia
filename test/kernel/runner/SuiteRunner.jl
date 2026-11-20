@@ -331,16 +331,17 @@ function read_part_records(path::AbstractString)
 end
 
 # The repository and the commit of the file of the first part, and a "+" after a
-# commit whose tree has changes that are not committed.
+# commit whose tree has changes that are not committed. The name of the
+# repository is that of its `origin`, which every worktree of it shares, or else
+# the name of its folder.
 function _source_commit(suite::TestSuite)
     part = _first_part(suite)
     file = part === nothing ? "" : _method_file(part.run)
     folder = isfile(file) ? dirname(file) : pwd()
-    top = _git_text(folder, `rev-parse --show-toplevel`)
     commit = _git_text(folder, `rev-parse --short=12 HEAD`)
     isempty(commit) || isempty(_git_text(folder, `status --porcelain --untracked-files=no`)) ||
         (commit *= "+")
-    (isempty(top) ? "" : basename(top), commit)
+    (repository_name(folder), commit)
 end
 
 _first_part(part::TestPart) = part
@@ -356,12 +357,5 @@ function _method_file(run)
     found = methods(run)
     isempty(found) ? "" : string(first(found).file)
 end
-
-_git_text(folder::AbstractString, arguments::Cmd) =
-    try
-        readchomp(pipeline(`git -C $folder $arguments`; stderr = devnull))
-    catch
-        ""
-    end
 
 (suite::TestSuite)(; keywords...) = run_suite(suite; keywords...)

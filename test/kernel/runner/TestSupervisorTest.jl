@@ -4,7 +4,8 @@
 The supervisor of `tool/run-tests.jl`, with real worker processes: each part of a
 suite gets a result, a part that passes its time limit gets `timeout` and the
 parts after it still run, the record file holds one line for each part, two
-workers run parts at the same time, and a part alone runs beside no other part.
+workers run parts at the same time, a part alone runs beside no other part, and
+the record of a commit of main is stored and compared with a run of a branch.
 """
 function test_supervised_runs()
     @testset "a supervised run gives each part a result, and a part that hangs stops no other" begin
@@ -86,6 +87,44 @@ function test_supervised_runs()
         @test start("alone") >= max(stop("a"), stop("b"))
         @test start("d") >= stop("alone")
         @test occursin("[w2] ", String(take!(output)))
+    end
+
+    @testset "the record of a commit of main is stored, and a branch run is compared with it" begin
+        root = mktempdir()
+        settings = ["-c", "user.name=test", "-c", "user.email=test@example.com",
+                    "-c", "commit.gpgsign=false"]
+        git(arguments...) =
+            run(pipeline(`git -C $root $settings $arguments`; stdout = devnull, stderr = devnull))
+        commit() = readchomp(`git -C $root rev-parse --short=12 HEAD`)
+        git("init", "-q", "-b", "main")
+        git("commit", "-q", "--allow-empty", "-m", "first")
+        first_commit = commit()
+        columns = ["repository", "commit", "suite", "part", "pass", "fail", "error", "broken",
+                   "result", "seconds"]
+        row(at, part, pass, fail) =
+            Dict("repository" => "", "commit" => at, "suite" => "s", "part" => part,
+                 "pass" => string(pass), "fail" => string(fail), "error" => "0", "broken" => "0",
+                 "result" => "done", "seconds" => "1.0")
+        withenv("PROJECTURED_TEST_RECORDS" => mktempdir()) do
+            output = IOBuffer()
+            first_rows = [row(first_commit, "a", 2, 0), row(first_commit, "b", 1, 1)]
+            store_and_compare_records(first_rows, columns, root; output)
+            text = String(take!(output))
+            @test occursin("Stored the record of commit $first_commit of main", text)
+            stored = joinpath(test_record_store(), repository_name(root), first_commit * ".tsv")
+            @test isfile(stored)
+            git("checkout", "-q", "-b", "topic")
+            git("commit", "-q", "--allow-empty", "-m", "second")
+            second = commit()
+            store_and_compare_records([row(second, "a", 2, 0), row(second, "b", 2, 0),
+                                       row(second, "c", 1, 0)], columns, root; output)
+            text = String(take!(output))
+            @test !occursin("Stored", text)
+            @test occursin("Compared with the stored record of main at $first_commit", text)
+            @test occursin("changed  s/b: done: 1 pass, 1 fail", text)
+            @test occursin("new      s/c", text)
+            @test !occursin("s/a", text)
+        end
     end
 
     @testset "the command line of the supervisor" begin
