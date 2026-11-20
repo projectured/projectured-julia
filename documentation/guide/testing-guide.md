@@ -241,20 +241,39 @@ the two runs. Each other part took less than 60 s and less than 1.5 GB.
   32 CPUs. The time of a part changed by up to 43 % between the two runs. The
   peak memory changed by at most 220 MB.
 
-To measure a part again:
+### The record of each part
 
-1. Find the name of the part in the table of `test_all` in
-   [ProjecturedSuite.jl](../../test/projectured/ProjecturedSuite.jl).
-2. Run the part in a process of its own under `/usr/bin/time`. `%e` is the
-   time in seconds, and `%M` is the peak resident memory in KB.
+The runner measures each part that it runs. When a part ends, it prints one line
+with the counts and the times of the part. At the end of the outermost suite, it
+prints the ten slowest parts:
 
-   ```bash
-   /usr/bin/time -f "%e s, %M KB" julia -t 2 --project=environment/all \
-       -e 'using ProjecturedTest, Test; @testset "part" begin test_catalog() end'
-   ```
+```
+  part ProjecturedPlatform/test_text: 412 pass, 0 fail, 0 error, 0 broken, 3.2 s, compile 1.1 s
+```
 
-3. To get the allocation, read `Base.gc_num()` before and after the call, and
-   subtract the two with `Base.GC_Diff`.
+To keep the numbers, give a record file. The runner adds one line for each part
+to it, as tab-separated values:
+
+```julia
+julia> test_platform(record = "/var/tmp/platform.tsv")
+julia> records = read_part_records("/var/tmp/platform.tsv")
+```
+
+The columns are the fields of `PartRecord`, in the order of
+`PART_RECORD_COLUMNS`:
+
+| Column | What it holds |
+|---|---|
+| `repository`, `commit` | The checkout of the first part, and its commit, with a `+` when the tree has changes that are not committed. |
+| `suite`, `part` | The path of the suites that hold the part, such as `Projectured/ProjecturedPlatform`, and the name of the part. |
+| `pass`, `fail`, `error`, `broken` | The counts of the part. |
+| `result` | `done` for a part that ended. |
+| `seconds`, `compile_seconds`, `gc_seconds` | The time of the part, the time of the compile while it ran, and the time of the garbage collection. |
+| `allocated_bytes` | The memory that the part allocated. |
+| `live_bytes`, `peak_bytes` | The memory that the last garbage collection kept, and the peak resident memory of the process so far. |
+
+The times depend on the load of the machine. The compile time, the garbage
+collection time and the allocated bytes depend much less on it.
 
 ## The generated example catalog
 

@@ -35,11 +35,12 @@ parts and the suites inside it, in the order they run. A plain function in
 `entries` becomes a [`TestPart`](@ref) with the name of the function. A suite in
 `entries` runs as a testset inside the testset of this suite.
 
-Call the suite to run it:
+Call the suite to run it, with the keywords of [`run_suite`](@ref):
 
 ```julia
 const test_json = TestSuite("ProjecturedJSON", [test_json_layering, test_json_document])
 test_json()
+test_json(record = "/var/tmp/json.tsv")
 ```
 
 Each part runs in a testset of its own, with the name of the part. So a part
@@ -57,32 +58,204 @@ _suite_entry(entry::Union{TestPart, TestSuite}) = entry
 _suite_entry(run) = TestPart(run)
 
 """
-    run_suite(suite::TestSuite) -> Test.AbstractTestSet
+    PartRecord
 
-Run each entry of `suite` in its order, inside the testset of the suite, and give
-that testset. A part runs through [`run_part`](@ref).
+What one run of a part gave. `suite` is the path of the names of the suites that
+hold the part, such as `"Projectured/ProjecturedPlatform"`, and `part` its name.
+`result` is `"done"` for a part that ended. The times are in seconds and the sizes
+in bytes: `compile_seconds` is the time of the compile while the part ran,
+`live_bytes` the memory that the last garbage collection kept, and `peak_bytes` the
+peak resident memory of the process so far.
 """
-function run_suite(suite::TestSuite)
-    @testset "$(suite.name)" begin
+Base.@kwdef struct PartRecord
+    repository::String = ""
+    commit::String = ""
+    suite::String = ""
+    part::String
+    pass::Int = 0
+    fail::Int = 0
+    error::Int = 0
+    broken::Int = 0
+    result::String = "done"
+    seconds::Float64 = 0.0
+    compile_seconds::Float64 = 0.0
+    gc_seconds::Float64 = 0.0
+    allocated_bytes::Int = 0
+    live_bytes::Int = 0
+    peak_bytes::Int = 0
+end
+
+"The columns of a record file, in their order: the fields of a `PartRecord`."
+const PART_RECORD_COLUMNS = fieldnames(PartRecord)
+
+"""
+    run_suite(suite::TestSuite; record = nothing) -> Test.AbstractTestSet
+
+Run the entries of `suite` in their order, inside the testset of the suite, and
+give that testset.
+
+- `record`: the path of a file. Add one line for each part that runs to it, as
+  tab-separated values in the columns of `PART_RECORD_COLUMNS`. A new file starts
+  with a line of the column names.
+
+When a part ends, the runner prints one line with its counts and its times. At
+the end of the outermost suite, it prints the ten slowest parts.
+"""
+function run_suite(suite::TestSuite; record = nothing)
+    is_outermost = Test.get_testset_depth() == 0
+    records = PartRecord[]
+    source = _source_commit(suite)
+    try
+        _run_entries(suite, "", records, source, record)
+    finally
+        is_outermost && _print_slowest(records)
+    end
+end
+
+function _run_entries(suite::TestSuite, path::String, records, source, record)
+    here = isempty(path) ? suite.name : path * "/" * suite.name
+    @testset Test.DefaultTestSet "$(suite.name)" begin
         for entry in suite.entries
-            _run_entry(entry)
+            if entry isa TestSuite
+                _run_entries(entry, here, records, source, record)
+            else
+                part_record = run_part(entry; suite = here, repository = source[1],
+                                       commit = source[2])
+                push!(records, part_record)
+                record === nothing || write_part_record(record, part_record)
+            end
         end
     end
 end
 
-_run_entry(suite::TestSuite) = run_suite(suite)
-_run_entry(part::TestPart) = run_part(part)
-
 """
-    run_part(part::TestPart) -> Test.AbstractTestSet
+    run_part(part::TestPart; suite = "", repository = "", commit = "") -> PartRecord
 
-Run `part` in a testset with its name. The call goes through `invokelatest`, so
-the part runs in its newest form and Julia compiles it only now.
+Run `part` in a `Test.DefaultTestSet` with its name, print one line with its
+counts and its times, and give its record. The testset of a part and of a suite
+is a `DefaultTestSet` under a parent of any type, because the record reads its
+counts. The call goes through `invokelatest`, so the part runs
+in its newest form and Julia compiles it only now.
 """
-function run_part(part::TestPart)
-    @testset "$(part.name)" begin
+function run_part(part::TestPart; suite::AbstractString = "", repository::AbstractString = "",
+                  commit::AbstractString = "")
+    stats = @timed @testset Test.DefaultTestSet "$(part.name)" begin
         Base.invokelatest(part.run)
+    end
+    counts = _test_counts(stats.value)
+    part_record = PartRecord(; repository = String(repository), commit = String(commit),
+                     suite = String(suite), part = part.name,
+                     pass = counts[1], fail = counts[2], error = counts[3], broken = counts[4],
+                     seconds = stats.time, compile_seconds = stats.compile_time,
+                     gc_seconds = stats.gctime, allocated_bytes = Int(stats.bytes),
+                     live_bytes = Int(Base.gc_live_bytes()), peak_bytes = Int(Sys.maxrss()))
+    println(_part_line(part_record))
+    part_record
+end
+
+function _test_counts(ts)
+    ts isa Test.AbstractTestSet || return (0, 0, 0, 0)
+    c = Test.get_test_counts(ts)
+    (c.passes + c.cumulative_passes, c.fails + c.cumulative_fails,
+     c.errors + c.cumulative_errors, c.broken + c.cumulative_broken)
+end
+
+_seconds_text(seconds::Real) = string(round(seconds; digits = 1), " s")
+
+# The path of a part in its suites, such as "ProjecturedPlatform/test_text".
+_part_place(part_record::PartRecord) =
+    isempty(part_record.suite) ? part_record.part : part_record.suite * "/" * part_record.part
+
+function _part_line(r::PartRecord)
+    "  part $(_part_place(r)): $(r.pass) pass, $(r.fail) fail, $(r.error) error, " *
+        "$(r.broken) broken, $(_seconds_text(r.seconds)), " *
+        "compile $(_seconds_text(r.compile_seconds))"
+end
+
+function _print_slowest(records::Vector{PartRecord}; count::Int = 10)
+    isempty(records) && return
+    slowest = first(sort(records; by = part_record -> part_record.seconds, rev = true), count)
+    println("The $(length(slowest)) slowest parts:")
+    for part_record in slowest
+        println(lpad(_seconds_text(part_record.seconds), 10), "  ", _part_place(part_record))
     end
 end
 
-(suite::TestSuite)() = run_suite(suite)
+"""
+    write_part_record(path, part_record::PartRecord) -> Nothing
+
+Add `part_record` to the record file at `path` as one line of tab-separated
+values. A new or empty file first gets the line of the column names.
+"""
+function write_part_record(path::AbstractString, part_record::PartRecord)
+    is_new = !isfile(path) || filesize(path) == 0
+    open(path, "a") do io
+        is_new && println(io, join(PART_RECORD_COLUMNS, '\t'))
+        values = (_record_text(getfield(part_record, column)) for column in PART_RECORD_COLUMNS)
+        println(io, join(values, '\t'))
+    end
+    nothing
+end
+
+_record_text(value::AbstractFloat) = string(round(value; digits = 3))
+_record_text(value) = replace(string(value), '\t' => ' ', '\n' => ' ')
+
+"""
+    read_part_records(path) -> Vector{PartRecord}
+
+The records of the file at `path`, in the order of its lines.
+"""
+function read_part_records(path::AbstractString)
+    lines = readlines(path)
+    isempty(lines) && return PartRecord[]
+    columns = Symbol.(split(first(lines), '\t'))
+    records = PartRecord[]
+    for line in lines[2:end]
+        isempty(line) && continue
+        values = Dict(zip(columns, split(line, '\t')))
+        fields = Dict{Symbol, Any}()
+        for (name, type) in zip(fieldnames(PartRecord), fieldtypes(PartRecord))
+            haskey(values, name) || continue
+            text = values[name]
+            fields[name] = type === String ? String(text) : parse(type, text)
+        end
+        push!(records, PartRecord(; fields...))
+    end
+    records
+end
+
+# The repository and the commit of the file of the first part, and a "+" after a
+# commit whose tree has changes that are not committed.
+function _source_commit(suite::TestSuite)
+    part = _first_part(suite)
+    file = part === nothing ? "" : _method_file(part.run)
+    folder = isfile(file) ? dirname(file) : pwd()
+    top = _git_text(folder, `rev-parse --show-toplevel`)
+    commit = _git_text(folder, `rev-parse --short=12 HEAD`)
+    isempty(commit) || isempty(_git_text(folder, `status --porcelain --untracked-files=no`)) ||
+        (commit *= "+")
+    (isempty(top) ? "" : basename(top), commit)
+end
+
+_first_part(part::TestPart) = part
+function _first_part(suite::TestSuite)
+    for entry in suite.entries
+        found = _first_part(entry)
+        found === nothing || return found
+    end
+    nothing
+end
+
+function _method_file(run)
+    found = methods(run)
+    isempty(found) ? "" : string(first(found).file)
+end
+
+_git_text(folder::AbstractString, arguments::Cmd) =
+    try
+        readchomp(pipeline(`git -C $folder $arguments`; stderr = devnull))
+    catch
+        ""
+    end
+
+(suite::TestSuite)(; keywords...) = run_suite(suite; keywords...)
