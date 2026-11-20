@@ -18,11 +18,11 @@ a motion. A gesture is a pattern that a recognition finds in a sequence of
 events, and the pattern can leave out events: a `MouseClick` is a `MouseDown`
 and a `MouseUp` of the same button, near in place and in time; a `MouseDwell` is
 a motion followed by no motion for a while; a `KeyChord` is a sequence of
-`KeyDown`s that a chord table names. `Gesture` is the supertype of six concrete
+`KeyDown`s that a chord table names. `Gesture` is the supertype of eight concrete
 types, in `source/kernel/gesture/`, beside `Event` in the event layer below it:
-these three, which a recognition finds, and `DragMove`, `DragEnd` and
-`DragCancel`, which the platform's drag tracker makes from a drag in progress
-(see [The drag gestures](#the-drag-gestures) below).
+these three, which a recognition finds, and `DragMove`, `DragEnd`, `DragCancel`,
+`DragOver` and `DragDrop`, which the platform's drag tracker makes from a drag in
+progress (see [The drag gestures](#the-drag-gestures) below).
 
 A gesture carries no intent, as an event does not: the code that reads it, a
 document's own gesture table, gives it a meaning. Every concrete gesture holds
@@ -109,7 +109,15 @@ release, and `DragCancel` for a bare Escape, the loss of the focus of the
 window, or a move with no button held while the drag is on. `DragMove` and
 `DragEnd` carry a position, in the frame of the part whose drag is on;
 `DragCancel` carries only a time, because the part puts back what it kept at
-the start of the drag and needs no position for that. See
+the start of the drag and needs no position for that. `DragMove` and `DragEnd`
+also carry `outside`, `true` when the pointer is outside every window of the
+editor.
+
+A drag that carries a thing, `dragged`, also reaches the parts under the pointer:
+`DragOver(x, y, dragged; time)` for each move and `DragDrop(x, y, dragged,
+modifiers; time)` for the release, by position, in the window under the pointer.
+A part that takes the thing shows where it would land, and answers the drop.
+`DragOver(-1, -1, dragged)` is the leave, which `is_drag_leave` names. See
 [dragtracking.md](../platform/dragtracking/dragtracking.md).
 
 ### The gesture pattern and the table

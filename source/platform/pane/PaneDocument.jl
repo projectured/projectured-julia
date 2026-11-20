@@ -298,6 +298,10 @@ See also `PaneSplit`, `PaneGroup`, `show_layout`.
 `drag` is transient state holding a tab drag in progress, or `nothing`. It is
 not part of the layout and is not meant to be serialized.
 
+`drop` is transient state too: where a tab that a drag carries over the tree would
+land, or `nothing`. The tab can come from this tree or from the tree of another
+window.
+
 `maximized` is the group that fills the window, or `nothing`; the layout stays as
 it is. [`find_pane_maximized_group`](@ref) says when the group shows. It is a view
 state, and a save does not write it.
@@ -308,6 +312,7 @@ For the assistant.
     root::Any
     drag::Any = nothing
     maximized::Any = nothing
+    drop::Any = nothing
 end
 
 # Neither a drag in progress nor a maximize is layout. A drag is a pointer's own
@@ -316,8 +321,8 @@ end
 pred_arguments(tree::PaneTree) = (), Pair{Symbol,Any}[:root => tree.root]
 
 # `maximized` names a group that `root` holds, so a search finds the group under
-# `root` only.
-is_field_walked(::PaneTree, name::Symbol) = name !== :maximized
+# `root` only; `drop` names a group and a tab that a drag carries.
+is_field_walked(::PaneTree, name::Symbol) = !(name in (:maximized, :drop))
 
 # ── Tree walks ─────────────────────────────────────────────────────────────
 

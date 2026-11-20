@@ -2,7 +2,7 @@
 # is on, and gives that part the parts of its drag.
 
 """
-    DragTrackingProjection(; inner)
+    DragTrackingProjection(; inner, find_window = nothing)
 
 Show the content of a [`DragTrackingState`](@ref) through `inner`, and keep the
 drag that a part of the content starts.
@@ -21,12 +21,29 @@ part:
   ends. Escape goes no further.
 
 A click that the gesture tracker recognizes while the drag is on goes nowhere.
+
+**A global drag** carries a thing, `dragged`, to a part that takes it. Its moves and
+its release also go by position to the window under the pointer, as
+`DragOver(x, y, dragged)` and `DragDrop(x, y, dragged)`, with the point in the frame
+of that window. When the pointer goes to another window or outside, and when the
+drag ends with no drop, the window that got the last `DragOver` gets
+`DragOver(-1, -1, dragged)`. `DragMove` and `DragEnd` say with `outside` whether the
+pointer is outside every window.
+
+`find_window(content, window_id, x, y)` finds the window under the point `(x, y)`
+of the window `window_id`, and answers `(id, x, y)`, the window and the point in its
+frame, or `nothing` outside every window. The screen gives it, because only the
+screen knows the places of its windows. With no `find_window`, the pointer is
+always in the window of the input, at its point.
 """
 struct DragTrackingProjection <: Projection
     inner::Projection
+    find_window::Any
 end
 
-DragTrackingProjection(; inner::Projection) = DragTrackingProjection(inner)
+DragTrackingProjection(; inner::Projection, find_window = nothing) =
+    DragTrackingProjection(inner, find_window)
+DragTrackingProjection(inner::Projection) = DragTrackingProjection(inner, nothing)
 
 # `output` forwards the output of the content reactively, so the IoMap keeps its
 # identity while the content re-derives, and a swap of the content rebuilds the
@@ -64,21 +81,37 @@ function read_intent(p::DragTrackingProjection, recursion, change::Intent,
         if event isa MouseClick
             return Intent(input, nothing)
         elseif is_move_without_button(event) || event isa WindowDefocus
-            return Intent(input, _join_operations(part(DragCancel(; time = get_event_time(event))),
+            time = get_event_time(event)
+            return Intent(input, _join_operations(part(DragCancel(; time)),
+                                                  _leave_drop_window(p, recursion, iomap, time),
                                                   _end_drag(state), content()))
         elseif event isa MouseMove
+            found = _find_drop_window(p, state, input.window_id, event.x, event.y)
+            # The move goes to the window under the pointer first, so the parts there
+            # light and the parts that the pointer left hear it, then the parts of
+            # the drag read their gestures.
             return Intent(input, _join_operations(
-                part(DragMove(event.x, event.y, event.modifiers; time = event.time)), content()))
+                _drop_drag_start(_read_content(p, recursion, _move_to_window(change, found), iomap)),
+                _read_drag_over(p, recursion, iomap, found, event.time),
+                part(DragMove(event.x, event.y, event.modifiers; time = event.time,
+                              outside = _is_outside(state, found)))))
         elseif event isa MouseUp
+            found = _find_drop_window(p, state, input.window_id, event.x, event.y)
             return Intent(input, _join_operations(
-                part(DragEnd(event.x, event.y, event.modifiers; time = event.time)),
+                _read_drag_drop(p, recursion, iomap, found, event),
+                part(DragEnd(event.x, event.y, event.modifiers; time = event.time,
+                             outside = _is_outside(state, found))),
                 _end_drag(state), content()))
         elseif _is_bare_escape(event)
             return Intent(input, _join_operations(part(DragCancel(; time = event.time)),
+                                                  _leave_drop_window(p, recursion, iomap, event.time),
                                                   _end_drag(state)))
         end
     end
-    Intent(input, _take_drag_start(state, _read_content(p, recursion, change, iomap)))
+    answer = _read_content(p, recursion, change, iomap)
+    start, _ = _split_drag_start(answer)
+    Intent(input, _join_operations(_take_drag_start(state, answer),
+                                   _read_start_over(p, recursion, iomap, input, start)))
 end
 
 read_intent(p::DragTrackingProjection, iomap::DragTrackingIoMap, payload) =
@@ -102,6 +135,105 @@ function _read_drag_part(p::DragTrackingProjection, recursion, iomap::DragTracki
                          iomap.child_iomap)
     operation = answer isa Intent ? answer.operation : answer
     reroot_operation(operation, (FieldReferenceStep("content"),))
+end
+
+# ── The window under the pointer of a global drag ─────────────────────────
+
+# The window under the point `(x, y)` of the window `window_id`, with the point in
+# its frame, as `(id, x, y)`, or `nothing` outside every window. A local drag
+# carries nothing and goes to no window. With no `find_window`, the pointer is in
+# the window of the input.
+function _find_drop_window(p::DragTrackingProjection, state::DragTrackingState,
+                           window_id, x::Integer, y::Integer)
+    state.dragged === nothing && return nothing
+    p.find_window === nothing && return (window_id, Int(x), Int(y))
+    p.find_window(state.content, window_id, Int(x), Int(y))
+end
+
+# `change`, a move of the pointer, in the window under the pointer that `found`
+# names, at the point in its frame: a global drag keeps the moves in the window of
+# its press, wherever the pointer is. With no window found, the move stays where it
+# came, at a point off that window.
+function _move_to_window(change::Intent, found)
+    input = change.gesture
+    (found === nothing || found[1] == input.window_id) && return change
+    event = input.event
+    moved = MouseMove(found[2], found[3], event.buttons, event.modifiers; time = event.time)
+    Intent(WindowInput(found[1], moved), change.operation, change.description, change.domain, change.route)
+end
+
+# Whether the pointer of the drag of `state` is outside every window: only a global
+# drag looks for a window, so a local drag is never outside.
+_is_outside(state::DragTrackingState, found) = state.dragged !== nothing && found === nothing
+
+# The answer of the window `found` to a gesture there, by position, as an
+# operation from the state.
+function _read_window_gesture(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap,
+                              window_id, gesture)
+    answer = _read_content(p, recursion, Intent(WindowInput(window_id, gesture)), iomap)
+    _drop_drag_start(answer)
+end
+
+# The move that starts a global drag: the window under the pointer gets `DragOver`
+# at once, so the part that takes the thing shows where it would land from the
+# first move of the drag. `start` is the `StartDragOperation` that the state keeps,
+# or `nothing`.
+function _read_start_over(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap,
+                          input, start)
+    (input isa WindowInput && input.event isa MouseMove) || return nothing
+    start === nothing && return nothing
+    dragged = start.dragged
+    dragged === nothing && return nothing
+    event = input.event
+    found = p.find_window === nothing ? (input.window_id, event.x, event.y) :
+            p.find_window(iomap.input.content, input.window_id, event.x, event.y)
+    found === nothing && return nothing
+    over = _read_window_gesture(p, recursion, iomap, found[1],
+                                DragOver(found[2], found[3], dragged; time = event.time))
+    _join_operations(over, _write_state(iomap.input, "drop_window", found[1]))
+end
+
+# A move of a global drag: the window under the pointer gets `DragOver` there, and
+# the window that got the last one, when it is another, gets the leave first.
+function _read_drag_over(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap,
+                         found, time)
+    state = iomap.input
+    dragged = state.dragged
+    dragged === nothing && return nothing
+    last_id = state.drop_window
+    window_id = found === nothing ? nothing : found[1]
+    leave = (last_id === nothing || last_id == window_id) ? nothing :
+            _read_window_gesture(p, recursion, iomap, last_id, DragOver(-1, -1, dragged; time))
+    over = found === nothing ? nothing :
+           _read_window_gesture(p, recursion, iomap, window_id, DragOver(found[2], found[3], dragged; time))
+    write = last_id == window_id ? nothing : _write_state(state, "drop_window", window_id)
+    _join_operations(leave, over, write)
+end
+
+# The release of a global drag: the window under the pointer gets `DragDrop` there,
+# and a window that got a `DragOver` and is not under the pointer gets the leave.
+function _read_drag_drop(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap,
+                         found, event)
+    state = iomap.input
+    dragged = state.dragged
+    dragged === nothing && return nothing
+    last_id = state.drop_window
+    window_id = found === nothing ? nothing : found[1]
+    leave = (last_id === nothing || last_id == window_id) ? nothing :
+            _read_window_gesture(p, recursion, iomap, last_id, DragOver(-1, -1, dragged; time = event.time))
+    drop = found === nothing ? nothing :
+           _read_window_gesture(p, recursion, iomap, window_id,
+                                DragDrop(found[2], found[3], dragged, event.modifiers; time = event.time))
+    _join_operations(leave, drop)
+end
+
+# The end of a global drag with no drop: the window that got the last `DragOver`
+# gets the leave, so it puts away what it showed.
+function _leave_drop_window(p::DragTrackingProjection, recursion, iomap::DragTrackingIoMap, time)
+    state = iomap.input
+    (state.dragged === nothing || state.drop_window === nothing) && return nothing
+    _read_window_gesture(p, recursion, iomap, state.drop_window,
+                         DragOver(-1, -1, state.dragged; time))
 end
 
 _is_bare_escape(event) = false
@@ -144,7 +276,8 @@ end
 
 _end_drag(state::DragTrackingState) =
     _join_operations(_write_state(state, "drag_path", nothing),
-                     _write_state(state, "dragged", nothing))
+                     _write_state(state, "dragged", nothing),
+                     state.drop_window === nothing ? nothing : _write_state(state, "drop_window", nothing))
 
 # A write of one field of the state, which a history does not record.
 _write_state(state::DragTrackingState, field::AbstractString, value) =

@@ -10,12 +10,15 @@ each field, so a history does not record it:
 - `drag_path` — the path in `content` of the part whose drag is on, or `nothing`
   when no drag is on;
 - `dragged` — the thing that a global drag carries, or `nothing` for a local
-  drag.
+  drag;
+- `drop_window` — the id of the window that got the last `DragOver` of a global
+  drag, or `nothing`.
 """
 @document struct DragTrackingState <: Document
     content::Document
     drag_path::Any = nothing
     dragged::Any = nothing
+    drop_window::Any = nothing
 end
 
 get_wrapped_document(state::DragTrackingState) = get_wrapped_document(state.content)

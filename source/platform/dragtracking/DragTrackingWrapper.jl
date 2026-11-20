@@ -18,8 +18,11 @@ function make_drag_tracking_document(document)
 end
 
 """
-    make_drag_tracking_projection(projection) -> DragTrackingProjection
+    make_drag_tracking_projection(projection; find_window = nothing) -> DragTrackingProjection
 
 The projection half of the same wrapper: `projection` shows the content.
+`find_window` finds the window under the pointer of a global drag; see
+[`DragTrackingProjection`](@ref).
 """
-make_drag_tracking_projection(projection) = DragTrackingProjection(; inner = projection)
+make_drag_tracking_projection(projection; find_window = nothing) =
+    DragTrackingProjection(; inner = projection, find_window)

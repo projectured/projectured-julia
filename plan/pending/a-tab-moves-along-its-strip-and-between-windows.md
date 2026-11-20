@@ -1,9 +1,10 @@
 # A tab moves along its strip and between windows
 
-> **Status (2026-11-20): proposed.** The owner asked for this plan on 2026-11-20 and
-> answered the questions D1 to D8 the same day. P1 to P12 are proposed by the
-> assistant. No step has started. The work starts only after the owner approves the
-> plan for implementation.
+> **Status (2026-11-20): in progress, step 1.** The owner asked for this plan on
+> 2026-11-20 and answered the questions D1 to D8 the same day. P1 to P12 were proposed
+> by the assistant and approved with the plan on 2026-11-20 ("yes, approved, start the
+> implementation"). The work is on the branch `tab-windows` in the worktree
+> `projectured-julia-tab-windows`.
 
 ## 1. The purpose
 
@@ -65,7 +66,8 @@ should we implement this?"
 
 ## 3. Decisions
 
-D1 to D8 are the owner's, 2026-11-20. P1 to P12 are proposed by the assistant.
+D1 to D9 are the owner's, 2026-11-20. P1 to P12 were proposed by the assistant and
+approved with the plan on 2026-11-20.
 
 - **D1. A reorder shows a line** (owner). While you drag a tab over a strip, a short
   vertical line between two tabs shows where the tab goes. The tabs do not move until
@@ -111,6 +113,13 @@ D1 to D8 are the owner's, 2026-11-20. P1 to P12 are proposed by the assistant.
   tab comes from.
 - **D8. One clipboard for all windows** (owner): "the clipboard should be shared so I
   can copy-paste between windows".
+- **D9. No Ctrl+/ toggle** (owner, 2026-11-20, option C). The toggle of the clipboard
+  replaced the content of the window with the stored copy. Around the screen it would
+  replace the whole screen, so the shared clipboard offers no toggle, as the omnet IDE
+  offers none today. Rejected: the stored copy in place of the content of the window
+  where you press Ctrl+/, which needs a new path from the clipboard into the drawing
+  of one window; a tab that shows the stored copy, a later plan if the toggle is
+  missed.
 
 - **P1. The place of the line** (proposed by the assistant). The places on a strip are
   before the first tab, between two tabs, and after the last tab. The pointer chooses
@@ -184,21 +193,76 @@ D1 to D8 are the owner's, 2026-11-20. P1 to P12 are proposed by the assistant.
 Each step ends with its narrowest test file and a commit. Before a step lands, the
 suites of the packages that it touches run against the baseline of main.
 
-- [ ] 1. **The reorder and the line** (D1, P1, P2). A drop on a strip answers the place
-  of P1, read from the printed strip (P2), and `_drop_operation` calls
-  `make_pane_move_tab_operation` with that index, also for the own group. The indicator
-  draws the line on a strip and the rectangle elsewhere. Test in
-  `test/platform/projection/PaneDragTest.jl`: drag `a` of `a b c d` between `c` and `d`
-  gives `b c a d`; a drop on the strip of another group lands at the line; Escape
+- [x] 1. **The reorder and the line, in one window, with the two gestures** (D1, D6, P1,
+  P2, P4, P5). (Done 2026-11-20.) A drop on a strip answers the place of P1, read from the printed strip
+  (P2), and the drop calls `make_pane_move_tab_operation` with that index, also for the
+  own group. The strip draws the line, and the indicator the rectangle elsewhere. The
+  two gestures carry the drop: `DragOver` and `DragDrop` in the gesture layer of the
+  kernel, which the drag tracker sends by position to the window under the pointer
+  (`find_screen_window_at`), and which the tab tree reads for every drop of a tab. Test
+  in `test/platform/projection/PaneDragTest.jl`: drag `a` of `a b c d` between `c` and
+  `d` gives `b c a d`; a drop on the strip of another group lands at the line; a cancel
   changes nothing; the line is drawn in the gap between `c` and `d` (assert the place).
-- [ ] 2. **The two gestures** (D6, P3, P4, P5). `DragOver` and `DragDrop` in the gesture
-  layer of the kernel, the field `outside` on `DragMove` and `DragEnd`, the window under
-  the pointer in the drag tracker, and the clear of P5. The tab tree reads `DragOver`
-  and `DragDrop` for every drop of a tab, so the drop code of step 1 moves to them. The
-  guide of the drag tracker gets the new rule. Test in
-  `test/platform/shell/DragTrackingTest.jl`, with two windows at known places on a
-  headless backend: the window under the pointer gets `DragOver`, the window that the
-  pointer left gets `(-1, -1)`, and a release outside gives `outside = true`.
+
+  Found in the work (2026-11-20):
+  - **Why the gestures came into step 1.** The strip of a group is drawn in the second
+    stage of the tabs projection, and the tab tree in the first, so only the strip knows
+    where its tabs are. The strip can report a place only for a gesture that comes to it
+    by position, and containers give a gesture to the child at its point only for the
+    gestures in their lists (`_positioned_event` of the widgets, `_is_point_gesture` of
+    the layouts). `DragMove` goes by the path of the part whose drag is on and is in no
+    list. So the reorder needs `DragOver` and `DragDrop`, which are in both lists now.
+  - **The strip draws the line** (changes P1). The indicator over the panes can not draw
+    it, because it is in the first stage and knows no place of a tab. The strip has a
+    view state field `drop_place` (`WidgetTabbedPane`), which the group computes from
+    the drop state of the tree, and it draws a line 2 px wide in the primary color of
+    the theme. The strip reports the place with `DropTabOperation(widget, place)`, a
+    fourth report beside `CloseTabOperation`, `OpenTabOperation` and `DragTabOperation`.
+  - **Two states on the tree.** `PaneTree.drag` holds the held tab,
+    `(group, index, origin, started)`, and the new view state field `PaneTree.drop`
+    holds where a carried tab would land, `(target, zone, place, dragged)`. A tree can
+    hold a `drop` for a tab of another tree, which steps 2 and 5 need. The thing that
+    the drag carries is `(tree, group, index)`.
+  - **The leave comes from the moves** (changes P5). A `DragOver` at `(-1, -1)` lies
+    outside every part, so a container drops it before it reaches the tree; and when the
+    pointer goes from the tabs to the toolbar of the same window, no `DragOver` reaches
+    the tree at all. The moves already have the rule: a container gives a move to
+    `(-1, -1)` to the part that the pointer left, and the screen does so for the window
+    that the pointer left. So during a drag that carries a thing, the tracker gives each
+    move to the window under the pointer, at the point in that window, and a tree with a
+    drop state clears it, with the crossed circle, when a move comes where it has no
+    group. The parts under the pointer in another window light during the drag too. The
+    `DragOver` at `(-1, -1)` stays for the end of a drag and for a change of window: it
+    goes as a key goes, so it reaches the tree, which the shell offers each gesture
+    that has no point.
+  - **The window under the pointer.** The drag tracker sits below the screen package, so
+    the screen gives it the function `find_screen_window_at` when it builds it
+    (`make_drag_tracking_projection(projection; find_window)`), and no new generic is
+    needed.
+  - **An unchanged landing is an answer.** When the place did not change, the tree
+    answered nothing, and the chain then read the gesture again in the first stage,
+    with no place from the strip (`_read_chain_from` in `Chaining.jl`). The tree now
+    answers `DoNothingOperation()` when the landing stays.
+  - **The start shows the landing.** The move that starts a drag that carries a thing
+    also sends `DragOver`, so the mark shows from the first move of the drag.
+  - **Tests.** `test_pane_drag` 291 of 291, `test_pane_construct` 63, `test_drag_pointer_shape`
+    39, `test_drag_tracking` 60, `test_pane_reader` 155, `test_widget_tab_strip` 74,
+    `test_split_pane_drag` 43 and 5 broken, as on main. The wider drag suites (the shell,
+    the widgets, chart, graph, math, sequence chart, data frames, the application) show
+    only failures that the index of main knows: Save As (`FileDialogTest.jl:138`), the
+    depth of the math walk (`MathToGraphicsTest.jl:346`), two vertex drags
+    (`GraphVertexDragTest.jl:166`, `:328`) and the usage text of the agent bar
+    (`ApplicationTest.jl:1050`). The application test of a tab drop drove the drop with
+    `DragMove` and `DragEnd` and now sends `DragOver` and `DragDrop`, as the tracker
+    does; `test_dragging` errors 4 times in a stub that is no IO map, in code this branch
+    does not change. Both wait for a run in a check worktree, because the memory budget
+    of the machine had no room.
+- [ ] 2. **The gestures across windows** (D6, P3, P4, P5). The field `outside` on
+  `DragMove` and `DragEnd`, and two windows of the editor. The guide of the drag tracker
+  gets the new rule. Test in `test/platform/shell/DragTrackingTest.jl`, with two windows
+  at known places on a headless backend: the window under the pointer gets `DragOver`,
+  the window that the pointer left gets the leave, and a release outside gives
+  `outside = true`.
 - [ ] 3. **The layers of a new window** (D4, D7, D8, P10, P11, P12).
   `wrap_window_content` with the methods of the undo wrapper and the shell wrapper; the
   editor keeps the layers; the clipboard around the screen; the row of P12. A function

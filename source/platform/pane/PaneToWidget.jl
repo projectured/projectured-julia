@@ -229,10 +229,12 @@ end
 # middle show the whole group, because that is where the tab would go.
 function _drop_indicator_rectangle(tree::PaneTree, available)
     available === nothing && return nothing
-    state = getfield(tree, :drag)[]
+    state = getfield(tree, :drop)[]
     state === nothing && return nothing
     target = state.target
     target === nothing && return nothing
+    # A place in a strip shows as the line that the strip draws, not as a rectangle.
+    (state.zone === :strip && state.place !== nothing) && return nothing
     r = get_pane_rectangle(tree, target)
     r === nothing && return nothing
     width, height = Int(available[1][]), Int(available[2][])
@@ -398,11 +400,35 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
         Any[_make_tab_page(pane, i, tabs[i], entries[i].pane) for i in eachindex(entries)]
     end)
 
+    # The line at the place in the strip where the held tab would land: a cell of
+    # the drag of the tree, so a move of the line prints no page again.
+    tree = get_property(ctx, :pane_tree, nothing)
+    tree isa PaneTree &&
+        set_cell_computation!(getfield(pane, :drop_place), () -> _get_shown_drop_place(tree, group))
+
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
     _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection);
                         get_target_routing = _get_group_target_routing)
     iomap
 end
+
+# The place in the strip of `group` where a tab that a drag carries over `tree`
+# would land, or `nothing`. A place on either side of the held tab in its own group
+# moves nothing, so it shows no line.
+function _get_shown_drop_place(tree::PaneTree, group::PaneGroup)
+    drop = getfield(tree, :drop)[]
+    (drop === nothing || drop.target !== group || drop.zone !== :strip) && return nothing
+    place = drop.place
+    place === nothing && return nothing
+    dragged = drop.dragged
+    _is_drop_in_place(dragged.group, dragged.index, group, place) ? nothing : place
+end
+
+# Whether a drop of tab `index` of `source` at `place` of the strip of `target`
+# leaves the tab where it is: the target is its own group, and the place is on
+# either side of it.
+_is_drop_in_place(source, index::Int, target, place::Int) =
+    target === source && (place == index || place == index + 1)
 
 # The label of a tab in the strip: its name, and the icon, the role of the icon,
 # the badges and the tooltip of its title. The five are cells of their own that
@@ -755,6 +781,8 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     gesture = change.gesture
     state !== nothing && gesture isa Union{DragMove, DragEnd, DragCancel} &&
         return Intent(gesture, _read_tab_drag(iomap, state, gesture))
+    gesture isa DragOver && return Intent(gesture, _read_tab_drag_over(iomap, gesture, change.operation))
+    gesture isa DragDrop && return Intent(gesture, _read_tab_drop(iomap, gesture, change.operation))
     state === nothing && is_outward_gesture(gesture) &&
         return Intent(gesture, _read_pane_outward(p, iomap, change))
     payload = change.operation === nothing ? gesture : change.operation
@@ -771,7 +799,20 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     press = change.gesture
     answer === nothing && press isa MouseClick && press.button === :left &&
         (answer = _focus_from_press(iomap, press))
+    gesture isa MouseMove && (answer = _join_tab_operations(answer, _read_drop_leave(iomap, gesture)))
     Intent(change.gesture, answer)
+end
+
+# A move at a point where the tree has no group, such as the move to `(-1, -1)` that
+# a container gives the part that the pointer left: a tab that a drag carries is no
+# longer over the tree, so the tree puts away where it would land, and no group
+# takes the tab there.
+function _read_drop_leave(iomap::PaneTreeToWidgetIoMap, move::MouseMove)
+    tree = iomap.input
+    getfield(tree, :drop)[] === nothing && return nothing
+    _drop_target(iomap, move.x, move.y) === nothing || return nothing
+    CompoundOperation(Any[_drop_write(tree, nothing),
+                          make_screen_pointer_shape_operation(_get_tab_drop_shape(nothing))])
 end
 
 # A right click and a dwell go out from the part under the pointer. The stage
@@ -821,13 +862,22 @@ end
 
 # ── The drag ───────────────────────────────────────────────────────────────
 #
-# `PaneTree.drag` holds `(group, index, target, zone, origin, started)` while a
-# tab is held: where it came from, where it would land, the point of the press,
-# and whether the drag has started. It is transient state on the tree, so each
-# write carries the tree itself and re-roots nowhere. The tree is the part whose
-# drag is on: it starts the drag after the small move, so a press that does not
-# move is still a click, and the drag wrapper then sends it `DragMove`, `DragEnd`
-# and `DragCancel` by its path.
+# A drag of a tab has two sides, and each keeps its own transient state on its tree:
+#
+#   * `PaneTree.drag` holds `(group, index, origin, started)` while a tab of this tree
+#     is held: where it came from, the point of the press, and whether the drag has
+#     started. The tree is the part whose drag is on: it starts the drag after the
+#     small move, so a press that does not move is still a click, and the drag
+#     wrapper then sends it `DragMove`, `DragEnd` and `DragCancel` by its path.
+#   * `PaneTree.drop` holds `(target, zone, place, dragged)` while a drag that carries
+#     a tab is over this tree: where the tab would land. The drag wrapper sends the
+#     tree `DragOver` and `DragDrop` by position, so the tree under the pointer reads
+#     them, whichever tree the tab came from. `place` is the place in the strip of the
+#     target when the zone is `:strip`: the strip of the group reports it
+#     (`DropTabOperation`), because only the strip knows where its tabs are; it is
+#     `nothing` in any other zone.
+#
+# Each write carries the tree itself and re-roots nowhere.
 #
 # The pointer is resolved against the **layout tree**, not against the printed
 # canvas: the groups divide the available extent in proportion to their weights,
@@ -841,6 +891,8 @@ const _PANE_STRIP_PIXELS = 32
 # marked and no history records it; the drop is the edit.
 _drag_write(tree, state) =
     ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "drag", state))
+_drop_write(tree, state) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "drop", state))
 
 # The pixels that a press on a tab moves before it drags the tab.
 const _TAB_DRAG_START = 5
@@ -851,9 +903,18 @@ function _press_tab(iomap::PaneTreeToWidgetIoMap, operation::DragTabOperation, o
     group = _pane_node_for(iomap, operation.widget)
     group isa PaneGroup || return nothing
     (1 <= operation.tab_index <= length(group.tabs)) || return nothing
-    _drag_write(iomap.input, (group = group, index = operation.tab_index, target = nothing,
-                              zone = :none, origin = origin, started = false))
+    _drag_write(iomap.input, (group = group, index = operation.tab_index, origin = origin,
+                              started = false))
 end
+
+# The thing that the drag of tab `index` of `group` of `tree` carries.
+_make_tab_dragged(tree::PaneTree, group::PaneGroup, index::Integer) =
+    (tree = tree, group = group, index = Int(index))
+
+# Whether `dragged`, the thing that a drag carries, is a tab of a tree.
+_is_tab_dragged(dragged) =
+    dragged isa NamedTuple && haskey(dragged, :tree) && dragged.tree isa PaneTree &&
+    haskey(dragged, :group) && haskey(dragged, :index)
 
 # Before the drag of a tab starts: a move with a button held past the small move
 # starts it, and the tree is the part whose drag is on; a release ends the press,
@@ -867,60 +928,114 @@ function _read_tab_press(iomap::PaneTreeToWidgetIoMap, state, gesture)
         ox, oy = state.origin
         hypot(gesture.x - ox, gesture.y - oy) >= _TAB_DRAG_START || return nothing
     end
-    target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
     CompoundOperation(Any[
-        _drag_write(tree, merge(state::NamedTuple, (target = target, zone = zone, started = true))),
-        StartDragOperation(EmptyReference(), (group = state.group, index = state.index)),
-        make_screen_pointer_shape_operation(_get_tab_drop_shape(target))])
+        _drag_write(tree, merge(state::NamedTuple, (started = true,))),
+        StartDragOperation(EmptyReference(), _make_tab_dragged(tree, state.group, state.index)),
+        make_screen_pointer_shape_operation(_get_tab_drop_shape(state.group))])
 end
 
 # The shape of the pointer during the drag of a tab: the closed hand where a group
 # takes the tab, the crossed circle where none does.
 _get_tab_drop_shape(target) = target === nothing ? :crossed_circle : :closed_hand
 
-# The parts of the drag of a tab, which come by the path of the tree: a move sets
-# where the tab would land, the release drops it there, and a cancel drops it
-# nowhere.
+# The parts of the drag of a held tab, which come by the path of the tree: the
+# release and a cancel end the drag. Where the tab lands is the work of the tree
+# under the pointer, which reads `DragOver` and `DragDrop`.
 function _read_tab_drag(iomap::PaneTreeToWidgetIoMap, state, gesture)
-    tree = iomap.input
-    if gesture isa DragMove
-        target, zone = _find_tab_landing(iomap, state, gesture.x, gesture.y)
-        # Only write when the target moved, so a drag across a pane is not one
-        # write per pixel.
-        (state.target === target && state.zone === zone) && return nothing
-        write = _drag_write(tree, merge(state::NamedTuple, (target = target, zone = zone)))
-        shape = _get_tab_drop_shape(target)
-        shape === _get_tab_drop_shape(state.target) && return write
-        return CompoundOperation(Any[write, make_screen_pointer_shape_operation(shape)])
-    elseif gesture isa DragEnd
-        drop = _drop_operation(tree, state)
-        clear = CompoundOperation(Any[_drag_write(tree, nothing),
-                                      make_screen_pointer_shape_operation(nothing)])
-        return drop === nothing ? clear : CompoundOperation(Any[drop, clear.operations...])
-    end
-    CompoundOperation(Any[_drag_write(tree, nothing), make_screen_pointer_shape_operation(nothing)])
+    gesture isa DragMove && return nothing
+    CompoundOperation(Any[_drag_write(iomap.input, nothing), make_screen_pointer_shape_operation(nothing)])
 end
 
-# Where the tab of `state` dragged to `(x, y)` of the view would land: the group and
-# the zone, or `(nothing, :none)`.
-function _find_tab_landing(iomap::PaneTreeToWidgetIoMap, state, x::Integer, y::Integer)
+# A drag that carries a tab is over the tree at the point of `gesture`: the tree
+# keeps where the tab would land, and a leave puts that away. `strip_answer` is what
+# the widgets under the pointer answered to the same gesture: a `DropTabOperation`
+# when the pointer is over the strip of a group.
+function _read_tab_drag_over(iomap::PaneTreeToWidgetIoMap, gesture::DragOver, strip_answer)
+    dragged = gesture.dragged
+    _is_tab_dragged(dragged) || return nothing
+    tree = iomap.input
+    drop = getfield(tree, :drop)[]
+    if is_drag_leave(gesture)
+        drop === nothing && return nothing
+        return _drop_write(tree, nothing)
+    end
+    target, zone, place = _find_tab_landing(iomap, dragged, gesture.x, gesture.y, strip_answer)
+    _is_held_tab(dragged) || (target = nothing)
+    new = target === nothing ? nothing : (target = target, zone = zone, place = place, dragged = dragged)
+    # Only write when the landing moved, so a drag across a pane is not one write
+    # per pixel. A landing that stays is still an answer: with none, the chain would
+    # read the gesture again without the place that the strip reported.
+    old_target = drop === nothing ? nothing : drop.target
+    (old_target === target && (new === nothing || (drop.zone === zone && drop.place == place))) &&
+        return new === nothing ? nothing : DoNothingOperation()
+    write = _drop_write(tree, new)
+    shape = _get_tab_drop_shape(target)
+    (drop !== nothing && shape === _get_tab_drop_shape(old_target)) && return write
+    CompoundOperation(Any[write, make_screen_pointer_shape_operation(shape)])
+end
+
+# The release of a drag that carries a tab, at the point of `gesture`: the tab moves
+# where it lands, and the tree puts away where it would land.
+function _read_tab_drop(iomap::PaneTreeToWidgetIoMap, gesture::DragDrop, strip_answer)
+    dragged = gesture.dragged
+    _is_tab_dragged(dragged) || return nothing
+    tree = iomap.input
+    clear = getfield(tree, :drop)[] === nothing ? nothing : _drop_write(tree, nothing)
+    (_is_held_tab(dragged) && dragged.tree === tree) || return clear
+    target, zone, place = _find_tab_landing(iomap, dragged, gesture.x, gesture.y, strip_answer)
+    target === nothing && return clear
+    drop = _drop_operation(tree, (group = dragged.group, index = dragged.index,
+                                  target = target, zone = zone, place = place))
+    _join_tab_operations(drop, clear)
+end
+
+# Whether the tab that `dragged` carries is still where the drag took it.
+_is_held_tab(dragged) =
+    dragged.group isa PaneGroup && 1 <= dragged.index <= length(dragged.group.tabs)
+
+# Where the tab that `dragged` carries, at `(x, y)` of the view, would land: the
+# group, the zone and the place in the strip, or `(nothing, :none, nothing)`. Over
+# the strip of a group, `strip_answer` names the group and the place; elsewhere the
+# layout of the tree gives the group and the zone.
+function _find_tab_landing(iomap::PaneTreeToWidgetIoMap, dragged, x::Integer, y::Integer,
+                           strip_answer = nothing)
+    landing = _read_strip_landing(iomap, strip_answer)
+    landing === nothing || return (landing[1], :strip, landing[2])
     point = _get_view_point(iomap, x, y)
-    landing = point === nothing ? nothing :
-              find_drop_zone(iomap.input, (group = state.group, index = state.index), point)
-    landing === nothing ? (nothing, :none) : landing
+    landing = point === nothing ? nothing : find_drop_zone(iomap.input, dragged, point)
+    landing === nothing ? (nothing, :none, nothing) : (landing[1], landing[2], nothing)
+end
+
+# The group and the place that a strip reported, `(group, place)`, or `nothing` when
+# `answer` is not the report of the strip of a group of this tree.
+function _read_strip_landing(iomap::PaneTreeToWidgetIoMap, answer)
+    answer isa DropTabOperation || return nothing
+    group = _pane_node_for(iomap, answer.widget)
+    group isa PaneGroup || return nothing
+    (group, answer.place)
 end
 
 _join_tab_operations(first, second) =
     first === nothing ? second : second === nothing ? first :
     CompoundOperation(Any[first, second])
 
+# The drop of tab `state.index` of `state.group` at `state.target`, `state.zone`
+# and `state.place`, or `nothing` when it moves nothing.
 function _drop_operation(tree::PaneTree, state)
     target = state.target
     target === nothing && return nothing
     source, index, zone = state.group, state.index, state.zone
     orientation = get_pane_zone_orientation(zone)
+    place = state.place
+    if zone === :strip && place !== nothing
+        # A place in the strip: the tab moves there, also inside its own group.
+        _is_drop_in_place(source, index, target, place) && return nothing
+        return make_pane_move_tab_operation(tree, source; source_index = index, target,
+                                            target_index = place)
+    end
     if orientation === nothing
-        # The strip or the middle: the tab moves into the group, at its end.
+        # The middle, or the strip with no place: the tab moves into the group, at
+        # its end.
         source === target && return nothing
         return make_pane_move_tab_operation(tree, source; source_index = index, target,
                                             target_index = length(target.tabs) + 1)

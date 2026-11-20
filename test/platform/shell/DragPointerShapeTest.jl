@@ -71,14 +71,14 @@ end
         @test _dps_screen(editor).pointer_shape === nothing
         _dt_held!(editor, backend, x + 12, y, 1.1)
         @test tree.drag.started
-        @test _dps_screen(editor).pointer_shape ===
-              (tree.drag.target === nothing ? :crossed_circle : :closed_hand)
+        # The tab starts over its own strip, which takes it.
+        @test _dps_screen(editor).pointer_shape === :closed_hand
         _dt_held!(editor, backend, 300, 150, 1.2)
-        @test tree.drag.target === right
+        @test tree.drop.target === right
         @test _dps_shape(editor, 300, 150) === :closed_hand
         # Outside the view of the tree, no group takes the tab.
         _dt_held!(editor, backend, 600, 500, 1.3)
-        @test tree.drag.target === nothing
+        @test tree.drop === nothing
         @test _dps_shape(editor, 600, 500) === :crossed_circle
         _dt_held!(editor, backend, 300, 150, 1.4)
         @test _dps_screen(editor).pointer_shape === :closed_hand

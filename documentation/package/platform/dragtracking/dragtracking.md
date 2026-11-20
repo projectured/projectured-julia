@@ -19,7 +19,7 @@ A part answers `StartDragOperation(path, dragged)` from its own place, the empty
 
 ### The wrapper's state
 
-`DragTrackingState(; content)` wraps `content` and holds two fields, both view state, so a history does not record them: `drag_path`, the path in `content` of the part whose drag is on, or `nothing` when no drag is on; and `dragged`, the thing that a global drag carries, or `nothing`. `DragTrackingProjection(; inner)` shows `content` through `inner` and adds nothing to the view.
+`DragTrackingState(; content)` wraps `content` and holds three fields, all view state, so a history does not record them: `drag_path`, the path in `content` of the part whose drag is on, or `nothing` when no drag is on; `dragged`, the thing that a global drag carries, or `nothing`; and `drop_window`, the id of the window that got the last `DragOver` of a global drag, or `nothing`. `DragTrackingProjection(; inner, find_window = nothing)` shows `content` through `inner` and adds nothing to the view. `find_window(content, window_id, x, y)` answers the window under a point of a window and the point in its frame, `(id, x, y)`, or `nothing` outside every window; the screen gives `find_screen_window_at`, because only the screen knows the places of its windows. With no `find_window`, the pointer is always in the window of the input.
 
 ### While a drag is on
 
@@ -29,6 +29,15 @@ The projection takes the `StartDragOperation` out of the answer of the content a
 - it also sends the part at the kept path, by that path, the gesture of its drag: a move with a button held gives `DragMove(x, y, modifiers; time)`, the release gives `DragEnd(x, y, modifiers; time)`, each in the frame of that part ([a route moves the point](../graphics/graphics.md#a-route-moves-the-point));
 - a bare Escape, the loss of the focus of the window, and a move with no button held, which shows that the release was lost, give `DragCancel(; time)` instead, and Escape goes no further;
 - a `MouseClick` that the gesture tracker makes while the drag is on goes nowhere.
+
+**A global drag** also goes to the parts under the pointer, which may take the thing it carries:
+
+- the raw move goes to the window under the pointer, at the point in its frame, not to the window of the press, which keeps the moves while the button is held; so the parts there light, and the parts and the window that the pointer left get their move to `(-1, -1)`, as for every move;
+- the same window then gets `DragOver(x, y, dragged; time)` by position, as a move does, and the release gives `DragDrop(x, y, dragged, modifiers; time)` there; the move that starts the drag gives a `DragOver` too, so a part shows where the thing would land from the first move;
+- when the pointer goes to another window or outside every window, and when the drag ends with no drop, the window that got the last `DragOver` gets `DragOver(-1, -1, dragged; time)`, the leave; it has no point, so a container gives it on as it gives a key;
+- `DragMove` and `DragEnd` say with `outside` whether the pointer is outside every window.
+
+The containers give `DragOver` and `DragDrop` to the child at their point, as they give a click: the widgets (`_positioned_event`) and the layouts (`_is_point_gesture`) list them with the pointer gestures.
 
 While a drag is on, a part starts no other drag: the content still answers the raw event, but a `StartDragOperation` in that answer is dropped.
 
@@ -45,7 +54,7 @@ Each part that drags keeps its own state as a field of its own document, written
 | `WidgetSlider` | `press_value`, the value at the press | the value at the press |
 | the divider of a `WidgetSplitPane` | `drag_anchor`, the grab point and the two adjacent sizes ([widget.md](../widget/widget.md#the-drag-of-a-splitter)) | the two sizes of the grab |
 | a `ChartPlot` | `drag_anchor`, the press point, the mode (`:pan` or `:zoom`), the window and the axis scales at the press, and the `view` field as the plot held it | the `view` field as the plot held it, for a pan |
-| a `PaneTree` | `drag`, `(group, index, target, zone, origin, started)` | nothing dropped; `drag` is cleared |
+| a `PaneTree` | `drag`, `(group, index, origin, started)`, the held tab; and `drop`, `(target, zone, place, dragged)`, where a carried tab would land, which `DragOver` writes | nothing dropped; `drag` is cleared, and the leave clears `drop` |
 | a `DraggingState` of the dragging slice | `press`, `(x, y, source, started)` | nothing moved; `press` is cleared |
 | the thumb of a `WidgetScrollBar` | `thumb_drag`, `(along, value, travel)`, the place of the press along the bar, the value and the track that the thumb can move along; `owned` when an owner keeps the drag ([widget.md](../widget/widget.md#the-scroll-bars)) | the value at the press |
 
@@ -53,12 +62,12 @@ The split pane divider and the slider start their drag at the press; the chart s
 
 ### Where a global drag lands
 
-`find_drop_zone(document, dragged, point) -> zone or nothing`, in the operation layer of the kernel, answers where `document` takes `dragged` with the pointer at `point`, or `nothing` when it does not; the default answers `nothing` for every document. Two methods exist, each called by the part that keeps the drag, from its own `DragMove` and `DragEnd`:
+`find_drop_zone(document, dragged, point) -> zone or nothing`, in the operation layer of the kernel, answers where `document` takes `dragged` with the pointer at `point`, or `nothing` when it does not; the default answers `nothing` for every document. Two methods exist:
 
-- `find_drop_zone(tree::PaneTree, dragged, point)`, where `point` holds the point and the size of the view of the tree in pixels, answers the group and the zone under the point — the strip, the middle, or one of the four edge bands — from the geometry of the tree.
-- `find_drop_zone(state::DraggingState, dragged, point)`, where `point` is the path that the mouse target of the content names, answers the collection and the index under it.
+- `find_drop_zone(tree::PaneTree, dragged, point)`, where `point` holds the point and the size of the view of the tree in pixels, answers the group and the zone under the point — the strip, the middle, or one of the four edge bands — from the geometry of the tree. The tree under the pointer calls it from `DragOver` and `DragDrop`, whichever tree the tab came from. Over the strip of a group, the strip answers the place between two tabs instead (`DropTabOperation`), because only the strip knows where its tabs are.
+- `find_drop_zone(state::DraggingState, dragged, point)`, where `point` is the path that the mouse target of the content names, answers the collection and the index under it. The dragging slice calls it from its own `DragEnd`.
 
-The part that keeps the drag draws its own preview from the zone it keeps, such as the rectangle the pane tree draws over the group a tab would land in.
+The part that takes a drop draws its own preview from the zone it keeps, such as the rectangle that the pane tree draws over the group a tab would land in, or the line that the strip draws between two tabs.
 
 ### The shape of the pointer during a drag
 
@@ -82,7 +91,8 @@ The dragtracking slice depends on the kernel: the gesture layer for `DragMove`, 
 - **A route moves the point.** A container that draws its children in their own frames moves the point of a routed pointer gesture into the frame of the child, the same move it gives a gesture it hands to that child at a point. So `DragMove` and `DragEnd` reach a part at the point in its own frame, wherever the container has placed it. See [graphics.md](../graphics/graphics.md#a-route-moves-the-point).
 - **A drag that ends with no change gets one gesture, `DragCancel`.** The wrapper turns Escape, the loss of the focus of the window, and a lost release into the same gesture, so a part reads one case and not three.
 - **A part reads its drag from three gestures, and the raw events go on by position too.** A held move must reach the dragged part by its path, and it must also go by position, so the mouse target follows the pointer; the wrapper sends both, instead of only the raw `MouseMove` and `MouseUp` by the path, to keep the two needs apart.
-- **Each global drag is a drag of the part that keeps it.** The tab strip of a pane and the dragging slice each start their own drag and find their own drop zone; no gesture searches outward through every container for a part that takes a drop. This serves every drag of the editor today; a drag that must land in a document other than the one that keeps it, such as a file dropped from the explorer into an editor, has no such search yet.
+- **A global drag lands in the part under the pointer** (decision D6 of [the plan of the tab windows](../../../../plan/pending/a-tab-moves-along-its-strip-and-between-windows.md)). The part whose drag it is gets `DragMove` and `DragEnd` by its path; the parts under the pointer get `DragOver` and `DragDrop` by position, in the window under the pointer, so a tab can land in a tree of another window. The dragging slice still finds its own drop zone from its own `DragEnd`.
+- **The leave of a drop comes from the moves.** A part that shows where a thing would land puts it away when a move comes where it takes nothing, such as the move to `(-1, -1)` that a container gives the part that the pointer left. The leave `DragOver(-1, -1, dragged)` serves the end of a drag and a change of window.
 
 See [plan/done/a-document-knows-the-part-under-the-pointer.md](../../../../plan/done/a-document-knows-the-part-under-the-pointer.md) for the design record.
 

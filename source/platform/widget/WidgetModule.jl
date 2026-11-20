@@ -56,7 +56,7 @@ import ..SelectionModule: has_dormant_selection
 
 export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, WidgetInputDialog,
        WidgetTreeNode, CloseTabOperation, OpenTabOperation,
-       DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
+       DragTabOperation, DropTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
        EndSplitterDragOperation, SetSplitterUnderPointerOperation, SetTableColumnWidthOperation, CommitTableCellOperation,
        DropTableCellOperation, EditTableCellOperation, read_table_column_drag, Shortcut,
        matches_action_shortcut,

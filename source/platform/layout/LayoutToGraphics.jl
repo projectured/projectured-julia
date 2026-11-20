@@ -517,9 +517,11 @@ function _read_layout_children(p, recursion, change::Intent, iomap::_LayoutChild
     _read_layout_entry(p, recursion, change, iomap, entries, slot, _get_layout_child_steps, pointer)
 end
 
-# The gestures that a layout gives to the child at their point.
+# The gestures that a layout gives to the child at their point. The leave of a drag,
+# `DragOver` at `(-1, -1)`, has no point, and goes as a key does.
 _is_point_gesture(gesture) =
-    gesture isa Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell}
+    gesture isa Union{MouseClick, MouseDown, MouseUp, MouseMove, MouseScroll, MouseDwell, DragDrop} ||
+    (gesture isa DragOver && !is_drag_leave(gesture))
 
 # The slot of the child of `entries` that drew at the point `(x, y)`, the first in
 # order, or 0. A layout gives each child exactly its laid-out box, also where an

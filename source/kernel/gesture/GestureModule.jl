@@ -34,7 +34,7 @@ using ..EventModule
 import ..EventModule: get_modifier_keys, get_event_time
 
 export Gesture
-export MouseClick, MouseDwell, DragMove, DragEnd, DragCancel
+export MouseClick, MouseDwell, DragMove, DragEnd, DragCancel, DragOver, DragDrop, is_drag_leave
 export KeyChord
 export GesturePattern, matches_gesture_pattern,
        KeyPressPattern, KeyDownPattern, KeyUpPattern,

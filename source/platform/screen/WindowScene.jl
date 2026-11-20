@@ -128,7 +128,7 @@ function make_tracking_screen(document, projection; inner_wrappers::Vector = [],
     end
     if drag_tracking
         document = make_drag_tracking_document(document)
-        projection = make_drag_tracking_projection(projection)
+        projection = make_drag_tracking_projection(projection; find_window = find_screen_window_at)
     end
     if gesture_tracking
         document = make_gesture_tracking_document(document)
@@ -136,6 +136,41 @@ function make_tracking_screen(document, projection; inner_wrappers::Vector = [],
     end
     (document, projection)
 end
+
+"""
+    find_screen_window_at(document, window_id, x, y) -> (id, x, y) | nothing
+
+The window of the screen that `document` holds under the point `(x, y)` of the
+window `window_id`, and the point in the frame of that window, or `nothing` when
+the point is outside every window. A popup and a tooltip do not count, because they
+show something for a moment and take no drop. When two windows overlap at the
+point, the first of them in `windows` is the answer. A window that the backend
+places itself, and that has no place yet, stands at `(0, 0)`.
+
+The drag tracker of [`make_tracking_screen`](@ref) uses it to send the moves of a
+global drag to the window under the pointer.
+"""
+function find_screen_window_at(document, window_id, x::Integer, y::Integer)
+    screen = get_wrapped_document(document)
+    screen isa ScreenDocument || return (window_id, Int(x), Int(y))
+    windows = screen.windows
+    source = findfirst(window -> window.id == window_id, collect(windows))
+    source === nothing && return (window_id, Int(x), Int(y))
+    sx, sy = _get_window_origin(windows[source])
+    gx, gy = sx + Int(x), sy + Int(y)
+    for window in windows
+        has_window_frame(window) || continue
+        wx, wy = _get_window_origin(window)
+        (wx <= gx < wx + window.width && wy <= gy < wy + window.height) &&
+            return (window.id, gx - wx, gy - wy)
+    end
+    nothing
+end
+
+# The place of `window` on the screen: its `x` and `y`, or `(0, 0)` while the
+# backend chooses it.
+_get_window_origin(window::WindowDocument) =
+    is_automatic_window_place(window) ? (0, 0) : (window.x, window.y)
 
 """
     window = true | (; title, width, height, opened_window_projections, inner_wrappers)

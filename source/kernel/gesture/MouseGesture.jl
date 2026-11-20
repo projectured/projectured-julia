@@ -57,47 +57,118 @@ MouseDwell(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
 get_modifier_keys(gesture::Union{MouseClick,MouseDwell}) = gesture.modifiers
 
 """
-    DragMove(x, y[, modifiers]; time)
-    DragMove(x, y, modifiers, time)
+    DragMove(x, y[, modifiers]; time, outside = false)
+    DragMove(x, y, modifiers, time[, outside])
 
 A move of the pointer with a button held, for the part whose drag is on. The code
 that tracks a drag makes it from a `MouseMove` and sends it by the path of that
 part, wherever the pointer is, so `x` and `y` are in the frame of the part. A part
 reads its drag only from `DragMove`, `DragEnd` and `DragCancel`; the `MouseMove`
 goes by position, as for every part.
+
+`outside` is `true` when the pointer is outside every window of the editor, so a
+part can show what a release there would do.
 """
 struct DragMove <: Gesture
     x::Int
     y::Int
     modifiers::ModifierKeys
     time::Float64
+    outside::Bool
 end
 
-DragMove(x::Int, y::Int; time::Real) = DragMove(x, y, ModifierKeys(), Float64(time))
-DragMove(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
-    DragMove(x, y, modifiers, Float64(time))
+DragMove(x::Int, y::Int, modifiers::ModifierKeys, time::Real) =
+    DragMove(x, y, modifiers, Float64(time), false)
+DragMove(x::Int, y::Int; time::Real, outside::Bool = false) =
+    DragMove(x, y, ModifierKeys(), Float64(time), outside)
+DragMove(x::Int, y::Int, modifiers::ModifierKeys; time::Real, outside::Bool = false) =
+    DragMove(x, y, modifiers, Float64(time), outside)
 
 """
-    DragEnd(x, y[, modifiers]; time)
-    DragEnd(x, y, modifiers, time)
+    DragEnd(x, y[, modifiers]; time, outside = false)
+    DragEnd(x, y, modifiers, time[, outside])
 
 The release of the button of a drag, for the part whose drag is on, with `x` and
 `y` in the frame of the part. The drag ends, and the part keeps what the drag did.
 The code that tracks a drag makes it from the `MouseUp` and sends it by the path
 of the part, as a `DragMove`.
+
+`outside` is `true` when the release is outside every window of the editor, where
+no window got a [`DragDrop`](@ref).
 """
 struct DragEnd <: Gesture
     x::Int
     y::Int
     modifiers::ModifierKeys
     time::Float64
+    outside::Bool
 end
 
-DragEnd(x::Int, y::Int; time::Real) = DragEnd(x, y, ModifierKeys(), Float64(time))
-DragEnd(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
-    DragEnd(x, y, modifiers, Float64(time))
+DragEnd(x::Int, y::Int, modifiers::ModifierKeys, time::Real) =
+    DragEnd(x, y, modifiers, Float64(time), false)
+DragEnd(x::Int, y::Int; time::Real, outside::Bool = false) =
+    DragEnd(x, y, ModifierKeys(), Float64(time), outside)
+DragEnd(x::Int, y::Int, modifiers::ModifierKeys; time::Real, outside::Bool = false) =
+    DragEnd(x, y, modifiers, Float64(time), outside)
 
 get_modifier_keys(gesture::Union{DragMove,DragEnd}) = gesture.modifiers
+
+"""
+    DragOver(x, y, dragged; time)
+    DragOver(x, y, dragged, time)
+
+The pointer of a drag that carries `dragged` is at `(x, y)`, for the parts under
+the pointer. The code that tracks a drag makes it from a `MouseMove` and sends it
+by position to the window under the pointer, so it reaches the parts there as a
+move does, with `x` and `y` in the frame of each part. A part that takes `dragged`
+keeps where it would land and shows it; the others ignore it.
+
+`DragOver(-1, -1, dragged)` says that the pointer left: the window that got the
+last `DragOver` gets it when the pointer goes to another window or outside, and
+when the drag ends, so a part puts away what it showed.
+"""
+struct DragOver <: Gesture
+    x::Int
+    y::Int
+    dragged::Any
+    time::Float64
+end
+
+DragOver(x::Int, y::Int, dragged; time::Real) = DragOver(x, y, dragged, Float64(time))
+
+"""
+    DragDrop(x, y, dragged[, modifiers]; time)
+    DragDrop(x, y, dragged, modifiers, time)
+
+The release of a drag that carries `dragged`, at `(x, y)`, for the parts under the
+pointer. The code that tracks a drag makes it from the `MouseUp` and sends it by
+position to the window under the pointer, as a [`DragOver`](@ref). A part that
+takes `dragged` answers with what the drop does there. The part whose drag it is
+gets `DragEnd` too.
+"""
+struct DragDrop <: Gesture
+    x::Int
+    y::Int
+    dragged::Any
+    modifiers::ModifierKeys
+    time::Float64
+end
+
+DragDrop(x::Int, y::Int, dragged; time::Real) =
+    DragDrop(x, y, dragged, ModifierKeys(), Float64(time))
+DragDrop(x::Int, y::Int, dragged, modifiers::ModifierKeys; time::Real) =
+    DragDrop(x, y, dragged, modifiers, Float64(time))
+
+get_modifier_keys(gesture::DragDrop) = gesture.modifiers
+
+"""
+    is_drag_leave(gesture) -> Bool
+
+Whether `gesture` is the [`DragOver`](@ref) that says that the pointer left, at
+`(-1, -1)`.
+"""
+is_drag_leave(gesture) = false
+is_drag_leave(gesture::DragOver) = gesture.x == -1 && gesture.y == -1
 
 """
     DragCancel(; time)

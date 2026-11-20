@@ -242,7 +242,7 @@ end
         # Over the middle of the right group: the tab would land there, and the
         # rectangle of the drop zone shows it.
         _dt_held!(editor, backend, 300, 150, 1.2)
-        @test tree.drag.target === right
+        @test tree.drop.target === right
         _dt_up!(editor, backend, 300, 150, 1.3)
         @test tree.drag === nothing
         @test _dt_drag_path(editor) === nothing

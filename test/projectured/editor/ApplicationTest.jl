@@ -1794,6 +1794,18 @@ function test_application()
                     operation isa WrappingOperation && return drag_path(get_wrapped_operation(operation))
                     nothing
                 end
+                # The thing that the drag that `operation` starts carries, or `nothing`.
+                function drag_thing(operation)
+                    operation isa StartDragOperation && return operation.dragged
+                    if operation isa CompoundOperation
+                        for member in operation.operations
+                            found = drag_thing(member)
+                            found === nothing || return found
+                        end
+                    end
+                    operation isa WrappingOperation && return drag_thing(get_wrapped_operation(operation))
+                    nothing
+                end
                 # `gesture` to the part at `path`, by the route a press's answer named
                 # — the way the drag wrapper sends the rest of a drag, with no
                 # tracker here to do it.
@@ -1848,16 +1860,22 @@ function test_application()
                                       _app_drawn_at(io.output.windows[1].content)
                                       if text == "a.json"]))
                 # The tree starts the drag after the small move; then the drag
-                # wrapper sends it each move and the release by its path.
+                # wrapper sends it each move and the release by its path, and the
+                # window `DragOver` and `DragDrop` by position, which the tree under
+                # the pointer reads.
                 apply(fire(MouseDown(:left, tx + 4, ty + 4; time = 0.0)))
                 started = fire(held(tx - 100, 500))
                 tab_path = drag_path(started)
                 @test tab_path isa Reference
+                dragged = drag_thing(started)
+                @test dragged !== nothing
                 apply(started)
                 for (mx, my) in ((400, 500), (160, 500))
                     apply(fire(held(mx, my)))
                     apply(drag(tab_path, DragMove(mx, my; time = 0.0)))
+                    apply(fire(DragOver(mx, my, dragged; time = 0.0)))
                 end
+                apply(fire(DragDrop(160, 500, dragged; time = 0.0)))
                 apply(drag(tab_path, DragEnd(160, 500; time = 0.0)))
                 apply(fire(MouseUp(:left, 160, 500; time = 0.0)))
                 title(tab) = get_pane_tab_title_string(tab)

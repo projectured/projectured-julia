@@ -1081,6 +1081,7 @@ WidgetSplitPaneToGraphicsCanvas(theme;
     tab_row_line_stroke::StyleStroke      # the line under the tab row, open under the selected tab
     slot_padding::Inset                   # the space that the page gives to what it holds
     minimum_name_ems::Int                 # the least width of a name that shrinks, in widths of "M"
+    drop_color::StyleColor                # the line at the place where a dragged tab would land
 end
 
 WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
@@ -1103,12 +1104,14 @@ WidgetTabbedPaneToGraphicsCanvas(theme; graphics_theme = nothing, measure,
                                  badge = WidgetBadgeToGraphicsCanvas(theme; measure),
                                  tab_row_line_stroke = _themed(StyleStroke, theme, t -> StyleStroke(t.border, t.border_width)),
                                  slot_padding = _themed(Inset, theme, t -> t.slot_padding),
-                                 minimum_name_ems = 4) =
+                                 minimum_name_ems = 4,
+                                 drop_color = _themed(StyleColor, theme, t -> t.primary)) =
     WidgetTabbedPaneToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                      padding_color, content_color, font, tab_strip_color, tab_color,
                                      tab_selected_color, tab_text, tab_selected_text, page_color,
                                      graphics_style, tab_padding, corner_radius, label_gap,
-                                     icon_size, badge, tab_row_line_stroke, slot_padding, minimum_name_ems)
+                                     icon_size, badge, tab_row_line_stroke, slot_padding, minimum_name_ems,
+                                     drop_color)
 
 # The one scroll pane projection. It emits a `GraphicsCanvas` carrying the
 # pane's real width and height — a parent that MEASURES its child (a WidgetCard
@@ -2075,11 +2078,15 @@ _is_bound_control(w) = !isempty(get_instance_gesture_bindings(w))
 # stored.
 #
 # Only POSITIONED events are judged: a click, a button down and up, a move, a turn
-# of the wheel, and a dwell, which goes to the part at its point as a click does. A
-# move that the pointer makes off a widget reaches it at a point outside, such as
-# `(-1, -1)`. A key carries no position and is routed by selection.
+# of the wheel, a dwell, which goes to the part at its point as a click does, and
+# the move and the release of a drag that carries a thing (`DragOver`, `DragDrop`).
+# A move that the pointer makes off a widget reaches it at a point outside, such as
+# `(-1, -1)`. A key carries no position and is routed by selection, and so is the
+# leave of a drag, `DragOver` at `(-1, -1)`, so it reaches the part that showed
+# where the thing would land.
 _positioned_event(evt) = evt isa MouseClick || evt isa MouseDown || evt isa MouseUp ||
-                         evt isa MouseMove || evt isa MouseScroll || evt isa MouseDwell
+                         evt isa MouseMove || evt isa MouseScroll || evt isa MouseDwell ||
+                         (evt isa DragOver && !is_drag_leave(evt)) || evt isa DragDrop
 
 function _outside_widget(iomap, evt)
     _positioned_event(evt) || return false
@@ -6263,6 +6270,14 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         g.new_w > 0 && _push_icon!(result, :plus, g.new_x + pad.left, coy + pad.top + (sel_h - pad.top - pad.bottom - new_side) ÷ 2,
                                    new_side, _get_part_text(w, :tab_text, p.tab_text).color)
         g.new_w > 0 && push!(result, GraphicsPointerShape(g.new_x, coy, g.new_w, sel_h, :pointing_hand))
+        # The place where a tab that a drag carries would land, as a line across the
+        # height of the strip.
+        place = w.drop_place
+        if place isa Int && !isempty(tabs)
+            line_w = _TAB_DROP_LINE_WIDTH
+            _push_panel!(result, _get_tab_gap_x(g, place) - line_w ÷ 2, coy, line_w, sel_h;
+                         fill = p.drop_color)
+        end
         result
     end)
 
@@ -6601,6 +6616,29 @@ function _tab_strip_coordinate(p::WidgetTabbedPaneToGraphicsCanvas, w::WidgetTab
     x + _tab_scroll_offset(w, g, g.view_w)
 end
 
+# The width of the line that marks the place where a dragged tab would land.
+const _TAB_DROP_LINE_WIDTH = 2
+
+# The x of the gap `place` of the strip `g`, in strip space: the left edge of the
+# first tab for `1`, the right edge of the last tab for `n + 1`, and the middle
+# between two tabs for any other place.
+function _get_tab_gap_x(g, place::Int)
+    tabs = g.tabs
+    n = length(tabs)
+    place <= 1 && return tabs[1][5]
+    place > n && return tabs[n][5] + tabs[n][6]
+    left, right = tabs[place - 1], tabs[place]
+    (left[5] + left[6] + right[5]) ÷ 2
+end
+
+# The place of the strip `g` whose gap is nearest to the strip-space x `xx`: `1`
+# before the first tab to `n + 1` after the last.
+function _find_tab_drop_place(g, xx::Int)
+    n = length(g.tabs)
+    n == 0 && return 1
+    argmin(place -> abs(_get_tab_gap_x(g, place) - xx), 1:(n + 1))
+end
+
 # The 1-based tab at the strip-space point `(xx, yy)`, or 0, and the part of the
 # tab there: `:tab` or `:close` (see `_get_tab_part`).
 function _find_tab_at_strip_point(g, xx::Int, yy::Int)
@@ -6724,7 +6762,8 @@ end
 # where the turn puts it, also when the open tab goes out of view. A left button down
 # or up on the close button is the button's, and a left button down on a tab of a
 # `draggable` pane grabs it: the projection that owns the tabs runs the drag from
-# there, because only it knows where a tab may be dropped.
+# there, because only it knows where a tab may be dropped. A `DragOver` or a
+# `DragDrop` over the strip answers the place of the nearest gap.
 function _find_tab_strip_answer(p::WidgetTabbedPaneToGraphicsCanvas,
                                 iomap::WidgetTabbedPaneToGraphicsCanvasIoMap, evt)
     w = iomap.input
@@ -6776,6 +6815,13 @@ function _find_tab_strip_answer(p::WidgetTabbedPaneToGraphicsCanvas,
         index, part = _find_tab_at_strip_point(_get_strip_geometry(p, w, iomap), xx, evt.y)
         index > 0 && part === :close && return Some(_read_close_button(p, iomap, index, evt))
         evt isa MouseDown && w.draggable === true && index > 0 && return Some(DragTabOperation(w, index))
+    end
+    # A drag that carries a thing: the pointer over the strip is at the place of its
+    # nearest gap, and the projection that owns the tabs reads what that means.
+    if evt isa Union{DragOver, DragDrop} && !is_drag_leave(evt) && w.draggable === true
+        xx = _tab_strip_coordinate(p, w, iomap, evt.x, evt.y)
+        xx === nothing && return nothing
+        return Some(DropTabOperation(w, _find_tab_drop_place(_get_strip_geometry(p, w, iomap), xx)))
     end
     nothing
 end

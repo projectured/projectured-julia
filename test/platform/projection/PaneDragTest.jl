@@ -33,18 +33,32 @@ end
 # Whether the drag of the tree that `iomap` prints is on.
 _is_drag_on(iomap) = (state = get_iomap_input(iomap).drag; state !== nothing && state.started)
 
+# The thing that the drag of the tree carries: the tab it holds.
+function _dragged(iomap)
+    tree = get_iomap_input(iomap)
+    (tree = tree, group = tree.drag.group, index = tree.drag.index)
+end
+
 # A move with the button held, as the editor gives it: by position, and, once the
-# drag of the tree is on, as `DragMove`, which the drag wrapper sends the tree.
+# drag of the tree is on, as `DragMove`, which the drag wrapper sends the tree by
+# its path, and as `DragOver`, which it sends the window by position, also in the
+# move that starts the drag.
 function _hold!(editor, proj, iomap, x, y)
     started = _is_drag_on(iomap)
     _feed!(editor, proj, iomap, MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _is_drag_on(iomap) || return
     started && _feed!(editor, proj, iomap, DragMove(x, y; time = 0.0))
+    _feed!(editor, proj, iomap, DragOver(x, y, _dragged(iomap); time = 0.0))
 end
 
-# The release of the button, as the editor gives it: `DragEnd` while the drag of
-# the tree is on, and the release by position.
+# The release of the button, as the editor gives it: `DragDrop` by position and
+# `DragEnd` by the path while the drag of the tree is on, and the release by
+# position.
 function _release!(editor, proj, iomap, x, y)
-    _is_drag_on(iomap) && _feed!(editor, proj, iomap, DragEnd(x, y; time = 0.0))
+    if _is_drag_on(iomap)
+        _feed!(editor, proj, iomap, DragDrop(x, y, _dragged(iomap); time = 0.0))
+        _feed!(editor, proj, iomap, DragEnd(x, y; time = 0.0))
+    end
     _feed!(editor, proj, iomap, MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
 end
 
@@ -99,7 +113,14 @@ end
     @test tree.drag !== nothing
     @test tree.drag.group === left
     @test tree.drag.index == 2
-    @test tree.drag.target === nothing
+    @test tree.drop === nothing
+
+    # The first held move starts the drag, which carries the tab.
+    answer = _feed!(editor, proj, iomap, MouseMove(5, 5, MouseButtons(:left), ModifierKeys(); time = 0.0))
+    _flatten(o) = o isa CompoundOperation ? reduce(vcat, (_flatten(m) for m in o.operations); init = Any[]) : Any[o]
+    starts = [o for o in _flatten(answer) if o isa StartDragOperation]
+    @test length(starts) == 1
+    @test starts[1].dragged == (tree = tree, group = left, index = 2)
 end
 
 @testset "the pointer names the group and the zone it is over" begin
@@ -108,21 +129,25 @@ end
 
     x, y = _point(tree, right, 0.5, 0.5)
     _hold!(editor, proj, iomap, x, y)
-    @test tree.drag.target === right
-    @test tree.drag.zone === :center
+    @test tree.drop.target === right
+    @test tree.drop.zone === :center
 
     x, y = _point(tree, right, 0.95, 0.5)
     _hold!(editor, proj, iomap, x, y)
-    @test tree.drag.zone === :right
+    @test tree.drop.zone === :right
 
     x, y = _point(tree, right, 0.5, 0.95)
     _hold!(editor, proj, iomap, x, y)
-    @test tree.drag.zone === :below
+    @test tree.drop.zone === :below
 
     # The strip runs across the top of a group, and a drop there means "into it".
     x, y = _point(tree, right, 0.5, 0.0)
     _hold!(editor, proj, iomap, x, y)
-    @test tree.drag.zone === :strip
+    @test tree.drop.zone === :strip
+
+    # The leave of the drag puts away where the tab would land.
+    _feed!(editor, proj, iomap, DragOver(-1, -1, _dragged(iomap); time = 0.0))
+    @test tree.drop === nothing
 end
 
 # Every rectangle in a rendered canvas, as `(x, y, w, h)`.
@@ -200,8 +225,8 @@ end
     proj, iomap = _grab!(editor, tree, left, 1)
     # Where the right group stands in the layout, the left group is now.
     _hold!(editor, proj, iomap, 300, 150)
-    @test tree.drag.target === left
-    @test tree.drag.zone === :center
+    @test tree.drop.target === left
+    @test tree.drop.zone === :center
     @test _indicator(iomap).visible === true
     @test _indicator(iomap).width == WIDTH
     @test _indicator(iomap).height == HEIGHT
@@ -264,8 +289,8 @@ end
 
     x, y = _point(tree, left, 0.95, 0.5)
     _hold!(editor, proj, iomap, x, y)
-    @test tree.drag.target === left
-    @test tree.drag.zone === :right
+    @test tree.drop.target === left
+    @test tree.drop.zone === :right
     _release!(editor, proj, iomap, x, y)
 
     @test tree.drag === nothing
@@ -359,7 +384,7 @@ end
     tree, left, right, editor = _two_groups()
     proj, iomap = _grab!(editor, tree, left, 1)
     _hold!(editor, proj, iomap, 10_000, 10_000)
-    @test tree.drag.target === nothing
+    @test tree.drop === nothing
     _release!(editor, proj, iomap, 10_000, 10_000)
     @test tree.drag === nothing
     @test length(left.tabs) == 2
@@ -380,6 +405,128 @@ end
     @test tree.root === right                   # the split collapsed into it
     @test length(right.tabs) == 2
     @test right.tabs[2] === moved
+end
+
+# ── The place in a strip ──────────────────────────────────────────────────
+
+# One group with the tabs `names`, as the root of the tree.
+function _one_group(names)
+    group = PaneGroup(PaneTab[_tab(name) for name in names])
+    tree = PaneTree(group)
+    (tree, group, _PaneDragMockEditor(tree))
+end
+
+# A y inside the strip of `group`: a few pixels below the top of its rectangle.
+_strip_y(tree, group) = round(Int, get_pane_rectangle(tree, group).y * HEIGHT) + 5
+
+# The place that the strip reports at each x of the strip of `group`, while a tab
+# is held: a move there, and the place the tree keeps.
+function _sweep_places!(editor, proj, iomap, tree, group)
+    r = get_pane_rectangle(tree, group)
+    y = _strip_y(tree, group)
+    places = Pair{Int,Any}[]
+    for x in round(Int, r.x * WIDTH):round(Int, (r.x + r.w) * WIDTH) - 1
+        _hold!(editor, proj, iomap, x, y)
+        drop = tree.drop
+        push!(places, x => (drop !== nothing && drop.zone === :strip && drop.target === group ? drop.place : nothing))
+    end
+    places
+end
+
+# The x values where the strip reports `place`.
+_xs_of(places, place) = [x for (x, p) in places if p == place]
+
+# The lines of the width of the mark of a place, in a rendered canvas.
+_drop_lines(iomap) = [r for r in _rectangles(iomap.output) if r[3] == 2]
+
+@testset "the strip reports the place between two tabs, from the left to the right" begin
+    tree, group, editor = _one_group(["a", "b", "c", "d"])
+    proj, iomap = _grab!(editor, tree, group, 1)
+    # The first move starts the drag; the next ones read the strip.
+    _hold!(editor, proj, iomap, 1, _strip_y(tree, group))
+    places = _sweep_places!(editor, proj, iomap, tree, group)
+    found = [p for (_, p) in places if p !== nothing]
+    @test !isempty(found)
+    @test issorted(found)                                  # the places grow to the right
+    @test Set(found) == Set(1:5)                           # before a, between, after d
+end
+
+@testset "a drop between c and d moves a there, in its own group" begin
+    tree, group, editor = _one_group(["a", "b", "c", "d"])
+    moved = group.tabs[1]
+    proj, iomap = _grab!(editor, tree, group, 1)
+    _hold!(editor, proj, iomap, 1, _strip_y(tree, group))
+    places = _sweep_places!(editor, proj, iomap, tree, group)
+    xs = _xs_of(places, 4)                                 # the gap between c and d
+    @test !isempty(xs)
+    x = xs[length(xs) ÷ 2 + 1]
+    _hold!(editor, proj, iomap, x, _strip_y(tree, group))
+    @test tree.drop.place == 4
+
+    # The strip draws the line in that gap, and the gray rectangle does not show.
+    @test _indicator(iomap).visible === false
+    lines = _drop_lines(iomap)
+    @test length(lines) == 1
+    @test minimum(xs) <= lines[1][1] + 1 <= maximum(xs)
+
+    _release!(editor, proj, iomap, x, _strip_y(tree, group))
+    @test tree.drag === nothing
+    @test tree.drop === nothing
+    @test [get_pane_tab_title_string(group.tabs[i]) for i in 1:4] == ["b", "c", "a", "d"]
+    @test group.tabs[3] === moved                          # the same object moved
+    @test get_pane_focus(tree) == (group, 3)
+    @test isempty(_drop_lines(iomap))                      # the line goes with the drag
+end
+
+@testset "a place beside the held tab shows no line and moves nothing" begin
+    tree, group, editor = _one_group(["a", "b", "c"])
+    proj, iomap = _grab!(editor, tree, group, 2)
+    _hold!(editor, proj, iomap, 1, _strip_y(tree, group))
+    places = _sweep_places!(editor, proj, iomap, tree, group)
+    _middle(xs) = xs[length(xs) ÷ 2 + 1]
+    for place in (2, 3)                                    # on either side of b
+        x = _middle(_xs_of(places, place))
+        _hold!(editor, proj, iomap, x, _strip_y(tree, group))
+        @test tree.drop.place == place
+        @test isempty(_drop_lines(iomap))
+    end
+    x = _middle(_xs_of(places, 3))
+    _release!(editor, proj, iomap, x, _strip_y(tree, group))
+    @test [get_pane_tab_title_string(group.tabs[i]) for i in 1:3] == ["a", "b", "c"]
+end
+
+@testset "a drop on the strip of another group lands at the place" begin
+    tree, left, right, editor = _two_groups()
+    moved = left.tabs[2]
+    proj, iomap = _grab!(editor, tree, left, 2)
+    _hold!(editor, proj, iomap, 1, _strip_y(tree, left))
+    places = _sweep_places!(editor, proj, iomap, tree, right)
+    xs = _xs_of(places, 1)                                 # before c
+    x = xs[length(xs) ÷ 2 + 1]
+    _hold!(editor, proj, iomap, x, _strip_y(tree, right))
+    @test tree.drop.target === right
+    @test length(_drop_lines(iomap)) == 1
+    _release!(editor, proj, iomap, x, _strip_y(tree, right))
+    @test [get_pane_tab_title_string(right.tabs[i]) for i in 1:2] == ["b", "c"]
+    @test right.tabs[1] === moved
+    @test length(left.tabs) == 1
+end
+
+@testset "a cancel during a reorder changes nothing" begin
+    tree, group, editor = _one_group(["a", "b", "c", "d"])
+    proj, iomap = _grab!(editor, tree, group, 1)
+    _hold!(editor, proj, iomap, 1, _strip_y(tree, group))
+    places = _sweep_places!(editor, proj, iomap, tree, group)
+    xs = _xs_of(places, 4)
+    _hold!(editor, proj, iomap, xs[length(xs) ÷ 2 + 1], _strip_y(tree, group))
+    @test length(_drop_lines(iomap)) == 1
+    dragged = _dragged(iomap)
+    _feed!(editor, proj, iomap, DragCancel(; time = 0.0))
+    _feed!(editor, proj, iomap, DragOver(-1, -1, dragged; time = 0.0))   # the leave of the wrapper
+    @test tree.drag === nothing
+    @test tree.drop === nothing
+    @test [get_pane_tab_title_string(group.tabs[i]) for i in 1:4] == ["a", "b", "c", "d"]
+    @test isempty(_drop_lines(iomap))
 end
 
 end # testset

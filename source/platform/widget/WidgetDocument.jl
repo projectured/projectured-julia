@@ -1558,7 +1558,10 @@ hidden, so no tab changes its width.
 a button down on a tab a grab. All three are off by default, and none of them
 decides what the gesture *means*: the strip answers with
 [`CloseTabOperation`](@ref) / [`OpenTabOperation`](@ref) /
-[`DragTabOperation`](@ref), and the projection that owns the tabs decides.
+[`DragTabOperation`](@ref), and the projection that owns the tabs decides. During
+the drag of a tab, the strip of a `draggable` pane answers the pointer over it
+with [`DropTabOperation`](@ref), the place between two tabs, and draws a line at
+`drop_place` when the projection that owns the tabs writes one.
 
 In a slot that is narrower than its tabs, the long names shrink so that the tabs
 fit, and a cut name ends with "…". When the names at their least width still do
@@ -1582,6 +1585,7 @@ For the assistant.
     closable::Bool = false
     new_tab::Bool = false
     draggable::Bool = false
+    drop_place::Union{Int,Nothing} = nothing
     tooltip::Any
 end
 
@@ -1591,6 +1595,11 @@ end
 # amount that shows the open tab, except while the open tab is `scrolled_tab`, the tab
 # that was open at the last turn of the wheel over the strip (0 for none): then the
 # strip stays where the wheel put it. Both are view state.
+#
+# `drop_place` is view state too: the place in the strip where a tab that a drag
+# carries would land, `1` before the first tab to `n + 1` after the last, or
+# `nothing`. The strip draws a line at that place. The projection that owns the tabs
+# writes it, because the strip only reports the place (`DropTabOperation`).
 function WidgetTabbedPane(selector_element_pairs::Vector;
                           visible::Bool=true,
                           margin=nothing, border=nothing, padding=nothing,
@@ -1603,7 +1612,7 @@ function WidgetTabbedPane(selector_element_pairs::Vector;
                      Cell(visible), Cell(margin), Cell(border), Cell(padding),
                      Cell(style),
                      Cell(Int(tab_scroll)), Cell(0),
-                     Cell(closable), Cell(new_tab), Cell(draggable),
+                     Cell(closable), Cell(new_tab), Cell(draggable), Cell(nothing),
                      Cell(tooltip), Cell(nothing))
 end
 
@@ -3694,6 +3703,20 @@ struct DragTabOperation <: Operation
 end
 
 """
+    DropTabOperation(widget, place)
+
+Signals that the pointer of a drag is over the strip of `widget`, at `place`: the
+gap nearest to the pointer, `1` before the first tab to `n + 1` after the last. The
+strip of a `draggable` pane answers it to a `DragOver` and a `DragDrop`. Reports
+only: the projection that owns the tabs decides what the place means, and writes
+`drop_place` to show the line there.
+"""
+struct DropTabOperation <: Operation
+    widget::WidgetTabbedPane
+    place::Int
+end
+
+"""
     StartSplitterDragOperation(split, splitter_index, anchor_coord, slot_sizes)
 
 Begin dragging the splitter after slot `splitter_index` of `split`. Materialises
@@ -3966,7 +3989,7 @@ end
 # page is dead while it looks and draws exactly right.
 OperationModule.is_self_contained_operation(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
-    DragTabOperation, StartSplitterDragOperation,
+    DragTabOperation, DropTabOperation, StartSplitterDragOperation,
     ResizeSplitPaneOperation, EndSplitterDragOperation,
     SetSplitterUnderPointerOperation}) = true
 
@@ -4012,6 +4035,7 @@ Apply a widget operation.
 evaluate_operation(editor, op::CloseTabOperation) = nothing
 evaluate_operation(editor, op::OpenTabOperation) = nothing
 evaluate_operation(editor, op::DragTabOperation) = nothing
+evaluate_operation(editor, op::DropTabOperation) = nothing
 
 function evaluate_operation(editor, op::StartSplitterDragOperation)
     split = op.split
@@ -4225,7 +4249,7 @@ get_view_state_fields(::Type{<:WidgetTable}) = (:scroll_position, :top_row, :sho
 
 # The offset of a text in a field that cuts it follows the caret, and is no part of
 # what the field holds.
-get_view_state_fields(::Type{<:WidgetTabbedPane}) = (:tab_scroll, :scrolled_tab)
+get_view_state_fields(::Type{<:WidgetTabbedPane}) = (:tab_scroll, :scrolled_tab, :drop_place)
 get_view_state_fields(::Type{<:WidgetText}) = (:scroll_position, :wheel_run, :scrolled_selection)
 get_view_state_fields(::Type{<:WidgetTextarea}) = (:scroll_position, :wheel_run, :scrolled_selection)
 
