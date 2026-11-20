@@ -1,8 +1,8 @@
 # The editor shows a JSON file through its views
 
 **Status:** approved by the owner on 2026-11-19 ("yes", to "Do you approve this
-plan, so that I start it in a worktree?"). In work on the branch `json-tab-views`,
-in the worktree `projectured-julia-json-tab-views`.
+plan, so that I start it in a worktree?"). Done on 2026-11-20 on the branch
+`json-tab-views`: all ten steps.
 
 This plan is the second of two plans in the place of plan 4b of point 4 of the
 order in section 13.3 of `plan/tentative/content-and-view-for-the-whole-project.md`.
@@ -354,7 +354,7 @@ tests of the steps before it.
   pane of a file tab is a layer that shows a file. It names the tab and the view
   of a file now. `test_referenced_document_editor` has 135 of 135, `test_file_tab`
   35 of 35, and `test_window_frame_guards` 39 passes and 3 broken.
-- [ ] **10. The wide check and the guides.** `test_platform()`,
+- [x] **10. The wide check and the guides.** `test_platform()`,
   `test_integration()`, the suites of JSON, Markdown and MCP, the suites of the
   backends, and the six guards, on the branch and at its base. The time of the
   first frame of a JSON tab, on the branch and at its base. The guides of the
@@ -362,6 +362,59 @@ tests of the steps before it.
   the design document. `Pkg.precompile` of `omnet-julia` against the branch,
   with a count of the compiled packages. The plan moves to `plan/done/`. Then
   the session asks for the landing, and for the push apart.
+
+  Done on 2026-11-20. The branch had 19 commits over `66b437f73`, and a second
+  worktree at `66b437f73` was the base. The results:
+
+  | Check | Base | Branch |
+  | --- | --- | --- |
+  | The six guards | 249 lines | the same 249 lines, 5 line numbers moved |
+  | `test_json`, `test_markdown` | 1443 of 1443, 358 of 358 | the same |
+  | `test_platform` (pass, fail, error, broken) | 236615, 15, 0, 21 | 236637, 15, 1, 21 |
+  | `test_integration` (pass, fail, error, broken) | 3233010, 627, 18, 2830 | 3233068, 627, 18, 2830 |
+  | SDL (pass, fail, error) | 1358, 4, 1 | the same |
+  | MCP, video, console, PDF, web | 550, 82, 150, 54, 161 | the same |
+  | The first frame of a JSON file of 60 objects in the application window | 428 ms, 49.1 s with the compile | 508 ms, 52.7 s with the compile |
+
+  The 15 failure lines of the platform suite and the 650 of the integration
+  suite are the same lines on both sides. Five line numbers moved, in the three
+  test files that the branch changed, and they are the same assertions. The new
+  passes are the new tests.
+
+  The one new error is `TaskWorkItemTest.jl:171`: a call to an editor that is
+  busy with its first compile waits longer than its limit of 30 s
+  (`EditorCallTimeoutException`). The test alone, three rounds in one process,
+  two times on each side: on the branch the first round failed in one of the
+  two runs and took 1m18.7s when it passed; at the base it passed in both runs,
+  in 1m08.7s and 1m10.0s. So the first compile on the branch is about one tenth
+  longer, and under load it crosses the limit more often. The test stays as it is.
+
+  The integration suite took 111 minutes on the branch and 78 at the base. In
+  the check of plan 4b1 the same suite took 114 minutes at its base and 97 on its
+  branch, so its time varies too much to show a cost of the branch. The test of
+  a file tab takes 31 s instead of 1 s, because it is the first test of its
+  group that opens a JSON tab, so it compiles the printers of the views. The
+  assistant verbs test after its compile, six times in one process: 8.0 s on the
+  branch and 7.1 s at the base, so about 12 % more.
+
+  `Pkg.precompile` of the downstream program against the branch, in a copy:
+  265 packages compiled in 981 s, 229 ready, no error, and the warning that is
+  known on `main` (533 of 3186 recorded calls of `ProjecturedJulia` do not
+  resolve). The guides of the file format, of focus, of the clipboard, of the
+  navigator, of the explorer, of JSON and of the higher-order projections, and
+  "the code now" in the design document, changed in steps 1 to 9. The
+  orientation guide names the verbs of the assistant and no path, so it stays.
+
+  Then `main` moved by 22 commits, and the branch took a rebase onto `c5f9afc92`
+  with no conflict. In `FileSystemFileToWidget.jl` the path of `main` for a file
+  with no document comes first, and then the path through the view. The wide
+  check ran again on the rebased branch: `test_json` and `test_markdown` pass,
+  `test_platform` has 237160 passes, 15 failures, no error and 21 broken,
+  `test_integration` has 3233558 passes, 627 failures, 18 errors and 2830 broken,
+  and the backends give the same counts. The failure lines are the lines of the
+  branch before the rebase, and the task test passed this time. The guards give
+  the same lines, with two line numbers moved in a file that `main` changed. The
+  narrow tests of the plan, 36 cases, fail only at lines that fail on `main`.
 
 ## Found during the work
 
@@ -472,6 +525,14 @@ tests of the steps before it.
     caret goes to the field of the find, and the typed text changes nothing. The
     arrangement of a JSON array is work of point 6 of the order, which moves the
     arrangement into the view of a collection. This plan changes nothing of it.
+12. **An editor of the application stays after its test, on `main` too.** A
+    probe ran `test_assistant_verbs` six times in one process, with three full
+    collections after each run. The live memory grew by 84 MiB per run, from
+    357 MiB to 778 MiB at the base and from 361 MiB to 782 MiB on the branch. The
+    test starts the application and never stops its editor. This plan does not
+    look for what keeps the editor. The fault F10 of the plan of the editor for
+    the assistant of the catch-up, where the IDE grows to 10 GB in 27 hours, can
+    have the same cause.
 
 ## Risks
 
