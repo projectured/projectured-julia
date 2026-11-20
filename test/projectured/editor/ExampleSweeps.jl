@@ -92,7 +92,7 @@ end
 # line. The walk covers the document of every example and the output of every
 # stage that prints it; a run that holds a `'\n'` is reported by the head of its
 # text.
-test_text_runs_hold_no_break() =
+test_text_runs_hold_no_break(; only = nothing, skip = nothing) =
     _test_example_texts("A text run holds no break"; only, skip) do found, document
         document isa TextString || return
         content = document.content
@@ -102,7 +102,7 @@ test_text_runs_hold_no_break() =
 # A text block holds only lines (L1 of the text domain): the elements of a block are
 # `TextLine`s. A lazy list of lines is not walked, because it can be endless; an
 # element that is no line is reported by its type.
-test_text_blocks_hold_only_lines() =
+test_text_blocks_hold_only_lines(; only = nothing, skip = nothing) =
     _test_example_texts("A text block holds only lines"; only, skip) do found, document
         document isa TextBlock || return
         elements = document.elements
