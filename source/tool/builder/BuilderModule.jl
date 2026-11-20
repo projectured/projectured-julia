@@ -12,7 +12,7 @@ this repository.
     using ProjecturedBuilder
     build_projectured_executable()                    # build/projectured/
     build_projectured_executable(compile = false)     # the package only
-    build_projectured_distribution()                  # build/projectured-*.tar.gz
+    build_projectured_distribution()                  # build/projectured-*.tar.xz
 
 `BuildCommand.jl` is the same builds from a shell, which `tool/build-binary.jl`
 runs. `PackageRelease.jl` writes the other form a user can install: a copy of the
@@ -50,7 +50,8 @@ export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
        has_reactive_julia, describe_reactive_build
 export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
        get_hidden_directories, make_hidden_command, check_relocation, write_readme,
-       report_distribution
+       report_distribution, ARCHIVE_FORMATS, DEFAULT_ARCHIVE, check_archive_format,
+       write_distribution_archive
 export bundle_licence_texts!
 export SourceOffer, build_source_archive
 export build_package_release!, collect_outside_paths

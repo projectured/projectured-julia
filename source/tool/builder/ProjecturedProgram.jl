@@ -354,14 +354,18 @@ this checkout, and write it as an archive with a README. Answer the path of the
 archive. [`check_projectured_copy`](@ref) is the check.
 
 The image is fresh and holds code for several processor families, as a
-distribution must. The keywords go to
+distribution must. `archive` is the format of the archive, one of
+[`ARCHIVE_FORMATS`](@ref). The other keywords go to
 [`build_projectured_executable`](@ref).
 """
 function build_projectured_distribution(; name::AbstractString = "projectured",
                                           context::BuildContext = make_projectured_build_context(),
+                                          archive::AbstractString = DEFAULT_ARCHIVE,
                                           kwargs...)
     get(kwargs, :compile, true) ||
         error("build_projectured_distribution: a distribution needs a compiled bundle")
+    # Before the compile, so that a wrong format costs nothing.
+    check_archive_format(archive)
     bundle = build_projectured_executable(; name = name, context = context,
                                           incremental = false,
                                           cpu_target = PORTABLE_CPU_TARGET,
@@ -370,7 +374,7 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
     # the build before anything is written.
     sources = build_source_archive(context; name = name,
                                    offers = PROJECTURED_SOURCE_OFFERS)
-    build_distribution(context; name = name, bundle = bundle,
+    build_distribution(context; name = name, bundle = bundle, archive = archive,
                        source_archive = basename(sources),
                        requirements = PROJECTURED_REQUIREMENTS,
                        licences = PROJECTURED_LICENCES, source = PROJECTURED_SOURCE,

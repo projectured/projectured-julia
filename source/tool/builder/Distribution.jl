@@ -12,10 +12,15 @@
 """
     build_distribution(context; name, bundle, requirements, expect, version,
                          output, staging, source, licence_texts, project,
-                         licence_cache, credits, extra_texts, source_archive) -> String
+                         licence_cache, credits, extra_texts, source_archive,
+                         archive) -> String
 
 Check that the bundle of the binary called `name` travels, and write it as an
 archive. Answers the path of the archive.
+
+- `archive` — the format of the archive, one of [`ARCHIVE_FORMATS`](@ref). The
+  default is [`DEFAULT_ARCHIVE`](@ref). A format whose program this machine
+  does not have stops the build before the copy.
 
 - `bundle` — the directory a build wrote, `build/<name>` under `context.root`
   unless another is named.
@@ -73,7 +78,9 @@ function build_distribution(context::BuildContext; name::AbstractString,
                               credits = String[],
                               extra_texts = Pair{String,String}[],
                               data_texts = Pair{String,String}[],
-                              source_archive::Union{AbstractString,Nothing} = nothing)
+                              source_archive::Union{AbstractString,Nothing} = nothing,
+                              archive::AbstractString = DEFAULT_ARCHIVE)
+    check_archive_format(archive)
     bundle = abspath(bundle)
     isdir(bundle) ||
         error("build_distribution: no bundle at $bundle — build the executable first")
@@ -134,13 +141,82 @@ function build_distribution(context::BuildContext; name::AbstractString,
                  third_party = licence_texts, credits, source_archive)
 
     mkpath(output)
-    archive = joinpath(abspath(output),
-                       "$(directory)-$(lowercase(string(Sys.KERNEL)))-$(Sys.ARCH).tar.gz")
-    @info "Writing the archive" archive
-    run(`tar -C $root -czf $archive $directory`)
-    report_distribution(archive)
+    path = joinpath(abspath(output),
+                    "$(directory)-$(lowercase(string(Sys.KERNEL)))-$(Sys.ARCH).$(archive)")
+    write_distribution_archive(root, directory, path, archive)
+    report_distribution(path)
     staging === nothing && rm(root; recursive = true, force = true)
-    archive
+    path
+end
+
+"""
+    ARCHIVE_FORMATS
+
+The formats that [`build_distribution`](@ref) writes, with the programs that each
+one needs. `tar.xz` is the smallest of them, and every Linux has `xz`. `tar.zst`
+unpacks faster and is about 10 % larger. `tar.gz` is about 60 % larger. `zip` is
+for a person who unpacks with a tool that reads no tar. Measured on the
+executable of `omnet_ide` on 2026-11-20: 1621 MB, `xz -6` 215 MB,
+`zstd -19` 237 MB, `gzip -6` 346 MB.
+"""
+const ARCHIVE_FORMATS = ("tar.xz" => ["tar", "xz"], "tar.zst" => ["tar", "zstd"],
+                         "tar.gz" => ["tar", "gzip"], "zip" => ["zip"])
+
+"""
+    DEFAULT_ARCHIVE
+
+The format of a distribution archive when a build names none: `"tar.xz"`, the
+smallest of [`ARCHIVE_FORMATS`](@ref).
+"""
+const DEFAULT_ARCHIVE = "tar.xz"
+
+"""
+    check_archive_format(format) -> Nothing
+
+Stop when `format` is not one of [`ARCHIVE_FORMATS`](@ref), or when this machine
+does not have a program that the format needs. A build checks it before it copies
+the bundle, so a wrong format does not cost the test of the copy.
+"""
+function check_archive_format(format::AbstractString)
+    index = findfirst(entry -> first(entry) == format, ARCHIVE_FORMATS)
+    index === nothing &&
+        error("build_distribution: the archive is one of " *
+              join(first.(ARCHIVE_FORMATS), ", ") * ", not $(repr(format))")
+    for program in last(ARCHIVE_FORMATS[index])
+        Sys.which(program) === nothing &&
+            error("build_distribution: an archive $format needs the program " *
+                  "`$program`, and this machine does not have it")
+    end
+    nothing
+end
+
+"""
+    write_distribution_archive(root, directory, path, format) -> String
+
+Write the folder `directory` of `root` into the archive `path`, in `format`, one
+of [`ARCHIVE_FORMATS`](@ref). The archive unpacks into `directory/`. Answers
+`path`.
+
+The compressors run with four threads: `xz -6` takes about 100 MB of memory for
+each thread.
+"""
+function write_distribution_archive(root::AbstractString, directory::AbstractString,
+                                    path::AbstractString, format::AbstractString)
+    check_archive_format(format)
+    @info "Writing the archive" archive = path
+    rm(path; force = true)
+    tar = `tar -C $root -cf - $directory`
+    if format == "tar.xz"
+        run(pipeline(tar, `xz -6 -T4 -c`, path))
+    elseif format == "tar.zst"
+        run(pipeline(tar, `zstd -19 -T4 -q -c`, path))
+    elseif format == "tar.gz"
+        run(pipeline(tar, `gzip -6 -c`, path))
+    else
+        # `-y` keeps a symbolic link as a link, as tar does.
+        run(Cmd(`zip -q -r -y -9 $path $directory`; dir = root))
+    end
+    path
 end
 
 """

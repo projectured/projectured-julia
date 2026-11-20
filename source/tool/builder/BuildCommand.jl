@@ -108,6 +108,9 @@ const BUILD_OPTIONS = [
      "build for other machines: a fresh image for many\n" *
      "processor families, a test that a copy runs outside\n" *
      "this checkout, and an archive"),
+    ("--archive=", "--archive=<format>",
+     "the format of the archive of --distribution: tar.xz\n" *
+     "(default, the smallest), tar.zst, tar.gz or zip"),
     ("--backends=", "--backends=<list>",
      "the backends the binary holds, comma-separated\n" *
      "(default: sdl,web). The first one is the default of\n" *
@@ -360,12 +363,21 @@ function parse_build_arguments(arguments; fixed::AbstractString = get_fixed_buil
             keywords[:log_level] = Symbol(_get_build_option_value(argument, key))
         elseif key == "--no-compile"
             keywords[:compile] = false
+        elseif key == "--archive="
+            format = _get_build_option_value(argument, key)
+            format in first.(ARCHIVE_FORMATS) ||
+                error("the archive is one of $(join(first.(ARCHIVE_FORMATS), ", ")), " *
+                      "not $(repr(format))")
+            keywords[:archive] = format
         end
     end
     if get(keywords, :filter_stdlibs, false) && get(keywords, :incremental, true) &&
        action !== :distribution
         error("--filter-stdlibs needs --no-incremental")
     end
+    haskey(keywords, :archive) && action !== :distribution &&
+        error("--archive is the format of the archive of --distribution, and this " *
+              "build writes no archive")
     if action === :distribution
         get(keywords, :compile, true) || error("--distribution needs a compiled bundle, not --no-compile")
         haskey(keywords, :incremental) && error("--distribution always compiles a fresh image")

@@ -332,8 +332,9 @@ to the copy. **Install `bubblewrap`** (`bwrap`), or a distribution build stops.
 The program test also needs `curl`, and the ports 8080 and 9876 free.
 
 The archive lands beside the bundle, as
-`build/<name>-<version>-linux-x86_64.tar.gz`, with a `README` that says what the
-target machine still needs.
+`build/<name>-<version>-linux-x86_64.tar.xz`, with a `README` that says what the
+target machine still needs. `--archive=tar.zst`, `--archive=tar.gz` or
+`--archive=zip` writes another format.
 
 ## Release the packages
 

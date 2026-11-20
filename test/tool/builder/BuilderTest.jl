@@ -1033,6 +1033,45 @@ function test_build_executable()
             rm(root; recursive = true)
         end
 
+        @testset "a distribution archive holds its folder in each format" begin
+            root = mktempdir()
+            folder = joinpath(root, "thing-0.1.0")
+            mkpath(joinpath(folder, "bin"))
+            mkpath(joinpath(folder, "lib"))
+            write(joinpath(folder, "bin", "thing"), "a program\n")
+            write(joinpath(folder, "lib", "libthing.so.1"), "a library\n")
+            symlink("libthing.so.1", joinpath(folder, "lib", "libthing.so"))
+            output = mktempdir()
+            for (format, programs) in ARCHIVE_FORMATS
+                unpacker = format == "zip" ? "unzip" : "tar"
+                all(program -> Sys.which(program) !== nothing, [programs; unpacker]) || continue
+                path = write_distribution_archive(root, "thing-0.1.0",
+                                                  joinpath(output, "thing.$format"), format)
+                unpacked = mktempdir()
+                # GNU tar finds the compression of an archive by itself.
+                run(format == "zip" ? `unzip -q $path -d $unpacked` : `tar -C $unpacked -xf $path`)
+                @test readdir(unpacked) == ["thing-0.1.0"]
+                @test read(joinpath(unpacked, "thing-0.1.0", "bin", "thing"), String) == "a program\n"
+                # A link of a library stays a link.
+                @test readlink(joinpath(unpacked, "thing-0.1.0", "lib", "libthing.so")) ==
+                      "libthing.so.1"
+                rm(unpacked; recursive = true)
+            end
+            @test DEFAULT_ARCHIVE == "tar.xz"
+            # A format that is not one, and one whose program this machine does not
+            # have, stop the build before it looks at the bundle.
+            message(action) = try action(); "" catch exception; sprint(showerror, exception) end
+            @test occursin("the archive is one of tar.xz, tar.zst, tar.gz, zip, not \"rar\"",
+                           message(() -> build_distribution(_test_context(); name = "nothing_here",
+                                                            archive = "rar")))
+            no_programs = mktempdir()
+            @test occursin("an archive zip needs the program `zip`",
+                           message(() -> withenv(() -> check_archive_format("zip"),
+                                                 "PATH" => no_programs)))
+            rm(root; recursive = true)
+            rm(output; recursive = true)
+        end
+
         @testset "a distribution carries every library it needs beyond glibc" begin
             julia_lib = joinpath(Sys.BINDIR, "..", "lib", "julia")
             if Sys.islinux() && Sys.which("readelf") !== nothing &&
@@ -1289,6 +1328,14 @@ function test_build_executable()
             binary, action, keywords = parse_arguments(["projectured", "--distribution",
                                                         "--filter-stdlibs"])
             @test action === :distribution && keywords == Dict{Symbol,Any}(:filter_stdlibs => true)
+            # The format of the archive goes with a distribution, and only with one.
+            for format in first.(ARCHIVE_FORMATS)
+                @test parse_arguments(["--distribution", "--archive=$format"], "projectured")[3] ==
+                      Dict{Symbol,Any}(:archive => format)
+            end
+            @test_throws ErrorException parse_arguments(["--distribution", "--archive=rar"],
+                                                        "projectured")
+            @test_throws ErrorException parse_arguments(["--archive=zip"], "projectured")
             # The command line reaches the store and the options of a rebuild.
             @test parse_arguments(["--status"], "projectured")[2] === :status
             @test parse_arguments(["--stop-server"], "projectured")[2] === :stop_server
