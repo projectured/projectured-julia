@@ -71,8 +71,9 @@ const _RUN_TESTS_USAGE = """
                        at most the usable CPUs divided by the threads of a worker; auto
                        is that most
       --memory SIZE    the most memory of a worker, such as 6G or 800M (default: 6G)
-      --memory-total SIZE  the memory of all workers together (default: workers × memory);
-                       a worker starts when its memory fits
+      --memory-total SIZE  the memory of all workers together (default: the memory cap of the
+                       job less 1G, or else workers × memory); a worker starts when its
+                       memory fits
       --memory-from PATH  a record of an earlier run: a worker gets 1.25 times the peak of
                        the parts of its package there, at least 1.5G and at most --memory
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
@@ -173,7 +174,10 @@ function _worker_command(options::TestRunOptions, memory::Int = options.memory_b
     # A worker of a session loads Revise first, when the environment has it, so
     # that Revise follows the files of the packages after it.
     revise = isempty(options.stay) ? "" : "try; using Revise; catch; end; "
-    script = "redirect_stderr(stdout); $(revise)using ProjecturedKernelTest; run_test_worker(); " *
+    # A worker has the highest OOM score, so the kernel ends a worker over the cap of the
+    # job and not the supervisor; the part runs again.
+    oom = "try; write(\"/proc/self/oom_score_adj\", \"1000\"); catch; end; "
+    script = "redirect_stderr(stdout); $(oom)$(revise)using ProjecturedKernelTest; run_test_worker(); " *
              "ccall(:_exit, Cvoid, (Cint,), 0)"
     hint = string(div(memory * 4, 5 * 2^20), "M")
     flags = ["--startup-file=no", "-t", string(options.threads), "--project=$(options.project)",
@@ -311,7 +315,9 @@ function _run_request!(workers, options, events, columns, sink, output)
     end
     count = min(wanted, most, max(1, length(queue)))
     memory = _home_memory(queue, options)
-    total = options.memory_total > 0 ? options.memory_total : count * options.memory_bytes
+    cap = _job_memory_cap()
+    total = options.memory_total > 0 ? options.memory_total :
+            cap > 0 ? max(cap - 2^30, _LEAST_WORKER_MEMORY) : count * options.memory_bytes
     _run_queued_parts!(workers, queue, options, events, columns, records, sink, output;
                        count, memory, total, is_per_home = isempty(options.stay))
     _print_summary(output, records)
@@ -395,6 +401,18 @@ function _give_part!(worker::_Worker, part::_QueuedPart)
     end
     isempty(part.locator) ? _send(worker, "run", part.package, part.suite, part.index) :
                             _send(worker, "call", part.locator, part.path, part.name)
+end
+
+# The memory cap of the cgroup of this process, as bounded-run sets it, or 0 when it has none.
+function _job_memory_cap()
+    line = try
+        first(l for l in eachline("/proc/self/cgroup") if startswith(l, "0::"))
+    catch
+        return 0
+    end
+    file = joinpath("/sys/fs/cgroup", lstrip(line[4:end], '/'), "memory.max")
+    text = isfile(file) ? strip(read(file, String)) : "max"
+    something(tryparse(Int, text), 0)
 end
 
 # The least memory of a worker that `--memory-from` gives.

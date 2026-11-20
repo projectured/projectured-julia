@@ -73,8 +73,8 @@ function test_supervised_runs()
             end
             """)
         output = IOBuffer()
-        code = run_test_supervisor(["--workers", "2", "--threads", "1", fixture, "parallel_suite"];
-                                   output)
+        code = run_test_supervisor(["--workers", "2", "--threads", "1", "--memory", "1G",
+                                    fixture, "parallel_suite"]; output)
         @test code == 0
         times = Dict{Tuple{String, String}, Float64}()
         for line in readlines(log)
