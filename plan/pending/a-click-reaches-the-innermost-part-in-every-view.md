@@ -1665,6 +1665,11 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   reaches the part behind the throw: examples/json_sorted builds now (1 → 2),
   and fileformat/open_file_list (2 → 4) has a text "No file is open." that a
   click does not reach, and a `nothing` leaf whose caret is not drawn.
+
+  **Step 6 so far landed** (2026-11-20, owner: "yes"). The 20 commits rebased
+  with no conflict over main 66b437f73, and main moved forward to 7c05bfa0e.
+  Not pushed. The rest of step 6 goes on in the same branch: the texts of the
+  tree, the choice list, the Alt+click on a tab title and the views of §4.
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
