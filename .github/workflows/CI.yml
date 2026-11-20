@@ -44,7 +44,7 @@ jobs:
           exit $status
 
   test:
-    name: ${{ matrix.package }}
+    name: ${{ matrix.name || matrix.package }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     permissions:
@@ -90,7 +90,14 @@ jobs:
           - {package: ProjecturedVideoTest, run: test_video}
           - {package: ProjecturedODBCTest, run: test_odbc}
           - {package: ProjecturedBuilderTest, run: test_builder}
-          - {package: ProjecturedTest, run: test_integration, project: environment/all}
+          # test_integration in three jobs, each under the limit of the job: the
+          # largest part, the next eight largest, and the rest.
+          - {package: ProjecturedTest, run: test_integration, project: environment/all,
+             name: 'ProjecturedTest (integration 1 of 3)', args: 'only = r"^test_export_collisions$"'}
+          - {package: ProjecturedTest, run: test_integration, project: environment/all,
+             name: 'ProjecturedTest (integration 2 of 3)', args: 'only = r"^(test_catalog|test_application|test_tree_navigations|test_natural_renders_every_atom|test_domain_examples|test_position_navigations|test_window_frame_guards|test_file_workloads)$"'}
+          - {package: ProjecturedTest, run: test_integration, project: environment/all,
+             name: 'ProjecturedTest (integration 3 of 3)', args: 'skip = r"^(test_export_collisions|test_catalog|test_application|test_tree_navigations|test_natural_renders_every_atom|test_domain_examples|test_position_navigations|test_window_frame_guards|test_file_workloads)$"'}
           - {package: ProjecturedTest, run: test_repository, project: environment/all}
     env:
       PROJECT: ${{ matrix.project || format('package/{0}', matrix.package) }}
@@ -147,7 +154,7 @@ jobs:
       - name: Test
         run: >-
           julia --code-coverage=@. --project="$PROJECT"
-          -e 'using ${{ matrix.package }}; ${{ matrix.run }}()'
+          -e 'using ${{ matrix.package }}; ${{ matrix.run }}(${{ matrix.args }})'
       - uses: julia-actions/julia-processcoverage@v1
         with:
           directories: source,package,example,test

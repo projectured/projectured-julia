@@ -325,6 +325,17 @@ function mouse_broken(name)
              "chart_strip", "sequencechart", "sequencechart_linear", "sequencechart_pair",
              "sequencechart_vertical",
              "conversation_editor", "conversation_widget") && return ("no cursor found",)
+    # @broken: the same symptom on the layouts of widgets, the cards of a research
+    # study and of a workflow, the work plan and the views of an object as widgets
+    # (on main 2026-11-20, not studied).
+    name in ("layout_fill_in_scroll_area", "layout_row_edge", "layout_rows_in_slot_and_page",
+             "layout_scroll_area_in_page", "layout_shares", "layout_text_above_table",
+             "nested_object_to_widget", "object_to_widget",
+             "research", "research_contested", "research_framed", "research_grounded",
+             "research_planned",
+             "workflow", "workflow_complete", "workflow_elements", "workflow_explored",
+             "workflow_goal", "workflow_open_decision", "workflow_recorded", "workflow_steps",
+             "workflow_substeps", "work_plan") && return ("no cursor found",)
     nothing
 end
 

@@ -94,6 +94,9 @@ test that left the logger at `Error` would silence every test after it.
 function _apply_log_level(sandbox; arguments = String[], environment = nothing)
     saved_arguments, saved_logger = copy(ARGS), Base.global_logger()
     try
+        # The logger that the call finds is a plain one, whatever an earlier test of
+        # this process left, so a call that keeps the logger reads its level.
+        Base.global_logger(Base.CoreLogging.ConsoleLogger(stderr))
         empty!(ARGS); append!(ARGS, arguments)
         answer = withenv("PROJECTURED_LOG_LEVEL" => environment) do
             # Through `Base.eval`, because a function defined a moment ago belongs
@@ -1144,7 +1147,11 @@ function test_build_executable()
             @test dirname(dirname(dirname(@__DIR__))) in hidden    # the repository
             @test all(isdir, hidden)
             @test make_hidden_command(`true`, String[]) == `true`
-            if Sys.which("bwrap") !== nothing
+            if Sys.which("bwrap") !== nothing &&
+               !success(pipeline(`bwrap --dev-bind / / true`; stdout = devnull, stderr = devnull))
+                # @broken: bwrap can not start inside the bwrap of this process, as in a whole run of the tests; the check runs where bwrap can start
+                @test_skip "bwrap inside bwrap"
+            elseif Sys.which("bwrap") !== nothing
                 secret = mktempdir()
                 write(joinpath(secret, "file"), "x")
                 command = make_hidden_command(`ls -A $secret`, [secret])

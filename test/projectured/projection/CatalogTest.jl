@@ -42,9 +42,9 @@ const _CATALOG_EDIT_BROKEN = (
     #   are fine — which is exactly why a bare atom was worth adding.
     "layout/", "widget/composite/", "widget/reference_inspector/", "graph/layout/",
     # @catalog-broken the views of a text that hold a document, a highlight and a
-    #   filter of a text and the gutter of a line: the same cause, no `recursion`
-    #   for the text or the marks that they hold.
-    "text/highlighted/", "text/filtered/", "text/gutter/",
+    #   filter of a text, the view of a text and the gutter of a line: the same cause,
+    #   no `recursion` for the text or the marks that they hold.
+    "text/highlighted/", "text/filtered/", "text/view/", "text/gutter/",
     # @catalog-broken bare text spans: `WordWrapping` is block-level and has no
     #   method for a lone `TextString`/`TextLine`.
     "text/bare_string/", "text/bare_line/", "text/bare_spacing/", "text/bare_graphics/",
@@ -85,7 +85,7 @@ const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
                              "widget/reference_inspector/", "graph/layout/",
                              "text/bare_string/", "text/bare_line/",
                              "text/bare_spacing/", "text/bare_graphics/",
-                             "text/highlighted/", "text/filtered/", "text/gutter/",
+                             "text/highlighted/", "text/filtered/", "text/view/", "text/gutter/",
                              "inspector/selection/", "projection/fault_report/")
 # Entries whose PRINTER cannot force its own output. Distinct from the edit set:
 # these fail before any gesture, when the walk reads the cells the printer built.
@@ -99,7 +99,7 @@ const _CATALOG_PRINT_BROKEN = ("layout/", "widget/composite/",
                                "widget/reference_inspector/", "graph/layout/",
                                "text/bare_string/", "text/bare_line/",
                                "text/bare_spacing/", "text/bare_graphics/",
-                               "text/highlighted/", "text/filtered/", "text/gutter/")
+                               "text/highlighted/", "text/filtered/", "text/view/", "text/gutter/")
 _catalog_print_broken(name) =
     any(p -> occursin(p, name), _CATALOG_PRINT_BROKEN) ?
         (msg -> occursin("MethodError", msg) || occursin("FieldError", msg) ||

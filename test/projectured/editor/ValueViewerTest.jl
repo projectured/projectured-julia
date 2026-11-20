@@ -31,15 +31,7 @@ function test_value_viewer()
         @testset "the flat view of $label draws" for (label, value) in values
             document, projection = make_value_viewer(value; tree = false)
             @test document === value
-            if value isa AbstractDict
-                # `NaturalToGraphics` reflects a dictionary as the fields of its
-                # implementation, and an open slot of the memory behind it holds
-                # no value. The tree view above is what shows a dictionary.
-                # @broken: the flat view of a dictionary raises.
-                @test_broken print_document(projection, document).output isa GraphicsCanvas
-            else
-                @test print_document(projection, document).output isa GraphicsCanvas
-            end
+            @test print_document(projection, document).output isa GraphicsCanvas
         end
 
         @testset "how much of the value the first frame holds" begin

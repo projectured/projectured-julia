@@ -39,6 +39,11 @@ function _work_item_run_loop(driver, editor)
     task = @async try
         # The driver calls the loop that runs, so its calls are posts.
         timedwait(() -> is_editor_loop_running(editor), 30.0; pollint = 0.01)
+        # The first frame of the loop compiles, which takes more than the 30 s of a
+        # call under the load of a shared machine, so the driver waits until the loop
+        # takes a call, and its own calls find a loop that is ready.
+        run_on_editor_task!(() -> nothing, editor; timeout = 300.0,
+                            description = "the first frame of the loop")
         answer[] = driver()
     finally
         post_operation!(editor, QuitEditorOperation())

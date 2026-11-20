@@ -729,7 +729,7 @@ function _typein_broken_reason(label, r)
     # @broken: a highlight and a filter of a text hold the text, and their
     # single-step projection in the catalog has no recursion to print it, the cause
     # that marks the layouts broken in the catalog test.
-    if label in ("text/highlighted/graphics", "text/filtered/graphics") &&
+    if label in ("text/highlighted/graphics", "text/filtered/graphics", "text/view/graphics") &&
        occursin("MethodError", r.message) && occursin("print_document", r.message)
         return "a view of a text has no recursion for the text it holds, standalone"
     end

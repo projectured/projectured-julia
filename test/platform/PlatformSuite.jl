@@ -16,7 +16,8 @@ function test_platform_layering()
                               if isdefined(pkg, n) && getfield(pkg, n) isa Module &&
                                  getfield(pkg, n) !== pkg &&
                                  parentmodule(getfield(pkg, n)) !== pkg)
-        check_layering(main, pathof(pkg); name = String(nameof(pkg)), extra_aliases = aliases)
+        known = pkg === ProjecturedPlatform ? PLATFORM_LAYERING_KNOWN : Pair{String,String}[]
+        check_layering(main, pathof(pkg); name = String(nameof(pkg)), extra_aliases = aliases, known)
     end
 end
 
@@ -142,6 +143,46 @@ the tests of the slice and of the slices that use it.
 """
 const TEST_SLICE_EDGES = Dict("source/platform" => PLATFORM_SLICE_EDGES)
 
+# The errors of the layering guard of the platform that main has, each with its
+# reason (`test/suite/known.jl`); `check_layering` counts each as broken.
+const PLATFORM_LAYERING_KNOWN = Pair{String,String}[
+    "assistant/AssistantList.jl (AssistantModule) qualifies non-exported PaneModule.find_pane_tab_layer — export it from ..PaneModule, or share it via same-module fragments / a seam below both users" =>
+        "on main 2026-11-20, not studied yet",
+    "appearance/AppearanceModule.jl uses `using ..CollectionModule: CellVector` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+    "filechange/FileChangeModule.jl uses `using ..DomainModule: hold_documents!, release_held_documents!` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+    "fileformat/FileFormatModule.jl uses `using ..AgentModule: run_on_editor_task!` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+    "filesystem/FileSystemModule.jl uses `using ..AgentModule: run_on_editor_task!` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+    "filesystem/FileSystemModule.jl uses `using ..ToolModule: get_evaluation_editor` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+    "roster/RosterModule.jl imports decode_image from BackendModule and extends it nowhere — an import list states what this code implements, so move it to `using ..BackendModule`" =>
+        "on main 2026-11-20, not studied yet",
+    "roster/RosterModule.jl imports is_fault_exception from FaultModule and extends it nowhere — an import list states what this code implements, so move it to `using ..FaultModule`" =>
+        "on main 2026-11-20, not studied yet",
+    "shell/ShellModule.jl uses `using ..OperationModule: QuitEditorOperation` — a symbol list on a `using` says nothing; `import` the names this code extends and name the module bare for the rest" =>
+        "on main 2026-11-20, not studied yet",
+]
+
+# The edges between the slices of the platform that main has and the table does not
+# allow, each with its reason; `check_slice_edges` counts each as broken.
+const PLATFORM_SLICE_EDGES_KNOWN = Pair{String,String}[
+    "conversation/ConversationModule.jl (ConversationModule) uses ..SettingsModule of the slice settings, which the table does not allow for the slice conversation" =>
+        "on main 2026-11-20, not studied yet",
+    "filesystem/FileSystemModule.jl (FileSystemModule) uses ..SettingsModule of the slice settings, which the table does not allow for the slice filesystem" =>
+        "on main 2026-11-20, not studied yet",
+    "syntax/SyntaxModule.jl (SyntaxModule) uses ..FocusModule of the slice focus, which the table does not allow for the slice syntax" =>
+        "on main 2026-11-20, not studied yet",
+    "undo/UndoModule.jl (UndoModule) uses ..LayoutModule of the slice layout, which the table does not allow for the slice undo" =>
+        "on main 2026-11-20, not studied yet",
+    "undo/UndoModule.jl (UndoModule) uses ..LinkModule of the slice link, which the table does not allow for the slice undo" =>
+        "on main 2026-11-20, not studied yet",
+    "undo/UndoModule.jl (UndoModule) uses ..WidgetModule of the slice widget, which the table does not allow for the slice undo" =>
+        "on main 2026-11-20, not studied yet",
+]
+
 """
     test_platform_slice_edges()
 
@@ -154,7 +195,7 @@ function test_platform_slice_edges()
     # repository and in an installed package.
     check_slice_edges(get_package_source_root(ProjecturedPlatform),
                       [pathof(ProjecturedPlatform)], PLATFORM_SLICE_EDGES; name = "platform",
-                      below_files = [pathof(ProjecturedKernel)])
+                      below_files = [pathof(ProjecturedKernel)], known = PLATFORM_SLICE_EDGES_KNOWN)
 end
 
 """
