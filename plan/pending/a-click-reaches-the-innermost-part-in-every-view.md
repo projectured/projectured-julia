@@ -1645,6 +1645,26 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     a new point, not a case that broke. Left: 8 lines where the move names
     `.children[N].child` and the Alt+double click `.children[N]`, and 5 lines of
     `ObjectFieldToWidget`.
+
+  **The check for a land of step 6 so far** (2026-11-20, branch at 08097161f
+  over main 8356082d0). `test_platform()`: 237122 passes, 16 failures, 21
+  broken. 15 failure lines are those that main has, as the land of the file
+  views counted them at main 0ae98a75b: `FileChangeStoreTest.jl:971`,
+  `ClipboardTest.jl:502` to `504`, `NavigatorChoicesTest.jl:174`, `178`, `208`
+  and `211`, `FileDialogTest.jl:138`, and `CheckLayering.jl:880`, `889` and
+  `922` (four times). The 16th was `PointerLightTest.jl:96`, which expected the
+  row for the pointer on the text of a row of a list; it expects the caret in
+  that row now, and passes (08097161f).
+
+  The domain suites on the same branch: `test_json` 1443 of 1443 and
+  `test_markdown` 358 of 358 pass, as on the branch of the file views. Run 9 of
+  the click walk (scratchpad `step6/run9`, the same 546 examples): 1661 lines,
+  83 fewer than run 8; 343 examples with points and no failure, 15 more. The
+  throws are 6, all of them the limits of the catalog above. 24 examples have
+  fewer lines and 2 have more. Each of the 2 threw in run 8, and the walk now
+  reaches the part behind the throw: examples/json_sorted builds now (1 → 2),
+  and fileformat/open_file_list (2 → 4) has a text "No file is open." that a
+  click does not reach, and a `nothing` leaf whose caret is not drawn.
 - [x] 6a. **The gestures of D10.** One commit for each part, in this order:
   1. The gesture rules in the focus slice: an Alt+click is a caret press, an
      Alt+double click a whole selection press (`is_whole_selection_press`), and
