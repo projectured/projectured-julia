@@ -189,7 +189,10 @@ mutable struct _Worker
     is_ended::Bool
     memory::Int                 # the memory that it may use
     used::Float64               # when its last part ended, for the order of a session
+    ran::Set{String}            # the parts that it ran, as `SUITE/NAME`
 end
+
+_part_key(part) = part.path * "/" * part.name
 
 function _worker_command(options::TestRunOptions, memory::Int = options.memory_bytes)
     # A worker of a session loads Revise first, when the environment has it, so
@@ -219,7 +222,7 @@ function _start_worker(number::Int, options::TestRunOptions, events::Channel,
                        memory::Int = options.memory_bytes)
     process = open(_worker_command(options, memory), "r+")
     worker = _Worker(number, process, Set{String}(), nothing, 0.0, "", 0.0, false, false, memory,
-                     time())
+                     time(), Set{String}())
     errormonitor(@async begin
         for line in eachline(process)
             if startswith(line, _SUPERVISOR_PREFIX)
@@ -445,6 +448,7 @@ end
 
 function _give_part!(worker::_Worker, part::_QueuedPart)
     worker.part = part
+    push!(worker.ran, _part_key(part))
     worker.stop = ""
     package = isempty(part.locator) ? part.package : part.home
     if package in worker.loaded
@@ -588,6 +592,14 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
             any(w -> is_live(w) && w.part !== nothing && w.part.is_alone, places) && break
             is_others_running = any(w -> is_live(w) && w.part !== nothing, places)
             choice = is_live(worker) ? findfirst(p -> takes(worker, p), remaining) : nothing
+            if is_warm && choice !== nothing
+                # In a session, a worker takes first a part that it ran, because it compiled
+                # the code of that part, then a part that no other live worker ran.
+                ran_by_other(p) = any(w -> is_live(w) && w !== worker && _part_key(p) in w.ran, places)
+                choice = something(findfirst(p -> takes(worker, p) && _part_key(p) in worker.ran, remaining),
+                                   findfirst(p -> takes(worker, p) && !ran_by_other(p), remaining),
+                                   choice)
+            end
             if is_live(worker) && choice === nothing
                 # A warm worker stays while a free place can take the part.
                 is_warm && any(w -> !is_live(w), places) && continue
