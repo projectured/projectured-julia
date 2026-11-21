@@ -329,6 +329,29 @@ session when it gives none.
 In the REPL, Revise does the same for a person: `test_platform(only = "widget")`
 runs again after an edit, with no new load.
 
+### The compiled code of the tests
+
+The code of the tests compiles again in each new process, and most of the time of a
+part is that compile: a run of `test_json` took 118 s, of which 111 s was compile.
+So each test package records the calls that its parts compile into
+`precompile/workload.txt` in its folder, and its package image holds them
+([compile-ahead.md](../design/compile-ahead.md), Decision 11). Its workload, which
+`@compile_ahead` at the end of its entry file names, is all of its parts. With its
+recorded calls, the parts of `test_json` take 7.6 s, of which 0.3 s is compile.
+
+`tool/record-test-calls.jl` records the given test packages, or each test package
+whose files changed since a commit, each after the test packages that it depends on:
+
+```bash
+julia --project=environment/all tool/record-test-calls.jl ProjecturedJSONTest
+julia --project=environment/all tool/record-test-calls.jl --changed main --list
+```
+
+A list records again as U5 of that design says, and after each land that changes
+the files of its package. A stale list does not change the result of a test: a call
+that it does not hold compiles while the part runs, and a list of which more than
+10 % no longer resolves gives a warning when its package loads.
+
 ## Per-package tests
 
 | Function | What it covers |

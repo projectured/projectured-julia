@@ -149,6 +149,13 @@ On `main`, a run of all the parts gives no unmarked `Fail` and no `Error`, and e
   ```
 
   The land needs 0 unmarked `Fail`, 0 `Error`, and the result `done` for each part. The supervisor stores the record of the run. When the land moves `main` to the commit of the run, it is the record of `main`: later runs compare with it and take the memory of their workers from it.
+- After the land, record again the calls of each test package whose files the land changed, in the background, and land the new lists as a commit of their own. The image of a test package holds the recorded calls of its parts, so a stale list makes the tests compile again:
+
+  ```bash
+  workspace/bin/bounded-run start <branch>-record --memory 16G --cores 8 --time 3h -- \
+    workspace/bin/julia-worktree run $W -- julia --startup-file=no --project=environment/all \
+      tool/record-test-calls.jl --changed <the commit of main before the land>
+  ```
 - Do not mark a check that passes on `main`: fix the branch. A new marker for a fault that the branch did not make needs the word of the owner, and the report of the land names each new marker.
 - A check that fails only at some times gets no `@test_broken`, because its pass is then an error. Give a wait for a result a bound that holds under the load of the machine, and skip a check of a time with `@test_skip` and a `# @broken:` reason.
 - A repository that develops this one from its main checkout runs its tests against the code of `main` here. So a land here also runs the fast parts of each such repository against the branch, as its own `CLAUDE.md` says, and a failure there stops the land in the same way.
