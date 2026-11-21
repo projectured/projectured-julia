@@ -4,7 +4,7 @@
 > with that plan on 2026-11-20): first the measure, then the questions of the design to the
 > owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
-> the slow parts, step 6 of [the-tests-run-fast.md](the-tests-run-fast.md), moved here as
+> the slow parts, step 6 of [the-tests-run-fast.md](../done/the-tests-run-fast.md), moved here as
 > step 5. The design of the image (step 3) starts with the questions to the owner, because an
 > image of the tests is a new use of compiling ahead.
 
