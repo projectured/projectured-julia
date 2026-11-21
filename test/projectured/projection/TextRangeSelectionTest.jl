@@ -96,6 +96,20 @@ function _tr_clicks!(editor, backend, x, y, count; modifiers = _TR_NONE)
     end
 end
 
+# Run frames until the window draws a text that `found` accepts, at most `seconds`, and
+# give the texts of the window. A run on CI needs more frames than one before a text
+# that a task gives is drawn.
+function _tr_wait_text!(found, editor, backend; seconds::Real = 60)
+    texts = _tr_texts(_tr_window(backend))
+    deadline = time() + seconds
+    while !any(t -> found(t[3]), texts) && time() < deadline
+        run_frame!(editor)
+        sleep(0.01)
+        texts = _tr_texts(_tr_window(backend))
+    end
+    texts
+end
+
 # A click at the start of the drawn text `text`, then `k` plain moves to the right,
 # so the caret stands before character `k + 1` of it whatever the font. With
 # `tracking`, the click is a press and a release, for an editor with the tracker.
@@ -268,20 +282,13 @@ function test_text_range_selection()
         a = Assistant(; llm = FakeLlm("Hello world"))
         (editor, backend) = _tr_tracking_editor(a, make_assistant_projection_example())
         press(event) = _tr_press!(editor, backend, event)
-        texts = _tr_texts(_tr_window(backend))
-        # The composer can need more frames than one before it draws its hint, as a
-        # run on CI showed; the wait has a bound.
-        for _ in 1:50
-            any(t -> occursin("type here", t[3]), texts) && break
-            run_frame!(editor)
-            texts = _tr_texts(_tr_window(backend))
-        end
+        texts = _tr_wait_text!(t -> occursin("type here", t), editor, backend)
         (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
         _tr_clicks!(editor, backend, x + 30, y + 8, 1)
         foreach(c -> press(KeyPress(c; time = 0.0)), "hi")
         press(KeyPress('\n'; time = 0.0))
         _panel_wait_idle!(a)
-        foreach(_ -> run_frame!(editor), 1:3)
+        _tr_wait_text!(==("Hello world"), editor, backend)
         _tr_place!(editor, backend, "Hello world", 2; tracking = true)
         foreach(_ -> press(KeyDown(:right, _TR_SHIFT; time = 0.0)), 1:3)
         @test _tr_root_range(editor) == (2, 5, :forward)

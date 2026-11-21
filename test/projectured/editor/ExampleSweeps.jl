@@ -526,7 +526,9 @@ function test_click_roundtrips(; only = nothing, skip = nothing)
                               # its navigation sweeps cover the carets.
                               "fsm", "fsm_toggle", "fsm_crossing", "fsm_alternating_bit") && continue
             @testset "$(example.name)" begin
-                test_click_roundtrip(example.name, example.document, example.projection;
+                # A fresh document, as the navigation sweep below: a walk before this
+                # one, such as the repl sweep, edits the cached `example.document`.
+                test_click_roundtrip(example.name, example.make_document(), example.make_projection();
                                      broken=click_broken(example.name))
             end
         end

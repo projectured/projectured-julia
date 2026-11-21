@@ -363,7 +363,9 @@ function test_mouse_clicks(; only = nothing, skip = nothing)
                               "collection", "reversing", "filtering",
                               "sorting", "formula_report") && continue
             @testset "$(example.name)" begin
-                test_mouse_click_roundtrip(example.name, example.document, example.projection;
+                # A fresh document: a walk before this one, such as the repl sweep,
+                # edits the cached `example.document`.
+                test_mouse_click_roundtrip(example.name, example.make_document(), example.make_projection();
                                            broken=mouse_broken(example.name))
             end
         end
