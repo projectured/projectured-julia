@@ -1,5 +1,5 @@
 """
-    test_supervised_runs()
+    run_supervisor_tests()
 
 The supervisor of `tool/run-tests.jl`, with real worker processes: each part of a
 suite gets a result, a part that passes its time limit gets `timeout` and the
@@ -9,7 +9,7 @@ over the memory runs once more before it gets the result `memory`, and
 the record of a commit of main is stored and compared with a run of a branch, and
 a session keeps its worker and runs each request with the changes of the files.
 """
-function test_supervised_runs()
+function run_supervisor_tests()
     @testset "a supervised run gives each part a result, and a part that hangs stops no other" begin
         folder = mktempdir()
         fixture = joinpath(folder, "SupervisedFixture.jl")

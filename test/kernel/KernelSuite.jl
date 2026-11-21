@@ -137,9 +137,7 @@ export test_kernel, test_kernel_layering
 export TestPart, TestSuite, run_suite, run_part, select_parts, select_by_name, list_parts, find_part
 export PartRecord, PART_RECORD_COLUMNS, write_part_record, read_part_records, test_suite_runner
 export WORKER_LINE_PREFIX, HeldTestSet, run_test_worker, read_name_filter
-export TestRunOptions, read_test_run_options, run_test_supervisor, test_supervised_runs
-export test_record_store, compare_records, store_and_compare_records, repository_name
-export run_test_session, send_test_request
+export test_supervised_runs, repository_name
 export reached_test_paths, changed_files, select_changed_parts, run_changed_parts, test_changed_parts
 # layering guard (shared by base/visual/domain test packages)
 export check_layering, check_slice_edges, get_package_source_root, test_layering_checkers

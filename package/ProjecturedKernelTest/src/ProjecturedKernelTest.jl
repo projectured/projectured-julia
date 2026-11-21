@@ -56,12 +56,16 @@ include("../../../test/kernel/layering/KnownViolations.jl")
 include("../../../test/kernel/layering/CheckLayering.jl")
 
 # ── the runner of a suite: a suite is a table of its parts ──────────────────
-include("../../../test/kernel/runner/TestSupervisor.jl")
+# The supervisor of `tool/run-tests.jl` (`TestSupervisor.jl`) is not part of the package:
+# the script and the test of the supervisor include it at run time, so a change of the
+# supervisor compiles no test package.
+include("../../../test/kernel/runner/GitText.jl")
+include("../../../test/kernel/runner/CoverageMap.jl")
 include("../../../test/kernel/runner/SuiteRunner.jl")
 include("../../../test/kernel/runner/ChangedParts.jl")
 include("../../../test/kernel/runner/TestWorker.jl")
 include("../../../test/kernel/runner/SuiteRunnerTest.jl")
-include("../../../test/kernel/runner/TestSupervisorTest.jl")
+include("../../../test/kernel/runner/SupervisedRuns.jl")
 include("../../../test/kernel/runner/ChangedPartsTest.jl")
 
 # ── kernel unit tests (one suite per kernel layer) ──────────────────────────

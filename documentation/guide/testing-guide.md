@@ -299,7 +299,8 @@ the record of `main` when the land moves `main` to that commit. A run of a branc
 then compared with the stored record of the commit where the branch left `main`. The supervisor
 prints each part whose result or counts changed, and each new part. So a run of
 a branch needs no run of `main` beside it, when a run of that commit of `main`
-stored its record. `compare_records(base, other)` compares two record files.
+stored its record. `compare_records(base, other)` of `test/kernel/runner/TestSupervisor.jl`
+compares two record files; `include` that file in the REPL to call it.
 
 ### A session that stays open
 
