@@ -61,4 +61,9 @@ include("../../../test/domain/json/projection/JsonThemeTest.jl")
 
 include("../../../test/domain/json/JsonSuite.jl")
 
+# The image of this package holds the recorded calls of its parts (compile-ahead.md,
+# Decision 11): its workload is all of its parts.
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead run_suite(test_json)
+
 end # module ProjecturedJSONTest
