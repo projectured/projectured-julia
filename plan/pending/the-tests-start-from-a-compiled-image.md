@@ -174,6 +174,13 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   three edits of one body line of the platform after the founding commit. The founding of the
   image did not end: the kernel ended it at the cap of 28 GB after 38 min 44 s, with a peak of
   28.9 GB. So a founding with this list needs more than the budget of `bounded-run`.
+- **The reactive compiler, second measure (the owner: "Agreed" to measure with
+  `ProjecturedJSONTest`).** The founding commit is the one where `ProjecturedPlatformTest` has
+  no list, and the statements are the 3,542 calls of `ProjecturedJSONTest`. The founding did not
+  end either: the kernel ended it at the cap of 18 GB after 26 min, in the step "compiling
+  incremental system image", which compiles the whole stack in one process with no package
+  images. So each founding that holds the platform needs more than 18 GB, as the founding of
+  the IDE needed about 28 GB. A third run with a cap of 32 GB waits for room in the budget.
 
 ## 4. Rule of runs and measurements
 
