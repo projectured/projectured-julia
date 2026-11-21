@@ -449,6 +449,26 @@ function _give_part!(worker::_Worker, part::_QueuedPart)
                             _send(worker, "call", part.locator, part.path, part.name)
 end
 
+# When the job of bounded-run (BOUNDED_RUN_JOB, BOUNDED_RUN_BIN) has room in the budget of the
+# machine, raise its cap by `bytes`, in steps of 512 MiB and at most once each 30 s, and give
+# the bytes that it grew; else 0.
+const _GROWN_AT = Ref(0.0)
+function _grow_job!(bytes::Integer, output::IO)
+    job, tool = get(ENV, "BOUNDED_RUN_JOB", ""), get(ENV, "BOUNDED_RUN_BIN", "")
+    (isempty(job) || isempty(tool) || !isfile(tool)) && return 0
+    time() - _GROWN_AT[] < 30 && return 0
+    _GROWN_AT[] = time()
+    step = cld(bytes, 2^29) * 2^29
+    answer = try
+        read(pipeline(`$tool grow $job +$(div(step, 2^20))M`; stderr = devnull), String)
+    catch
+        return 0                                        # no room now: the run waits
+    end
+    occursin("->", answer) || return 0
+    println(output, "The job grew: ", strip(answer), ".")
+    step
+end
+
 # The memory cap of the cgroup of this process, as bounded-run sets it, or 0 when it has none.
 function _job_memory_cap()
     line = try
@@ -548,6 +568,9 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                     oldest = oldest_waiting()
                     oldest === nothing && break
                     end_worker!(oldest)
+                end
+                if held() + need(part) > total && is_others_running
+                    total += _grow_job!(held() + need(part) - total, output)
                 end
                 held() + need(part) <= total || !is_others_running || break
                 number += 1
