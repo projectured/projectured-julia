@@ -131,6 +131,10 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   of all test packages (about 30 minutes and 26 GB to build). Written as Decision 11 of
   `compile-ahead.md`, with its consequence: a call of a lower package stays in the list of the
   test package, so Decision 8 does not apply to the tests.
+- **Q2. Which parts a test package records.** The owner, 2026-11-21: "Yes" to the
+  recommendation: all of its parts, fast and slow. The build of the largest list, that of
+  `ProjecturedTest` with the 68 integration parts, is measured in the first step of the work;
+  if it takes too long, the owner can limit it to the fast parts.
 
 ## 4. Rule of runs and measurements
 
