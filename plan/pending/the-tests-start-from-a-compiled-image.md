@@ -168,6 +168,13 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
   follow a change below it without the rebuild of the whole image.
 
+- **The reactive compiler, first measure (2026-11-21, the owner: "Yes").** The replay gate of
+  `julia-merged-next` (`contrib/reactive-compiler/tool/gate_replay.sh`), with `PACKAGE =
+  ProjecturedPlatformTest` and its 46,616 recorded calls as the statements, on a branch with
+  three edits of one body line of the platform after the founding commit. The founding of the
+  image did not end: the kernel ended it at the cap of 28 GB after 38 min 44 s, with a peak of
+  28.9 GB. So a founding with this list needs more than the budget of `bounded-run`.
+
 ## 4. Rule of runs and measurements
 
 - Every Julia process of this plan runs with `bounded-run`. A build above its budget needs the
