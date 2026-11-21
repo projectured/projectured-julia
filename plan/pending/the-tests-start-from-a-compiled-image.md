@@ -1,6 +1,6 @@
 # The tests start from a compiled image
 
-> **Status (2026-11-21): step 1 done.** The plan is step 4 of agents-work-fast (A6, approved
+> **Status (2026-11-21): steps 1 and 2 done; step 3 asks the owner.** The plan is step 4 of agents-work-fast (A6, approved
 > with that plan on 2026-11-20): first the measure, then the questions of the design to the
 > owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
@@ -64,7 +64,7 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   record for each run: `test_kernel`, `test_json`, and `test_printers`. The compile of the second
   run is the share that an image can not remove. **Done when:** this plan gives, for each sample,
   the compile of the first and of the second run, and the share that an image can save.
-- [ ] 2. **One image of one sample.** Record the calls that the sample with the largest share
+- [x] 2. **One image of one sample.** Record the calls that the sample with the largest share
   compiles (`--trace-compile`). Build an image of the test packages of that sample from the
   record. Run the sample from the image. **Done when:** this plan gives the compile, the start
   time and the peak memory of a worker from the image, and the time and the memory of the build
@@ -100,6 +100,22 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   processes of their own. So the code of the tests compiles again in each new process, and the
   package images hold almost none of it. `test_meaning_search` fails 6 checks in a second run
   in the same process: the stores of its toy models stay from the first run.
+
+- **Step 2 (2026-11-21, the same lane).** A trace of one run of `test_json` holds 5,411 calls.
+  A throwaway package that depends on `ProjecturedJSONTest` compiles each call of the trace at
+  its precompile, so its package image holds the code (the form of Decision 2 of
+  `compile-ahead.md`: recorded calls in a package image). All 5,411 calls compiled. Each run is
+  a new process, in the order without, with, without:
+
+  | | Without the image | With the image |
+  |---|---|---|
+  | Time of the 23 parts | 118.3 s, 118.0 s | 7.4 s |
+  | Compile in the parts | 111.1 s, 110.8 s | 0.5 s |
+  | Load before the parts | 4.8 s | 5.1 s |
+  | Peak of the job | 1.2 GB | 0.87 GB |
+
+  The build of the image took 162 s with a peak of 3.0 GB, and the image is 84 MB. So a run of
+  the sample takes 13 s in place of 124 s.
 
 ## 4. Rule of runs and measurements
 
