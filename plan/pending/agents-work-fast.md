@@ -135,11 +135,11 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `main-stays-green` in projectured-julia, and the list and the marks of omnet-julia. Land and
   push `tests-run-fast` and `main-stays-green` in both repositories. **Done when:** both are on
   `main` and pushed, and a run of all parts on `main` has no unmarked `Fail` or `Error`.
-- [ ] 2. **Tight memory and more cores (A2, A3, A4, A7).** Change `bounded-run` and the runner.
+- [x] 2. **Tight memory and more cores (A2, A3, A4, A7).** Change `bounded-run` and the runner.
   Run `bounded-run selftest`. **Done when:** a run of all parts of projectured-julia with the
   caps of its record and 8 workers on 16 cores is green, and its time and its peak are in this
   plan.
-- [ ] 3. **A worktree compiles only what changed (A5).** Measure first: a new worktree with a
+- [x] 3. **A worktree compiles only what changed (A5).** Measure first: a new worktree with a
   change in one domain, its first load with the seed and the binding, against a new private
   depot. Then the seed, its update after a land, and a helper that makes a worktree with its
   depot and the command that runs Julia in it. **Done when:** the first load of a new worktree
@@ -148,7 +148,7 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `the-tests-start-from-a-compiled-image`. **Done when:** the compile is less than 30 % of the
   time of the parts in a run of all parts, or the owner decides on another goal at its
   questions.
-- [ ] 5. **The cycle (A8, A9, A10, A11).** The session keeps a worker for each package, the
+- [x] 5. **The cycle (A8, A9, A10, A11).** The session keeps a worker for each package, the
   runner starts workers by the memory of its job, `bounded-run grow`, the compile in the
   background, and the map of what each part runs. Measure the cycle: an edit in one slice of the platform, then the result of the
   fast parts that it reaches, in a worktree of step 3. **Done when:** that cycle takes less than
@@ -208,6 +208,32 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
 - **A name that hides a function of Base** was the cause of two faults of the filter of
   `tests-run-fast` and of one of mine: a keyword `only` or `count` hides `Base.only` or
   `Base.count` in its function. A guard of the naming rules could find it.
+- **Step 5, the map (2026-11-21).** A run with coverage of all 765 parts of `main` 7cd53ced0 took
+  1 h 47 min on 10 cores (1 h 31 min with no coverage), peak 19.1 GB. Its map holds 156,414 lines
+  of 1,624 files. In the first form, each line named its parts, 121 MB; the compact form numbers
+  the parts and joins runs of lines, 7.3 MB, read in 0.2 s. Under coverage, `test_assistant_stream`
+  failed once and `test_application` passed its limit; a part with no coverage in the map goes by
+  the folders of the changes. The lookup takes the stored map of the newest commit before the
+  fork, so `--changed main` needs no path.
+- **Step 5, the selection.** One changed line in the body of the word wrapping: the folders reach
+  most tests of the platform and of each package above it; the map chooses the 15 parts that
+  execute the line, 6 of them fast. The first rule for a new method chose 153 parts, each part
+  that executed any line of the method; the rule now looks at the header lines only.
+- **Step 5, the cycle (2026-11-21, a session of 4 workers on 8 cores in a worktree of step 3).**
+  The edit is one line in the body of the word wrapping; the map chooses 6 fast parts.
+  - The first request after a change of the kernel test package: 606 s at a cap of 8 GB, the
+    compile of about 100 images (at 4 GB the compile ran out of memory, so the runner now grows
+    its job before a worker loads).
+  - The first edit: 786 s and 841 s, because the new workers load the images that the edit made
+    stale and compile them.
+  - A second edit with warm workers: 82 s, of which 72 s was the compile of `test_readers` on a
+    worker that had not run it. With a worker that takes first the parts that it ran, a second
+    edit took 29.4 s and a third 11.6 s, each part with less than 0.2 s of compile.
+  - Before: a new worktree compiled 703-743 s before its first test (step 3), and `test_platform`
+    took 250-365 s. So the cycle of a warm session is less than a tenth, and step 5 is done for
+    the map, the session and the grow. The first edit of a session stays slow; a session that
+    starts its workers before that edit would make it as fast as the second, at the cost of the
+    memory of the warm workers, about 3 GB each (a question to the owner).
 - **Found along the way:** the recorded call list of `ProjecturedJulia` is stale (539 of 3186
   calls no longer resolve), so that package compiles more at each load; step 4 records it again.
 
