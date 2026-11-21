@@ -388,6 +388,33 @@ function run_supervisor_tests()
         @test _stop_background_compile(nothing) === nothing
     end
 
+    @testset "the runner gives back the memory that its workers no longer hold" begin
+        folder = mktempdir()
+        calls = joinpath(folder, "calls")
+        tool = joinpath(folder, "bounded-run")
+        write(tool, """
+            #!/bin/sh
+            echo "\$@" >> $calls
+            echo "\$2: cap 8.0G -> 3.0G"
+            """)
+        chmod(tool, 0o755)
+        withenv("BOUNDED_RUN_JOB" => "fake", "BOUNDED_RUN_BIN" => tool) do
+            output = IOBuffer()
+            # A cap 1 GiB or more above the need goes down to the need, in steps of 512 MiB.
+            @test _shrink_job!(2^31 + 1, output; cap = 8 * 2^30) == 3 * 2^30
+            @test readchomp(calls) == "shrink fake 2560M"
+            @test occursin("The job gave back memory: fake: cap 8.0G -> 3.0G", String(take!(output)))
+            # A cap less than 1 GiB above the need stays, and a run with no cap gives nothing.
+            @test _shrink_job!(7 * 2^30 + 1, output; cap = 8 * 2^30) == 0
+            @test _shrink_job!(2^30, output; cap = 0) == 0
+            @test countlines(calls) == 1
+        end
+        # With no job of bounded-run, nothing is called.
+        withenv("BOUNDED_RUN_JOB" => nothing) do
+            @test _shrink_job!(2^30, IOBuffer(); cap = 8 * 2^30) == 0
+        end
+    end
+
     @testset "the command line of the supervisor" begin
         options = read_test_run_options(["--memory", "800M", "--limit", "30", "--only", "r\"^a\"",
                                          "--workers", "3", "P", "test_p", "Q", "test_q"])

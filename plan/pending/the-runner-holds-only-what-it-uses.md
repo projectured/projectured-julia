@@ -41,10 +41,10 @@ status above.
 
 Do the work in the worktree `projectured-julia-runner-memory`. Make one commit for each step.
 
-- [ ] 1. **The supervisor leaves the package (R4).** **Done when:** the test of the supervisor
+- [x] 1. **The supervisor leaves the package (R4).** **Done when:** the test of the supervisor
   passes, and a change of `TestSupervisor.jl` compiles no package in the worktree.
 - [x] 2. **`bounded-run shrink` (R1).** **Done when:** its selftest passes.
-- [ ] 3. **The runner gives memory back (R2).** **Done when:** a test of the supervisor shows a
+- [x] 3. **The runner gives memory back (R2).** **Done when:** a test of the supervisor shows a
   lower cap after a worker ends, and a run of all parts gives back its memory at its end.
 - [ ] 4. **The session starts its workers (R3).** **Done when:** the first edit of a session
   takes about as long as a later one, measured as in agents-work-fast step 5.
@@ -55,3 +55,11 @@ Do the work in the worktree `projectured-julia-runner-memory`. Make one commit f
 - **Step 2 (2026-11-21).** `bounded-run shrink` lowers the cap with `systemctl set-property
   MemoryMax`, as `grow` raises it. Its selftest passes, with two new checks: a shrink to a size
   above the use, and a shrink that the use stops 512 MiB above it.
+- **Step 1.** `Module(:SupervisorTests)` has no `include` of its own, and the supervisor file
+  includes its two shared files, so the part defines one. The supervisors inside the test saw
+  the name of the real job and grew it from 8 GB to 11 GB; the part now hides the job from them.
+  After the step, a change of `TestSupervisor.jl` loaded `ProjecturedKernelTest` in 0.0 s.
+- **Step 3.** The runner lowers its cap at the top of its loop, when no queued part waits and
+  the memory of its live workers changed: to that memory and 1 GiB, in steps of 512 MiB, and
+  only when the cap is 1 GiB or more above. The run of the test of the supervisor ended with
+  its job at a cap of 1.0 GB, from 8 GB.

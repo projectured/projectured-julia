@@ -481,6 +481,26 @@ function _grow_job!(bytes::Integer, output::IO)
     step
 end
 
+# When the cap of the job of bounded-run is at least 1 GiB above `bytes`, lower it to `bytes`,
+# rounded up to 512 MiB, so the budget of the other jobs gets the memory that this run does
+# not need; bounded-run keeps the cap above the use of the job. Give the new cap; 0 when the
+# cap stays.
+function _shrink_job!(bytes::Integer, output::IO; cap::Integer = _job_memory_cap())
+    job, tool = get(ENV, "BOUNDED_RUN_JOB", ""), get(ENV, "BOUNDED_RUN_BIN", "")
+    (isempty(job) || isempty(tool) || !isfile(tool) || cap == 0) && return 0
+    target = cld(bytes, 2^29) * 2^29
+    cap - target >= 2^30 || return 0
+    answer = try
+        read(pipeline(`$tool shrink $job $(div(target, 2^20))M`; stderr = devnull), String)
+    catch
+        return 0
+    end
+    found = match(r"->\s*([0-9.]+)([KMGT])", answer)
+    found === nothing && return 0
+    println(output, "The job gave back memory: ", strip(answer), ".")
+    round(Int, parse(Float64, found[1]) * 1024.0^something(findfirst(==(found[2][1]), "KMGT"), 0))
+end
+
 # Before a worker of `memory` bytes starts beside the live `workers`: when the cap of the job
 # holds less than their memory, this one and 1 GiB for the supervisor, grow the job by what
 # it lacks. A worker that loads compiles the images that a change made stale, so a job that
@@ -573,6 +593,7 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
     # In a session, the worker that waited the longest ends first, to free memory or a place.
     oldest_waiting() = (waiting = [w for w in places if is_live(w) && !is_busy(w)];
                         isempty(waiting) ? nothing : argmin(w -> w.used, waiting))
+    shrunk_for = -1                     # the memory of the live workers at the last shrink
     while true
         if is_per_home && !is_warm
             # A worker that waits and whose home has no part left ends, and frees its memory.
@@ -583,6 +604,12 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                     places[k] = nothing
                 end
             end
+        end
+        # No queued part waits: give back the memory of the workers that ended.
+        if isempty(remaining) && held() != shrunk_for
+            shrunk_for = held()
+            cap = _shrink_job!(shrunk_for + 2^30, output)
+            cap > 0 && (total = min(total, cap - 2^30))
         end
         for k in eachindex(places)
             isempty(remaining) && break
