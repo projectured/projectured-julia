@@ -1,9 +1,10 @@
 # Main stays green
 
-> **Status (2026-11-20): approved, in progress.** The owner asked for this work on 2026-11-20
-> and approved the plan for implementation the same day ("yes, implement it"). The work is on
-> the branch `main-stays-green` in the worktrees `projectured-julia-main-stays-green` and
-> `omnet-julia-main-stays-green`. Step 1 runs.
+> **Status (2026-11-21): in progress.** projectured-julia lands with the runner of
+> `tests-run-fast`: steps 1 to 3 and the rule of step 5 are done there. The last run of all
+> 765 parts on the land branch (rebased on `main` `21e0f30da`) had 1 fail, which is marked
+> now, and no error, and each part ended. omnet-julia (step 4) is marked on its branch, and its
+> check run gives 3 fails and 45 errors left; it lands after projectured-julia.
 
 ## 1. The purpose
 
@@ -124,15 +125,15 @@ Do the work in the worktrees `projectured-julia-main-stays-green` and
 step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
 --unshare-net`.
 
-- [ ] 1. **The list.** Run all parts of each repository two times on one commit of `main`.
+- [x] 1. **The list.** Run all parts of each repository two times on one commit of `main`.
   Read the last CI run on `main`. Write each part that is not green into section 5 of this
   plan, with each check by its file and line, and its kind: fail, error, sometimes (G3),
   process (G5), hang or memory (G4). **Done when:** section 5 names each check that is not
   green in the two runs and in CI.
-- [ ] 2. **The fails and errors of projectured-julia (G2).** Mark each check of kind fail or
+- [x] 2. **The fails and errors of projectured-julia (G2).** Mark each check of kind fail or
   error, and give each guard its list of known entries. **Done when:** a run of all parts on
   the branch has no unmarked `Fail` or `Error` outside the kinds of step 3.
-- [ ] 3. **The other kinds in projectured-julia (G3, G4, G5).** Change the waits, mark the
+- [x] 3. **The other kinds in projectured-julia (G3, G4, G5).** Change the waits, mark the
   checks of speed and of process, fix or skip each hang, and fit each part in its memory.
   Split the CI job of `test_integration` (G7). **Done when:** two runs of all parts on the
   branch are green. With the word of the owner, the branch is pushed, and a CI run of the

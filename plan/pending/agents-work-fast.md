@@ -5,6 +5,9 @@
 > with `main-stays-green` in step 1. The owner also asked: "if something else is found along
 > the way which can be done better than let me know. We really need to bring down the
 > compilation, the testing time because writing code is now negligible to these two".
+> 2026-11-21: step 1 lands in projectured-julia, with the work of steps 2 and 5 on the runner
+> (A7, A8, A9 without the call of grow, A11). The run of all parts of the land branch took
+> 1 h 31 min on 10 cores, with 1 fail (now marked) and no error. omnet-julia follows.
 
 ## 1. The purpose
 
