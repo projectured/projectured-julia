@@ -178,7 +178,9 @@ The workload of a test package is all of its parts, fast and slow, except in
 `ProjecturedPlatformTest` and `ProjecturedTest`, whose lists of all parts were
 too large to build (an image of 988 MB in about 20 minutes, and an image that
 did not build in 24 GB): they record their fast parts, and a test package whose
-image still takes more than about 5 minutes or 8 GB has no list. A test
+image still takes more than about 5 minutes or 8 GB has no list.
+`ProjecturedPlatformTest` has no list: the list of its fast parts holds 42,064
+calls, and its image did not build in 20 GB. A test
 package records again as U5 says, and after each land, in the background, for
 each test package whose files the land changed. A
 run of `test_json` in a new process took 124 s, of which 111 s was compile; with

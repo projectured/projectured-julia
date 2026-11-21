@@ -16,7 +16,6 @@ ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
-ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -28,4 +27,3 @@ ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
-ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}

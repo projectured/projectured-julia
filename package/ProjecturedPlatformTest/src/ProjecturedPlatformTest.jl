@@ -675,11 +675,4 @@ end
 # of the slices that the loop above binds, so it loads after them.
 include("../../../test/platform/PlatformSuite.jl")
 
-# The image of this package holds the recorded calls of its parts (compile-ahead.md,
-# Decision 11). Its workload is its fast parts: with all of its parts, the image took about
-# 20 minutes and 988 MB (the owner, 2026-11-21).
-import ProjecturedKernelTest
-using ProjecturedPrecompile: @compile_ahead
-@compile_ahead ProjecturedKernelTest.run_suite(test_platform; level = :fast)
-
 end # module ProjecturedPlatformTest

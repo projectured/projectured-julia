@@ -156,6 +156,13 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   `ProjecturedPlatformTest` and `ProjecturedTest` record only their fast parts. If the image of
   one of them still takes more than about 5 minutes or 8 GB to build, that package gets no list,
   and its parts compile while they run, as before.
+- **Q4, the result.** The fast parts of `ProjecturedPlatformTest` record 42,064 calls, only
+  10 % fewer than all of its parts (46,616), and its image with them did not build in a cap of
+  20 GB (two OOM kills). So it has no list. The list of all parts of `ProjecturedTest` is gone
+  too, because its image does not build; the list of its fast parts is recorded again next.
+  The lists of the other test packages were recorded while the image of
+  `ProjecturedPlatformTest` held its list, so they lack the calls that it held; they record
+  again after `ProjecturedTest`.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
