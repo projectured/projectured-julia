@@ -131,7 +131,7 @@ Each decision is proposed by the assistant. The owner approved them with the pla
 Do the work in the worktrees of `main-stays-green` and in the copy of `bounded-run`. Make one
 commit for each step in a repository. Run each Julia process with `bounded-run`.
 
-- [ ] 1. **The runner and green main land (A1).** Fix the two filter faults. Finish the check of
+- [x] 1. **The runner and green main land (A1).** Fix the two filter faults. Finish the check of
   `main-stays-green` in projectured-julia, and the list and the marks of omnet-julia. Land and
   push `tests-run-fast` and `main-stays-green` in both repositories. **Done when:** both are on
   `main` and pushed, and a run of all parts on `main` has no unmarked `Fail` or `Error`.
