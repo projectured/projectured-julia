@@ -63,3 +63,16 @@ Do the work in the worktree `projectured-julia-runner-memory`. Make one commit f
   the memory of its live workers changed: to that memory and 1 GiB, in steps of 512 MiB, and
   only when the cap is 1 GiB or more above. The run of the test of the supervisor ended with
   its job at a cap of 1.0 GB, from 8 GB.
+- **Step 4, the measure (2026-11-21).** After the warm-up request (26 s), the session started 3
+  more workers of `ProjecturedTest` and grew its job from 7 GB to 25 GB. The first edit still
+  took 861 s: the request came while the new workers loaded, and the three integration parts
+  then compiled 176-230 s each. A second edit took 13.3 s. The same six parts in fresh workers
+  of their package, with no session and no Revise, compiled just as long (172-235 s), so the
+  cost is the first run of a part in a fresh worker, and a worker that starts early does not
+  remove it; only a compiled test image (agents-work-fast step 4) does. In the land run these
+  parts compiled 14-72 s because earlier parts in the same worker had compiled the shared code.
+- **The compile in the background (A10) costs more than it gives.** After requests B and C, it
+  compiled the images of the two edits; when the edit was taken back, they were stale, and the
+  first worker of the next run loaded `ProjecturedTest` in 603 s, where it took 26 s before. An
+  image of the state after a request helps only a worker that starts before the next edit, and
+  a session starts few workers.
