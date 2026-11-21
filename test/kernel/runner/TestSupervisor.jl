@@ -99,8 +99,7 @@ const _RUN_TESTS_USAGE = """
       --level LEVEL    run only the fast parts (fast), only the slow ones (slow), or all (all)
       --record PATH    add one line of tab-separated values for each part to PATH
       --stay FOLDER    keep the workers open, with Revise, and run each request that
-                       FOLDER/requests receives, before each one with the changes of the files;
-                       after a request, compile the images of its packages in the background
+                       FOLDER/requests receives, before each one with the changes of the files
       --send FOLDER    send the other arguments to the session of FOLDER as a request,
                        wait for its end, print its output and give its exit code
       --restart        (a request) start new workers before the run
@@ -908,20 +907,14 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
     sink = Ref{IO}(output)
     workers = _Worker[]
     columns = String[]
-    packages = Set{String}()                             # the packages of the requests
-    compile = nothing                                    # the compile in the background
     try
         println(output, "The session waits for requests in $requests.")
         while true
             names = sort(filter(name -> endswith(name, ".request"), readdir(requests)))
             if isempty(names)
-                number, fields = take!(events)           # a tick, the end of a worker, or a load
+                number, fields = take!(events)           # a tick, or the end of a worker
                 k = findfirst(w -> w.number == number, workers)
                 first(fields) == "ended" && k !== nothing && (workers[k].is_ended = true)
-                if first(fields) == "loaded" && k !== nothing
-                    push!(workers[k].loaded, fields[2])
-                    println(output, "Worker $(workers[k].number) loaded $(fields[2]) in $(fields[3]) s.")
-                end
                 continue
             end
             stem = first(splitext(first(names)))
@@ -946,7 +939,6 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
             "--memory-from" in arguments || (request.memory_from = options.memory_from)
             "--coverage-map" in arguments || (request.coverage_map = options.coverage_map)
             request.record = joinpath(results, stem * ".tsv")
-            _stop_background_compile(compile)
             code = open(joinpath(results, stem * ".log"), "w") do log
                 sink[] = log
                 try
@@ -960,72 +952,10 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
             end
             done(code)
             println(output, "Request $stem: exit code $code.")
-            union!(packages, first.(request.suites))
-            _prestart_workers!(workers, request, events, columns, sink, output)
-            compile = _start_background_compile(options, packages, joinpath(options.stay, "compile.log"))
         end
     finally
         close(ticker)
         _end_workers(workers)
-        _stop_background_compile(compile)
-    end
-end
-
-# Compile the images of `packages` and of what they use in the background: one task, at
-# the lowest priority and with the highest OOM score, so a worker that starts later loads
-# fresh images, and the kernel ends the compile and not the supervisor. The compile has a
-# process group of its own, so `_stop_background_compile` ends the compiles that it started.
-# A name that is not a package, such as the path of a file of parts, is left out;
-# `nothing` when none is left.
-function _start_background_compile(options::TestRunOptions, packages, log::AbstractString)
-    names = sort!(unique!([String(p) for p in packages if Base.isidentifier(p)]))
-    isempty(names) && return nothing
-    script = "try; write(\"/proc/self/oom_score_adj\", \"1000\"); catch; end; " *
-             "ccall(:setpriority, Cint, (Cint, Cuint, Cint), 0, 0, 19); " *
-             "using Pkg; Pkg.precompile($(repr(names)))"
-    command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$(options.project) -e $script`,
-                     "JULIA_NUM_PRECOMPILE_TASKS" => "1")
-    run(pipeline(Cmd(command; detach = true); stdout = log, stderr = log, append = true); wait = false)
-end
-
-# End the compile in the background and each compile that it started. A worker that needs
-# an image waits for the lock of the compile of that image, so a request ends the compile
-# first, and the compile uses only the time between two requests.
-function _stop_background_compile(compile)
-    (compile === nothing || !process_running(compile)) && return nothing
-    ccall(:kill, Cint, (Cint, Cint), -getpid(compile), 15)
-    timedwait(() -> !process_running(compile), 10.0)
-    nothing
-end
-
-# After a request of a session: for each package of the request, start workers that load
-# it, up to the count of the workers of the request, while their memory fits in the cap of
-# the job or the job grows. So the next request, often the first after an edit, finds them
-# warm and does not start them then. A worker marks its package as loaded when it answers.
-function _prestart_workers!(workers, request, events, columns, sink, output)
-    most = max(1, div(_usable_cpus(), request.threads))
-    count = min(request.workers == 0 ? most : request.workers, most)
-    for package in unique(first.(request.suites))
-        live() = [w for w in workers if !w.is_ended && (package in w.loaded || isempty(w.loaded))]
-        missing = count - length(live())
-        missing > 0 || continue
-        memory = maximum((w.memory for w in live()); init = request.memory_bytes)
-        held() = sum((w.memory for w in workers if !w.is_ended); init = 0)
-        # One grow for all the missing workers: a job grows at most once in 30 s.
-        cap = _job_memory_cap()
-        need = held() + missing * memory + 2^30
-        cap > 0 && need > cap && _grow_job!(need - cap, output)
-        for _ in 1:missing
-            cap = _job_memory_cap()
-            cap > 0 && held() + memory + 2^30 > cap && break    # no room: fewer warm workers
-            number = maximum((w.number for w in workers); init = 0) + 1
-            worker = _start_worker(number, request, events, sink, true; memory)
-            push!(workers, worker)
-            _wait_ready(worker, events, columns) || break
-            worker.used = time()
-            _send(worker, "load", package)
-            println(output, "Worker $number loads $package for the next request.")
-        end
     end
 end
 

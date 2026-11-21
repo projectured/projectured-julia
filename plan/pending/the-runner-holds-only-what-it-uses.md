@@ -1,6 +1,6 @@
 # The runner holds only what it uses
 
-> **Status (2026-11-21): in progress.** The owner, after the land of the plan agents-work-fast:
+> **Status (2026-11-21): in progress, step 5 (the land).** The owner, after the land of the plan agents-work-fast:
 > "Let's work on the other recommended points first", and "don't notify the other agents yet".
 
 ## 1. The purpose
@@ -31,6 +31,12 @@ status above.
   After each request, the session starts more workers of each package of the request, up to
   the count of its workers, when their memory fits. So the next edit finds them warm. Each
   warm worker holds about 3 GB; R2 gives back the memory of a worker that ends.
+- **R5. R3 and the compile in the background (A10 of agents-work-fast) go** (proposed by the
+  assistant after the measure of step 4, approved by the owner on 2026-11-21: "Agreed"). The
+  first run of a part compiles 170-230 s in any fresh worker, so a worker that starts early does
+  not make the first edit fast, and it holds about 6 GB of the budget while it waits. The
+  compile in the background built images of edits that were taken back, and a later load took
+  603 s. Only a compiled test image removes the cost: agents-work-fast step 4.
 - **R4. The supervisor is not part of `ProjecturedKernelTest`** (proposed by the assistant). The
   package keeps the worker, the suite runner, the map and the choice of the parts. The
   supervisor file is included only by `tool/run-tests.jl` (and by the one of omnet-julia) and by
@@ -46,8 +52,8 @@ Do the work in the worktree `projectured-julia-runner-memory`. Make one commit f
 - [x] 2. **`bounded-run shrink` (R1).** **Done when:** its selftest passes.
 - [x] 3. **The runner gives memory back (R2).** **Done when:** a test of the supervisor shows a
   lower cap after a worker ends, and a run of all parts gives back its memory at its end.
-- [ ] 4. **The session starts its workers (R3).** **Done when:** the first edit of a session
-  takes about as long as a later one, measured as in agents-work-fast step 5.
+- [x] 4. **The session starts its workers (R3).** Measured, then removed with the compile in the
+  background (R5): the first edit stays slow, because of the first run of each part.
 - [ ] 5. **The land.** Run all parts, land, update the seed.
 
 ## 4. What the work found

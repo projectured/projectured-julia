@@ -106,7 +106,9 @@ Each decision is proposed by the assistant. The owner approved them with the pla
   raises the cap of a running job when the budget has room.
 - **A10. The images compile in the background** (proposed by the assistant, 2026-11-20). After a
   request, the session compiles the images of the changed packages with the free cores, so a
-  new worker loads fresh images and does not compile them first.
+  new worker loads fresh images and does not compile them first. **Removed on 2026-11-21** by
+  the plan the-runner-holds-only-what-it-uses (R5, the owner: "Agreed"): it built images of
+  edits that were taken back, and a later load took 603 s in place of 26 s.
 - **A11. The parts of a change come from a map of what each part runs** (proposed by the
   assistant, approved by the owner on 2026-11-20: "Agreed"). `test_changed` chooses by files
   and folders now: a changed file of a package reaches the tests of each package that depends

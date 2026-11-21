@@ -1,11 +1,10 @@
 # Main stays green
 
-> **Status (2026-11-21): in progress.** projectured-julia landed with the runner of
-> `tests-run-fast` (`7cd53ced0`, pushed). omnet-julia landed (`2f2bd29e9`, pushed): its 268
-> parts and the three suites of `test/runtests.jl` are green. The first CI run on projectured
-> `main` had one red job; its fix is on the branch of the plan agents-work-fast, whose run of all
-> 765 parts is green, and it waits for the word of the owner. The plan is done when that lands
-> and CI on `main` is green.
+> **Status (2026-11-21): done.** projectured-julia landed with the runner of `tests-run-fast`
+> (`7cd53ced0`) and the fix of its red CI job (`e260d32ec`); the CI run 44879762481 on `main` is
+> green. omnet-julia landed at `2f2bd29e9`: its 268 parts and the three suites of
+> `test/runtests.jl` are green. The 130 notes of the memory stay as files until the owner
+> allows their removal; a new note says that `main` is green.
 
 ## 1. The purpose
 
@@ -141,7 +140,7 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   branch is green.
 - [x] 4. **omnet-julia (G2 to G5).** Do steps 2 and 3 for omnet-julia, against the branch of
   step 3. **Done when:** two runs of all parts of omnet-julia on its branch are green.
-- [ ] 5. **The rule (G6).** Write the rule into the `CLAUDE.md` of both repositories and into
+- [x] 5. **The rule (G6).** Write the rule into the `CLAUDE.md` of both repositories and into
   the testing guide. Replace the 130 notes about failures of `main` in the memory of the
   assistant with one note: `main` is green, and an unmarked failure is a regression. **Done
   when:** the texts say the rule, and each branch lands with the word of the owner, first

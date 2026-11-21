@@ -324,11 +324,7 @@ record and the exit code of a request stay in `FOLDER/results`.
 The session keeps a worker for each package, so the next request of the same
 package needs no load. When a new worker needs memory or a place, the worker that
 waited the longest ends. A request takes `--memory-from` and `--coverage-map` from the
-session when it gives none. After each request, the session compiles the images of
-the packages of its requests in the background, with one task at the lowest priority,
-so a new worker loads fresh images. The next request ends that compile first, so the
-compile uses only the time between two requests. Its output goes to
-`FOLDER/compile.log`.
+session when it gives none.
 
 In the REPL, Revise does the same for a person: `test_platform(only = "widget")`
 runs again after an edit, with no new load.
