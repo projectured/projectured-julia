@@ -117,6 +117,15 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   The build of the image took 162 s with a peak of 3.0 GB, and the image is 84 MB. So a run of
   the sample takes 13 s in place of 124 s.
 
+### The answers of the owner (step 3)
+
+- **Q1. Where the compiled code of the tests lives.** The owner, 2026-11-21: "Agreed" to the
+  recommendation: each test package keeps the recorded calls of its own parts in its own
+  `precompile/workload.txt`, the mechanism of `compile-ahead.md`, in place of one system image
+  of all test packages (about 30 minutes and 26 GB to build). Written as Decision 11 of
+  `compile-ahead.md`, with its consequence: a call of a lower package stays in the list of the
+  test package, so Decision 8 does not apply to the tests.
+
 ## 4. Rule of runs and measurements
 
 - Every Julia process of this plan runs with `bounded-run`. A build above its budget needs the

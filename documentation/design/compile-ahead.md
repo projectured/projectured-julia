@@ -165,3 +165,16 @@ its own whose code is in `source/tool/precompile/` of projectured-julia. It is
 at the bottom of the graph of the dependencies, and it depends only on
 PrecompileTools, Preferences and the standard library TOML. So each package of
 each repository can depend on it.
+
+## The tests
+
+**Decision 11.** Each test package keeps the recorded calls of its own parts in
+`precompile/workload.txt` in its folder, as Decision 4 says for the workload of
+any package, so the image of the test package holds the compiled code of its
+tests. A call of a lower package that a part makes stays in the list of the test
+package: Decision 8 does not apply to the recording of the tests, so the images
+of the packages that a person loads do not grow with the calls of the tests. A
+run of `test_json` in a new process took 124 s, of which 111 s was compile; with
+the recorded calls of its parts in an image, it took 13 s, of which 0.5 s was
+compile (2026-11-21). The cost is a longer precompile of the test package after
+a change below it, and a list to record again.
