@@ -173,19 +173,23 @@ end
     @test session.status === :paused
     @test session.current === hand              # ...and the views know where
 
-    # Continue: it runs to the same breakpoint on the next item.
+    # Continue: it runs to the same breakpoint on the next item. The flag of the
+    # first pause can still be set right after the continue, so the wait is for a
+    # pause at a later step; else the next continue can come before this one is
+    # taken, and the run waits at the breakpoint for ever.
     session.command = :continue
+    steps = run.trace.step_count
     sync_process_debug!(session, run.trace, model)
-    _wait_until(() -> run.trace.paused)
+    _wait_until(() -> run.trace.paused && run.trace.step_count > steps; timeout = 60.0)
     @test run.trace.node == get_node_index(model, hand)
     @test run.trace.step_count > 1
 
     session.command = :continue
     sync_process_debug!(session, run.trace, model)
-    wait(run.task)
+    @test timedwait(() -> istaskdone(run.task), 60.0) === :ok
     sync_process_debug!(session, run.trace, model)
     @test session.status === :finished
-    @test fetch(run.task) == 2
+    @test istaskdone(run.task) && fetch(run.task) == 2
 end
 
 @testset "stepping walks one node at a time" begin
