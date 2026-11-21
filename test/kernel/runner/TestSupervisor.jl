@@ -1006,16 +1006,18 @@ function _prestart_workers!(workers, request, events, columns, sink, output)
     most = max(1, div(_usable_cpus(), request.threads))
     count = min(request.workers == 0 ? most : request.workers, most)
     for package in unique(first.(request.suites))
-        while true
-            live = [w for w in workers if !w.is_ended && (package in w.loaded || isempty(w.loaded))]
-            length(live) >= count && break
-            memory = maximum((w.memory for w in live); init = request.memory_bytes)
-            held = sum((w.memory for w in workers if !w.is_ended); init = 0)
+        live() = [w for w in workers if !w.is_ended && (package in w.loaded || isempty(w.loaded))]
+        missing = count - length(live())
+        missing > 0 || continue
+        memory = maximum((w.memory for w in live()); init = request.memory_bytes)
+        held() = sum((w.memory for w in workers if !w.is_ended); init = 0)
+        # One grow for all the missing workers: a job grows at most once in 30 s.
+        cap = _job_memory_cap()
+        need = held() + missing * memory + 2^30
+        cap > 0 && need > cap && _grow_job!(need - cap, output)
+        for _ in 1:missing
             cap = _job_memory_cap()
-            if cap > 0 && held + memory + 2^30 > cap
-                _grow_job!(held + memory + 2^30 - cap, output)
-                held + memory + 2^30 > _job_memory_cap() && break   # no room: fewer warm workers
-            end
+            cap > 0 && held() + memory + 2^30 > cap && break    # no room: fewer warm workers
             number = maximum((w.number for w in workers); init = 0) + 1
             worker = _start_worker(number, request, events, sink, true; memory)
             push!(workers, worker)
