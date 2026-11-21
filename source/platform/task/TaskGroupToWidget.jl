@@ -118,10 +118,15 @@ end
 
 # ── The header of a task ─────────────────────────────────────────────────────
 
-# The badge of the state of a task: its result code in the role of the code once
-# it has a result, else the word of its state, in the accent role while it runs
-# and stops, with no role otherwise. It follows the task without a new print.
-function _make_task_state_badge(document::TaskDocument)
+"""
+    make_task_state_badge(document::TaskDocument) -> WidgetBadge
+
+The badge of the state of a task, as its page shows it: its result code in the
+role of the code once it has a result, such as `DONE` or `ERROR`, else the word of
+its state, in the accent role while it runs and stops, with no role otherwise. It
+follows the task without a new print.
+"""
+function make_task_state_badge(document::TaskDocument)
     badge = WidgetBadge("")
     set_cell_computation!(getfield(badge, :content), () -> _get_task_state_word(document))
     set_cell_computation!(getfield(badge, :role), () -> begin
@@ -156,13 +161,19 @@ function _make_task_header_note(p, document::TaskDocument)
     end; max_lines = 1)
 end
 
-# The error message of a task that ended with `ERROR`, in the error colour; no
-# line while the task has none, or when its result says nothing about the error.
-# With `max_lines` above 0 it shows at most that many lines, cut with "…".
-_make_task_error_line(p, document::TaskDocument; max_lines::Integer = 0) = _make_live_label(() -> begin
+"""
+    make_task_error_line(document::TaskDocument; color, max_lines = 0) -> WidgetLabel
+
+The error message of a task that ended with `ERROR`, such as `Non-zero exit code:
+3`, in `color`, as its page shows it. It takes no line while the task has none, or
+when its result says nothing about the error. With `max_lines` above 0 it shows at
+most that many lines, cut with "…". It follows the task without a new print.
+"""
+make_task_error_line(document::TaskDocument; color = get_task_style(nothing, :error_color),
+                     max_lines::Integer = 0) = _make_live_label(() -> begin
     result = get_task_document_result(document)
     message = (result !== nothing && result.result == "ERROR") ? find_error_message(result) : nothing
-    (something(message, ""), p.error_color)
+    (something(message, ""), color)
 end; max_lines)
 
 # The facts of the process of a task: its process and the time it took or takes,
@@ -705,13 +716,13 @@ function _build_task_parts(p, doc::TaskGroupDocument, detail, pages::_KindPages)
         document = selected()
         document === nothing && return Any[]
         task = getfield(document, :task)[]
-        Any[HorizontalLayout(Any[_make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
+        Any[HorizontalLayout(Any[make_task_state_badge(document), WidgetLabel(format_task_parameters(task)),
                                  _make_task_header_note(p, document)];
                              vertical_align = :center, gap = p.label_gap)]
     end)
     error_line = _make_detail_slot(() -> begin
         document = selected()
-        document === nothing ? Any[] : Any[_make_task_error_line(p, document; max_lines = 2)]
+        document === nothing ? Any[] : Any[make_task_error_line(document; color = p.error_color, max_lines = 2)]
     end)
     buttons = _make_detail_slot(() -> begin
         document = selected()

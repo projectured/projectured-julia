@@ -121,7 +121,8 @@ export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
        make_task_group_list_tab_title, ClosedTaskGroupToWidgetPane, build_task_graphics_entry
 export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
-       TaskStreamLinesToWidgetIoMap
+       TaskStreamLinesToWidgetIoMap, make_task_state_badge, make_task_error_line, make_task_output_preview,
+       TASK_PREVIEW_LINES
 export list_task_groups, find_task_group, describe_task_group, describe_task,
        get_task_output, wait_for_task_group!, wait_for_tasks!, is_task_group_running, stop_tasks!,
        rerun_tasks!, close_task_group!, run_tasks!

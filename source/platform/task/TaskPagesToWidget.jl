@@ -51,9 +51,13 @@ its times and its use of the machine, and a link to the page of each stream.
     muted_color::StyleColor = get_task_style(nothing, :muted_color)
 end
 
-# How many lines of each stream the page of a task shows before the link to the
-# page of the stream.
-const _STREAM_PREVIEW_LINES = 8
+"""
+    TASK_PREVIEW_LINES
+
+How many of the last lines of each stream the page of a task and the card of a
+command show, before a link opens every line: 8.
+"""
+const TASK_PREVIEW_LINES = 8
 
 # A link that names the page at `reference` from `document`.
 _make_task_link(text, document, reference::Reference) = WidgetLink(text, DocumentLocator(document, reference))
@@ -84,12 +88,7 @@ function _build_stream_preview(p, document, steps, shadow, field::Symbol)
     set_cell_computation!(getfield(preview.children, :elements), () -> begin
         has_lines[] || return Cell[Cell(_make_label(name * " · empty", p.muted_color))]
         link = _make_open_button(p, "Open " * name, document, _make_steps(steps..., FieldReferenceStep(page)))
-        lines = VerticalLayout(Any[]; gap = 0, child_width = Fill)
-        set_cell_computation!(getfield(lines.children, :elements), () -> begin
-            kept = collect_output_lines(getproperty(shadow, field))
-            Cell[Cell(_make_label(line, p.muted_color)) for line in kept[max(1, end - _STREAM_PREVIEW_LINES + 1):end]]
-        end)
-        follow_built_children!(lines)
+        lines = _build_stream_last_lines(shadow, field, p.muted_color)
         title = _make_label(() -> _format_stream_count(name, getproperty(shadow, field).count), p.muted_color)
         Cell[Cell(WidgetCard(; title, content = VerticalLayout(Any[link, lines]; gap = p.section_gap, child_width = Fill),
                              collapsible = true))]
@@ -98,11 +97,65 @@ function _build_stream_preview(p, document, steps, shadow, field::Symbol)
     Any[preview]
 end
 
+# The last lines of the stream `field` of an execution, in `color`, which follow
+# the end of the stream.
+function _build_stream_last_lines(shadow, field::Symbol, color)
+    lines = VerticalLayout(Any[]; gap = 0, child_width = Fill)
+    set_cell_computation!(getfield(lines.children, :elements), () -> begin
+        kept = collect_output_lines(getproperty(shadow, field))
+        Cell[Cell(_make_label(line, color)) for line in kept[max(1, end - TASK_PREVIEW_LINES + 1):end]]
+    end)
+    follow_built_children!(lines)
+    lines
+end
+
+"""
+    make_task_output_preview(document::TaskDocument; gap, color) -> VerticalLayout
+
+The output of the current execution of a task in a few lines, as the card of a
+command shows it: for each stream that has lines, a link `stdout · 12 lines`,
+which opens the page of every line of the stream, over the last 8 lines, the same
+lines as the page of the task shows. A stream with no lines shows nothing. The
+preview follows the current execution and the end of each stream, without a new
+print. `gap` is the space between the parts, and `color` the color of the lines.
+"""
+function make_task_output_preview(document::TaskDocument; gap::Integer = get_widget_style(nothing, :section_gap),
+                                  color = get_task_style(nothing, :muted_color))
+    preview = VerticalLayout(Any[]; gap, child_width = Fill)
+    set_cell_computation!(getfield(preview.children, :elements), () -> begin
+        executions = getfield(document, :executions)[]
+        isempty(executions) && return Cell[]
+        k = length(executions)
+        Cell[Cell(_build_output_stream(document, _get_execution_steps(k), executions[k], field, gap, color))
+             for field in (:output, :error_output)]
+    end)
+    follow_built_children!(preview)
+    preview
+end
+
+# The count of the lines of one stream, as a link to its page, over its last
+# lines; nothing while the stream has no line. The part reads whether the stream
+# has a line in a cell of its own, so a later line does not build it again.
+function _build_output_stream(document, steps, shadow, field::Symbol, gap, color)
+    name = field === :output ? "stdout" : "stderr"
+    page = field === :output ? "stdout_page" : "stderr_page"
+    has_lines = Cell(@computation getproperty(shadow, field).count > 0)
+    part = VerticalLayout(Any[]; gap, child_width = Fill)
+    set_cell_computation!(getfield(part.children, :elements), () -> begin
+        has_lines[] || return Cell[]
+        link = _make_task_link(() -> _format_stream_count(name, getproperty(shadow, field).count), document,
+                               _make_steps(steps..., FieldReferenceStep(page)))
+        Cell[Cell(link), Cell(_build_stream_last_lines(shadow, field, color))]
+    end)
+    follow_built_children!(part)
+    part
+end
+
 function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDocument, ctx)
     task = getfield(document, :task)[]
     place = find_task_document_group(document)
     parts = Any[]
-    heading = Any[_make_task_state_badge(document), WidgetLabel(get_document_title(document)),
+    heading = Any[make_task_state_badge(document), WidgetLabel(get_document_title(document)),
                   _make_task_header_note(p, document)]
     if place !== nothing
         (group, index) = place
@@ -115,7 +168,7 @@ function print_document(p::TaskDocumentToWidgetPane, recursion, document::TaskDo
         push!(heading, _make_label(() -> _describe_row_starter(document), p.muted_color))
     end
     push!(parts, HorizontalLayout(heading; vertical_align = :center, gap = p.label_gap))
-    push!(parts, _make_task_error_line(p, document))
+    push!(parts, make_task_error_line(document; color = p.error_color))
     push!(parts, _build_task_page_actions(p, document, task, place))
     kind_part = _build_task_kind_part(p, document)
     push!(parts, kind_part)

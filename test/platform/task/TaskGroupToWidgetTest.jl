@@ -383,16 +383,16 @@ function test_task_views()
             document = wrap_task_group_document(TaskGroup(tasks; name = "headers", jobs = 4))
             documents = getfield(document, :tasks)[]
             # Before the result: the state word, with no role.
-            waiting = TaskModule._make_task_state_badge(documents[1])
+            waiting = TaskModule.make_task_state_badge(documents[1])
             @test waiting.content == "pending" && waiting.role === nothing
             wait_task_group_document(start_task_group_document!(document))
-            good = TaskModule._make_task_state_badge(documents[1])
-            bad = TaskModule._make_task_state_badge(documents[2])
+            good = TaskModule.make_task_state_badge(documents[1])
+            bad = TaskModule.make_task_state_badge(documents[2])
             @test good.content == "DONE" && good.role === :success
             @test bad.content == "ERROR" && bad.role === :error
             running = TaskDocument(_TaskGroupProbeTask("r", "exit 0"); status = :running)
-            @test TaskModule._make_task_state_badge(running).content == "running" &&
-                  TaskModule._make_task_state_badge(running).role === :accent
+            @test TaskModule.make_task_state_badge(running).content == "running" &&
+                  TaskModule.make_task_state_badge(running).role === :accent
             # The badge, the name and the muted parts stand in one line; the code
             # shows once in the detail, and the old result line is gone.
             select_task_document!(document, 2)

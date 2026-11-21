@@ -173,8 +173,13 @@ Found in step 1, decided by me (to report to the owner):
    in ExternalAgentTurn.jl gives no title to a call whose name has the prefix, or
    whose tool the tool set of the editor holds. `test_conversation_tree` 43 pass,
    `test_external_agent_turn` 363 pass.
-3. ⬜ `TaskModule` exports `make_task_output_preview`, and the task page shares its
+3. ✅ `TaskModule` exports `make_task_output_preview`, and the task page shares its
    builder of the last lines (proposed decision 8). The task page does not change.
+   The card also takes two parts of the task page, so they are public too:
+   `make_task_state_badge` (was `_make_task_state_badge`) and `make_task_error_line`
+   (was `_make_task_error_line(p, …)`, now with a `color` keyword); the count of lines
+   is the public `TASK_PREVIEW_LINES` (was `_STREAM_PREVIEW_LINES`), which the card of a
+   loaded command reads. `test_task_pages` 71 pass, `test_task_views` 168 pass.
 4. ⬜ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the
    updates after it (proposed decisions 2 to 7 and 9).
 5. ⬜ The tree, the work line, the text of a conversation, the file form, the replay and
