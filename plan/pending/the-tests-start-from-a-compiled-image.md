@@ -123,6 +123,19 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   same code over many examples, so a slow part makes the list not much longer than a package
   of fast parts. The CI run on `main` a63b22235 is green.
 
+- **Step 4, the recording and the build (2026-11-21).** `tool/record-test-calls.jl --jobs 3`
+  recorded the 40 test packages in 2 h 46 min on 10 cores, peak 27.6 GB: 102 MB of lists, of
+  which `ProjecturedTest` holds 73,674 calls (94 min to record) and `ProjecturedPlatformTest`
+  46,616 (31 min). Most lists are small: 37 packages have fewer than 5,000 calls.
+  - The image of `ProjecturedPlatformTest` with its list is 988 MB, against 89 MB without; it
+    took about 20 minutes to build (the three recordings that waited for it took 1,343-1,447 s,
+    where the others took 36-145 s).
+  - The image of `ProjecturedTest` with its list did not build: its compile ran 37 minutes
+    alone and the kernel ended it at the cap of 24 GB (one OOM kill). `Pkg.precompile` gave no
+    error for it.
+  - The image of `ProjecturedJSONTest` (3,542 calls after its dependencies recorded) builds in
+    about 2 minutes and makes its parts take 7.6 s in place of 118 s.
+
 ### The answers of the owner (step 3)
 
 - **Q1. Where the compiled code of the tests lives.** The owner, 2026-11-21: "Agreed" to the
