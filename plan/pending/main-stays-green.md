@@ -1,10 +1,11 @@
 # Main stays green
 
-> **Status (2026-11-21): in progress.** projectured-julia lands with the runner of
-> `tests-run-fast`: steps 1 to 3 and the rule of step 5 are done there. The last run of all
-> 765 parts on the land branch (rebased on `main` `21e0f30da`) had 1 fail, which is marked
-> now, and no error, and each part ended. omnet-julia (step 4) is marked on its branch, and its
-> check run gives 3 fails and 45 errors left; it lands after projectured-julia.
+> **Status (2026-11-21): in progress.** projectured-julia landed with the runner of
+> `tests-run-fast` (`7cd53ced0`, pushed). omnet-julia landed (`2f2bd29e9`, pushed): its 268
+> parts and the three suites of `test/runtests.jl` are green. The first CI run on projectured
+> `main` had one red job; its fix is on the branch of the plan agents-work-fast, whose run of all
+> 765 parts is green, and it waits for the word of the owner. The plan is done when that lands
+> and CI on `main` is green.
 
 ## 1. The purpose
 
@@ -138,7 +139,7 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   Split the CI job of `test_integration` (G7). **Done when:** two runs of all parts on the
   branch are green. With the word of the owner, the branch is pushed, and a CI run of the
   branch is green.
-- [ ] 4. **omnet-julia (G2 to G5).** Do steps 2 and 3 for omnet-julia, against the branch of
+- [x] 4. **omnet-julia (G2 to G5).** Do steps 2 and 3 for omnet-julia, against the branch of
   step 3. **Done when:** two runs of all parts of omnet-julia on its branch are green.
 - [ ] 5. **The rule (G6).** Write the rule into the `CLAUDE.md` of both repositories and into
   the testing guide. Replace the 130 notes about failures of `main` in the memory of the
@@ -148,6 +149,23 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   parts again, and mark the new failures of `main` by G2 to G5.
 
 ### What the implementation found
+
+- **omnet-julia, the last marks (2026-11-21).** Four repository guards failed on `main` and now
+  keep lists of their known violations (spelling 55, tree 20, qualifications 6, global names 3);
+  a list writes the spelling of the distribution as `{m}`, so the spelling guard does not find
+  it in its own list. The checks of `test_build` that call the compiler need `environment/build`
+  and a Julia that ships `juliac`, so they are skipped where neither is there (G5); a worktree
+  of `julia-worktree` runs the released Julia 1.13.1. The walk of the presentation atoms did not
+  end in an hour: run as one part for each atom, two walks did not end in 300 s and four natural
+  views throw at a press of the mouse; with those marked, the part takes 22 minutes alone and
+  gets a limit of 40 minutes and the slow level. The check run of all 268 parts took 53 minutes.
+- **The first CI run on projectured `main` (44852476199)** had one red job, integration 3 of 3:
+  the click sweeps read the cached `example.document`, which the repl sweep before them edits
+  (yaml and graph), and a range test waited three frames for a text that a task gives. The
+  sweeps now take a fresh document, and the test runs frames until the text is drawn. The CI
+  runs before had eight red jobs, and their integration job was cancelled before its end.
+- **The 130 notes of the memory** stay as files: their removal needs the word of the owner. A
+  new note says that `main` is green, and the index names the old notes as history.
 
 - **The runs of step 1** run in the detached checkout `projectured-julia-main-stays-green-base`
   at the merge `d732e6e2b`, with its own depot, so that the marks of step 2 do not change a run
