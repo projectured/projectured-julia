@@ -1,6 +1,6 @@
 # The tests start from a compiled image
 
-> **Status (2026-11-21): steps 1 to 3 done; step 4 next.** The plan is step 4 of agents-work-fast (A6, approved
+> **Status (2026-11-22): steps 1 to 4 done; step 5 not started; the land waits for the owner.** The plan is step 4 of agents-work-fast (A6, approved
 > with that plan on 2026-11-20): first the measure, then the questions of the design to the
 > owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
@@ -74,7 +74,7 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   goals first. **Done when:** the owner answered each question, and the answers are in this
   plan and in `compile-ahead.md`. If the owner stops the plan here, it moves to `plan/done`
   with the result of the measurement.
-- [ ] 4. **The workers start from the image.** Build the image as step 3 decides it, and let
+- [x] 4. **The workers start from the image.** Build the image as step 3 decides it, and let
   `tool/run-tests.jl` start each worker from it. **Done when:** a run of all parts from the image
   gives the same counts as a run without it, and the compile of the record is no larger than
   step 1 says.
@@ -178,6 +178,10 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   to it (the peak of `test_printers` went from 2.86 GB to 5.05 GB), so `test_application` and
   `test_window_frame_guards`, which peaked at 5.3 GB, passed the largest memory of a worker,
   6 GB. The default of `--memory` is now 8 GB.
+- **Step 4, done.** The counts of each part are those of `main`, with the default of 8 GB the
+  two parts pass too. The compile of the samples of step 1 is no larger than the second runs of
+  step 1 gave: `test_kernel` 10 s (13.6 s), `test_json` 2 s (0 s). `test_printers` keeps its
+  compile, because `ProjecturedTest` has no list by the rule of Q4.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
