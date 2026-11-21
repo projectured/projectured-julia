@@ -195,6 +195,13 @@ commit for each step in a repository. Run each Julia process with `bounded-run`.
   `--changed BASE --coverage-map PATH` runs each part that executed a changed line, by the
   name of the function for a changed signature or a new method, and the rule of the folders
   for what runs at load and for a new file. The tests of the runner pass, 75 of 75.
+- **omnet-julia on the new method (2026-11-21).** All 28 suites of omnet-julia, 268 parts, ran in
+  60 minutes with two workers of 4 threads on 8 cores, per-package workers, the depot from the
+  seed, and the worktree of step 2 mounted as projectured-julia; peak 12.4 GB. Before, the run of
+  `test_presentation` alone did not end in 4 hours, and a first worker that loaded all 27 test
+  packages stopped at an 11 GB cap. The time limit of a part stops three parts at 10 minutes
+  (`test_presentation_atoms`, `test_campaign_walk`, `test_ide_gestures_compile_little`), and one
+  part passes 8 GB in a worker of its own (`test_simulation_window_graphics`).
 - **A name that hides a function of Base** was the cause of two faults of the filter of
   `tests-run-fast` and of one of mine: a keyword `only` or `count` hides `Base.only` or
   `Base.count` in its function. A guard of the naming rules could find it.
