@@ -302,6 +302,7 @@ function run_test_supervisor(options::TestRunOptions; output::IO = stdout)
     workers = _Worker[]
     columns = String[]
     try
+        _ensure_job_room!(workers, options.memory_bytes, output)
         push!(workers, _start_worker(1, options, events, sink, options.workers > 1))
         _wait_ready(first(workers), events, columns) ||
             (println(output, "The first worker ended before it was ready."); return 2)
@@ -389,6 +390,7 @@ function _list_queued_parts(workers, options::TestRunOptions, events::Channel,
         elseif !isempty(options.stay) && !isempty(worker.loaded) && !(package in worker.loaded)
             # A session keeps the worker of each package, and a new worker lists this one.
             number = maximum(w.number for w in workers) + 1
+            _ensure_job_room!(workers, options.memory_bytes, output)
             worker = _start_worker(number, options, events, sink, true)
             push!(workers, worker)
             _wait_ready(worker, events, columns) ||
@@ -473,6 +475,18 @@ function _grow_job!(bytes::Integer, output::IO)
     occursin("->", answer) || return 0
     println(output, "The job grew: ", strip(answer), ".")
     step
+end
+
+# Before a worker of `memory` bytes starts beside the live `workers`: when the cap of the job
+# holds less than their memory, this one and 1 GiB for the supervisor, grow the job by what
+# it lacks. A worker that loads compiles the images that a change made stale, so a job that
+# started small needs the room before its first worker.
+function _ensure_job_room!(workers, memory::Integer, output::IO)
+    cap = _job_memory_cap()
+    cap == 0 && return nothing
+    need = sum((w.memory for w in workers if !w.is_ended); init = 0) + memory + 2^30
+    need > cap && _grow_job!(need - cap, output)
+    nothing
 end
 
 # The memory cap of the cgroup of this process, as bounded-run sets it, or 0 when it has none.
@@ -973,6 +987,7 @@ function _run_session_request!(workers, request, events, columns, sink, log)
         println(log, "The workers have no Revise; a change of a file needs --restart.")
     end
     if isempty(workers) || first(workers).is_ended
+        _ensure_job_room!(workers, request.memory_bytes, log)
         worker = _start_worker(1, request, events, sink, request.workers > 1)
         isempty(workers) ? push!(workers, worker) : (workers[1] = worker)
         _wait_ready(worker, events, columns) ||
