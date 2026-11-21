@@ -1,6 +1,6 @@
 # The tests start from a compiled image
 
-> **Status (2026-11-21): steps 1 and 2 done; step 3 asks the owner.** The plan is step 4 of agents-work-fast (A6, approved
+> **Status (2026-11-21): steps 1 to 3 done; step 4 next.** The plan is step 4 of agents-work-fast (A6, approved
 > with that plan on 2026-11-20): first the measure, then the questions of the design to the
 > owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
@@ -69,7 +69,7 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   record. Run the sample from the image. **Done when:** this plan gives the compile, the start
   time and the peak memory of a worker from the image, and the time and the memory of the build
   of the image, beside the same numbers without the image.
-- [ ] 3. **The design, with the answers of the owner.** Give the owner the facts of steps 1
+- [x] 3. **The design, with the answers of the owner.** Give the owner the facts of steps 1
   and 2, and ask the questions that decide how the tests get their image, one at a time, the
   goals first. **Done when:** the owner answered each question, and the answers are in this
   plan and in `compile-ahead.md`. If the owner stops the plan here, it moves to `plan/done`
@@ -135,6 +135,9 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   recommendation: all of its parts, fast and slow. The build of the largest list, that of
   `ProjecturedTest` with the 68 integration parts, is measured in the first step of the work;
   if it takes too long, the owner can limit it to the fast parts.
+- **Q3. When a test package records again.** The owner, 2026-11-21: "Yes" to the
+  recommendation: as U5 says (by hand, and before each release), and after each land, a job in
+  the background records again each test package whose files the land changed.
 
 ## 4. Rule of runs and measurements
 
