@@ -320,6 +320,9 @@ function test_supervised_runs()
         @test run_test_supervisor(["--coverage", coverage, "--coverage-root", repository,
                                    tests, "covered_suite"]; output) == 0
         map = read_coverage_map(joinpath(coverage, "map.tsv"))
+        @test startswith(first(eachline(joinpath(coverage, "map.tsv"))), "#parts\t")
+        @test read_coverage_map_parts(joinpath(coverage, "map.tsv")) ==
+              Set(["covered/alpha_part", "covered/beta_part"])
         lines = get(map, lib, Dict{Int, Vector{String}}())
         @test get(lines, 4, String[]) == ["covered/alpha_part"]
         @test get(lines, 8, String[]) == ["covered/beta_part"]

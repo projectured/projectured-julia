@@ -242,9 +242,15 @@ function _worker_command(output::IO, command, arguments)
                     select_covered_parts(read_coverage_map(map_path), root, base)
                 reached = isempty(fallback) ? String[] :
                           reached_test_paths(root, fallback; slice_edges = edges)
-                filter!(listed -> (listed.suite * "/" * listed.part.name) in covered ||
-                                  (!isempty(reached) && _is_reached(_part_path(listed.part, root), reached)),
-                        parts)
+                # A part with no lines in the map goes by the folders of all the changes.
+                known = read_coverage_map_parts(map_path)
+                folders = reached_test_paths(root, changed_files(root; base); slice_edges = edges)
+                filter!(parts) do listed
+                    key = listed.suite * "/" * listed.part.name
+                    path = _part_path(listed.part, root)
+                    key in covered || (!isempty(reached) && _is_reached(path, reached)) ||
+                        (!(key in known) && _is_reached(path, folders))
+                end
                 isempty(uncovered) ||
                     println(output, "No part executes the changed lines ", join(first(uncovered, 10), ", "),
                             length(uncovered) > 10 ? " and $(length(uncovered) - 10) more." : ".")

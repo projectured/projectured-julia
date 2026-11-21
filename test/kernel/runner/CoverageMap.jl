@@ -14,56 +14,98 @@
     write_coverage_map(folder, path; root = "") -> Int
 
 Join the coverage files of `folder` (`FOLDER/index.tsv` and `FOLDER/parts`) into the
-map file `path`, with one line `FILE LINE PART...` for each source line that a part
-executed, the parts as `SUITE/NAME`. `FILE` is relative to `root` for a file in it, so
-the map of a commit serves each checkout of the commit. Give the count of the lines.
+map file `path`, and give the count of the source lines that a part executed. The
+first line of the map is `#parts` and the name `SUITE/NAME` of each part that wrote its
+coverage, and the position of a name is the number of its part. Each other line is
+`FILE FIRST LAST NUMBERS`: the lines `FIRST` to `LAST` of `FILE` are consecutive, and
+the parts of the comma-separated `NUMBERS` executed each of them. `FILE` is relative
+to `root` for a file in it, so the map of a commit serves each checkout of the commit.
 """
 function write_coverage_map(folder::AbstractString, path::AbstractString; root::AbstractString = "")
-    lines = Dict{Tuple{String, Int}, Set{String}}()
+    lines = Dict{String, Dict{Int, Set{String}}}()
+    parts = Set{String}()
     index = joinpath(folder, "index.tsv")
     isfile(index) || error("no $index: the run had no --coverage")
+    prefix = rstrip(root, '/') * "/"
     for entry in eachline(index)
         fields = split(entry, '\t')
         length(fields) == 3 || continue
         file, suite, name = fields
         key = isempty(suite) ? String(name) : string(suite, "/", name)
+        push!(parts, key)
         source = ""
         for row in eachline(joinpath(folder, "parts", file))
             if startswith(row, "SF:")
                 source = row[4:end]
-                if !isempty(root) && startswith(source, rstrip(root, '/') * "/")
-                    source = source[length(rstrip(root, '/')) + 2:end]
-                end
+                !isempty(root) && startswith(source, prefix) && (source = source[length(prefix) + 1:end])
             elseif startswith(row, "DA:")
                 number, count = split(row[4:end], ',')[1:2]
                 parse(Int, count) > 0 || continue
-                push!(get!(Set{String}, lines, (source, parse(Int, number))), key)
+                push!(get!(Set{String}, get!(Dict{Int, Set{String}}, lines, source), parse(Int, number)), key)
             end
         end
     end
+    names = sort!(collect(parts))
+    numbers = Dict(name => k for (k, name) in enumerate(names))
     mkpath(dirname(abspath(path)))
     open(path, "w") do io
-        for ((source, number), keys) in sort!(collect(lines); by = first)
-            println(io, source, '\t', number, '\t', join(sort!(collect(keys)), '\t'))
+        println(io, "#parts\t", join(names, '\t'))
+        for source in sort!(collect(keys(lines)))
+            by_line = lines[source]
+            ordered = sort!(collect(keys(by_line)))
+            k = 1
+            while k <= length(ordered)
+                last = k                                 # the run of consecutive lines with the same parts
+                while last < length(ordered) && ordered[last + 1] == ordered[last] + 1 &&
+                      by_line[ordered[last + 1]] == by_line[ordered[k]]
+                    last += 1
+                end
+                text = join(sort!([numbers[name] for name in by_line[ordered[k]]]), ',')
+                println(io, source, '\t', ordered[k], '\t', ordered[last], '\t', text)
+                k = last + 1
+            end
         end
     end
-    length(lines)
+    sum(length, values(lines); init = 0)
 end
 
 """
     read_coverage_map(path) -> Dict{String, Dict{Int, Vector{String}}}
 
 The map of `write_coverage_map`: for each file, for each line, the parts that
-executed it.
+executed it. The lines of one run share one vector.
 """
 function read_coverage_map(path::AbstractString)
     map = Dict{String, Dict{Int, Vector{String}}}()
+    names = String[]
     for row in eachline(path)
         fields = split(row, '\t')
-        length(fields) >= 3 || continue
-        get!(Dict{Int, Vector{String}}, map, fields[1])[parse(Int, fields[2])] = String.(fields[3:end])
+        if fields[1] == "#parts"
+            names = String.(fields[2:end])
+        elseif length(fields) == 4
+            parts = [names[parse(Int, number)] for number in split(fields[4], ',') if !isempty(number)]
+            lines = get!(Dict{Int, Vector{String}}, map, fields[1])
+            for number in parse(Int, fields[2]):parse(Int, fields[3])
+                lines[number] = parts
+            end
+        end
     end
     map
+end
+
+"""
+    read_coverage_map_parts(path) -> Set{String}
+
+The parts that wrote their coverage into the map `path` (`write_coverage_map`). A part
+that is not among them, such as a new part or a part that ended at its time limit, has
+no lines in the map.
+"""
+function read_coverage_map_parts(path::AbstractString)
+    for row in eachline(path)
+        startswith(row, "#parts\t") && return Set{String}(split(row, '\t')[2:end])
+        break
+    end
+    Set{String}()
 end
 
 """
