@@ -60,7 +60,7 @@ Tuple{typeof(MathOptInterface.optimize!), Tulip.Optimizer{Float64}}
 Tuple{typeof(MathOptInterface.set), Tulip.Optimizer{Float64}, MathOptInterface.ObjectiveFunction{MathOptInterface.ScalarAffineFunction{Float64}}, MathOptInterface.ScalarAffineFunction{Float64}}
 Tuple{typeof(MathOptInterface.set), Tulip.Optimizer{Float64}, MathOptInterface.ObjectiveSense, MathOptInterface.OptimizationSense}
 Tuple{typeof(MathOptInterface.set), Tulip.Optimizer{Float64}, MathOptInterface.Silent, Bool}
-Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, Base.SubString{String}}, Nothing}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedTulip.TulipModule._relation_affine), ProjecturedPlatform.LayoutModule.SolverRelation, Int64, Float64, Float64, Vararg{Array{MathOptInterface.VariableIndex, 1}, 4}}
 Tuple{typeof(ProjecturedTulipTest.run_package_workload)}
 Tuple{typeof(ProjecturedTulipTest.test_constraint_solver)}

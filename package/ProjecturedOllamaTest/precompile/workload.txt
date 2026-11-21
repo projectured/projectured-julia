@@ -223,6 +223,7 @@ Tuple{typeof(JSON3.write), StructTypes.ArrayType, Array{UInt8, 1}, Int64, Int64,
 Tuple{typeof(JSON3.write), StructTypes.ArrayType, Array{UInt8, 1}, Int64, Int64, Array{String, 1}}
 Tuple{typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, Base.Dict{String, Any}}
 Tuple{typeof(ProjecturedKernel.LlmModule.has_meaning_model), ProjecturedOllama.OllamaModule.OllamaLlm}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedOllama.OllamaModule._native), String}
 Tuple{typeof(ProjecturedOllama.OllamaModule._tool_input), JSON3.Object{Base.CodeUnits{UInt8, Base.SubString{String}}, Base.SubArray{UInt64, 1, Array{UInt64, 1}, Tuple{Base.UnitRange{Int64}}, true}}}
 Tuple{typeof(ProjecturedOllamaTest.run_package_workload)}

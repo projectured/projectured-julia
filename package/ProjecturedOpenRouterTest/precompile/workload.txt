@@ -100,6 +100,7 @@ Tuple{typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, 
 Tuple{typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, Base.Dict{String, Float64}}
 Tuple{typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, Base.Dict{String, Real}}
 Tuple{typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, Base.Dict{String, String}}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedOpenRouterTest.run_package_workload)}
 Tuple{typeof(ProjecturedOpenRouterTest.test_openrouter_layering)}
 Tuple{typeof(ProjecturedOpenRouterTest.test_openrouter_live)}

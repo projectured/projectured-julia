@@ -76,6 +76,7 @@ Tuple{typeof(Printf.plength), Printf.Spec{Base.Val{Char(0x66000000)}}, Tuple{Flo
 Tuple{typeof(Printf.rmdynamic), Printf.Spec{Base.Val{Char(0x66000000)}}, Tuple{Float64}, Int64}
 Tuple{typeof(ProjecturedKernel.DocumentModule.get_stored_value), Int64}
 Tuple{typeof(ProjecturedKernel.DocumentModule.get_stored_value), String}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedODBC.OdbcModule._escape_odbc_value), String}
 Tuple{typeof(ProjecturedODBCTest.run_package_workload)}
 Tuple{typeof(ProjecturedODBCTest.test_db_catalog)}

@@ -37,6 +37,7 @@ Tuple{typeof(Base.iterate), Base.Dict{String, Any}, Int64}
 Tuple{typeof(Base.iterate), Base.Dict{String, Any}}
 Tuple{typeof(Base.read), Base.PipeEndpoint}
 Tuple{typeof(Core.kwcall), NamedTuple{(:inherit,), Tuple{Bool}}, typeof(Base.addenv), Base.Cmd, Base.Dict{String, String}}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedPrecompileTest.run_package_workload)}
 Tuple{typeof(ProjecturedPrecompileTest.test_compile_ahead)}
 Tuple{typeof(ProjecturedPrecompileTest.test_precompile_layering)}
