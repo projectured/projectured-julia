@@ -163,6 +163,10 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   The lists of the other test packages were recorded while the image of
   `ProjecturedPlatformTest` held its list, so they lack the calls that it held; they record
   again after `ProjecturedTest`.
+- **Q4, the umbrella.** The new recording of the 39 test packages took 57 min, peak 11.1 GB,
+  68 MB of lists; the fast parts of `ProjecturedTest` record 24,650 calls. The build of all test
+  images then took 9 min 46 s, peak 16.8 GB. The image of `ProjecturedTest` alone did not build
+  in a cap of 10 GB (one OOM kill after 5 min 39 s), so it has no list either.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
