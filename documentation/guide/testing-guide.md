@@ -233,6 +233,25 @@ supervisor may use, divided by the `--threads` of a worker; under
 measures time or one that needs every thread, has `is_alone = true` in its entry:
 it waits until no other part runs, and no part starts beside it.
 
+### The memory of the workers
+
+A worker loads only the test package that defines its parts, so a worker of a small
+package stays small. When the parts of a package are done, its worker ends, and a new
+worker takes the next package. With `--workers auto`, the count of the workers follows
+the CPUs and the memory of the run:
+
+- `--memory-from PATH` gives each worker 1.25 times the peak of the parts of its package
+  in the record `PATH`, at least 1.5 GB and at most `--memory`. `--memory-from auto` takes
+  the peaks from the stored records of `main` (see "The stored records of main").
+- The memory of the run is the cap of the cgroup of the supervisor less 1 GB, or
+  `--memory-total SIZE`. A new worker starts when its memory fits beside the workers that
+  run, or when no other worker runs.
+- A worker has the highest OOM score of its process tree. So when the run passes its cap,
+  the kernel stops a worker and not the supervisor, and the part runs again.
+- When the environment names a job whose cap can grow (`BOUNDED_RUN_JOB` and
+  `BOUNDED_RUN_BIN`), and a worker does not fit, the supervisor asks that tool for the
+  memory that it lacks.
+
 ### The parts of what changed
 
 `test_changed()` runs the parts of `test_all` that the changes since `main`
@@ -251,14 +270,33 @@ supervisor takes `--changed main`:
 It prints the changed files and the test folders that they reach. It is a quick
 check after a change. Run the whole suites before a land.
 
+The supervisor chooses more narrowly when a map of what each part runs is stored. A
+run with `--coverage FOLDER` writes, for each part, the lines that it executes, and at
+the end the map `FOLDER/map.tsv`. The map of a commit of `main` is stored in
+`~/.cache/projectured-test-coverage/<repository>/<the first 12 characters of the
+commit>/map.tsv`, or under the folder that `PROJECTURED_TEST_COVERAGE_STORE` names.
+With `--changed BASE`, the supervisor takes the stored map of the newest commit at or
+before the fork from `BASE`, and runs:
+
+- each part that executed a changed line;
+- for a changed signature or docstring, and for a new method, each part that executed a
+  method of that name;
+- for a changed test file, a new file, and a change outside a function, such as a
+  `struct` or a `const`, the parts of the folders of the changes, as above.
+
+The changes then count from the commit of the map, so an older map chooses more parts.
+When no map is stored, the folders of the changes choose the parts. `--coverage-map
+PATH` takes another map, and `--coverage-map none` the folders only.
+
 ### The stored records of main
 
-After a run, the supervisor stores its records when the run is of one commit of
-`main` with no change that is not committed: in
+After a run, the supervisor stores its records when the run is of one commit with
+no change that is not committed: in
 `~/.cache/projectured-test-records/<repository>/<commit>.tsv`, or under the folder
 that `PROJECTURED_TEST_RECORDS` names. A later run of the same commit replaces the
-records of the parts that it runs again. A run of a branch is then compared with
-the stored record of the commit where the branch left `main`. The supervisor
+records of the parts that it runs again. So the record of the run before a land is
+the record of `main` when the land moves `main` to that commit. A run of a branch is
+then compared with the stored record of the commit where the branch left `main`. The supervisor
 prints each part whose result or counts changed, and each new part. So a run of
 a branch needs no run of `main` beside it, when a run of that commit of `main`
 stored its record. `compare_records(base, other)` compares two record files.
@@ -281,6 +319,15 @@ each worker applies the changes of the files with Revise. When Revise can not
 apply a change, that worker stops and a new one starts, which loads the files
 again; `--restart` in a request starts new workers in any case. The output, the
 record and the exit code of a request stay in `FOLDER/results`.
+
+The session keeps a worker for each package, so the next request of the same
+package needs no load. When a new worker needs memory or a place, the worker that
+waited the longest ends. A request takes `--memory-from` and `--coverage-map` from the
+session when it gives none. After each request, the session compiles the images of
+the packages of its requests in the background, with one task at the lowest priority,
+so a new worker loads fresh images. The next request ends that compile first, so the
+compile uses only the time between two requests. Its output goes to
+`FOLDER/compile.log`.
 
 In the REPL, Revise does the same for a person: `test_platform(only = "widget")`
 runs again after an edit, with no new load.

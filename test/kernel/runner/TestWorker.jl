@@ -211,8 +211,12 @@ function _worker_command(output::IO, command, arguments)
         else
             _worker_answer(output, "revised", "no")
         end
-    elseif command == "list"
-        package, name, only_text, skip_text, base, level = arguments
+    elseif command == "list" || command == "select"
+        # `select` chooses the parts of the changes since `base` by a map of what each part
+        # runs (`auto`: the stored map of the fork, `select_covered_parts`), `list` and a
+        # `select` with no map by the folders of the changes (`reached_test_paths`).
+        package, name, only_text, skip_text, base, level = arguments[1:6]
+        map_path = command == "select" ? arguments[7] : ""
         suite = _worker_suite(package, name)
         parts = list_parts(suite; only = read_name_filter(only_text),
                            skip = read_name_filter(skip_text), level = Symbol(level))
@@ -223,29 +227,29 @@ function _worker_command(output::IO, command, arguments)
             first_part = _first_part(suite)
             file = first_part === nothing ? "" : _method_file(first_part.run)
             root = _git_text(isfile(file) ? dirname(file) : pwd(), `rev-parse --show-toplevel`)
-            reached = reached_test_paths(root, changed_files(root; base); slice_edges = edges)
-            filter!(listed -> _is_reached(_part_path(listed.part, root), reached), parts)
+            if map_path == "auto"
+                map_path, map_base = find_coverage_map(root, base)
+                println(output, isempty(map_path) ?
+                    "$package: no map of a commit before the fork from $base is stored; the folders of the changes choose the parts." :
+                    "$package: the map of commit $(map_base[1:12]) chooses the parts.")
+                isempty(map_path) || (base = map_base)
+            end
+            if isempty(map_path)
+                reached = reached_test_paths(root, changed_files(root; base); slice_edges = edges)
+                filter!(listed -> _is_reached(_part_path(listed.part, root), reached), parts)
+            else
+                covered, fallback, uncovered =
+                    select_covered_parts(read_coverage_map(map_path), root, base)
+                reached = isempty(fallback) ? String[] :
+                          reached_test_paths(root, fallback; slice_edges = edges)
+                filter!(listed -> (listed.suite * "/" * listed.part.name) in covered ||
+                                  (!isempty(reached) && _is_reached(_part_path(listed.part, root), reached)),
+                        parts)
+                isempty(uncovered) ||
+                    println(output, "No part executes the changed lines ", join(first(uncovered, 10), ", "),
+                            length(uncovered) > 10 ? " and $(length(uncovered) - 10) more." : ".")
+            end
         end
-        _answer_parts(output, package, parts)
-    elseif command == "select"
-        package, name, only_text, skip_text, base, level, map_path = arguments
-        suite = _worker_suite(package, name)
-        parts = list_parts(suite; only = read_name_filter(only_text),
-                           skip = read_name_filter(skip_text), level = Symbol(level))
-        first_part = _first_part(suite)
-        file = first_part === nothing ? "" : _method_file(first_part.run)
-        root = _git_text(isfile(file) ? dirname(file) : pwd(), `rev-parse --show-toplevel`)
-        covered, fallback, uncovered = select_covered_parts(read_coverage_map(map_path), root, base)
-        package_module = getglobal(Main, _package_package_modulename(package))
-        edges = isdefined(package_module, :TEST_SLICE_EDGES) ?
-            getglobal(package_module, :TEST_SLICE_EDGES) : Dict{String, Any}()
-        reached = isempty(fallback) ? String[] : reached_test_paths(root, fallback; slice_edges = edges)
-        filter!(listed -> (listed.suite * "/" * listed.part.name) in covered ||
-                          (!isempty(reached) && _is_reached(_part_path(listed.part, root), reached)),
-                parts)
-        isempty(uncovered) ||
-            println(output, "No part executes the changed lines ", join(first(uncovered, 10), ", "),
-                    length(uncovered) > 10 ? " and $(length(uncovered) - 10) more." : ".")
         _answer_parts(output, package, parts)
     elseif command == "run"
         package, name, index = arguments

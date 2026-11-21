@@ -47,7 +47,7 @@ Base.@kwdef mutable struct TestRunOptions
     memory_from::String = ""
     coverage::String = ""
     coverage_root::String = ""
-    coverage_map::String = ""
+    coverage_map::String = "auto"
     limit::Float64 = 600.0
     only::String = ""
     skip::String = ""
@@ -79,15 +79,19 @@ const _RUN_TESTS_USAGE = """
                        job less 1G, or else workers × memory); a worker starts when its
                        memory fits
       --memory-from PATH  a record of an earlier run: a worker gets 1.25 times the peak of
-                       the parts of its package there, at least 1.5G and at most --memory
+                       the parts of its package there, at least 1.5G and at most --memory;
+                       auto: the stored records of main (~/.cache/projectured-test-records)
       --coverage FOLDER  run the workers with code coverage of the files beside this
                        repository, and write the lines that each part executes into FOLDER,
                        and at the end the map of them into FOLDER/map.tsv
       --coverage-root PATH  the folder whose files the coverage holds (default: the folder
                        that holds this repository)
       --coverage-map PATH  with --changed: choose the parts by this map of the base commit,
-                       each part that executed a changed line; the rule of --changed for
-                       what the map can not place
+                       each part that executed a changed line, and by the folders of the
+                       changes what the map can not place; auto (the default): the stored
+                       map of the newest commit before the fork from BASE
+                       (~/.cache/projectured-test-coverage), or the folders of the changes
+                       when none is stored; none: the folders of the changes
       --limit SECONDS  the time of a part that names no limit of its own (default: 600)
       --only TEXT      run only the parts whose name holds TEXT; r"…" is a Regex
       --skip TEXT      leave out the parts whose name holds TEXT; r"…" is a Regex
@@ -95,7 +99,8 @@ const _RUN_TESTS_USAGE = """
       --level LEVEL    run only the fast parts (fast), only the slow ones (slow), or all (all)
       --record PATH    add one line of tab-separated values for each part to PATH
       --stay FOLDER    keep the workers open, with Revise, and run each request that
-                       FOLDER/requests receives, before each one with the changes of the files
+                       FOLDER/requests receives, before each one with the changes of the files;
+                       after a request, compile the images of its packages in the background
       --send FOLDER    send the other arguments to the session of FOLDER as a request,
                        wait for its end, print its output and give its exit code
       --restart        (a request) start new workers before the run
@@ -135,7 +140,7 @@ function read_test_run_options(arguments::AbstractVector{<:AbstractString})
             word == "--memory-from" ? (options.memory_from = value) :
             word == "--coverage" ? (options.coverage = abspath(value)) :
             word == "--coverage-root" ? (options.coverage_root = abspath(value)) :
-            word == "--coverage-map" ? (options.coverage_map = abspath(value)) :
+            word == "--coverage-map" ? (options.coverage_map = value in ("auto", "none") ? value : abspath(value)) :
             word == "--limit" ? (options.limit = parse(Float64, value)) :
             word == "--only" ? (options.only = value) :
             word == "--skip" ? (options.skip = value) :
@@ -347,7 +352,8 @@ function _run_request!(workers, options, events, columns, sink, output)
                        is_warm = !isempty(options.stay))
     _print_summary(output, records)
     if !isempty(options.coverage)
-        lines = write_coverage_map(options.coverage, joinpath(options.coverage, "map.tsv"))
+        lines = write_coverage_map(options.coverage, joinpath(options.coverage, "map.tsv");
+                                   root = _git_text(pwd(), `rev-parse --show-toplevel`))
         println(output, "The map of what each part runs: $lines lines, in ",
                 joinpath(options.coverage, "map.tsv"), ".")
     end
@@ -408,7 +414,7 @@ function _list_queued_parts(workers, options::TestRunOptions, events::Channel,
             push!(worker.loaded, package)
             println(output, "Loaded $package in $(fields[3]) s.")
         end
-        if !isempty(options.changed) && !isempty(options.coverage_map)
+        if !isempty(options.changed) && options.coverage_map != "none"
             _send(worker, "select", package, suite, options.only, options.skip, options.changed,
                   options.level, options.coverage_map)
         else
@@ -484,16 +490,31 @@ end
 # The least memory of a worker that `--memory-from` gives.
 const _LEAST_WORKER_MEMORY = 3 * 2^29
 
+# The peak of each part (`SUITE/NAME`) in the record of `--memory-from`; with `auto`, in
+# the stored records of the commits before the fork of the repository at `root` from
+# `main`, each part from the newest record that holds it.
+function _record_peaks(options::TestRunOptions, root::AbstractString = pwd())
+    paths = options.memory_from != "auto" ? filter(isfile, [options.memory_from]) :
+        filter(isfile, [joinpath(test_record_store(), repository_name(root), commit[1:12] * ".tsv")
+                        for commit in fork_commits(root, "main")])
+    peaks = Dict{String, Int}()
+    for path in paths
+        found = Dict{String, Int}()
+        for row in last(_read_record_rows(path))
+            peak = tryparse(Int, get(row, "peak_bytes", ""))
+            peak === nothing || (found[_record_key(row)] = max(peak, get(found, _record_key(row), 0)))
+        end
+        for (key, peak) in found
+            get!(peaks, key, peak)                       # a newer record keeps its peak
+        end
+    end
+    peaks
+end
+
 # The memory of a worker for each home of `queue`: from the peaks of its parts in the
 # record of `--memory-from`, or `--memory` for a home with a part that it lacks.
 function _home_memory(queue, options::TestRunOptions)
-    peaks = Dict{String, Int}()
-    if !isempty(options.memory_from) && isfile(options.memory_from)
-        for row in last(_read_record_rows(options.memory_from))
-            peak = tryparse(Int, get(row, "peak_bytes", ""))
-            peak === nothing || (peaks[_record_key(row)] = max(peak, get(peaks, _record_key(row), 0)))
-        end
-    end
+    peaks = _record_peaks(options)
     memory = Dict{String, Int}()
     for part in queue
         peak = get(peaks, part.path * "/" * part.name, 0)
@@ -569,7 +590,7 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                     oldest === nothing && break
                     end_worker!(oldest)
                 end
-                if held() + need(part) > total && is_others_running
+                if held() + need(part) > total
                     total += _grow_job!(held() + need(part) - total, output)
                 end
                 held() + need(part) <= total || !is_others_running || break
@@ -769,21 +790,19 @@ _short_commit(root, revision) = _git_text(root, `rev-parse --short=12 $revision`
 """
     store_and_compare_records(records, columns, root; output = stdout) -> Nothing
 
-After a run in the repository at `root`: when each record is of one commit of
-`main` with no change that is not committed, store the records in
-[`test_record_store`](@ref), in place of the stored records of the same parts.
-Then, for a run of another commit, compare it with the stored record of the
-commit where the branch left `main`, or say that no record of it is stored.
+After a run in the repository at `root`: when each record is of one commit with no
+change that is not committed, store the records in [`test_record_store`](@ref), in
+place of the stored records of the same parts; so the record of a branch commit is
+the record of `main` when `main` moves to that commit. Then, for a run of a commit
+that is not on `main`, compare it with the stored record of the commit where the
+branch left `main`, or say that no record of it is stored.
 """
 function store_and_compare_records(records, columns, root::AbstractString; output::IO = stdout)
     isempty(records) && return nothing
     store = joinpath(test_record_store(), repository_name(root))
     commits = unique(r["commit"] for r in records if !isempty(get(r, "commit", "")))
     commit = length(commits) == 1 ? only(commits) : ""
-    is_main = !isempty(commit) && !endswith(commit, "+") &&
-              success(pipeline(`git -C $root merge-base --is-ancestor $commit main`;
-                               stderr = devnull))
-    if is_main
+    if !isempty(commit) && !endswith(commit, "+")
         path = joinpath(store, commit * ".tsv")
         mkpath(store)
         now = Set(_record_key(r) for r in records)
@@ -795,7 +814,7 @@ function store_and_compare_records(records, columns, root::AbstractString; outpu
                 println(io, join((get(row, column, "") for column in columns), '\t'))
             end
         end
-        println(output, "Stored the record of commit $commit of main in $path.")
+        println(output, "Stored the record of commit $commit in $path.")
     end
     fork = _short_commit(root, _git_text(root, `merge-base HEAD main`))
     (isempty(fork) || commit == fork) && return nothing
@@ -836,6 +855,8 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
     sink = Ref{IO}(output)
     workers = _Worker[]
     columns = String[]
+    packages = Set{String}()                             # the packages of the requests
+    compile = nothing                                    # the compile in the background
     try
         println(output, "The session waits for requests in $requests.")
         while true
@@ -865,7 +886,10 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
             request.memory_bytes = options.memory_bytes
             request.stay = options.stay
             "--limit" in arguments || (request.limit = options.limit)
+            "--memory-from" in arguments || (request.memory_from = options.memory_from)
+            "--coverage-map" in arguments || (request.coverage_map = options.coverage_map)
             request.record = joinpath(results, stem * ".tsv")
+            _stop_background_compile(compile)
             code = open(joinpath(results, stem * ".log"), "w") do log
                 sink[] = log
                 try
@@ -879,11 +903,41 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
             end
             done(code)
             println(output, "Request $stem: exit code $code.")
+            union!(packages, first.(request.suites))
+            compile = _start_background_compile(options, packages, joinpath(options.stay, "compile.log"))
         end
     finally
         close(ticker)
         _end_workers(workers)
+        _stop_background_compile(compile)
     end
+end
+
+# Compile the images of `packages` and of what they use in the background: one task, at
+# the lowest priority and with the highest OOM score, so a worker that starts later loads
+# fresh images, and the kernel ends the compile and not the supervisor. The compile has a
+# process group of its own, so `_stop_background_compile` ends the compiles that it started.
+# A name that is not a package, such as the path of a file of parts, is left out;
+# `nothing` when none is left.
+function _start_background_compile(options::TestRunOptions, packages, log::AbstractString)
+    names = sort!(unique!([String(p) for p in packages if Base.isidentifier(p)]))
+    isempty(names) && return nothing
+    script = "try; write(\"/proc/self/oom_score_adj\", \"1000\"); catch; end; " *
+             "ccall(:setpriority, Cint, (Cint, Cuint, Cint), 0, 0, 19); " *
+             "using Pkg; Pkg.precompile($(repr(names)))"
+    command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$(options.project) -e $script`,
+                     "JULIA_NUM_PRECOMPILE_TASKS" => "1")
+    run(pipeline(Cmd(command; detach = true); stdout = log, stderr = log, append = true); wait = false)
+end
+
+# End the compile in the background and each compile that it started. A worker that needs
+# an image waits for the lock of the compile of that image, so a request ends the compile
+# first, and the compile uses only the time between two requests.
+function _stop_background_compile(compile)
+    (compile === nothing || !process_running(compile)) && return nothing
+    ccall(:kill, Cint, (Cint, Cint), -getpid(compile), 15)
+    timedwait(() -> !process_running(compile), 10.0)
+    nothing
 end
 
 # Stop `worker` and wait for its end.

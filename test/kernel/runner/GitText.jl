@@ -22,3 +22,17 @@ function repository_name(folder::AbstractString)
     top = _git_text(folder, `rev-parse --show-toplevel`)
     isempty(top) ? "" : basename(top)
 end
+
+"""
+    fork_commits(folder, base) -> Vector{String}
+
+The commits at and before the commit where `HEAD` of the repository of `folder` left
+`base`, newest first: the last 200 commits of the first parents; none outside git.
+"""
+function fork_commits(folder::AbstractString, base::AbstractString)
+    fork = _git_text(folder, `merge-base HEAD $base`)
+    isempty(fork) && return String[]
+    [String(commit) for commit in
+     split(_git_text(folder, `rev-list --first-parent --max-count=200 $fork`), '\n')
+     if length(commit) >= 12]
+end

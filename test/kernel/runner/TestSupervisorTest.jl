@@ -140,7 +140,7 @@ function test_supervised_runs()
             first_rows = [row(first_commit, "a", 2, 0), row(first_commit, "b", 1, 1)]
             store_and_compare_records(first_rows, columns, root; output)
             text = String(take!(output))
-            @test occursin("Stored the record of commit $first_commit of main", text)
+            @test occursin("Stored the record of commit $first_commit in", text)
             stored = joinpath(test_record_store(), repository_name(root), first_commit * ".tsv")
             @test isfile(stored)
             git("checkout", "-q", "-b", "topic")
@@ -149,11 +149,22 @@ function test_supervised_runs()
             store_and_compare_records([row(second, "a", 2, 0), row(second, "b", 2, 0),
                                        row(second, "c", 1, 0)], columns, root; output)
             text = String(take!(output))
-            @test !occursin("Stored", text)
+            @test occursin("Stored the record of commit $second in", text)
             @test occursin("Compared with the stored record of main at $first_commit", text)
             @test occursin("changed  s/b: done: 1 pass, 1 fail", text)
             @test occursin("new      s/c", text)
             @test !occursin("s/a", text)
+            # The peaks of the stored records of main, each part from the newest record.
+            peak_columns = vcat(columns, ["peak_bytes"])
+            peak_row(at, part, peak) = merge(row(at, part, 1, 0), Dict("peak_bytes" => string(peak)))
+            git("checkout", "-q", "main")
+            store_and_compare_records([peak_row(first_commit, "a", 100), peak_row(first_commit, "b", 200)],
+                                      peak_columns, root; output)
+            git("commit", "-q", "--allow-empty", "-m", "third")
+            third = commit()
+            store_and_compare_records([peak_row(third, "a", 300)], peak_columns, root; output)
+            options = read_test_run_options(["--memory-from", "auto", "P", "test_p"])
+            @test _record_peaks(options, root) == Dict("s/a" => 300, "s/b" => 200)
         end
     end
 
@@ -312,10 +323,29 @@ function test_supervised_runs()
         lines = get(map, lib, Dict{Int, Vector{String}}())
         @test get(lines, 4, String[]) == ["covered/alpha_part"]
         @test get(lines, 8, String[]) == ["covered/beta_part"]
+        # A map relative to the repository serves each checkout of the commit.
+        relative = joinpath(coverage, "relative.tsv")
+        write_coverage_map(coverage, relative; root = repository)
+        @test get(get(read_coverage_map(relative), "CoveredLib.jl", Dict{Int, Vector{String}}()), 8,
+                  String[]) == ["covered/beta_part"]
+        # The stored map of the newest commit before the fork.
+        withenv("PROJECTURED_TEST_COVERAGE_STORE" => mktempdir()) do
+            @test find_coverage_map(repository, "HEAD") == ("", "")
+            commit = readchomp(`git -C $repository rev-parse HEAD`)
+            stored = joinpath(test_coverage_store(), repository_name(repository), commit[1:12], "map.tsv")
+            mkpath(dirname(stored))
+            cp(relative, stored)
+            @test find_coverage_map(repository, "HEAD") == (stored, commit)
+            write(joinpath(repository, "other.txt"), "other")
+            git("add", "-A")
+            git("commit", "-q", "-m", "other")
+            @test find_coverage_map(repository, "HEAD") == (stored, commit)
+            git("reset", "-q", "--hard", "HEAD~1")
+        end
         function chosen(text)
             write(lib, text)
             record = joinpath(mktempdir(), "record.tsv")
-            run_test_supervisor(["--changed", "HEAD", "--coverage-map", joinpath(coverage, "map.tsv"),
+            run_test_supervisor(["--changed", "HEAD", "--coverage-map", relative,
                                  "--record", record, tests, "covered_suite"]; output = IOBuffer())
             isfile(record) ? sort([r.part for r in read_part_records(record)]) : String[]
         end
@@ -324,6 +354,21 @@ function test_supervised_runs()
         # A change of the signature of alpha runs each part that executes a method of alpha.
         @test chosen(replace(source, "function alpha(x)" => "function alpha(x::Integer)")) == ["alpha_part"]
         write(lib, source)
+    end
+
+    @testset "a session compiles the images of its packages in the background" begin
+        options = read_test_run_options(["P", "test_p"])
+        log = joinpath(mktempdir(), "compile.log")
+        @test _start_background_compile(options, ["/a/parts.jl"], log) === nothing
+        compile = _start_background_compile(options, ["ProjecturedKernelTest", "/a/parts.jl"], log)
+        @test compile isa Base.Process
+        @test timedwait(() -> !process_running(compile), 300.0) === :ok
+        @test success(compile)
+        # A request ends the compile and the compiles that it started.
+        compile = _start_background_compile(options, ["ProjecturedKernelTest"], log)
+        _stop_background_compile(compile)
+        @test !process_running(compile)
+        @test _stop_background_compile(nothing) === nothing
     end
 
     @testset "the command line of the supervisor" begin

@@ -11,13 +11,14 @@
 # ============================================================================
 
 """
-    write_coverage_map(folder, path) -> Int
+    write_coverage_map(folder, path; root = "") -> Int
 
 Join the coverage files of `folder` (`FOLDER/index.tsv` and `FOLDER/parts`) into the
 map file `path`, with one line `FILE LINE PART...` for each source line that a part
-executed, the parts as `SUITE/NAME`. Give the count of the lines.
+executed, the parts as `SUITE/NAME`. `FILE` is relative to `root` for a file in it, so
+the map of a commit serves each checkout of the commit. Give the count of the lines.
 """
-function write_coverage_map(folder::AbstractString, path::AbstractString)
+function write_coverage_map(folder::AbstractString, path::AbstractString; root::AbstractString = "")
     lines = Dict{Tuple{String, Int}, Set{String}}()
     index = joinpath(folder, "index.tsv")
     isfile(index) || error("no $index: the run had no --coverage")
@@ -30,6 +31,9 @@ function write_coverage_map(folder::AbstractString, path::AbstractString)
         for row in eachline(joinpath(folder, "parts", file))
             if startswith(row, "SF:")
                 source = row[4:end]
+                if !isempty(root) && startswith(source, rstrip(root, '/') * "/")
+                    source = source[length(rstrip(root, '/')) + 2:end]
+                end
             elseif startswith(row, "DA:")
                 number, count = split(row[4:end], ',')[1:2]
                 parse(Int, count) > 0 || continue
@@ -60,6 +64,41 @@ function read_coverage_map(path::AbstractString)
         get!(Dict{Int, Vector{String}}, map, fields[1])[parse(Int, fields[2])] = String.(fields[3:end])
     end
     map
+end
+
+"""
+    test_coverage_store() -> String
+
+The folder of the stored maps of the commits of `main`: the value of
+`PROJECTURED_TEST_COVERAGE_STORE` when it is set, or else
+`~/.cache/projectured-test-coverage`. The map of a commit is the file
+`<repository>/<the first 12 characters of the commit>/map.tsv` in it.
+"""
+test_coverage_store() =
+    get(ENV, "PROJECTURED_TEST_COVERAGE_STORE", joinpath(homedir(), ".cache", "projectured-test-coverage"))
+
+"""
+    find_coverage_map(root, base) -> (path, commit)
+
+The stored map (`test_coverage_store`) of the newest commit at or before the fork of
+`HEAD` from `base` in the repository at `root`, among the last 200 commits of the first
+parents, and that commit; `("", "")` when no map is stored. The changes since that
+commit then hold the changes of `main` after it too, so an older map chooses more parts.
+"""
+function find_coverage_map(root::AbstractString, base::AbstractString)
+    store = joinpath(test_coverage_store(), repository_name(root))
+    for commit in fork_commits(root, base)
+        path = joinpath(store, commit[1:12], "map.tsv")
+        isfile(path) && return (path, commit)
+    end
+    ("", "")
+end
+
+# The path relative to `root` of the file `key` of a map, or `nothing` for a file
+# outside `root`.
+function _map_file(key::AbstractString, root::AbstractString)
+    isabspath(key) || return key
+    startswith(key, root * "/") ? key[length(root) + 2:end] : nothing
 end
 
 # The changes of each file since `base`: the changed lines of the base side, the
@@ -181,9 +220,10 @@ function select_covered_parts(map, root::AbstractString, base::AbstractString)
     function parts_of_name(name)
         get!(by_name, name) do
             found = Set{String}()
-            for (file, lines) in map
-                startswith(file, root * "/") && endswith(file, ".jl") || continue
-                for (n, first, _, last) in base_definitions(file[length(root) + 2:end])
+            for (key, lines) in map
+                file = _map_file(key, root)
+                file !== nothing && endswith(file, ".jl") || continue
+                for (n, first, _, last) in base_definitions(file)
                     n == name || continue
                     for number in first:last
                         union!(found, get(lines, number, String[]))
@@ -197,7 +237,7 @@ function select_covered_parts(map, root::AbstractString, base::AbstractString)
         endswith(file, ".jl") || continue
         startswith(file, "test/") && (push!(fallback, file); continue)
         change.is_new && (push!(fallback, file); continue)
-        lines = get(map, joinpath(root, file), Dict{Int, Vector{String}}())
+        lines = get(() -> get(map, joinpath(root, file), Dict{Int, Vector{String}}()), map, file)
         defs = base_definitions(file)
         for number in change.base
             inside = findfirst(d -> d[2] <= number <= d[4], defs)
