@@ -28,7 +28,7 @@ The options of a run of [`run_test_supervisor`](@ref), with their defaults:
 `project`, the environment of the workers (the active project);
 `threads`, the threads of each worker (2); `workers`, the count of the worker
 processes (1); `memory_bytes`, the memory that a
-worker may use (6 GiB); `limit`, the seconds of a part that names no limit of its
+worker may use (8 GiB); `limit`, the seconds of a part that names no limit of its
 own (600); `only` and `skip`, the filters in the form of the command line;
 `changed`, a base commit whose changes choose the parts (none); `level`, the level
 of the parts (`all`, `fast` or `slow`; `all`);
@@ -42,7 +42,7 @@ Base.@kwdef mutable struct TestRunOptions
     project::String = something(Base.active_project(), "")
     threads::Int = 2
     workers::Int = 1
-    memory_bytes::Int = 6 * 2^30
+    memory_bytes::Int = 8 * 2^30
     memory_total::Int = 0
     memory_from::String = ""
     coverage::String = ""
@@ -74,7 +74,7 @@ const _RUN_TESTS_USAGE = """
       --workers N      the worker processes that run parts at the same time (default: 1),
                        at most the usable CPUs divided by the threads of a worker; auto
                        is that most
-      --memory SIZE    the most memory of a worker, such as 6G or 800M (default: 6G)
+      --memory SIZE    the most memory of a worker, such as 8G or 800M (default: 8G)
       --memory-total SIZE  the memory of all workers together (default: the memory cap of the
                        job less 1G, or else workers × memory); a worker starts when its
                        memory fits

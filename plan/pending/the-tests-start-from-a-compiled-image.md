@@ -167,6 +167,17 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   68 MB of lists; the fast parts of `ProjecturedTest` record 24,650 calls. The build of all test
   images then took 9 min 46 s, peak 16.8 GB. The image of `ProjecturedTest` alone did not build
   in a cap of 10 GB (one OOM kill after 5 min 39 s), so it has no list either.
+- **Step 4, the run of all parts from the images (2026-11-22).** 38 test packages with their
+  lists, `ProjecturedPlatformTest` and `ProjecturedTest` with none, 10 cores, `--workers auto`:
+  39 min 16 s, where the land run of `main` before took 1 h 05 min. The time of the parts went
+  from 12,396 s to 8,809 s, and their compile from 10,659 s to 6,814 s. The domain test
+  packages gain most (the parts of `test_json` 259 s to 10 s, of the kernel 417 s to 133 s);
+  the integration suite and the platform suite keep their compile, because they have no list.
+  The counts of each part are those of `main`, except two parts that ended with `memory`: a
+  worker of `ProjecturedTest` loads each test package, and their larger images add about 2.2 GB
+  to it (the peak of `test_printers` went from 2.86 GB to 5.05 GB), so `test_application` and
+  `test_window_frame_guards`, which peaked at 5.3 GB, passed the largest memory of a worker,
+  6 GB. The default of `--memory` is now 8 GB.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
