@@ -12,9 +12,11 @@ JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 ProjecturedACP = "c086a6dc-7bb1-453d-ac62-5c5ddfbfdd44"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ProjecturedACP = {path = "../ProjecturedACP"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}

@@ -36,4 +36,10 @@ import ProjecturedKernel.LlmModule:
 include("../../../test/adapter/ollama/OllamaLlmTest.jl")
 include("../../../test/adapter/ollama/OllamaSuite.jl")
 
+# The image of this package holds the recorded calls of its parts (compile-ahead.md,
+# Decision 11): its workload is all of its parts.
+import ProjecturedKernelTest
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead ProjecturedKernelTest.run_suite(test_ollama)
+
 end # module ProjecturedOllamaTest

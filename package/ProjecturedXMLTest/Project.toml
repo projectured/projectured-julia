@@ -15,6 +15,7 @@ ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedXML = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXMLExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -28,5 +29,6 @@ ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedXML = {path = "../ProjecturedXML"}
 ProjecturedXMLExample = {path = "../ProjecturedXMLExample"}

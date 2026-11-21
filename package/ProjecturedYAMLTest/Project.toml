@@ -15,6 +15,7 @@ ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedYAML = "a9f201ce-8e0a-436b-92f0-224b8478d5cb"
 ProjecturedYAMLExample = "fed55f08-0afa-4f03-a954-955ab0bee64d"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -28,5 +29,6 @@ ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedYAML = {path = "../ProjecturedYAML"}
 ProjecturedYAMLExample = {path = "../ProjecturedYAMLExample"}

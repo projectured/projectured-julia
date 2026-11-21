@@ -13,6 +13,7 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedSQL = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSQLExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
@@ -26,6 +27,7 @@ ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedSQL = {path = "../ProjecturedSQL"}
 ProjecturedSQLExample = {path = "../ProjecturedSQLExample"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}

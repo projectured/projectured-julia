@@ -13,6 +13,7 @@ ProjecturedDataFramesExample = "61ad9eff-ea91-43c8-867c-8ad08b1239de"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
@@ -21,6 +22,7 @@ ProjecturedDataFramesExample = {path = "../ProjecturedDataFramesExample"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 
 [compat]
 DataFrames = "1"

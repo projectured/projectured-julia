@@ -33,4 +33,10 @@ end
 
 include("../../../test/backend/web/WebSuite.jl")
 
+# The image of this package holds the recorded calls of its parts (compile-ahead.md,
+# Decision 11): its workload is all of its parts.
+import ProjecturedKernelTest
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead ProjecturedKernelTest.run_suite(test_web)
+
 end # module ProjecturedWebTest

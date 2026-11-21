@@ -14,6 +14,7 @@ ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
 ProjecturedPlatformExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedPlatformTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedWorkflow = "d5e7b94b-cbe5-4b5c-9879-deb21bd10ab4"
 ProjecturedWorkflowExample = "71334292-a0e7-448b-926e-a104a2d28203"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
@@ -25,5 +26,6 @@ ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
 ProjecturedPlatformExample = {path = "../ProjecturedPlatformExample"}
 ProjecturedPlatformTest = {path = "../ProjecturedPlatformTest"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedWorkflow = {path = "../ProjecturedWorkflow"}
 ProjecturedWorkflowExample = {path = "../ProjecturedWorkflowExample"}

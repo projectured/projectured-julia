@@ -48,4 +48,10 @@ include("../../../test/domain/yaml/projection/YamlThemeTest.jl")
 
 include("../../../test/domain/yaml/YamlSuite.jl")
 
+# The image of this package holds the recorded calls of its parts (compile-ahead.md,
+# Decision 11): its workload is all of its parts.
+import ProjecturedKernelTest
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead ProjecturedKernelTest.run_suite(test_yaml)
+
 end # module ProjecturedYAMLTest

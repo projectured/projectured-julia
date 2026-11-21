@@ -13,6 +13,7 @@ ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedPDF = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlatform = "b21cb890-5227-4e91-ae0e-8ab4d844f9f7"
+ProjecturedPrecompile = "8baac0ef-e501-42fc-bcd5-0b2a8f58a069"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
@@ -22,4 +23,5 @@ ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedPDF = {path = "../ProjecturedPDF"}
 ProjecturedPlatform = {path = "../ProjecturedPlatform"}
+ProjecturedPrecompile = {path = "../ProjecturedPrecompile"}
 ProjecturedTulip = {path = "../ProjecturedTulip"}

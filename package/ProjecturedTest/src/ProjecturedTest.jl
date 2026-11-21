@@ -9,4 +9,13 @@ using ProjecturedAll
 # (`ProjectionModule.print_document`, …).
 include("../../../test/projectured/ProjecturedSuite.jl")
 
+# The image of this package holds the recorded calls of its parts (compile-ahead.md,
+# Decision 11): its workload is all of its parts.
+import ProjecturedKernelTest
+using ProjecturedPrecompile: @compile_ahead
+@compile_ahead begin
+    ProjecturedKernelTest.run_suite(test_integration)
+    ProjecturedKernelTest.run_suite(test_repository)
+end
+
 end # module ProjecturedTest
