@@ -1,6 +1,8 @@
 # The tests start from a compiled image
 
-> **Status (2026-11-20): written, not approved for implementation.** The owner asked for this
+> **Status (2026-11-21): step 1 done.** The plan is step 4 of agents-work-fast (A6, approved
+> with that plan on 2026-11-20): first the measure, then the questions of the design to the
+> owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
 > the slow parts, step 6 of [the-tests-run-fast.md](the-tests-run-fast.md), moved here as
 > step 5. The design of the image (step 3) starts with the questions to the owner, because an
@@ -58,7 +60,7 @@ workers and the split of the slow parts shorten the run.
 Do the work in a worktree of its own, on a branch of its own. Run every Julia process with
 `bounded-run`, on the cores 24 to 27. Make one commit for each step.
 
-- [ ] 1. **What an image can save.** Run each of three samples two times in one worker, with a
+- [x] 1. **What an image can save.** Run each of three samples two times in one worker, with a
   record for each run: `test_kernel`, `test_json`, and `test_printers`. The compile of the second
   run is the share that an image can not remove. **Done when:** this plan gives, for each sample,
   the compile of the first and of the second run, and the share that an image can save.
@@ -82,6 +84,22 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   examples gets one entry for each domain, which calls the walk with the filter `only`. **Done
   when:** no part of the record takes more than 60 s, except the parts that have no testset
   boundary, which this plan names, and the plan gives the time of a run of all parts.
+
+### What the work found
+
+- **Step 1 (2026-11-21, Julia 1.13.1, a worktree of `julia-worktree`, the cores 28, 30 and 31,
+  one process for each sample, each sample two times).**
+
+  | Sample | First run | Its compile | Second run | Its compile | An image can save |
+  |---|---|---|---|---|---|
+  | `test_kernel`, 84 parts | 367.4 s | 247.3 s | 143.7 s | 13.6 s | 234 s, 64 % |
+  | `test_json`, 23 parts | 124.1 s | 116.6 s | 6.2 s | 0.0 s | 117 s, 94 % |
+  | `test_printers`, 1 part | 202.4 s | 195.8 s | 3.0 s | 0.0 s | 196 s, 97 % |
+
+  Of the second run of `test_kernel`, 104 s is `test_supervised_runs`, whose workers are
+  processes of their own. So the code of the tests compiles again in each new process, and the
+  package images hold almost none of it. `test_meaning_search` fails 6 checks in a second run
+  in the same process: the stores of its toy models stay from the first run.
 
 ## 4. Rule of runs and measurements
 
