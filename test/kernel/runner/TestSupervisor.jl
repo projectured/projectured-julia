@@ -915,9 +915,13 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
         while true
             names = sort(filter(name -> endswith(name, ".request"), readdir(requests)))
             if isempty(names)
-                number, fields = take!(events)           # a tick, or the end of a worker
+                number, fields = take!(events)           # a tick, the end of a worker, or a load
                 k = findfirst(w -> w.number == number, workers)
                 first(fields) == "ended" && k !== nothing && (workers[k].is_ended = true)
+                if first(fields) == "loaded" && k !== nothing
+                    push!(workers[k].loaded, fields[2])
+                    println(output, "Worker $(workers[k].number) loaded $(fields[2]) in $(fields[3]) s.")
+                end
                 continue
             end
             stem = first(splitext(first(names)))
@@ -957,6 +961,7 @@ function run_test_session(options::TestRunOptions; output::IO = stdout)
             done(code)
             println(output, "Request $stem: exit code $code.")
             union!(packages, first.(request.suites))
+            _prestart_workers!(workers, request, events, columns, sink, output)
             compile = _start_background_compile(options, packages, joinpath(options.stay, "compile.log"))
         end
     finally
@@ -991,6 +996,35 @@ function _stop_background_compile(compile)
     ccall(:kill, Cint, (Cint, Cint), -getpid(compile), 15)
     timedwait(() -> !process_running(compile), 10.0)
     nothing
+end
+
+# After a request of a session: for each package of the request, start workers that load
+# it, up to the count of the workers of the request, while their memory fits in the cap of
+# the job or the job grows. So the next request, often the first after an edit, finds them
+# warm and does not start them then. A worker marks its package as loaded when it answers.
+function _prestart_workers!(workers, request, events, columns, sink, output)
+    most = max(1, div(_usable_cpus(), request.threads))
+    count = min(request.workers == 0 ? most : request.workers, most)
+    for package in unique(first.(request.suites))
+        while true
+            live = [w for w in workers if !w.is_ended && (package in w.loaded || isempty(w.loaded))]
+            length(live) >= count && break
+            memory = maximum((w.memory for w in live); init = request.memory_bytes)
+            held = sum((w.memory for w in workers if !w.is_ended); init = 0)
+            cap = _job_memory_cap()
+            if cap > 0 && held + memory + 2^30 > cap
+                _grow_job!(held + memory + 2^30 - cap, output)
+                held + memory + 2^30 > _job_memory_cap() && break   # no room: fewer warm workers
+            end
+            number = maximum((w.number for w in workers); init = 0) + 1
+            worker = _start_worker(number, request, events, sink, true; memory)
+            push!(workers, worker)
+            _wait_ready(worker, events, columns) || break
+            worker.used = time()
+            _send(worker, "load", package)
+            println(output, "Worker $number loads $package for the next request.")
+        end
+    end
 end
 
 # Stop `worker` and wait for its end.

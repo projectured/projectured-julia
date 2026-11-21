@@ -212,6 +212,36 @@ function run_supervisor_tests()
         @test timedwait(() -> istaskdone(session), 60.0) == :ok && fetch(session) == 0
     end
 
+    @testset "a session starts its workers after a request, so the next request finds them warm" begin
+        folder = mktempdir()
+        fixture = joinpath(folder, "WarmFixture.jl")
+        write(fixture, """
+            module WarmFixture
+            using Test
+            using Main.ProjecturedKernelTest: TestPart, TestSuite
+            checked() = @test true
+            const warm_suite = TestSuite("warm", [checked])
+            end
+            """)
+        session_output = IOBuffer()
+        options = TestRunOptions(stay = joinpath(folder, "session"), limit = 120.0, workers = 2,
+                                 threads = 1, memory_bytes = 2^30)
+        session = errormonitor(@async run_test_session(options; output = session_output))
+        request(arguments...) = send_test_request(joinpath(folder, "session"), [arguments...];
+                                                  output = IOBuffer(), wait_seconds = 300)
+        seen = Ref("")
+        saw(text) = timedwait(() -> (seen[] *= String(take!(session_output)); occursin(text, seen[])),
+                              60.0) == :ok
+        @test request(fixture, "warm_suite") == 0
+        # One part ran in one worker; after the answer, the session starts the second one for
+        # the next request.
+        @test saw("Worker 2 loads $fixture for the next request.")
+        @test request(fixture, "warm_suite") == 0
+        @test saw("exit code 0.\n") && !occursin("Worker 3", seen[])
+        @test request("--stop") == 0
+        @test timedwait(() -> istaskdone(session), 60.0) == :ok && fetch(session) == 0
+    end
+
     @testset "a worker loads only the home of its part, and another home gets a new worker" begin
         folder = mktempdir()
         leaf = joinpath(folder, "LeafFixture.jl")
