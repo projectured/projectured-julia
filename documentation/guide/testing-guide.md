@@ -997,7 +997,7 @@ the line above — a bare marker with no context is not acceptable.
 
 A static guard (arguments, exports, style, documentation, the layering and the edges
 between the slices) reports a list of violations. Its known violations are a list of
-`key => reason` pairs beside the guard (`test/suite/known.jl`): `ARGUMENT_KNOWN`,
+`key => reason` pairs beside the guard (`test/kernel/layering/KnownViolations.jl`): `ARGUMENT_KNOWN`,
 `EXPORT_KNOWN`, `STYLE_KNOWN`, `DOCUMENTATION_KNOWN`, and the keyword `known` of
 `check_layering` and `check_slice_edges`. The key is the text of the violation
 without its line number. A listed violation does not fail the guard, and its test

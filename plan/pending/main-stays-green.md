@@ -164,7 +164,7 @@ step. Run each Julia process with `bounded-run`, and each whole run in `bwrap
   `.jl` file into `Main`, and that file runs the whole suite when it loads. So the whole run of
   omnet-julia names the suite of each test package, and the three suites that only
   `test/runtests.jl` defines run in one small process of their own.
-- **A guard keeps a list of its known violations** (`test/suite/known.jl`). The key of an entry
+- **A guard keeps a list of its known violations** (`test/kernel/layering/KnownViolations.jl`). The key of an entry
   is the text of the violation without its line number. A listed violation does not fail the
   guard, and its test counts it as broken. A violation that no entry excuses fails, and so does
   an entry that excuses none. The guards of arguments (6), exports (37), style (1) and
