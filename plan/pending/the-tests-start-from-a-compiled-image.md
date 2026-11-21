@@ -152,6 +152,15 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   recommendation: as U5 says (by hand, and before each release), and after each land, a job in
   the background records again each test package whose files the land changed.
 
+- **Q4. The two large lists.** The owner, 2026-11-21: "Agreed" to the recommendation:
+  `ProjecturedPlatformTest` and `ProjecturedTest` record only their fast parts. If the image of
+  one of them still takes more than about 5 minutes or 8 GB to build, that package gets no list,
+  and its parts compile while they run, as before.
+- **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
+  used, I think the compilation will speed up for testing as well." A rebuild of the reactive
+  compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
+  follow a change below it without the rebuild of the whole image.
+
 ## 4. Rule of runs and measurements
 
 - Every Julia process of this plan runs with `bounded-run`. A build above its budget needs the

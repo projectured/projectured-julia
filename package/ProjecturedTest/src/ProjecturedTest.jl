@@ -10,12 +10,13 @@ using ProjecturedAll
 include("../../../test/projectured/ProjecturedSuite.jl")
 
 # The image of this package holds the recorded calls of its parts (compile-ahead.md,
-# Decision 11): its workload is all of its parts.
+# Decision 11). Its workload is its fast parts: with all of its parts, the image did not
+# build in 24 GB (the owner, 2026-11-21).
 import ProjecturedKernelTest
 using ProjecturedPrecompile: @compile_ahead
 @compile_ahead begin
-    ProjecturedKernelTest.run_suite(test_integration)
-    ProjecturedKernelTest.run_suite(test_repository)
+    ProjecturedKernelTest.run_suite(test_integration; level = :fast)
+    ProjecturedKernelTest.run_suite(test_repository; level = :fast)
 end
 
 end # module ProjecturedTest

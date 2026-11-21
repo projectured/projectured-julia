@@ -174,7 +174,11 @@ any package, so the image of the test package holds the compiled code of its
 tests. A call of a lower package that a part makes stays in the list of the test
 package: Decision 8 does not apply to the recording of the tests, so the images
 of the packages that a person loads do not grow with the calls of the tests.
-The workload of a test package is all of its parts, fast and slow. A test
+The workload of a test package is all of its parts, fast and slow, except in
+`ProjecturedPlatformTest` and `ProjecturedTest`, whose lists of all parts were
+too large to build (an image of 988 MB in about 20 minutes, and an image that
+did not build in 24 GB): they record their fast parts, and a test package whose
+image still takes more than about 5 minutes or 8 GB has no list. A test
 package records again as U5 says, and after each land, in the background, for
 each test package whose files the land changed. A
 run of `test_json` in a new process took 124 s, of which 111 s was compile; with
