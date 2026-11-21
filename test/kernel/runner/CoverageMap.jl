@@ -293,10 +293,11 @@ function select_covered_parts(map, root::AbstractString, base::AbstractString)
                 push!(uncovered, string(file, ":", number))        # no part runs it
             end
         end
-        # A method that came: each part that executed a method of its name.
+        # A method that came, or a header that changed: each part that executed a method of
+        # its name. A change in the body of a method that stays keeps the lines above.
         current = isfile(joinpath(root, file)) ? read(joinpath(root, file), String) : ""
-        for (name, first, _, last) in _definitions(current)
-            any(range -> !isempty(intersect(range, first:last)), change.new) || continue
+        for (name, first, header, _) in _definitions(current)
+            any(range -> !isempty(intersect(range, first:header)), change.new) || continue
             any(d -> d[1] == name, defs) || continue
             union!(parts, parts_of_name(name))
         end

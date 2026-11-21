@@ -299,6 +299,13 @@ function test_supervised_runs()
                 z = x - 1
                 return z * 3
             end
+            function gamma(x)
+                if x > 0
+                    return 1
+                else
+                    return -1
+                end
+            end
             end
             """
         write(lib, source)
@@ -310,7 +317,10 @@ function test_supervised_runs()
             using Main.ProjecturedKernelTest: TestPart, TestSuite
             alpha_part() = @test Main.CoveredLib.alpha(1) == 4
             beta_part() = @test Main.CoveredLib.beta(1) == 0
-            const covered_suite = TestSuite("covered", [TestPart(alpha_part), TestPart(beta_part)])
+            gamma_positive() = @test Main.CoveredLib.gamma(1) == 1
+            gamma_negative() = @test Main.CoveredLib.gamma(-1) == -1
+            const covered_suite = TestSuite("covered", [TestPart(alpha_part), TestPart(beta_part),
+                                                        TestPart(gamma_positive), TestPart(gamma_negative)])
             end
             """)
         git("add", "-A")
@@ -322,7 +332,8 @@ function test_supervised_runs()
         map = read_coverage_map(joinpath(coverage, "map.tsv"))
         @test startswith(first(eachline(joinpath(coverage, "map.tsv"))), "#parts\t")
         @test read_coverage_map_parts(joinpath(coverage, "map.tsv")) ==
-              Set(["covered/alpha_part", "covered/beta_part"])
+              Set(["covered/alpha_part", "covered/beta_part", "covered/gamma_positive",
+                   "covered/gamma_negative"])
         lines = get(map, lib, Dict{Int, Vector{String}}())
         @test get(lines, 4, String[]) == ["covered/alpha_part"]
         @test get(lines, 8, String[]) == ["covered/beta_part"]
@@ -354,6 +365,9 @@ function test_supervised_runs()
         end
         # A change in the body of beta runs the part that executes beta.
         @test chosen(replace(source, "return z * 3" => "return z * 3 + 0")) == ["beta_part"]
+        # A change in one branch of gamma runs the part that executes that branch, and not
+        # each part that executes gamma.
+        @test chosen(replace(source, "return -1" => "return -1 + 0")) == ["gamma_negative"]
         # A change of the signature of alpha runs each part that executes a method of alpha.
         @test chosen(replace(source, "function alpha(x)" => "function alpha(x::Integer)")) == ["alpha_part"]
         write(lib, source)
