@@ -77,8 +77,9 @@ The result:
 - A `WidgetLink` whose target is a document opens its page in a new tab when no
   navigator is around the link.
 - The task page builds the preview of a stream in `_build_stream_preview`
-  (TaskPagesToWidget.jl): `stdout · N lines` as a link to the page of the stream, over
-  the last `_STREAM_PREVIEW_LINES = 8` lines.
+  (TaskPagesToWidget.jl): a card titled `stdout · N lines`, with a button `Open stdout`
+  to the page of the stream, over the last `_STREAM_PREVIEW_LINES = 8` lines. (Found in
+  step 1: the plan said before that the count is the link.)
 - `get_document_decoration(::TaskDocument)` gives the result code with its role and the
   time: the time it took, or `running since 12:03:04` while it runs. It reads no clock.
 - The tree names a part through `format_tree_node_label` and marks it through
@@ -92,8 +93,12 @@ The result:
    card, the tree label, the tooltip and the text of a conversation follow. A call of a
    tool of this editor (a name with the prefix `mcp__projectured__`) keeps no title.
 2. The new part kind is `AgentCommand <: ConversationDocument`, and its view is
-   `AgentCommandToWidget`, both in the assistant slice. Its fields: `title`, `command`,
-   `task` (the `TaskDocument`), `tool_use_id` and `fold`.
+   `AgentCommandToWidget`, both in the assistant slice. Its fields: `call` (the
+   `EvaluatorForm` of the call, which the updates of the call keep filling), `task` (the
+   `TaskDocument`, or `nothing` after a load), `command` and `fold`. Its title is the
+   header of its call. (Changed in step 1, mine: the plan had the fields `title` and
+   `tool_use_id`. The call keeps the input, the text that the call answered and the
+   title, so the file form, the replay and the updates need no copy of them.)
 3. The command that the card shows is the line that the agent wrote: the input field
    `command` of the call when it is a text, else the words of the terminal request. So
    the card shows no `bash -c`. When the title is the command itself, because the agent
@@ -101,15 +106,19 @@ The result:
 4. The part becomes a command at the update that names the terminal. It keeps its place
    and its fold. A call that names more than one terminal makes a command of the first
    one.
-5. After that, a new title of the call replaces the title of the command. The output
-   text and the status of the call change nothing, because the task shows them.
+5. After that, the updates of the call fill its form as before: a new title changes the
+   header of the command. The result of the call stays the text that the call answered;
+   the task is no longer the result of the call.
 6. The header shows the result code of the task in the color of its role (`DONE`,
    `ERROR`, `CANCEL`), or the state while it runs, then the time of the decoration of the
    task. An `ERROR` shows its reason under the header, such as `Non-zero exit code: 3`.
 7. Stop calls `stop_task!` on the task, as the Stop of a task alone on the task page
    does.
-8. `TaskModule` exports the builder of the stream preview. The task page and the command
-   card both use it.
+8. `TaskModule` exports `make_task_output_preview(document; …)`: for each stream of the
+   current execution that has lines, a link `stdout · N lines` to the page of the
+   stream, over its last 8 lines; a stream with no lines shows nothing. It follows the
+   current execution. The task page and the preview share the builder of the last
+   lines, so both show the same 8 lines; the task page keeps its card and its button.
 9. The default fold of the card follows the rule of the transcript, from the property
    `:conversation_fold` of the context, as a part does. A click on the chevron writes
    the choice into the `fold` of the command with `ReplaceConversationFoldOperation`.
@@ -120,21 +129,33 @@ The result:
 12. `format_conversation` writes a command as `# <title>`, `$ <command>` and
     `= <result> <time> <row name>`.
 
+Found in step 1, decided by me (to report to the owner):
+
+13. The file of an assistant of an external agent keeps its conversation
+    (`pred_arguments(::Assistant)`), and the file form of a call writes a live result as
+    the text that the call answered. So a command has a file form too: it writes its
+    call, its command and its fold, and not the task. A load gives a command with no
+    task: its card shows the title, the command and the last 8 lines of the text that
+    the call answered, with no state, no row name and no link.
+14. The replay of a conversation to a model of the editor reads a command as its call.
+    `describe_assistant_activity` says `runs a command` for a command.
+
 ## Not in this plan
 
 - The title of the row of the task in the task list. It stays `bash -c …`.
 - A caret or a copy in the text of the command card.
-- The save of a conversation that holds a command. A task in the result of a call has
-  the same limit now; [a-file-keeps-what-a-task-group-runs.md](a-file-keeps-what-a-task-group-runs.md)
-  gives a task its file form.
 - A time that counts up while a command runs.
 - The cards of the tools of the editor, and the "arguments" part of other calls.
 
 ## Steps
 
-1. ⬜ Tests that fail on main, in test/platform/conversation/AgentTerminalTest.jl and
-   test/projectured/projection/ConversationTranscriptTest.jl. Each one renders the
-   transcript and checks what it draws:
+1. ✅ Tests that fail on main, in test/platform/conversation/AgentTerminalTest.jl and
+   test/platform/conversation/ExternalAgentTurnTest.jl. Each one renders the
+   transcript and checks what it draws. On the code of main: `test_agent_terminal`
+   3 failed and 3 errors (the card, the failure, Stop, and the first test that now asks
+   for a command); the work line test passes on main too and stays as a guard;
+   `test_external_agent_turn` 3 failed (the titles of Read and Grep). The test of the
+   file form came after that run, and was not run on main.
    - a call of an external agent with a title shows the title as its header and as its
      tree label; a call of a tool of the editor keeps `eval`;
    - a call that names a terminal shows the title, the state, the time, `T5`, the
@@ -143,14 +164,16 @@ The result:
    - Stop shows only while the command runs; an `ERROR` shows its reason;
    - a click on `T5` opens the task page in a new tab, and a click on the line count
      opens the page of the stream;
-   - the work line of a finished turn counts the command as a tool call.
+   - the work line of a finished turn counts the command as a tool call;
+   - a command written to a `.pred` file and read back shows its title, its command
+     and the last lines of the text that the call answered.
 2. ⬜ The header from the title of the agent (proposed decision 1).
-3. ⬜ `TaskModule` exports the builder of the stream preview, and the task page uses it
-   (proposed decision 8). The task page does not change.
+3. ⬜ `TaskModule` exports `make_task_output_preview`, and the task page shares its
+   builder of the last lines (proposed decision 8). The task page does not change.
 4. ⬜ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the
    updates after it (proposed decisions 2 to 7 and 9).
-5. ⬜ The tree, the work line and the text of a conversation (proposed decisions 10 to
-   12).
+5. ⬜ The tree, the work line, the text of a conversation, the file form, the replay and
+   the activity (proposed decisions 10 to 14).
 6. ⬜ A live check in the editor with Claude Code over ACP: a short command, a command
    that fails, and a long command that a person stops. Screenshots at density 1 and 2.
 7. ⬜ The suites: the platform suites of the conversation, the assistant and the task,

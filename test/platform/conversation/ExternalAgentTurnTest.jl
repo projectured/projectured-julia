@@ -463,6 +463,31 @@ function test_external_agent_turn()
             @test form.source == "2 + 2"
         end
 
+        @testset "a call of the agent has the title of the agent as its header, and a tool of the editor its own" begin
+            connection = ScriptedAgentConnection([Any[
+                AgentToolCallUpdate("t1"; name = "Read", title = "Read /tmp/notes.jl", kind = :read,
+                                    status = :completed, input = Dict{String,Any}("file_path" => "/tmp/notes.jl"),
+                                    output = "x = 1"),
+                AgentToolCallUpdate("t2"; name = "mcp__projectured__execute_julia_code",
+                                    title = "projectured: execute_julia_code", kind = :execute, status = :completed,
+                                    input = Dict{String,Any}("code" => "1 + 1"), output = "2"),
+                AgentToolCallUpdate("t3"; name = "Grep", title = "Search for outline", status = :pending,
+                                    input = Dict{String,Any}("pattern" => "outline")),
+                AgentToolCallUpdate("t3"; title = "Search for outlines", status = :completed, output = "")]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "Read it")
+            forms = Dict(part.content.tool_use_id => part.content
+                         for part in collect(collect(a.conversation.turns)[end].parts) if part.content isa EvaluatorForm)
+            @test get_evaluation_title(forms["t1"]) == "Read /tmp/notes.jl"
+            @test format_tree_node_label(forms["t1"]) == "Read /tmp/notes.jl"
+            # Only the header changes: the arguments stay.
+            @test get_evaluation_section_labels(forms["t1"]) == ("arguments", "result")
+            # A tool of the editor keeps the header that the editor gives it.
+            @test get_evaluation_title(forms["t2"]) == "eval"
+            # A later title replaces the first one.
+            @test get_evaluation_title(forms["t3"]) == "Search for outlines"
+        end
+
         @testset "a list or a dictionary in the input of a tool is JSON text" begin
             todo(content, status) =
                 Dict{String,Any}("content" => content, "status" => status)
