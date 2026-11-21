@@ -8,7 +8,7 @@ abstract type EvaluatorDocument <: Document end
 
 """
     EvaluatorForm(form; source, result, output, is_error, tool_use_id, tool_name, input,
-                  form_collapsed, result_collapsed, is_running)
+                  title, form_collapsed, result_collapsed, is_running)
 
 A code form paired with its evaluation result. `form` is the code document
 (a `JuliaDocument`); `result` is the result document: a `TextBlock`, a live
@@ -43,6 +43,11 @@ is an error starts folded, and everything else starts open.
 `is_running` says that the evaluation of the form runs in the background: the form
 shows that, and a control that stops it, until its result comes. A file does not
 keep it, and a copy of the form does not run.
+
+`title` is the title that an external agent gave the call, such as `Read
+notes.jl` or the description of a command: the header of the form. An empty title
+means that the editor makes the header ([`get_evaluation_title`](@ref)): for an
+evaluation, for a call of a tool of the editor, and for a call that has none.
 """
 @document struct EvaluatorForm <: EvaluatorDocument
     form::Document
@@ -53,6 +58,7 @@ keep it, and a copy of the form does not run.
     source::String
     output::String
     input::Dict{String,Any}
+    title::String
     form_collapsed::Bool
     result_collapsed::Bool
     is_running::Bool
@@ -66,32 +72,38 @@ EvaluatorForm(form::Document;
               source::AbstractString = "",
               output::AbstractString = "",
               input::AbstractDict = Dict{String,Any}(),
+              title::AbstractString = "",
               form_collapsed::Bool = false,
               result_collapsed::Bool = is_error,
               is_running::Bool = false) =
     EvaluatorForm(Cell(form), Cell(result), Cell(is_error),
                   Cell(String(tool_use_id)), Cell(String(tool_name)),
                   Cell(String(source)), Cell(String(output)), Cell(Dict{String,Any}(input)),
-                  Cell(form_collapsed), Cell(result_collapsed), Cell(is_running), Cell(nothing))
+                  Cell(String(title)), Cell(form_collapsed), Cell(result_collapsed), Cell(is_running),
+                  Cell(nothing))
 
 # ── The file form ────────────────────────────────────────────────────────────
 
 # A `.pred` file writes the input of a tool call as its notation holds it: a JSON
 # object as a group of `(key, value)` pairs in the order of their keys, an array
 # as a vector, and a string, a number, a bool and `nothing` as they are. A key of
-# an input can be any text, so a mapping of names can not hold it.
-pred_arguments(f::EvaluatorForm) = (), Pair{Symbol,Any}[
-    :form             => f.form,
-    :result           => _make_file_result(f),
-    :is_error         => f.is_error,
-    :tool_use_id      => f.tool_use_id,
-    :tool_name        => f.tool_name,
-    :source           => f.source,
-    :output           => f.output,
-    :input            => _make_file_json(f.input),
-    :form_collapsed   => f.form_collapsed,
-    :result_collapsed => f.result_collapsed,
-]
+# an input can be any text, so a mapping of names can not hold it. A form with no
+# title writes none.
+function pred_arguments(f::EvaluatorForm)
+    keywords = Pair{Symbol,Any}[
+        :form             => f.form,
+        :result           => _make_file_result(f),
+        :is_error         => f.is_error,
+        :tool_use_id      => f.tool_use_id,
+        :tool_name        => f.tool_name,
+        :source           => f.source,
+        :output           => f.output,
+        :input            => _make_file_json(f.input),
+    ]
+    isempty(f.title) || push!(keywords, :title => f.title)
+    push!(keywords, :form_collapsed => f.form_collapsed, :result_collapsed => f.result_collapsed)
+    (), keywords
+end
 
 # The result as a file writes it. A result that the notation of a file can not
 # write, such as a live document of the session that an evaluation returned, is
@@ -153,12 +165,19 @@ get_evaluation_kind_label(f::EvaluatorForm) = get_evaluation_kind_label(f.tool_n
 """
     get_evaluation_title(form::EvaluatorForm) -> String
 
-The header of a form in a transcript. An evaluation is `eval`. A resource read
-names its resource, `resource · <uri>`. A resource listing is `resources`. Any
-other tool names itself, `tool · <name>`, followed by its first string argument
-in quotes, cut at 60 characters, so a search says what it searched for.
+The header of a form in a transcript. A call that an external agent titled is the
+first line of its title, with `…` when more lines follow. An evaluation is `eval`.
+A resource read names its resource, `resource · <uri>`. A resource listing is
+`resources`. Any other tool names itself, `tool · <name>`, followed by its first
+string argument in quotes, cut at 60 characters, so a search says what it
+searched for.
 """
 function get_evaluation_title(f::EvaluatorForm)
+    title = strip(f.title)
+    if !isempty(title)
+        line = rstrip(first(eachsplit(title, '\n')))
+        return length(line) < length(title) ? line * "…" : String(line)
+    end
     name = f.tool_name
     name == "execute_julia_code" && return "eval"
     name == "list_resources"     && return "resources"

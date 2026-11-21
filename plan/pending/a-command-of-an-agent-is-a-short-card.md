@@ -167,7 +167,12 @@ Found in step 1, decided by me (to report to the owner):
    - the work line of a finished turn counts the command as a tool call;
    - a command written to a `.pred` file and read back shows its title, its command
      and the last lines of the text that the call answered.
-2. ⬜ The header from the title of the agent (proposed decision 1).
+2. ✅ The header from the title of the agent (proposed decision 1). `EvaluatorForm` has
+   the field `title`, which its file writes when it is not empty; the header is the
+   first line of the title, with `…` when more lines follow. `_find_agent_tool_title`
+   in ExternalAgentTurn.jl gives no title to a call whose name has the prefix, or
+   whose tool the tool set of the editor holds. `test_conversation_tree` 43 pass,
+   `test_external_agent_turn` 363 pass.
 3. ⬜ `TaskModule` exports `make_task_output_preview`, and the task page shares its
    builder of the last lines (proposed decision 8). The task page does not change.
 4. ⬜ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the

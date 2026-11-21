@@ -866,7 +866,7 @@ _puts_agent_part(event, state) =
     event isa Union{AgentPermissionRequest,AgentQuestionRequest}
 
 # A tool call becomes a form at its first event, and each update fills it: the
-# input, the text that the tool answered, and a failure.
+# input, the title, the text that the tool answered, and a failure.
 function _apply_tool_call_update!(turn::ConversationTurn, state,
                                   update::AgentToolCallUpdate, tools)
     forms = state[:tool_forms]
@@ -884,7 +884,8 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
                                                               uri = update.output_uri),
                              output,
                              is_error = update.status === :failed,
-                             tool_use_id = update.id, tool_name = name, input)
+                             tool_use_id = update.id, tool_name = name, input,
+                             title = something(_find_agent_tool_title(update, name, tools), ""))
         forms[update.id] = form
         push!(turn.parts, Cell(ConversationPart(form)))
         return nothing
@@ -895,6 +896,9 @@ function _apply_tool_call_update!(turn::ConversationTurn, state,
            nothing
     is_renamed = name !== nothing && name != form.tool_name
     is_renamed && (form.tool_name = name)
+    # A later title replaces the title of the call.
+    title = _find_agent_tool_title(update, form.tool_name, tools)
+    title === nothing || title == form.title || (form.title = title)
     if update.input !== nothing || is_renamed
         input = something(update.input, form.input)
         form.input = input
@@ -985,6 +989,19 @@ _get_agent_tool_name(update::AgentToolCallUpdate) =
 
 _remove_agent_tool_prefix(name::AbstractString) =
     startswith(name, AGENT_TOOL_PREFIX) ? String(name[(length(AGENT_TOOL_PREFIX) + 1):end]) : String(name)
+
+# The title that the agent gives the call of the tool `name`, which is the header
+# of its form, or `nothing`: for an update with no title, and for a call of a tool
+# of this editor, whose header the editor gives. The agent names a tool of this
+# editor with the prefix `mcp__projectured__`, and the tool set of the editor
+# holds it.
+function _find_agent_tool_title(update::AgentToolCallUpdate, name::AbstractString, tools)
+    title = update.title
+    (title === nothing || isempty(strip(title))) && return nothing
+    startswith(something(update.name, title), AGENT_TOOL_PREFIX) && return nothing
+    tools !== nothing && find_tool(tools, name) !== nothing && return nothing
+    String(title)
+end
 
 const AGENT_TOOL_PREFIX = "mcp__projectured__"
 
