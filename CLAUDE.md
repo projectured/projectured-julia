@@ -90,7 +90,7 @@ Pick the narrowest scope that exercises your change:
 - One package's whole suite: `test_kernel()`, `test_platform()`, and one per domain — `test_json()`, `test_sql()`, … Each is its own test package (`package/Projectured<Name>Test`) that only depends on the packages below it, so these also run in an environment without SDL/ODBC/Tulip installed (`julia --project=package/ProjecturedKernelTest`, etc.). Each includes its package's static layering guard (`test_kernel_layering()`, `test_json_layering()`, …).
 - The reactive primitive only: `test_cell()`.
 - One part or a group of parts by name: `test_platform(only = "widget")`, and a walk over the examples by the names of its examples: `test_printers(only = "json")`.
-- After a change, before a broader run: `test_changed(level = :fast)` runs the fast parts of `test_all` that the changes since `main` reach.
+- After a change, before a broader run: `test_changed(level = :fast)` runs the fast parts of `test_all` that the changes since `main` reach. In a worktree, a request to the test session does the same in seconds ("The cycle of a change" below).
 - Before a land: all the parts in worker processes, with a time and a memory limit for each part, as "Main is green" below says.
 - Want errors back as a `Vector{String}` instead of `@testset` output (less noise, keeps going on failure): the walker helpers `walk_printer_output(doc, proj)`, `walk_repl_loop(doc, proj)`, `explore_position_selections(doc, proj)`.
 
@@ -100,14 +100,47 @@ Always narrow down tests to the smallest reasonable scope — never default to `
 
 **Reading the summary.** An unmarked `Fail` or `Error` is a regression from your change — do not need to bisect to know. Known-failing assertions are marked `@test_broken` and appear in the `Broken` column; only `Fail` / `Error` counts should be zero after a passing run. If the count of `Broken` changes, read the `# @broken:` comment on the marker: fewer broken means an assertion started passing (promote it to `@test`); more broken means a new marker was added. See the "Marking known-failing tests" section in [documentation/guide/testing-guide.md](documentation/guide/testing-guide.md).
 
+## The cycle of a change
+
+Work in a worktree that `workspace/bin/julia-worktree` makes. Its depot holds the compiled files of `main`, so only the packages that the branch changes compile. A test session keeps its workers open with Revise, so a change needs no new load.
+
+1. Make the worktree and its depot:
+
+   ```bash
+   workspace/bin/julia-worktree new projectured-julia <branch>
+   W=../projectured-julia-<branch>; S=/var/tmp/projectured-julia-<branch>-depot/session
+   ```
+
+2. Start the test session of the worktree once. Its job starts small and grows when a worker needs more memory and the machine has room:
+
+   ```bash
+   workspace/bin/bounded-run start <branch>-session --memory 4G --cores 8 --time 12h -- \
+     workspace/bin/julia-worktree run $W -- julia --startup-file=no --project=environment/all \
+     tool/run-tests.jl --stay $S --workers auto --threads 2 --memory-from auto
+   ```
+
+3. After each change, send a request. The workers apply the change with Revise and run each fast part that executes a changed line:
+
+   ```bash
+   workspace/bin/julia-worktree run $W -- julia --startup-file=no tool/run-tests.jl \
+     --send $S --changed main --level fast ProjecturedTest test_all
+   ```
+
+   The client of `--send` loads no package and needs no job of its own. Narrow a request with `--only` when you know the part.
+4. Run each other Julia command of the worktree with `julia-worktree run $W -- julia ...`, in a job of `bounded-run`.
+5. Before a land, run all the parts in the worktree, as "Main is green" says. Do not run the tests of `main` beside the branch.
+6. When the work lands, send `--stop` to the session. Then remove the worktree, its depot and its branch.
+
 ## Main is green
 
 On `main`, a run of all the parts gives no unmarked `Fail` and no `Error`, and each part ends in its time and its memory. A known failure has a marker with its reason (testing guide, "Marking known-failing tests"). So an unmarked `Fail` or `Error` on a branch is a fault of the branch. Do not run `main` beside a branch to compare.
 
-- Before a land, run all the parts, in `bwrap --unshare-net` so that no part reaches a model:
+- Before a land, run all the parts with no network, so that no part reaches a model. `julia-worktree run` gives no network:
 
   ```bash
-  julia --project=environment/all tool/run-tests.jl --workers 2 --record /var/tmp/<name>.tsv \
+  workspace/bin/bounded-run start <branch>-land --memory 8G --cores 10 --time 3h -- \
+    workspace/bin/julia-worktree run $W -- julia --startup-file=no --project=environment/all \
+      tool/run-tests.jl --workers auto --threads 2 --memory-from auto --record /var/tmp/<name>.tsv \
       ProjecturedTest test_all ProjecturedTest test_repository \
       ProjecturedOpenRouterTest test_openrouter ProjecturedConsoleTest test_console \
       ProjecturedPDFTest test_pdf ProjecturedWebTest test_web ProjecturedMCPTest test_mcp \
@@ -115,7 +148,7 @@ On `main`, a run of all the parts gives no unmarked `Fail` and no `Error`, and e
       ProjecturedODBCTest test_odbc ProjecturedBuilderTest test_builder
   ```
 
-  The land needs 0 unmarked `Fail`, 0 `Error`, and the result `done` for each part.
+  The land needs 0 unmarked `Fail`, 0 `Error`, and the result `done` for each part. The supervisor stores the record of the run. When the land moves `main` to the commit of the run, it is the record of `main`: later runs compare with it and take the memory of their workers from it.
 - Do not mark a check that passes on `main`: fix the branch. A new marker for a fault that the branch did not make needs the word of the owner, and the report of the land names each new marker.
 - A check that fails only at some times gets no `@test_broken`, because its pass is then an error. Give a wait for a result a bound that holds under the load of the machine, and skip a check of a time with `@test_skip` and a `# @broken:` reason.
 - A repository that develops this one from its main checkout runs its tests against the code of `main` here. So a land here also runs the fast parts of each such repository against the branch, as its own `CLAUDE.md` says, and a failure there stops the land in the same way.
