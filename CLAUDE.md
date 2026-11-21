@@ -111,10 +111,10 @@ Work in a worktree that `workspace/bin/julia-worktree` makes. Its depot holds th
    W=../projectured-julia-<branch>; S=/var/tmp/projectured-julia-<branch>-depot/session
    ```
 
-2. Start the test session of the worktree once. Its job starts small and grows when a worker needs more memory and the machine has room:
+2. Start the test session of the worktree once. Its job grows when a worker needs more memory and the machine has room. Start it with 8 GB: a worker that loads after a change in a low package compiles many images:
 
    ```bash
-   workspace/bin/bounded-run start <branch>-session --memory 4G --cores 8 --time 12h -- \
+   workspace/bin/bounded-run start <branch>-session --memory 8G --cores 8 --time 12h -- \
      workspace/bin/julia-worktree run $W -- julia --startup-file=no --project=environment/all \
      tool/run-tests.jl --stay $S --workers auto --threads 2 --memory-from auto
    ```
