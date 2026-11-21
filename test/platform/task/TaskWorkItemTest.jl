@@ -183,7 +183,9 @@ function test_task_work_item()
                         run_tasks!(TaskGroup([_work_item_program("epsilon")]; name = "posted", jobs = 1); editor)
                     end
                     post_operation!(editor, probe)
-                    (group, run_on_editor_task!(find_evaluation_starter, editor))
+                    # The frame that draws the new group compiles too, so this call waits
+                    # longer than the 30 s of a call under the load of a shared machine.
+                    (group, run_on_editor_task!(find_evaluation_starter, editor; timeout = 300.0))
                 end
             end
             # The group that the call started in the drain names the starter of the call.

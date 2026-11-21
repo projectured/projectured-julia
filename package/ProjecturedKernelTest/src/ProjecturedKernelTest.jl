@@ -52,7 +52,7 @@ using ProjecturedKernel.GestureBindingModule
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 
 # ── shared static layering guard ────────────────────────────────────────────
-include("../../../test/suite/known.jl")
+include("../../../test/kernel/layering/KnownViolations.jl")
 include("../../../test/kernel/layering/CheckLayering.jl")
 
 # ── the runner of a suite: a suite is a table of its parts ──────────────────

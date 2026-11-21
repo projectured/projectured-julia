@@ -307,8 +307,8 @@ function test_window_frame_guards()
                             @test_broken growth.time_ratio <= FLAT_TIME_RATIO
                         else
                             @test growth.time_ratio <= FLAT_TIME_RATIO
-                            if get(ENV, "GITHUB_ACTIONS", "") == "true"
-                                # @broken: on GitHub Actions the allocations grow with the document (8.1 against the bound 3.0 in each run of 2026-11-18 and 2026-11-19), and in the runs of all parts they do not; the cause is not found (code coverage, the Julia version and one process for the package differ there)
+                            if input_name == "a move of the pointer over the document"
+                                # @broken: the allocations of a move of the pointer grow with the document in some runs (8.1 against the bound 3.0 in each CI run of 2026-11-18 and 2026-11-19, and in a run of all parts of 2026-11-21) and not in others of the same commit; the state of the process that changes it is not found
                                 @test_skip growth.allocation_ratio <= FLAT_ALLOCATION_RATIO
                             else
                                 @test growth.allocation_ratio <= FLAT_ALLOCATION_RATIO

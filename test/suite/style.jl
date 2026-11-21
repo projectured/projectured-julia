@@ -41,9 +41,10 @@ const STYLE_COLOR_PLACES = ["source/platform/style/ColorTheme.jl"]
 "The files whose values wait for a decision of the owner, with the reason."
 const STYLE_EXEMPT_FILES = Dict{String,String}()
 
-isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+isdefined(@__MODULE__, :split_known_violations) ||
+    include(joinpath(@__DIR__, "..", "kernel", "layering", "KnownViolations.jl"))
 
-# The violations that main has, each with its reason (`known.jl`). A listed
+# The violations that main has, each with its reason (`KnownViolations.jl`). A listed
 # violation does not fail the guard; `test_style` counts it as broken.
 const STYLE_KNOWN = Pair{String,String}[
     "source/domain/book/BookModule.jl: a font description — StyleFont(\"Ubuntu Mono\", 20), color_default))))" =>

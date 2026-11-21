@@ -10,8 +10,9 @@
 # excused violation as broken.
 #
 # Each guard includes this file when its module does not have it yet, so a guard
-# runs on its own and the guards share one module in ProjecturedTest. On its own,
-# this file checks nothing.
+# runs on its own and the guards share one module in ProjecturedTest.
+# ProjecturedKernelTest includes it for the layering checks. On its own, this file
+# checks nothing.
 # ============================================================================
 
 """

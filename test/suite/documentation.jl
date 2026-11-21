@@ -19,9 +19,10 @@ const _DOCUMENT_FOLDERS = ("documentation", "test", "tool", "example", "asset",
                            "source", "package", "bin")
 const _SKIPPED_FOLDERS = (joinpath("example", "platform", "filesystem", "fixture"), "build", ".git")
 
-isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+isdefined(@__MODULE__, :split_known_violations) ||
+    include(joinpath(@__DIR__, "..", "kernel", "layering", "KnownViolations.jl"))
 
-# The violations that main has, each with its reason (`known.jl`). A listed
+# The violations that main has, each with its reason (`KnownViolations.jl`). A listed
 # violation does not fail the guard; `test_documentation` counts it as broken.
 const DOCUMENTATION_KNOWN = Pair{String,String}[
     "documentation/package/domain/git/git.md links to git+file:///home/projectured/workspace/inet-cpp#3fa2c1d, which is not there" =>

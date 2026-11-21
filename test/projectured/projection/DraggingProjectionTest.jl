@@ -112,7 +112,8 @@ function test_dragging()
             replace_mouse_target!(content, _elem_path(2))
             _drag_apply!(state, _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0)))
             # A move within the threshold (2px) starts no drag.
-            @test !_drag_holds(_feed(proj, iomap, _drag_held(102, 100)), StartDragOperation)
+            moved = _feed(proj, iomap, _drag_held(102, 100))
+            @test !_drag_holds(moved, StartDragOperation)
             # The release ends the press; the click that the gesture tracker makes of
             # it selects separately.
             op = _feed(proj, iomap, MouseUp(:left, 102, 100, ModifierKeys(); time = 0.0))

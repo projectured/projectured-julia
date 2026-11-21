@@ -32,10 +32,11 @@ const ARGUMENT_ROOTS = ["source", "example"]
 "The count of positional arguments that the report counts as over the advice."
 const POSITIONAL_LIMIT = 3
 
-isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+isdefined(@__MODULE__, :split_known_violations) ||
+    include(joinpath(@__DIR__, "..", "kernel", "layering", "KnownViolations.jl"))
 
 # The violations of this repository that main has, each with its reason
-# (`known.jl`). A listed violation does not fail the guard; `test_arguments`
+# (`KnownViolations.jl`). A listed violation does not fail the guard; `test_arguments`
 # counts it as broken. The guard of the root of another repository reads no list.
 const ARGUMENT_KNOWN = Pair{String,String}[
     "example/projectured/Catalog.jl catalog takes 1 optional positional argument(s) beside keyword arguments — make them keywords, or write `# @optional: <reason>` above it; see code-quality-rules.md §4" =>

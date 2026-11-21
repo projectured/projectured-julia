@@ -778,7 +778,7 @@ files under `src_root` (relative to it) that belong to another package and so
 are not expected in this include tree.
 
 `known` lists the errors of checks 7 and 8 that main has, as `error => reason`
-pairs (`test/suite/known.jl`). A listed error is counted as broken, and a listed
+pairs (`test/kernel/layering/KnownViolations.jl`). A listed error is counted as broken, and a listed
 error that neither check reports fails, so the list can not go stale.
 """
 function check_layering(src_root, top_file; name = "package",

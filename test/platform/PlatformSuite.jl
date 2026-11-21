@@ -144,7 +144,7 @@ the tests of the slice and of the slices that use it.
 const TEST_SLICE_EDGES = Dict("source/platform" => PLATFORM_SLICE_EDGES)
 
 # The errors of the layering guard of the platform that main has, each with its
-# reason (`test/suite/known.jl`); `check_layering` counts each as broken.
+# reason (`test/kernel/layering/KnownViolations.jl`); `check_layering` counts each as broken.
 const PLATFORM_LAYERING_KNOWN = Pair{String,String}[
     "assistant/AssistantList.jl (AssistantModule) qualifies non-exported PaneModule.find_pane_tab_layer — export it from ..PaneModule, or share it via same-module fragments / a seam below both users" =>
         "on main 2026-11-20, not studied yet",

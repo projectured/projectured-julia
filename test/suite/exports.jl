@@ -100,10 +100,11 @@ const EXPORT_UNMIGRATED = Set(String[
     "source/domain/yaml/YamlModule.jl",
 ])
 
-isdefined(@__MODULE__, :split_known_violations) || include("known.jl")
+isdefined(@__MODULE__, :split_known_violations) ||
+    include(joinpath(@__DIR__, "..", "kernel", "layering", "KnownViolations.jl"))
 
 # The violations of a migrated module that main has, each with its reason
-# (`known.jl`). A listed violation does not fail the guard; `test_exports`
+# (`KnownViolations.jl`). A listed violation does not fail the guard; `test_exports`
 # counts it as broken.
 const EXPORT_KNOWN = Pair{String,String}[
     "source/adapter/languageserver/LanguageServerModule.jl: the names are not in the order that LanguageServerDocument.jl defines them" =>
