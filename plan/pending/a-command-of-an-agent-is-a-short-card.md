@@ -180,8 +180,18 @@ Found in step 1, decided by me (to report to the owner):
    (was `_make_task_error_line(p, …)`, now with a `color` keyword); the count of lines
    is the public `TASK_PREVIEW_LINES` (was `_STREAM_PREVIEW_LINES`), which the card of a
    loaded command reads. `test_task_pages` 71 pass, `test_task_views` 168 pass.
-4. ⬜ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the
-   updates after it (proposed decisions 2 to 7 and 9).
+4. ✅ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the
+   updates after it (proposed decisions 2 to 7 and 9). Facts found: the row of the
+   natural renderer chains `AgentCommandToWidget` with `VerticalLayoutToGraphicsCanvas`,
+   as the page of a subagent does, because a bare view that answers a card has no
+   canvas and draws nothing. A program task finds no error message, so the card shows
+   the reason of an `ERROR` through `make_task_error_line(…; with_reason = true)`; the
+   task page keeps that reason beside the name of the task. The time is written as the
+   task page writes it (`0.8 s`). A press on the row or on the count of lines answers an
+   `OpenPageOperation` of the task; the editor posts the new tab to its loop, which the
+   test editor does not run, and the test editor can not draw an assistant in a tab, so
+   the test checks the operation of the press. Run of `test_agent_terminal` before the
+   last test change: every check of step 4 passes; the checks of step 5 fail.
 5. ⬜ The tree, the work line, the text of a conversation, the file form, the replay and
    the activity (proposed decisions 10 to 14).
 6. ⬜ A live check in the editor with Claude Code over ACP: a short command, a command

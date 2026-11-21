@@ -123,9 +123,9 @@ function _reply_at_agent_terminal_exit(request::AgentTerminalRequest, document::
 end
 
 # A tool call whose content shows terminals of the session: the row of each names
-# the call, and the card of the call shows the task, which follows it while it
-# runs. The task stays the result of the card when a later update repeats its
-# content.
+# the call, and the part of the call becomes a command, which shows the task of
+# the first terminal and follows it while it runs. A later update that repeats the
+# content changes nothing.
 function _show_agent_terminals!(a::Assistant, state, update::AgentToolCallUpdate)
     session = a.agent_session
     session isa ExternalAgentSession || return nothing
@@ -135,9 +135,23 @@ function _show_agent_terminals!(a::Assistant, state, update::AgentToolCallUpdate
         terminal === nothing && continue
         document = terminal.document
         _name_terminal_tool_call!(document, update.id)
-        form === nothing && continue
-        form.result === document || (form.result = document)
-        push!(state[:live_results], update.id)
+        form === nothing || _make_agent_command!(state[:turn], form, document)
+    end
+    nothing
+end
+
+# The part of the call `form` becomes the command that shows `document`, in its
+# place and with its fold, once: a part that is already the command of the call
+# stays.
+function _make_agent_command!(turn::ConversationTurn, form::EvaluatorForm, document::TaskDocument)
+    for part in collect(turn.parts)
+        content = part.content
+        content isa AgentCommand && content.call === form && return nothing
+        content === form || continue
+        task = getfield(document, :task)[]
+        words = task isa ProgramTask ? task.arguments : String[]
+        part.content = AgentCommand(form, document; command = _find_agent_command_line(form, words))
+        return nothing
     end
     nothing
 end

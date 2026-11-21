@@ -162,18 +162,23 @@ function _make_task_header_note(p, document::TaskDocument)
 end
 
 """
-    make_task_error_line(document::TaskDocument; color, max_lines = 0) -> WidgetLabel
+    make_task_error_line(document::TaskDocument; color, max_lines = 0, with_reason = false) -> WidgetLabel
 
-The error message of a task that ended with `ERROR`, such as `Non-zero exit code:
-3`, in `color`, as its page shows it. It takes no line while the task has none, or
-when its result says nothing about the error. With `max_lines` above 0 it shows at
-most that many lines, cut with "…". It follows the task without a new print.
+The error message of a task that ended with `ERROR`, in `color`, as its page
+shows it: the message that its kind finds in its output (`find_error_message`).
+With `with_reason`, a task whose kind finds no message shows the reason of its
+result, such as `Non-zero exit code: 3`; the page of a task shows that reason
+beside its name instead. It takes no line while the task has none, or when its
+result says nothing about the error. With `max_lines` above 0 it shows at most
+that many lines, cut with "…". It follows the task without a new print.
 """
 make_task_error_line(document::TaskDocument; color = get_task_style(nothing, :error_color),
-                     max_lines::Integer = 0) = _make_live_label(() -> begin
+                     max_lines::Integer = 0, with_reason::Bool = false) = _make_live_label(() -> begin
     result = get_task_document_result(document)
-    message = (result !== nothing && result.result == "ERROR") ? find_error_message(result) : nothing
-    (something(message, ""), color)
+    (result !== nothing && result.result == "ERROR") || return ("", color)
+    message = find_error_message(result)
+    reason = with_reason && result.reason isa AbstractString ? result.reason : ""
+    (something(message, reason), color)
 end; max_lines)
 
 # The facts of the process of a task: its process and the time it took or takes,

@@ -27,9 +27,8 @@ _terminal_answer(answers, method, index = 1) = last(filter(pair -> first(pair) =
 # An assistant whose agent plays `turn` at its first prompt, in an editor of the
 # window that runs no loop, so each event of the agent applies at once. The
 # assistant draws as a tab of the application draws it: its split pane, then the
-# natural renderer, which draws a task as its page. With `tabs`, the assistant is
-# the first tab, and a page that a link opens is a new tab.
-function _make_terminal_assistant(turn; tabs::Bool = false)
+# natural renderer, which draws a task as its page.
+function _make_terminal_assistant(turn)
     a = Assistant(; backend = :acp, agent_session = ExternalAgentSession(ScriptedAgentConnection([turn])))
     backend = HeadlessBackend()
     measure = FixedMeasure(8, 12, 4, 0)
@@ -37,7 +36,7 @@ function _make_terminal_assistant(turn; tabs::Bool = false)
     projection = ChainingProjection(RecursiveProjection(AssistantToWidgetSplitPane()),
                                     NaturalToGraphics(; measure, extra = rows))
     editor = EditorModule.build_editor(a, projection; backend, devices = Device[Keyboard(), Mouse(), Display()],
-                                       window = false, tabs, appearance = false, settings = false)
+                                       window = false, tabs = false, appearance = false, settings = false)
     (a, editor, backend)
 end
 
@@ -88,11 +87,20 @@ end
 # The part of the call `tu_c` in the conversation of `a`.
 _command_part(a) = only(part for turn in collect(a.conversation.turns) for part in collect(turn.parts)
                         if _is_command_part(part.content))
-_is_command_part(content) = hasproperty(content, :tool_use_id) && content.tool_use_id == "tu_c"
+_is_command_part(content) = _has_call_id(content, "tu_c")
 
-# The tab of the assistant `a`, which a press brings to the front again.
-_focus_assistant_tab!(editor, a) =
-    focus_pane!(only(search_references(editor.document, node -> node isa PaneTab && node.content === a)); editor)
+# Whether `content` is the call `id`, or a command of that call.
+function _has_call_id(content, id)
+    call = hasproperty(content, :call) ? content.call : content
+    hasproperty(call, :tool_use_id) && call.tool_use_id == id
+end
+
+# The operation that the editor reads from `click`, which it does not evaluate.
+function _command_click_operation(editor, backend, click)
+    ProjecturedKernelExample.push_event!(backend, click)
+    EditorModule.run_read_stage!(editor)
+    editor.operation
+end
 
 function _submit_terminal_prompt!(editor, a::Assistant; wait::Bool = true)
     a.input.value = "Run it."
@@ -158,7 +166,7 @@ function test_agent_terminal()
             @test any(item -> item === row, collect_work_items(get_session_task_group_list(; editor)))
             # The call is a command, which shows the task, also after the end of the call.
             command = only(part.content for turn in collect(a.conversation.turns) for part in collect(turn.parts)
-                           if hasproperty(part.content, :tool_use_id) && part.content.tool_use_id == "tu_9")
+                           if _has_call_id(part.content, "tu_9"))
             @test hasproperty(command, :task) && command.task === row
             # The window drains the feed of the tasks in each turn of its loop; here a
             # wait drains it, and a frame draws the card.
@@ -172,7 +180,7 @@ function test_agent_terminal()
             id = Ref("")
             command = "seq -f line-%02g 1 12"
             a, editor, backend = _make_terminal_assistant(_command_steps(answers, id, command;
-                                                                         title = "Print twelve lines"); tabs = true)
+                                                                         title = "Print twelve lines"))
             _submit_terminal_prompt!(editor, a)
             row = _find_terminal_row(editor, id[])
             wait_for_tasks!(row; timeout = 10, editor)
@@ -201,21 +209,17 @@ function test_agent_terminal()
             part = _command_part(a)
             @test format_tree_node_label(part.content) == "Print twelve lines"
             @test occursin("# Print twelve lines\n$line\n= DONE", AssistantModule.format_conversation(a.conversation))
-            # A click on the count opens every line in a new tab, and a click on
-            # the row opens the page of the task.
-            count_tabs() = length(search_references(editor.document, node -> node isa PaneTab))
-            tabs = count_tabs()
-            _work_page_press!(editor, backend, _work_page_click(backend, "stdout · 12 lines"; exact = true))
-            EditorModule.run_frame!(editor)
-            @test count_tabs() == tabs + 1
-            @test _work_page_has_text(backend, "line-01")
-            _focus_assistant_tab!(editor, a)
-            EditorModule.run_frame!(editor)
-            y = _command_text_y(backend, "Print twelve lines")
-            _work_page_press!(editor, backend, _command_click_at(backend, id[], y))
-            EditorModule.run_frame!(editor)
-            @test count_tabs() == tabs + 2
-            @test _work_page_has_text(backend, "Run again")
+            # A press on the count opens the page of every line of stdout, and a
+            # press on the row opens the page of the task; the editor opens each
+            # in a new tab, as no navigator is around the transcript.
+            open_lines = _command_click_operation(editor, backend,
+                                                  _work_page_click(backend, "stdout · 12 lines"; exact = true))
+            @test open_lines isa OpenPageOperation && open_lines.document === row &&
+                  last(get_reference_steps(strip_reference_types(open_lines.reference))) ==
+                  FieldReferenceStep("stdout_page")
+            open_row = _command_click_operation(editor, backend, _command_click_at(backend, id[], y))
+            @test open_row isa OpenPageOperation && open_row.document === row &&
+                  open_row.reference isa EmptyReference
         end
 
         @testset "a command in a file keeps its call, its command and its fold, and not its task" begin

@@ -23,7 +23,9 @@ tasks as tasks of the task slice, its notices and its processes
 session, in a prompt and between two prompts, and the feed of the window applies
 the events in the order in which they came (`AgentEventFeed.jl`). A command that
 the agent asks the editor to run in a terminal is a task alone of the task list,
-which the assistant started (`AgentTerminal.jl`). A precompile
+which the assistant started (`AgentTerminal.jl`), and the call that shows it is a
+command, a part of the turn with a short card of its own (`AgentCommand.jl`,
+`AgentCommandToWidget.jl`). A precompile
 workload applies one such turn with no agent (`AssistantWarmUp.jl`). The work page
 of an assistant shows that work in a navigator, and a subagent has a page of its
 own (`AssistantWorkDocument.jl`, `AssistantWorkToWidget.jl`,
@@ -122,9 +124,11 @@ export warm_assistant_turn!
 export show_assistant_work!
 export AssistantWorkToWidget
 export AgentWorkToWidget
+export AgentCommand, AgentCommandToWidget
 
 
 include("AgentWorkDocument.jl")
+include("AgentCommand.jl")
 include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
@@ -141,5 +145,6 @@ include("AssistantWarmUp.jl")
 include("AssistantWorkDocument.jl")
 include("AssistantWorkToWidget.jl")
 include("AgentWorkToWidget.jl")
+include("AgentCommandToWidget.jl")
 
 end # module
