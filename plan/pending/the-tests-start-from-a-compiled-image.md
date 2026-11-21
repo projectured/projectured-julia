@@ -117,6 +117,12 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   The build of the image took 162 s with a peak of 3.0 GB, and the image is 84 MB. So a run of
   the sample takes 13 s in place of 124 s.
 
+- **A slow part, for question 2 (2026-11-21).** The same throwaway image for `test_printers`,
+  the walk of the printer over every example and a slow part: 6,043 calls (12 did not
+  compile), a build of 279 s with a peak of 5.0 GB, and an image of 147 MB. A walk repeats the
+  same code over many examples, so a slow part makes the list not much longer than a package
+  of fast parts. The CI run on `main` a63b22235 is green.
+
 ### The answers of the owner (step 3)
 
 - **Q1. Where the compiled code of the tests lives.** The owner, 2026-11-21: "Agreed" to the
