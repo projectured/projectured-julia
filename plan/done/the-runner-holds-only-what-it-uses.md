@@ -1,6 +1,6 @@
 # The runner holds only what it uses
 
-> **Status (2026-11-21): in progress, step 5 (the land).** The owner, after the land of the plan agents-work-fast:
+> **Status (2026-11-21): done.** The owner, after the land of the plan agents-work-fast:
 > "Let's work on the other recommended points first", and "don't notify the other agents yet".
 
 ## 1. The purpose
@@ -54,7 +54,7 @@ Do the work in the worktree `projectured-julia-runner-memory`. Make one commit f
   lower cap after a worker ends, and a run of all parts gives back its memory at its end.
 - [x] 4. **The session starts its workers (R3).** Measured, then removed with the compile in the
   background (R5): the first edit stays slow, because of the first run of each part.
-- [ ] 5. **The land.** Run all parts, land, update the seed.
+- [x] 5. **The land.** Run all parts, land, update the seed.
 
 ## 4. What the work found
 
@@ -82,3 +82,8 @@ Do the work in the worktree `projectured-julia-runner-memory`. Make one commit f
   first worker of the next run loaded `ProjecturedTest` in 603 s, where it took 26 s before. An
   image of the state after a request helps only a worker that starts before the next edit, and
   a session starts few workers.
+- **Step 5.** The run of all 765 parts on the branch is green, 1 h 08 min on 10 cores, with
+  `--memory-from auto` from the stored record of `main`. In its tail the job gave back its
+  memory in six steps, from 31.0 GB to 6.0 GB. The fast parts of omnet-julia against the branch
+  are green, 265 parts in 52 minutes; their run needed a resolve of the manifest of the omnet
+  main checkout, which was older than the landed dependencies of four test packages.
