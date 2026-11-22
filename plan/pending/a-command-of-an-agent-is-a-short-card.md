@@ -210,8 +210,21 @@ Found in step 1, decided by me (to report to the owner):
    69, `test_assistant_work` 133, `test_assistant_list` 62 and
    `test_conversation_transcript` pass (before the last fold change, which touches only
    the card of a command).
-6. ⬜ A live check in the editor with Claude Code over ACP: a short command, a command
+6. ✅ A live check in the editor with Claude Code over ACP: a short command, a command
    that fails, and a long command that a person stops. Screenshots at density 1 and 2.
+   A script in the session scratchpad (`live_card.jl`) built the application window on
+   the video backend, offscreen, with the built-in Claude Code agent, at a logical size
+   of 1280×800; it answered each permission and stopped the long command after six
+   seconds, as a person does, and kept each frame. Claude Code gave each Bash call its
+   description as the title. The cards showed `DONE 2.2 s T1` with the last 8 of 12
+   lines, `ERROR 0.1 s T2` with `Non-zero exit code: 2` and its stderr line, and
+   `running since …  T3  Stop`, then `CANCEL 6.6 s T3`; the finished turn showed
+   `Work: 3 tool calls · 2 thinking · 44 s`. Found: in the narrow assistant pane the
+   header of a running command was wider than the card and cut Stop; the title now
+   takes the width that the other parts leave, cut with `…` (commit 49c9a0ce9), and
+   the state, the time, the row and Stop stand at the right edge. After the fix, the
+   frames at density 1 and 2 show the whole header. The test editor offers no width
+   edge, so no unit test checks the cut.
 7. ⬜ The suites: the platform suites of the conversation, the assistant and the task,
    the ACP adapter suite, `test_application`, and the precompile and the assistant tests
    of omnet-julia. Main is green, so each failure that has no marker is a regression.
