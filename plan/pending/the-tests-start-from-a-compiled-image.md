@@ -188,6 +188,12 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   of six also against projectured `main`, so it is a fault of `main`: a check 0.2 s after the
   start of a run came before the session worked on a quiet machine. The test now waits for
   the working run, with a bound of 30 s, and passes three times of three.
+- **The land checks (2026-11-22, the branch rebased on `main` 560543542).** All 765 parts:
+  40 min 27 s, every part done, 0 error, 2 fails in `test_exports`, which come from `main`: the
+  builder commits of another session give "BuilderModule.jl:51: the names are not in the order
+  that Distribution.jl defines them", and the CI run on 560543542 failed in its static guards;
+  that session fixes it. The fast parts of omnet-julia against the branch, with the fix of
+  `test_express_greying`: 265 parts, 0 fail, 0 error, 47 min.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
