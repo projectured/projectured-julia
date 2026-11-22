@@ -8,10 +8,10 @@
 
 Draw an [`AgentTerminalCommand`](@ref) as a short card of a turn:
 
-- the header: the title of the call, the state of the task (`DONE`, `ERROR`, or
-  the state while it runs), the time it took or since when it runs, the name of
-  its row, such as `T5`, which opens the page of the task, and Stop while the
-  command runs;
+- the header: the title of the call, in one line cut with "…", then at the right
+  edge the state of the task (`DONE`, `ERROR`, or the state while it runs), the
+  time it took or since when it runs, the name of its row, such as `T5`, which
+  opens the page of the task, and Stop while the command runs;
 - the error message of a task that ended with `ERROR`, such as `Non-zero exit
   code: 3`;
 - the command, one time, after `\$ `; not when the title is the command itself;
@@ -45,7 +45,7 @@ AgentTerminalCommandToWidget(theme::Union{ConversationTheme,ScaledConversationTh
 
 function print_document(p::AgentTerminalCommandToWidget, recursion, command::AgentTerminalCommand, ctx)
     task = command.task
-    header = Any[WidgetLabel(() -> get_evaluation_title(command.call); text_style = p.title_text)]
+    header = Any[_make_terminal_command_title(p, command)]
     body = Any[]
     if task isa TaskDocument
         append!(header, Any[make_task_state_badge(task),
@@ -76,6 +76,15 @@ function map_operation_backward(p::AgentTerminalCommandToWidget, iomap, op::Togg
     card = _find_terminal_command_card(iomap)
     op.target === card || return op
     ReplaceConversationFoldOperation(iomap.input, :fold, card.collapsed === true ? :open : :folded)
+end
+
+# The title of the card: it takes the width that the state, the time, the row and
+# Stop leave, so they stay on the line, and a long title is cut with "…" and shows
+# whole in its tooltip.
+function _make_terminal_command_title(p::AgentTerminalCommandToWidget, command::AgentTerminalCommand)
+    title = WidgetLabel(() -> get_evaluation_title(command.call); text_style = p.title_text, max_lines = 1)
+    set_cell_computation!(getfield(title, :tooltip), () -> get_evaluation_title(command.call))
+    LayoutConstraint(title; width = Fill)
 end
 
 # The time that the command took, as the page of a task writes it (`0.8 s`,
