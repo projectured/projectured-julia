@@ -592,7 +592,7 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
     # In a session, the worker that waited the longest ends first, to free memory or a place.
     oldest_waiting() = (waiting = [w for w in places if is_live(w) && !is_busy(w)];
                         isempty(waiting) ? nothing : argmin(w -> w.used, waiting))
-    shrunk_for = -1                     # the memory of the live workers at the last shrink
+    last_held = held()                  # the memory of the live workers at the last turn
     while true
         if is_per_home && !is_warm
             # A worker that waits and whose home has no part left ends, and frees its memory.
@@ -604,12 +604,14 @@ function _run_queued_parts!(workers, queue, options, events, columns, records, s
                 end
             end
         end
-        # No queued part waits: give back the memory of the workers that ended.
-        if isempty(remaining) && held() != shrunk_for
-            shrunk_for = held()
-            cap = _shrink_job!(shrunk_for + 2^30, output)
+        # A worker ended and no queued part waits: give back its memory. The cap does not
+        # go down when the last part starts, because the estimate of a worker can be lower
+        # than what it uses.
+        if isempty(remaining) && held() < last_held
+            cap = _shrink_job!(held() + 2^30, output)
             cap > 0 && (total = min(total, cap - 2^30))
         end
+        last_held = held()
         for k in eachindex(places)
             isempty(remaining) && break
             Base.count(w -> is_live(w) && w.part !== nothing, places) >= count && break
