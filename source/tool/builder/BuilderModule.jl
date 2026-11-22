@@ -48,10 +48,10 @@ export LAUNCHER, REACTIVE_HEADROOM, get_object_archive, compile_linked_app!,
 export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
        print_reactive_status!, stop_reactive_server, watch_reactive_store!,
        has_reactive_julia, describe_reactive_build
-export build_distribution, GLIBC_LIBRARIES, collect_missing_libraries, get_staging_root,
-       get_hidden_directories, make_hidden_command, check_relocation, write_readme,
-       report_distribution, ARCHIVE_FORMATS, DEFAULT_ARCHIVE, check_archive_format,
-       write_distribution_archive
+export build_distribution, ARCHIVE_FORMATS, DEFAULT_ARCHIVE, check_archive_format,
+       write_distribution_archive, GLIBC_LIBRARIES, collect_missing_libraries,
+       get_staging_root, get_hidden_directories, make_hidden_command, check_relocation,
+       write_readme, report_distribution
 export bundle_licence_texts!
 export SourceOffer, build_source_archive
 export build_package_release!, collect_outside_paths
