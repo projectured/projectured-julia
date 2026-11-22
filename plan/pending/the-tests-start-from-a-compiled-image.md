@@ -1,6 +1,6 @@
 # The tests start from a compiled image
 
-> **Status (2026-11-22): steps 1 to 4 done; step 5 not started; the land waits for the owner.** The plan is step 4 of agents-work-fast (A6, approved
+> **Status (2026-11-22): steps 1 to 4 done and landed (`9f83cba8b`); step 5 not started.** The plan is step 4 of agents-work-fast (A6, approved
 > with that plan on 2026-11-20): first the measure, then the questions of the design to the
 > owner, then the workers start from the image. Before: written, not approved for implementation. The owner asked for this
 > plan on 2026-11-20, with the measurement of step 1 as its first step ("yes"). The split of
@@ -194,6 +194,11 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   that Distribution.jl defines them", and the CI run on 560543542 failed in its static guards;
   that session fixes it. The fast parts of omnet-julia against the branch, with the fix of
   `test_express_greying`: 265 parts, 0 fail, 0 error, 47 min.
+- **The land (2026-11-22, the owner: "Yes").** With the fix of the export order of another
+  session (`c644b838e`) and the fix of the give-back of memory (a narrow run lowered its cap at
+  the start of its one part). The run of all parts on `main` `9f83cba8b`: every part done, 0
+  fail, 0 error, 37 min 32 s, peak 19.7 GB; its record holds the new peaks. The recording
+  after the land changed only `ProjecturedBuilderTest` (394 to 410 calls).
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
