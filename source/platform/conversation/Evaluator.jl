@@ -82,6 +82,8 @@ EvaluatorForm(form::Document;
                   Cell(String(title)), Cell(form_collapsed), Cell(result_collapsed), Cell(is_running),
                   Cell(nothing))
 
+is_conversation_tool_call(::EvaluatorForm) = true
+
 # ── The file form ────────────────────────────────────────────────────────────
 
 # A `.pred` file writes the input of a tool call as its notation holds it: a JSON

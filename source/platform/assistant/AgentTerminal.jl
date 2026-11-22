@@ -135,7 +135,7 @@ function _show_agent_terminals!(a::Assistant, state, update::AgentToolCallUpdate
         terminal === nothing && continue
         document = terminal.document
         _name_terminal_tool_call!(document, update.id)
-        form === nothing || _make_agent_command!(state[:turn], form, document)
+        form === nothing || _make_terminal_command!(state[:turn], form, document)
     end
     nothing
 end
@@ -143,14 +143,14 @@ end
 # The part of the call `form` becomes the command that shows `document`, in its
 # place and with its fold, once: a part that is already the command of the call
 # stays.
-function _make_agent_command!(turn::ConversationTurn, form::EvaluatorForm, document::TaskDocument)
+function _make_terminal_command!(turn::ConversationTurn, form::EvaluatorForm, document::TaskDocument)
     for part in collect(turn.parts)
         content = part.content
-        content isa AgentCommand && content.call === form && return nothing
+        content isa AgentTerminalCommand && content.call === form && return nothing
         content === form || continue
         task = getfield(document, :task)[]
         words = task isa ProgramTask ? task.arguments : String[]
-        part.content = AgentCommand(form, document; command = _find_agent_command_line(form, words))
+        part.content = AgentTerminalCommand(form, document; command = _find_terminal_command_line(form, words))
         return nothing
     end
     nothing

@@ -68,7 +68,7 @@ export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        ToggleEvaluatorOptionOperation, StopEvaluatorFormOperation,
        RecallEvaluatorFormOperation
 export ConversationDocument, make_conversation_thinking_part, ReplaceConversationFoldOperation,
-       ConversationSettings
+       ConversationSettings, is_conversation_tool_call
 export ConversationPermissionRequest, is_permission_request_open, answer_permission_request!
 export ConversationSignInRequest
 export ConversationNote, is_note_turn

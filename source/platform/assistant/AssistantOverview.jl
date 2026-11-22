@@ -121,6 +121,7 @@ function describe_assistant_activity(a::Assistant)
     isempty(parts) && return "starts"
     content = last(parts).content
     content isa ConversationThinking && return "thinks"
+    content isa AgentTerminalCommand && return "runs a command"
     content isa EvaluatorForm && return "runs " * content.tool_name
     "writes"
 end

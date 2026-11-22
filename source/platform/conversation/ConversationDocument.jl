@@ -78,6 +78,16 @@ make_inverse_operation(document, op::ReplaceConversationFoldOperation) =
 
 is_self_contained_operation(::ReplaceConversationFoldOperation) = true
 
+"""
+    is_conversation_tool_call(content) -> Bool
+
+Whether the content of a part is a tool call of its turn: the work line of a
+finished turn counts it as a tool call, and it ends the work. An `EvaluatorForm`
+is one. A kind of part that a higher slice adds, such as a command that an agent
+runs, says so with a method.
+"""
+is_conversation_tool_call(content) = false
+
 # ── ConversationThinking ──────────────────────────────────────────────────────
 
 """

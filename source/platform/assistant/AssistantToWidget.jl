@@ -383,7 +383,7 @@ The rows of the natural renderer that draw an assistant, the Assistants pane
 ([`AssistantListToWidgetPane`](@ref)), the work page of an assistant
 ([`AssistantWorkToWidget`](@ref)), the page of a subagent
 ([`AgentWorkToWidget`](@ref)) and the card of a command
-([`AgentCommandToWidget`](@ref)), each with the scaled `ConversationTheme`
+([`AgentTerminalCommandToWidget`](@ref)), each with the scaled `ConversationTheme`
 of `appearance`, the `Appearance` of the window. `measure` is what the registry
 gives every row; these rows draw widgets, which the renderer measures.
 """
@@ -402,7 +402,7 @@ function build_assistant_graphics_entry(; measure = nothing, appearance)
                                                        VerticalLayoutToGraphicsCanvas()),
                    AgentWork => ChainingProjection(AgentWorkToWidget(theme; widget_theme),
                                                    VerticalLayoutToGraphicsCanvas()),
-                   AgentCommand => ChainingProjection(AgentCommandToWidget(theme; widget_theme,
+                   AgentTerminalCommand => ChainingProjection(AgentTerminalCommandToWidget(theme; widget_theme,
                                                           task_theme = get_scaled_theme!(appearance, TaskTheme)),
                                                       VerticalLayoutToGraphicsCanvas())]
 end

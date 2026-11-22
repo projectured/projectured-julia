@@ -660,6 +660,8 @@ function _make_user_turn_content(t::ConversationTurn)
     end
     for part in t.parts
         c = part.content
+        # A command goes to a model as the call that ran it.
+        c isa AgentTerminalCommand && (c = c.call)
         if c isa ConversationThinking
             continue
         elseif c isa ImageFile
@@ -728,6 +730,8 @@ function _emit_assistant_turn!(out, parts)
     prev_was_eval = false
     for part in parts
         c = part.content
+        # A command goes to a model as the call that ran it.
+        c isa AgentTerminalCommand && (c = c.call)
         # A request for the person is no content of the model: the answer to a
         # question reaches the model in the result of its tool. A note under an
         # answer is the editor's line to the person, not the model's text.
@@ -764,7 +768,8 @@ _thinking_block(c::ConversationThinking) =
 A plain, human-readable rendering of the whole conversation (for logging and as a
 non-API fallback): each turn labelled by role, an answer also by its backend and
 model, each part rendered with its kind
-(prose, fenced code/JSON/XML, or an `EvaluatorForm` as `> code` / `= result`).
+(prose, fenced code/JSON/XML, an `EvaluatorForm` as `> code` / `= result`, or an
+`AgentTerminalCommand` as `# title` / `\$ command` / `= result time row`).
 
 Use it to write a conversation as plain text, such as for a log.
 
@@ -786,7 +791,11 @@ function format_conversation(conversation::ConversationConversation)
         println(io, uppercasefirst(string(t.role)), writer, ":")
         for part in t.parts
             c = part.content
-            if c isa EvaluatorForm
+            if c isa AgentTerminalCommand
+                println(io, "# ", get_evaluation_title(c.call))
+                println(io, "\$ ", c.command)
+                println(io, "= ", _describe_terminal_command_result(c))
+            elseif c isa EvaluatorForm
                 c.tool_name == "execute_julia_code" || println(io, "# ", get_evaluation_title(c))
                 println(io, "> ", _eval_code(c))
                 println(io, "= ", _eval_result(c))

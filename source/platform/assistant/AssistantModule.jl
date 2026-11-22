@@ -24,8 +24,8 @@ session, in a prompt and between two prompts, and the feed of the window applies
 the events in the order in which they came (`AgentEventFeed.jl`). A command that
 the agent asks the editor to run in a terminal is a task alone of the task list,
 which the assistant started (`AgentTerminal.jl`), and the call that shows it is a
-command, a part of the turn with a short card of its own (`AgentCommand.jl`,
-`AgentCommandToWidget.jl`). A precompile
+command, a part of the turn with a short card of its own (`AgentTerminalCommand.jl`,
+`AgentTerminalCommandToWidget.jl`). A precompile
 workload applies one such turn with no agent (`AssistantWarmUp.jl`). The work page
 of an assistant shows that work in a navigator, and a subagent has a page of its
 own (`AssistantWorkDocument.jl`, `AssistantWorkToWidget.jl`,
@@ -78,6 +78,7 @@ using ..WorkPlanModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
+import ..ConversationModule: is_conversation_tool_call
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate, is_walk_opaque
 import ..PaneModule: avoids_new_panes
 import ..DomainModule: accepts_pasted_document, accepts_opened_file, acquire_document!, release_document!,
@@ -124,11 +125,11 @@ export warm_assistant_turn!
 export show_assistant_work!
 export AssistantWorkToWidget
 export AgentWorkToWidget
-export AgentCommand, AgentCommandToWidget
+export AgentTerminalCommand, AgentTerminalCommandToWidget
 
 
 include("AgentWorkDocument.jl")
-include("AgentCommand.jl")
+include("AgentTerminalCommand.jl")
 include("AssistantDocument.jl")
 include("AssistantToWidget.jl")
 include("AssistantTurn.jl")
@@ -145,6 +146,6 @@ include("AssistantWarmUp.jl")
 include("AssistantWorkDocument.jl")
 include("AssistantWorkToWidget.jl")
 include("AgentWorkToWidget.jl")
-include("AgentCommandToWidget.jl")
+include("AgentTerminalCommandToWidget.jl")
 
 end # module

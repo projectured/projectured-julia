@@ -95,6 +95,17 @@ function _has_call_id(content, id)
     hasproperty(call, :tool_use_id) && call.tool_use_id == id
 end
 
+# A click on the middle of the chevron of the card whose title starts with
+# `title`: the glyph left of the title, on its line, open or folded.
+function _command_chevron_click(backend, title)
+    texts = _work_page_texts(backend)
+    (_, x, y) = only(entry for entry in texts if startswith(entry[1], title))
+    (_, cx, cy) = last(sort([entry for entry in texts
+                             if entry[1] in ("\ue06d", "\ue06f") && entry[2] < x && abs(entry[3] - y) <= 2];
+                            by = entry -> entry[2]))
+    MouseClick(:left, cx + 6, cy + 2, 1, ModifierKeys(); time = 0.0)
+end
+
 # The operation that the editor reads from `click`, which it does not evaluate.
 function _command_click_operation(editor, backend, click)
     ProjecturedKernelExample.push_event!(backend, click)
@@ -220,6 +231,12 @@ function test_agent_terminal()
             open_row = _command_click_operation(editor, backend, _command_click_at(backend, id[], y))
             @test open_row isa OpenPageOperation && open_row.document === row &&
                   open_row.reference isa EmptyReference
+            # A press on the chevron folds the card, and the command keeps the
+            # choice of the person.
+            _work_page_press!(editor, backend, _command_chevron_click(backend, "Print twelve lines"))
+            @test part.content.fold === :folded
+            @test _command_draws_at(backend, "DONE", _command_text_y(backend, "Print twelve lines"))
+            @test !_work_page_has_text(backend, "line-12")
         end
 
         @testset "a command in a file keeps its call, its command and its fold, and not its task" begin
@@ -299,6 +316,14 @@ function test_agent_terminal()
             @test any(word -> startswith(word, "Work: 1 tool call"), words)
             # The work line starts folded, so the card of the command does not show.
             @test !("Print one line" in words)
+            # In a work line that a person opened, each part of the work starts
+            # folded by the rule of the transcript.
+            _work_page_press!(editor, backend, _command_chevron_click(backend, "Work: 1 tool call"))
+            words = _command_words(backend)
+            @test "Print one line" in words
+            # @broken: the rule of the transcript is a print property of the parts that the turn prints, and the transcript embeds a command, which the layout prints later without it, so the card of a command starts open (plan a-command-of-an-agent-is-a-short-card, proposed decision 9; question to the owner)
+            @test_broken !("\$ echo one" in words)
+            @test _command_part(a).content.fold === :default
         end
 
         @testset "a stop of the person ends the command, and the wait of the agent answers" begin

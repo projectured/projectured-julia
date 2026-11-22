@@ -334,7 +334,7 @@ end
 # A part that ends the work: a thinking part, a tool call, and a question that
 # has its answer.
 _is_work_content(content) =
-    content isa Union{ConversationThinking, EvaluatorForm} ||
+    content isa ConversationThinking || is_conversation_tool_call(content) ||
     (content isa ConversationPermissionRequest && !is_permission_request_open(content)) ||
     (content isa ConversationQuestionRequest && !is_question_request_open(content))
 
@@ -372,10 +372,10 @@ end
 function _describe_work(t::ConversationTurn, contents::Vector)
     count_of(test) = count(test, contents)
     words = String[]
-    for (number, one, many) in ((count_of(c -> c isa EvaluatorForm), "tool call", "tool calls"),
+    for (number, one, many) in ((count_of(is_conversation_tool_call), "tool call", "tool calls"),
                                 (count_of(c -> c isa ConversationThinking), "thinking", "thinking"),
                                 (count_of(_is_text_content), "text", "texts"),
-                                (count_of(c -> !(c isa Union{EvaluatorForm, ConversationThinking}) &&
+                                (count_of(c -> !is_conversation_tool_call(c) && !(c isa ConversationThinking) &&
                                                !_is_text_content(c)), "other part", "other parts"))
         number == 0 || push!(words, string(number, " ", number == 1 ? one : many))
     end

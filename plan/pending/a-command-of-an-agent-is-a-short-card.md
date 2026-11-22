@@ -92,13 +92,16 @@ The result:
    `get_evaluation_title` answers it when it is not empty, else the rule of now. So the
    card, the tree label, the tooltip and the text of a conversation follow. A call of a
    tool of this editor (a name with the prefix `mcp__projectured__`) keeps no title.
-2. The new part kind is `AgentCommand <: ConversationDocument`, and its view is
-   `AgentCommandToWidget`, both in the assistant slice. Its fields: `call` (the
+2. The new part kind is `AgentTerminalCommand <: ConversationDocument`, and its view is
+   `AgentTerminalCommandToWidget`, both in the assistant slice. Its fields: `call` (the
    `EvaluatorForm` of the call, which the updates of the call keep filling), `task` (the
    `TaskDocument`, or `nothing` after a load), `command` and `fold`. Its title is the
    header of its call. (Changed in step 1, mine: the plan had the fields `title` and
    `tool_use_id`. The call keeps the input, the text that the call answered and the
-   title, so the file form, the replay and the updates need no copy of them.)
+   title, so the file form, the replay and the updates need no copy of them. Renamed in
+   step 5: the plan had the name `AgentCommand`, which the kernel already gives a slash
+   command of an agent (`AgentConnectionEvent.jl`); the two names in one module broke the
+   command menu of the agent.)
 3. The command that the card shows is the line that the agent wrote: the input field
    `command` of the call when it is a text, else the words of the terminal request. So
    the card shows no `bash -c`. When the title is the command itself, because the agent
@@ -122,6 +125,13 @@ The result:
 9. The default fold of the card follows the rule of the transcript, from the property
    `:conversation_fold` of the context, as a part does. A click on the chevron writes
    the choice into the `fold` of the command with `ReplaceConversationFoldOperation`.
+   (Found in step 5: the click works, the default does not. The turn gives the
+   property only to the parts that it prints itself; a command is a document that the
+   part embeds, which the layout prints later without it. So the card starts open
+   when nobody chose a fold, also in an opened work line. The test keeps the rule as
+   `@test_broken`. To make it reach the card, the transcript must print an embedded
+   document with the context of its part, which changes every kind of part: a
+   question to the owner.)
 10. The work line of a finished turn counts a command as a tool call. The conversation
     slice gets the function `is_conversation_tool_call(content)`, which is true for an
     `EvaluatorForm`, and the assistant slice answers it for a command.
@@ -180,9 +190,9 @@ Found in step 1, decided by me (to report to the owner):
    (was `_make_task_error_line(p, …)`, now with a `color` keyword); the count of lines
    is the public `TASK_PREVIEW_LINES` (was `_STREAM_PREVIEW_LINES`), which the card of a
    loaded command reads. `test_task_pages` 71 pass, `test_task_views` 168 pass.
-4. ✅ `AgentCommand`, its view, the change of the part in `_show_agent_terminals!` and the
+4. ✅ `AgentTerminalCommand`, its view, the change of the part in `_show_agent_terminals!` and the
    updates after it (proposed decisions 2 to 7 and 9). Facts found: the row of the
-   natural renderer chains `AgentCommandToWidget` with `VerticalLayoutToGraphicsCanvas`,
+   natural renderer chains `AgentTerminalCommandToWidget` with `VerticalLayoutToGraphicsCanvas`,
    as the page of a subagent does, because a bare view that answers a card has no
    canvas and draws nothing. A program task finds no error message, so the card shows
    the reason of an `ERROR` through `make_task_error_line(…; with_reason = true)`; the
@@ -192,8 +202,14 @@ Found in step 1, decided by me (to report to the owner):
    test editor does not run, and the test editor can not draw an assistant in a tab, so
    the test checks the operation of the press. Run of `test_agent_terminal` before the
    last test change: every check of step 4 passes; the checks of step 5 fail.
-5. ⬜ The tree, the work line, the text of a conversation, the file form, the replay and
-   the activity (proposed decisions 10 to 14).
+5. ✅ The tree, the work line, the text of a conversation, the file form, the replay and
+   the activity (proposed decisions 10 to 14). The type is now `AgentTerminalCommand`
+   (see proposed decision 2), and the fold follows proposed decision 9 as far as it
+   can. Runs: `test_agent_terminal` 72 pass, 1 broken (the default fold);
+   `test_external_agent_turn` 363 pass; `test_conversation_tree` 43, `test_assistant_overview`
+   69, `test_assistant_work` 133, `test_assistant_list` 62 and
+   `test_conversation_transcript` pass (before the last fold change, which touches only
+   the card of a command).
 6. ⬜ A live check in the editor with Claude Code over ACP: a short command, a command
    that fails, and a long command that a person stops. Screenshots at density 1 and 2.
 7. ⬜ The suites: the platform suites of the conversation, the assistant and the task,
