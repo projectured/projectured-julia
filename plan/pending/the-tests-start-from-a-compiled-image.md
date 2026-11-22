@@ -182,6 +182,12 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   two parts pass too. The compile of the samples of step 1 is no larger than the second runs of
   step 1 gave: `test_kernel` 10 s (13.6 s), `test_json` 2 s (0 s). `test_printers` keeps its
   compile, because `ProjecturedTest` has no list by the rule of Q4.
+- **Step 4, omnet-julia against the branch (2026-11-22).** The omnet manifest, which is not in
+  git, needs a resolve: `ProjecturedKernelTest` depends on `ProjecturedPrecompile` now. After
+  it, the 265 fast parts of omnet-julia gave 1 fail, `test_express_greying`; it failed six times
+  of six also against projectured `main`, so it is a fault of `main`: a check 0.2 s after the
+  start of a run came before the session worked on a quiet machine. The test now waits for
+  the working run, with a bound of 30 s, and passes three times of three.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package
