@@ -239,5 +239,7 @@ Found in step 1, decided by me (to report to the owner):
    commits 218c6c8de and 560543542 of another workstream). omnet-julia compiled against
    the branch, and `test_select_and_paste`, `test_aloha_study_by_hand` and the eight
    `test_notebook_*` pass, with the marks that omnet main has.
-8. ⬜ A report to the owner, then the land on main after the owner approves it. (Report
-   sent 2026-11-22; waits for the approval.)
+8. ✅ A report to the owner, then the land on main after the owner approves it. The
+   owner said "Land" on 2026-11-22: main went by fast-forward from 560543542 to 7e81092af,
+   not pushed. Left for a later plan: the card of a command starts open in an opened
+   work line (proposed decision 9, `@test_broken` in AgentTerminalTest.jl).
