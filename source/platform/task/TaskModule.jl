@@ -117,12 +117,11 @@ export WorkStarter, WORK_STARTER_KINDS, get_work_starter, describe_work_starter,
 export TaskGroupList, get_session_task_group_list, ClosedTaskGroup, collect_task_group_documents,
        collect_work_items, add_task_group!, remove_task_group!
 export TaskTheme, ScaledTaskTheme
-export TaskGroupDocumentToWidgetPane, make_task_progress_bar,
+export TaskGroupDocumentToWidgetPane, make_task_progress_bar, make_task_state_badge, make_task_error_line,
        make_task_group_tab_title, TaskGroupListToWidgetPane,
        make_task_group_list_tab_title, ClosedTaskGroupToWidgetPane, build_task_graphics_entry
-export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TaskStreamToWidget, TaskStreamLinesToWidget,
-       TaskStreamLinesToWidgetIoMap, make_task_state_badge, make_task_error_line, make_task_output_preview,
-       TASK_PREVIEW_LINES
+export TaskDocumentToWidgetPane, TaskExecutionToWidgetPane, TASK_PREVIEW_LINES, make_task_output_preview,
+       TaskStreamToWidget, TaskStreamLinesToWidget, TaskStreamLinesToWidgetIoMap
 export list_task_groups, find_task_group, describe_task_group, describe_task,
        get_task_output, wait_for_task_group!, wait_for_tasks!, is_task_group_running, stop_tasks!,
        rerun_tasks!, close_task_group!, run_tasks!

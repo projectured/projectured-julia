@@ -528,9 +528,11 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:conversation, "draft",        make_conversation_draft_document_example),
     AtomicDocument(:conversation, "part",         make_conversation_part_document_example),
     AtomicDocument(:conversation, "turn",         make_conversation_turn_document_example),
-    # The work page of an assistant, and the page of one of its subagents.
+    # The work page of an assistant, the page of one of its subagents, and the card
+    # of a command that an agent runs.
     AtomicDocument(:assistant, "work",       make_assistant_work_document_example),
     AtomicDocument(:assistant, "agent_work", make_agent_work_document_example),
+    AtomicDocument(:assistant, "terminal_command", make_agent_terminal_command_document_example),
     # An assistant with no transcript, and the list of the open assistants.
     AtomicDocument(:assistant, "assistant",  make_assistant_atom_document_example),
     AtomicDocument(:assistant, "list",       make_assistant_list_document_example),

@@ -225,7 +225,19 @@ Found in step 1, decided by me (to report to the owner):
    the state, the time, the row and Stop stand at the right edge. After the fix, the
    frames at density 1 and 2 show the whole header. The test editor offers no width
    edge, so no unit test checks the cut.
-7. ⬜ The suites: the platform suites of the conversation, the assistant and the task,
+7. ✅ The suites: the platform suites of the conversation, the assistant and the task,
    the ACP adapter suite, `test_application`, and the precompile and the assistant tests
    of omnet-julia. Main is green, so each failure that has no marker is a regression.
-8. ⬜ A report to the owner, then the land on main after the owner approves it.
+   `tool/run-tests.jl --changed 560543542 ProjecturedTest test_all` chose 573 parts:
+   3,476,340 pass, 4 fail, 0 error. Two causes were mine and are fixed: one export
+   statement of `TaskModule.jl` named two files (the export rule wants one statement for
+   each file, in the order of definition), and the catalog had no atom of
+   `AgentTerminalCommand` (`make_agent_terminal_command_document_example`). The run of
+   the 21 parts of the exports, the catalog, the atoms and the changed tests after the
+   fixes: 2,034,088 pass, 2 fail, 0 error; the 2 fails are one violation of the export
+   rule in `source/tool/builder/BuilderModule.jl:51`, which main has too (the builder
+   commits 218c6c8de and 560543542 of another workstream). omnet-julia compiled against
+   the branch, and `test_select_and_paste`, `test_aloha_study_by_hand` and the eight
+   `test_notebook_*` pass, with the marks that omnet main has.
+8. ⬜ A report to the owner, then the land on main after the owner approves it. (Report
+   sent 2026-11-22; waits for the approval.)

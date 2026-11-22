@@ -81,3 +81,15 @@ end
 # The subagent of the work page, for the catalog: its page shows its facts, its
 # transcript and its links.
 make_agent_work_document_example() = make_assistant_work_document_example().subagents[1]
+
+# A command that an agent runs in a terminal, for the catalog: its call with the
+# title and the input that Claude Code gives its Bash tool, a task that has not
+# started, and the line that the agent wrote.
+function make_agent_terminal_command_document_example()
+    command = "seq -f line-%02g 1 12"
+    input = Dict{String,Any}("command" => command, "description" => "Print twelve lines")
+    call = EvaluatorForm(make_evaluator_arguments_text(input); tool_use_id = "tu_1", tool_name = "Bash",
+                         input, title = "Print twelve lines")
+    AgentTerminalCommand(call, TaskDocument(ProgramTask(["bash", "-c", command]; working_directory = "."));
+                         command)
+end
