@@ -1,14 +1,12 @@
 # The tests run fast
 
-> **Status (2026-11-20): approved, in progress.** The code of steps 1 to 5 and 8 to 10 and
-> the mechanism of step 7 are committed; their tests pass in a process with no package
-> (67 checks). The whole run of the branch is recorded; the run of the base commit, which
-> step 1 needs, waits for room in the memory of the machine. Step 6 moved to the plan
-> `the-tests-start-from-a-compiled-image`, and the markers of step 9 to the plan
-> `main-stays-green`. The owner asked for this plan on
-> 2026-11-20 and approved it for implementation the same day ("yes"). The work is on the branch
-> `tests-run-fast` in the worktree `projectured-julia-tests-run-fast`, and later in omnet-julia in
-> the worktree `omnet-julia-tests-run-fast`.
+> **Status (2026-11-21): done.** Steps 1 to 5 and 7 to 10 are on `main` in both
+> repositories, and pushed. Step 6 moved to the plan `the-tests-start-from-a-compiled-image`,
+> and the markers of step 9 to the plan `main-stays-green`. The session of `main-stays-green`
+> landed the branch `tests-run-fast` with the land of that plan (projectured-julia
+> `origin/main` at `7cd53ced0`, omnet-julia `f304af15d`, pushed with `2f2bd29e9`). The owner
+> asked for this plan on 2026-11-20, approved it for implementation the same day ("yes"), and
+> agreed to its close on 2026-11-21 ("Agreed").
 
 ## 1. The purpose
 
@@ -191,28 +189,28 @@ Do the work in the worktrees `projectured-julia-tests-run-fast` and `omnet-julia
 on the branch `tests-run-fast`. Make one commit for each step. Run every Julia process with
 `bounded-run`.
 
-- [ ] 1. **A suite is a table of parts (P1, P2, I1).** Add the runner `run_parts` to
+- [x] 1. **A suite is a table of parts (P1, P2, I1).** Add the runner `run_parts` to
   `ProjecturedKernelTest`. Change each suite of projectured-julia to a table: `test_kernel`,
   `test_platform`, each domain, backend, and adapter suite, and `test_all`. In omnet-julia,
   change each suite, and change `test/runtests.jl` to one call of the runner with the table of
   the suites. **Done when:** each suite gives the same counts of pass, fail, error, and broken
   as on its base commit, and `test_platform()` passes under a 6 GB cap.
-- [ ] 2. **The record of each part (P3, I4).** The runner writes the record when the keyword
+- [x] 2. **The record of each part (P3, I4).** The runner writes the record when the keyword
   `record = <path>` is given. It prints the 10 slowest parts at the end. Add a section on the
   record to the testing guide. Replace the measurement by hand there. **Done when:** a run of
   `test_platform(record = …)` writes one line for each of its parts, and the counts of the file
   agree with the testset.
-- [ ] 3. **A filter by name (P4, I2).** Add `only` and `skip` to the runner, so every suite
+- [x] 3. **A filter by name (P4, I2).** Add `only` and `skip` to the runner, so every suite
   takes them. Add them to each walk over the examples: `test_printers`, `test_readers`,
   `test_repls`, `test_position_navigations`, `test_typeins`, `test_click_roundtrips`,
   `test_catalog`, and the walks of the domains and of omnet-julia. **Done when:**
   `test_platform(only = "widget")` runs only the parts whose name has `widget`, and
   `test_printers(only = "json/")` walks only the JSON examples.
-- [ ] 4. **Workers and a time limit (P6, P7, I8).** Write `tool/run-tests.jl` and
+- [x] 4. **Workers and a time limit (P6, P7, I8).** Write `tool/run-tests.jl` and
   `run_test_worker()`. The supervisor runs the parts in one worker, in the order of the table.
   It gives the summary of all parts at the end. **Done when:** a test part that sleeps longer
   than its limit gets `timeout` with the stacks in the log, and the parts after it run.
-- [ ] 5. **Parallel workers (P5, I3).** The supervisor starts `workers = N` workers. N is at
+- [x] 5. **Parallel workers (P5, I3).** The supervisor starts `workers = N` workers. N is at
   most the number of CPUs that the supervisor can use, divided by two. The supervisor first
   loads the packages in one worker, so that only one process precompiles. Then it starts the
   others. Each worker gets `--heap-size-hint` from the keyword `memory`. An entry of the table
@@ -220,24 +218,24 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
   such a part when no other part runs. **Done when:** a run of `test_platform` with three
   workers gives the same counts as the run of step 1.
 - 6. **Split the slow parts (I1). Moved** to step 5 of
-  [the-tests-start-from-a-compiled-image.md](the-tests-start-from-a-compiled-image.md), with
+  [the-tests-start-from-a-compiled-image.md](../pending/the-tests-start-from-a-compiled-image.md), with
   the word of the owner on 2026-11-20 ("yes"). The record of the whole run shows that 85 % of
   the time of the parts is compile. A piece of a split part compiles the shared code again, so
   a split gains little now. When the workers start from a compiled image, that cost is gone.
-- [ ] 7. **Two levels (P8, I9).** Mark the slow parts in the tables, from the record. The
+- [x] 7. **Two levels (P8, I9).** Mark the slow parts in the tables, from the record. The
   walks over all examples, the click walk, and the omnet presentation tests are slow. **Done
   when:** `test_platform(level = :fast)` runs only the fast parts, and the testing guide and
   the two `CLAUDE.md` files say which level to run after a change and before a land.
-- [ ] 8. **The parts of what changed (P9, I6).** Add `test_changed` to both repositories, and
+- [x] 8. **The parts of what changed (P9, I6).** Add `test_changed` to both repositories, and
   `--changed` to the supervisor. **Done when:** a change in one file of
   `source/platform/widget` selects the parts of the widget slice and of the slices above it,
   and a change in the kernel selects all parts.
-- [ ] 9. **No extra run of main (P10, I7).** Add the store of the records of main and
+- [x] 9. **No extra run of main (P10, I7).** Add the store of the records of main and
   `compare_records`. The markers of the known failures of main, in projectured-julia and in
   omnet-julia, moved to the plan `main-stays-green` (its decision G8). The session of that plan
   reported on 2026-11-20 that the owner approved it ("yes, implement it"). **Done when:** a
   branch run is compared with the stored record of its base commit.
-- [ ] 10. **A worker that stays open (P11, I5).** Add `--stay` and `--send` to the supervisor.
+- [x] 10. **A worker that stays open (P11, I5).** Add `--stay` and `--send` to the supervisor.
   **Done when:** a test file that changes after the start of the worker runs in its new form,
   with no new load, and a change that Revise can not apply starts a new worker.
 
@@ -307,6 +305,24 @@ on the branch `tests-run-fast`. Make one commit for each step. Run every Julia p
     passes.
 - **The order of the land.** omnet-julia reads projectured-julia from the main checkout, so
   the runner of projectured-julia must be on `main` before the omnet branch can run.
+- **The checks of the done texts.**
+  - **Step 1, the counts.** A run of the base commit `c5f9afc92` gave the same counts as the
+    branch for the six guards. For `test_kernel` it gave 5232 pass where the branch gave
+    5299: the 67 more are the tests of the runner. The two failures of the branch were
+    `test_supervised_runs`, fixed in the next commit, and `test_build_editor`, which depends on
+    the packages in its process. The base run stopped there, at the word of the owner. The
+    run of all 765 parts before the land stands in for the other suites: 1 fail, marked since,
+    and no error.
+  - **Step 1, the cap.** In the record of the whole run, each of the 295 parts of
+    `test_platform` ended in a worker of 5 GB.
+  - **Step 3, two faults.** The session of `main-stays-green` found two faults of the filter:
+    two walks over the texts of the examples passed `only` and `skip` with no value of their
+    own, and the keyword `only` of `test_history_sweep` hid `Base.only`. Its commit
+    `159189987` fixes both.
+  - **Step 9.** `test_supervised_runs` checks the store and the comparison on a fixture
+    repository.
+- **After the land.** The supervisor is no longer included by `ProjecturedKernelTest`; the part
+  `test_supervised_runs` includes it when it runs (the plan `the-runner-holds-only-what-it-uses`).
 
 ## 6. Rule of runs and measurements
 
