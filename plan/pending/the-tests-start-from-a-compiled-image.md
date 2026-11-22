@@ -199,6 +199,13 @@ Do the work in a worktree of its own, on a branch of its own. Run every Julia pr
   the start of its one part). The run of all parts on `main` `9f83cba8b`: every part done, 0
   fail, 0 error, 37 min 32 s, peak 19.7 GB; its record holds the new peaks. The recording
   after the land changed only `ProjecturedBuilderTest` (394 to 410 calls).
+- **CI after the land (2026-11-22).** The run on `7a3cdccba` failed in the two jobs that load
+  `ProjecturedTest`: their step "Instantiate" was cancelled after 19 and 30 minutes, because
+  it compiled all 38 test images with their lists (locally a peak of 16.8 GB). The step "Test"
+  takes the coverage of the files of this repository, which leaves the compiled code of the
+  images out, so in CI the lists cost and give nothing. CI now writes `precompile_calls =
+  "none"` for each test package into `LocalPreferences.toml` of its project before it
+  instantiates; with it, all test images built locally in 232 s, peak 2.0 GB.
 - **A note of the owner (2026-11-21):** "when the incremental reactive compiler is ready to be
   used, I think the compilation will speed up for testing as well." A rebuild of the reactive
   compiler adds an overlay to an image in 9 to 12 s, so it can make the image of a test package

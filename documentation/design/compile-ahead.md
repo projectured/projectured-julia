@@ -179,6 +179,9 @@ The workload of a test package is all of its parts, fast and slow, except in
 too large to build (an image of 988 MB in about 20 minutes, and an image that
 did not build in 24 GB): they record their fast parts, and a test package whose
 image still takes more than about 5 minutes or 8 GB has no list.
+CI compiles each test package at `precompile_calls = "none"`: its runs take
+the coverage of the files of this repository, which leaves the compiled code of
+their images out, so a list would only make the precompile longer.
 `ProjecturedPlatformTest` and `ProjecturedTest` have no list: the lists of their
 fast parts hold 42,064 and 24,650 calls, and their images did not build in 20 GB
 and in 10 GB. A test

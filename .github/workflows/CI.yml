@@ -147,6 +147,16 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v3
+      # The coverage of the files of this repository leaves the compiled code of their
+      # images out, so the recorded calls of the test packages would only make their
+      # precompile longer. Each test package compiles with no list here, as its preference
+      # `precompile_calls` says (compile-ahead.md, Decision 11).
+      - name: Compile the test packages with no recorded calls
+        run: |
+          for project in package/*Test/Project.toml; do
+            name=$(sed -n 's/^name = "\(.*\)"/\1/p' "$project")
+            printf '[%s]\nprecompile_calls = "none"\n\n' "$name"
+          done > "$PROJECT/LocalPreferences.toml"
       - name: Instantiate
         run: julia --project="$PROJECT" -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
       # Coverage only for the files of this repository, so the dependencies
