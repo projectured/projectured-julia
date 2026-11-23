@@ -491,7 +491,7 @@ function get_file_icon(path::AbstractString)
     extension = lowercase(splitext(path)[2])
     extension == ".jl"            ? :lambda       :
     extension == ".json"          ? :braces       :
-    extension in (".md", ".txt")  ? :pilcrow      :
+    extension in (".md", ".txt", ".log") ? :pilcrow :
     extension == ".pred"          ? :diamond      :   # a document written as its constructor
     extension == ".ned"           ? :hexagon      :   # a network: nodes and the links between them
     extension == ".ini"           ? :file_sliders :   # a configuration: lines of keys and values

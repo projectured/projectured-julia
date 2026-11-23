@@ -33,8 +33,11 @@ that points at the tab, and the answer goes to the owner first.
 
 ## Steps
 
-1. ⬜ `.log` is an extension of `TextFileFormat`, with the icon of a text file. A check
-   in `test_text_file`.
+1. ✅ `.log` is an extension of `TextFileFormat`, with the icon of a text file. A check
+   in `test_text_file`. Done 2026-11-23: `find_file_format("walk.log")` is the text
+   format, `read_document_file` of a `.log` file gives its text as a `PrimitiveString`,
+   and `get_file_icon` gives `:pilcrow`. No other format claims `.log`. Test:
+   `test_text_file` 45 of 45.
 2. ⬜ W1, after the decision of the owner.
 
 ## State

@@ -101,6 +101,17 @@ function test_text_file()
         @test make_document_string(get_file_format(TextFile("x.txt", "")), "") == ""
     end
 
+    @testset "a .log file opens as plain text" begin
+        @test find_file_format("walk.log") isa TextFileFormat
+        mktempdir() do directory
+            path = joinpath(directory, "walk.log")
+            write(path, "step 1 done\nstep 2 done\n")
+            content = read_document_file(path)
+            @test content isa PrimitiveString && content.value == "step 1 done\nstep 2 done"
+        end
+        @test get_file_icon("walk.log") === :pilcrow
+    end
+
     @testset "save_file! writes the root to base_dir/filename" begin
         d = mktempdir()
         try
