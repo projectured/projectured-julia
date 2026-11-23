@@ -57,10 +57,13 @@ folder that the tree reads, and not what a read found."
 
 ## Steps
 
-1. ⬜ A test that fails on main: a section holds a group of two `ProgramTask`s in a
+1. ✅ A test that fails on main: a section holds a group of two `ProgramTask`s in a
    temporary folder; the group runs, the section is saved, and the load gives the same
    commands with the state "not started"; a start adds the group to the task list of the
-   session. A testset of `test_task_document`.
+   session. A testset of `test_task_document`. Done 2026-11-23: the testset also holds a
+   preparation, a task of no group and a group of groups. On main it fails at the save
+   with "cannot write a ProjecturedPlatform.TaskModule.ProgramTask at entries.tasks.task",
+   and the other 131 checks of `test_task_document` pass.
 2. ⬜ The file forms of `ProgramTask`, the three build steps and `ResultCodes`.
 3. ⬜ The file forms of `TaskGroup`, `TaskGroupDocument` and `TaskDocument`.
 

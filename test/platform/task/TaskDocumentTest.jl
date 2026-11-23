@@ -401,5 +401,57 @@ function test_task_document()
             @test build_task_group_document_counts(document)[:cancelled] == 5
             @test get_task_group_document_counts(document).result == "CANCEL"
         end
+
+        @testset "a file keeps what a group runs, and a load gives the group, not started" begin
+            folder = mktempdir()
+            program = (name, script) -> ProgramTask(["sh", "-c", script]; working_directory = folder, name,
+                                                    environment = Dict("TASK_WORD" => name))
+            group = TaskGroup([program("first", "echo \$TASK_WORD"), program("second", "echo two")];
+                              name = "walk", action = "Walking", jobs = 1, stop_at_failure = true,
+                              preparation = program("prepare", "true"))
+            document = wrap_task_group_document(group; title = "Walk log", description = "the log of the walk")
+            alone = TaskDocument(program("alone", "echo alone"); title = "Alone")
+            editor = Editor(PrimitiveString("x"), NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0));
+                            backend = HeadlessBackend(), devices = Device[])
+            start_task_group_document!(document; editor)
+            wait_task_group_document(document; editor)
+            @test build_task_group_document_counts(document)[:done] == 2
+            # The file holds the commands of the group, and nothing of its run.
+            text = print_pred_text(ExplorerSection("Saved", Any[document, alone]))
+            @test occursin("echo two", text) && !occursin("TaskExecution", text)
+            loaded = parse_pred_text(text)
+            loaded_group, loaded_alone = loaded.entries[1], loaded.entries[2]
+            @test loaded_group isa TaskGroupDocument
+            @test getfield(loaded_group, :title)[] == "Walk log"
+            @test getfield(loaded_group, :description)[] == "the log of the walk"
+            @test getfield(loaded_group, :identifier)[] != getfield(document, :identifier)[]
+            @test get_task_group_document_status(loaded_group) === :pending
+            native = get_task_group(loaded_group)
+            @test [task.arguments for task in native.tasks] == [task.arguments for task in group.tasks]
+            @test [task.environment for task in native.tasks] == [task.environment for task in group.tasks]
+            @test all(task -> task.working_directory == folder, native.tasks)
+            @test (native.name, native.action, native.jobs, native.stop_at_failure) == ("walk", "Walking", 1, true)
+            @test (native.codes.codes, native.codes.roles, native.codes.expected) ==
+                  (group.codes.codes, group.codes.roles, group.codes.expected)
+            @test native.preparation.arguments == ["sh", "-c", "true"]
+            @test getfield(loaded_group, :preparation)[] isa TaskDocument
+            @test all(run -> run === nothing, native.runs)
+            # A task of no group keeps its task and its title.
+            @test loaded_alone isa TaskDocument
+            @test get_task_document_status(loaded_alone) === :pending
+            @test getfield(loaded_alone, :title)[] == "Alone"
+            @test getfield(loaded_alone, :task)[].arguments == ["sh", "-c", "echo alone"]
+            # An inner group is a group of its own in the file too.
+            nested = wrap_task_group_document(TaskGroup([TaskGroup([program("inner", "true")]; name = "phase")];
+                                                        name = "outer"))
+            inner = find_task_group_document(parse_pred_text(print_pred_text(nested)), 1)
+            @test inner isa TaskGroupDocument
+            @test only(get_task_group(inner).tasks).arguments == ["sh", "-c", "true"]
+            # The group of the file runs, and its start puts it in the task list.
+            start_task_group_document!(loaded_group; editor)
+            @test any(item -> item === loaded_group, get_session_task_group_list(; editor).groups)
+            wait_task_group_document(loaded_group; editor)
+            @test build_task_group_document_counts(loaded_group)[:done] == 2
+        end
     end
 end
