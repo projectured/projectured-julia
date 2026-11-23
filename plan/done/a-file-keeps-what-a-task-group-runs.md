@@ -2,7 +2,7 @@
 
 ## The problem
 
-This is F11 of [the-editor-for-the-assistant-of-the-catch-up.md](the-editor-for-the-assistant-of-the-catch-up.md).
+This is F11 of [the-editor-for-the-assistant-of-the-catch-up.md](../pending/the-editor-for-the-assistant-of-the-catch-up.md).
 `write_document_file!` of a document that holds a task group fails:
 
     cannot write a ProjecturedPlatform.TaskModule.ProgramTask at entries.children.elements.tasks.task
@@ -96,6 +96,7 @@ The tests of each step: `test_task_document`, `test_program_task`, `test_build_s
 
 ## State
 
-All three steps are done on the branch `task-file-form` in the worktree
-`projectured-julia-task-file-form`. The land on main waits for the approval of the
-owner; at the land, the plan goes to `plan/done`.
+Done 2026-11-23. The owner approved the land and the push. The three steps landed on
+main by a fast-forward at `eb60f1408`, after a rebase over main `d85427334` with no
+conflict, and were pushed. The IDE gets the fix with its next build; then the assistant
+saves the workflow of the catch-up with its task group, and needs no `save_workflow_1`.
