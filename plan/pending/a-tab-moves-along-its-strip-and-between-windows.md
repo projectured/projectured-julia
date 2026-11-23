@@ -380,6 +380,33 @@ suites of the packages that it touches run against the baseline of main.
   windows: a reorder, a tab out to a new window, a tab back, a copy and paste between
   the windows, with a picture of each state. Then the owner tries it.
 
+  Found in the work (2026-11-23):
+  - **The guides.** The guides of the pane, the drag tracker, the screen, the shell, the
+    clipboard, the gestures of the kernel and the editor describe the new rules; the
+    pane guide names the keyword `acquire` of `OpenPaneWindowOperation`.
+  - **The rebase.** The branch went on main `af21c87e6`, 127 commits later than its
+    first base. Main made the shell suite a `TestSuite` list, which now holds
+    `test_tab_window`. On the rebased branch the shell suite (662 pass), the clipboard,
+    the pane tests, the explorer, the navigator, the application (421 pass), the drag,
+    the layout file and the data frame suites (625 pass) have no failure and no error;
+    the broken marks are those of main. The omnet IDE suites of the window, the
+    clipboard and the pane gave the same failures, with the same texts, on the branch
+    and on its first base: their tests read the clipboard at a place where main holds
+    the settings document, so they fail before a copy.
+  - **The live check.** A script builds the editor of the application with no
+    assistant (`_make_application_editor`), opens the tabs Alpha, Beta and Gamma, and
+    pushes the events of a hand into the queue of SDL on the main task. It ran first on
+    the headless backend and then on SDL with two real windows: 13 of 13 checks pass on
+    both. The reorder puts Alpha between Beta and Gamma; Beta goes out to a window at
+    the pointer, with its label outside the windows; Beta goes back before Gamma, and
+    its window closes; a copy of Alpha in the first window pastes into Gamma in the
+    second, and Ctrl+Z there takes it back; the close of the second window releases
+    Gamma. The window manager put the new window 37 px lower than the pointer, the
+    height of its title bar: the place of a window is the place of its frame. A picture
+    of each drawn window was written for each state; a picture of the screen with
+    `import` failed under the run unit.
+  - **Open:** the owner tries it.
+
 ## 5. Not in this plan
 
 - A file dragged from the explorer into an editor. The gestures of D6 can serve it later.
