@@ -688,14 +688,15 @@ end
     menu = _right_click_menu(proj, driver, _header_point(proj, driver.iomap, tree, group, 2), "b")
     @test menu !== nothing
     @test _menu_labels(menu) == ["Duplicate", "Rename", "Split right", "Split down", "Maximize group",
-                                 "Add to explorer", "Close", "Close others", "Close to the right"]
+                                 "Move to new window", "Add to explorer", "Close", "Close others",
+                                 "Close to the right"]
     # A window of one group has nothing to maximize, and the last tab has no tab
     # to its right.
     @test !_menu_item(menu, "Maximize group").enabled
     @test !_menu_item(menu, "Close to the right").enabled
     @test all(_menu_item(menu, label).enabled
-              for label in ("Duplicate", "Rename", "Split right", "Split down", "Add to explorer", "Close",
-                            "Close others"))
+              for label in ("Duplicate", "Rename", "Split right", "Split down", "Move to new window",
+                            "Add to explorer", "Close", "Close others"))
     @test isempty(_menu_item(menu, "Close others").keys) && isempty(_menu_item(menu, "Close to the right").keys)
     # Each item shows the keys that do the same to the focused tab.
     @test _menu_item(menu, "Close").keys == find_bound_keys(PaneTree, "Close the focused tab")

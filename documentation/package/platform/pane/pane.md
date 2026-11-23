@@ -242,7 +242,7 @@ A tab of the tree is an open hand under the pointer, because a press there can d
 
 ### Windows of tabs
 
-Each window of the editor that shows tabs has a tree of its own, inside the same layers as the first window: an undo history and the menu bar, the toolbar and the status bar. `OpenPaneWindowOperation(tab; title, x, y, width, height)` opens such a window with one tab and gives the tab the focus: its evaluation builds the tree, puts the layers around it with `make_window_content(editor, tree)` of the kernel, and opens the window on the screen. The screen draws a window whose content is of the kind of the content of the first window with the projection of the first window.
+Each window of the editor that shows tabs has a tree of its own, inside the same layers as the first window: an undo history and the menu bar, the toolbar and the status bar. `OpenPaneWindowOperation(tab; title, x, y, width, height, acquire = true)` opens such a window with one tab and gives the tab the focus: its evaluation builds the tree, puts the layers around it with `make_window_content(editor, tree)` of the kernel, and opens the window on the screen. With `acquire`, the window acquires what the tab shows, as the open of a tab does; a tab that comes from another window is held already, and takes `acquire = false`. The screen draws a window whose content is of the kind of the content of the first window with the projection of the first window.
 
 A tab moves between windows in three ways:
 
