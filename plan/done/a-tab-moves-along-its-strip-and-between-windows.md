@@ -1,10 +1,11 @@
 # A tab moves along its strip and between windows
 
-> **Status (2026-11-20): in progress, step 1.** The owner asked for this plan on
-> 2026-11-20 and answered the questions D1 to D8 the same day. P1 to P12 were proposed
-> by the assistant and approved with the plan on 2026-11-20 ("yes, approved, start the
-> implementation"). The work is on the branch `tab-windows` in the worktree
-> `projectured-julia-tab-windows`.
+> **Status (2026-11-23): done.** The owner asked for this plan on 2026-11-20 and answered
+> the questions D1 to D8 the same day, D9 on 2026-11-20 and D10 on 2026-11-23. P1 to P12
+> were proposed by the assistant and approved with the plan on 2026-11-20 ("yes,
+> approved, start the implementation"). Steps 1 to 6 are done. The owner tried it on
+> 2026-11-23 ("it works, land it"), and the branch `tab-windows` landed on main by
+> fast-forward. The save of the layout of an editor with windows is a later plan (D10).
 
 ## 1. The purpose
 
@@ -375,10 +376,10 @@ suites of the packages that it touches run against the baseline of main.
   - **Step 2 test changed.** The last test of `DragTrackingTest.jl` now checks the moves:
     a release over the strip of `V` moves the tab there, and a release between the
     windows opens a third window at the pointer.
-- [ ] 6. **The guides and the live check.** The guides of the pane, the drag tracker,
-  the screen and the shell describe the new rules. A live check on SDL with two real
-  windows: a reorder, a tab out to a new window, a tab back, a copy and paste between
-  the windows, with a picture of each state. Then the owner tries it.
+- [x] 6. **The guides and the live check.** (Done 2026-11-23.) The guides of the pane,
+  the drag tracker, the screen and the shell describe the new rules. A live check on SDL
+  with two real windows: a reorder, a tab out to a new window, a tab back, a copy and
+  paste between the windows, with a picture of each state. Then the owner tries it.
 
   Found in the work (2026-11-23):
   - **The guides.** The guides of the pane, the drag tracker, the screen, the shell, the
@@ -405,7 +406,7 @@ suites of the packages that it touches run against the baseline of main.
     height of its title bar: the place of a window is the place of its frame. A picture
     of each drawn window was written for each state; a picture of the screen with
     `import` failed under the run unit.
-  - **Open:** the owner tries it.
+  - **The owner's try.** The owner tried it on 2026-11-23: "it works, land it".
 
 ## 5. Not in this plan
 
