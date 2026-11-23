@@ -66,8 +66,8 @@ should we implement this?"
 
 ## 3. Decisions
 
-D1 to D9 are the owner's, 2026-11-20. P1 to P12 were proposed by the assistant and
-approved with the plan on 2026-11-20.
+D1 to D9 are the owner's, 2026-11-20, and D10 is the owner's, 2026-11-23. P1 to P12
+were proposed by the assistant and approved with the plan on 2026-11-20.
 
 - **D1. A reorder shows a line** (owner). While you drag a tab over a strip, a short
   vertical line between two tabs shows where the tab goes. The tabs do not move until
@@ -120,6 +120,11 @@ approved with the plan on 2026-11-20.
   where you press Ctrl+/, which needs a new path from the clipboard into the drawing
   of one window; a tab that shows the stored copy, a later plan if the toggle is
   missed.
+- **D10. The save of the layout is a later plan** (owner, 2026-11-23, option A). The
+  save of an editor with windows fails on main: `save_user_interface` writes the whole
+  screen, and a `.pred` file can not write `WindowDocument.id`, a `Symbol`. It needs
+  rules of the file for the screen, for each window and for the layers around the
+  screen, which is a work of its own. Rejected: the rules in this plan, as a new step.
 
 - **P1. The place of the line** (proposed by the assistant). The places on a strip are
   before the first tab, between two tabs, and after the last tab. The pointer chooses
@@ -342,11 +347,11 @@ suites of the packages that it touches run against the baseline of main.
   - **A new window acquires its tab.** `OpenPaneWindowOperation` acquires what its tab
     shows, as the open of a tab does; a tab that comes from another window takes
     `acquire = false`.
-- [ ] 5. **A tab goes back, and the close of a window** (D5, P8, P9). (Done 2026-11-20,
-  but the save of the layout, which waits for a decision of the owner.) A drop into the strip or a pane of another window moves the tab there, and an empty
-  window closes. The close button of a tab window closes its tabs, and the close of the
-  last tab window quits. A save of the layout (`save_user_interface`) keeps every window,
-  and a load gives them back. Test: drag `b` from window 2, its only tab, between `a` and
+- [x] 5. **A tab goes back, and the close of a window** (D5, P8, P9, D10). (Done
+  2026-11-20; the save of the layout went to a later plan, D10.) A drop into the strip or
+  a pane of another window moves the tab there, and an empty window closes. The close
+  button of a tab window closes its tabs, and the close of the last tab window quits.
+  Test: drag `b` from window 2, its only tab, between `a` and
   `c` of window 1 gives `a b c` and one window; the close of window 2 with `b d` releases
   `b` and `d`; no undo history holds a move between windows.
 
@@ -366,9 +371,7 @@ suites of the packages that it touches run against the baseline of main.
     `WindowDocument.id`, a `Symbol`, which a `.pred` file can not write. Before that, it
     failed at the first `UndoBuffer` with a step, because the buffer wrote its steps. No
     code saves an editor with windows: the tests save a tree or a shell in a fake editor.
-    A row of `pred_arguments` for `UndoBuffer` that writes its content alone, as
-    `ClipboardSlice` and `GestureLog` do, and the test of the save, wait outside the
-    branch until the owner decides the scope.
+    The owner put the save in a later plan (D10).
   - **Step 2 test changed.** The last test of `DragTrackingTest.jl` now checks the moves:
     a release over the strip of `V` moves the tab there, and a release between the
     windows opens a third window at the pointer.
@@ -384,4 +387,11 @@ suites of the packages that it touches run against the baseline of main.
 - A Wayland session without X11, where SDL gives no place of a window, so the window
   under the pointer can not be found.
 - The order of overlapping windows on the screen.
+- The save of the layout of an editor with windows (D10). Facts for that plan: the
+  save fails at `WindowDocument.id`, a `Symbol`, which a `.pred` file can not write; and
+  at the first `UndoBuffer` with a step, because the buffer writes its steps. A row
+  `pred_arguments(buffer::UndoBuffer) = (buffer.content,), Pair{Symbol,Any}[]` in
+  `UndoDocument.jl`, as `ClipboardSlice` and `GestureLog` have, writes the content
+  alone, and the load builds a buffer with no steps. The test of the save saved two
+  windows, read the file back, and found the two trees and no `UndoEntry` in the text.
 - `get_window_tree()` answers the tree of the first window, as today.
