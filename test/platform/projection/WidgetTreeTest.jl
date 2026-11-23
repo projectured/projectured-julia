@@ -128,6 +128,37 @@ end
     @test op isa ReplaceSelectionOperation
 end
 
+@testset "a plain click on the label of a node chooses the node, and an Alt+click puts the caret in the label" begin
+    w = WidgetTree(Any[WidgetTreeNode(:file, "notes", Any[]), "README"])
+    io = print_document(_treeproj, w)
+    alt = ModifierKeys(alt = true)
+    path_of(op) = strip_reference_types(op.path)
+    label(k, text) = only(e for e in _rows_canvas(io).elements[k].elements if e isa GraphicsText && e.text == text)
+    caret(node, k) = concat_references(node, ConcreteReference(RangeReferenceStep(k, k), EmptyReference()))
+    label_part = concat_references(_node([1]), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
+    rows = io.geometry.rows
+    # A point after the second character of each label, in the middle of its row.
+    x1 = Int(label(1, "notes").x) + 2 * 8 + 1
+    y1 = rows[1].y0 + rows[1].height ÷ 2
+    x2 = Int(label(2, "README").x) + 3 * 8 + 1
+    y2 = rows[2].y0 + rows[2].height ÷ 2
+    @test path_of(_readop(io, MouseClick(:left, x1, y1, _mods; time = 0.0))) == _node([1])
+    # The label of a `WidgetTreeNode` is its field `label`; a node that is a plain
+    # value is the text itself.
+    @test path_of(_readop(io, MouseClick(:left, x1, y1, alt; time = 0.0))) == caret(label_part, 2)
+    @test path_of(_readop(io, MouseClick(:left, x2, y2, alt; time = 0.0))) == caret(_node([2]), 3)
+    # The caret maps to its place on the label, and the row draws it there.
+    box = find_reference_box(io.output, map_reference_forward(_treeproj, io, caret(label_part, 2)); measure = _det)
+    @test box.x == Int(label(1, "notes").x) + 2 * 8 && box.width == 0
+    replace_selection!(w, caret(label_part, 2))
+    marks = [r for e in _rows_canvas(io).elements[1].elements if e isa GraphicsCanvas
+             for r in e.elements if r isa GraphicsRect && Int(r.w[]) == 2 && Int(r.h[]) > 0]
+    @test length(marks) == 1 && Int(only(marks).x[]) == box.x
+    # A key moves the caret in the label, and Down goes on to the next node.
+    @test path_of(_readop(io, KeyDown(:right, _mods; time = 0.0))) == caret(label_part, 3)
+    @test path_of(_readop(io, KeyDown(:down, _mods; time = 0.0))) == _node([2])
+end
+
 @testset "a rest of the pointer on a row shows the tooltip of its node" begin
     w = WidgetTree(Any[WidgetTreeNode(:file, "notes", Any[]; tooltip = "unsaved edits"), "README"])
     io = print_document(_treeproj, w)
@@ -280,6 +311,13 @@ end
     # A click on the fourth row selects the second run.
     op = _readop(io, MouseClick(:left, 100, 3 * 20 + 5, _mods; time = 0.0))
     @test op isa ReplaceSelectionOperation && WidgetModule._wtree_ref_path(op.path) == [1, 1, 2]
+    # An Alt+click on the label of that run, where its forward map puts it, gives
+    # the caret in the label.
+    label = concat_references(_node([1, 1, 2]), ConcreteReference(FieldReferenceStep("label"), EmptyReference()))
+    box = find_reference_box(io.output, map_reference_forward(_treeproj, io, label); measure = _det)
+    op = _readop(io, MouseClick(:left, Int(box.x) + 2 * 8 + 1, Int(box.y) + 2, ModifierKeys(alt = true); time = 0.0))
+    @test strip_reference_types(op.path) ==
+          concat_references(label, ConcreteReference(RangeReferenceStep(2, 2), EmptyReference()))
     # The keys step one row from the selected row.
     replace_selection!(w, _node([1, 1, 2]))
     @test WidgetModule._wtree_ref_path(_readop(io, KeyDown(:down, _mods; time = 0.0)).path) == [1, 1, 3]

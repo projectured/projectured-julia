@@ -3035,16 +3035,19 @@ map_reference_backward(::WidgetButtonToGraphicsCanvas, iomap, reference) =
 # which the container makes the text as a whole on an Alt+double click; a press with
 # Alt starts the drag of a range; a key moves the caret or the range, read-only.
 # `nothing` for any other event, which the control reads as its own.
-function _read_control_text(p, iomap, evt)
-    w = iomap.input
-    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure)
+_read_control_text(p, iomap, evt) = _read_drawn_control_text(iomap.drawn, iomap.output, iomap.input, evt, p.measure)
+
+# The same answer of the widget `w` for the lines `drawn` of a text in `canvas`, with
+# `evt` in the frame of `canvas`.
+function _read_drawn_control_text(drawn, canvas, w, evt, measure)
+    evt isa Union{DragMove, DragEnd} && return read_drawn_text_pointer(drawn, canvas, w, evt, measure)
     if is_selection_press(evt)
-        path = find_drawn_click_selection(iomap.drawn, iomap.output, w, evt, p.measure)
+        path = find_drawn_click_selection(drawn, canvas, w, evt, measure)
         return path === nothing ? nothing : ReplaceSelectionOperation(path)
     end
     evt isa MouseDown && evt.modifiers.alt &&
-        return read_drawn_text_pointer(iomap.drawn, iomap.output, w, evt, p.measure; control = true)
-    read_drawn_text_key(iomap.drawn, w, evt, p.measure)
+        return read_drawn_text_pointer(drawn, canvas, w, evt, measure; control = true)
+    read_drawn_text_key(drawn, w, evt, measure)
 end
 
 # The button owns the transitions of its `pressed` state. A click invokes the
@@ -14912,6 +14915,7 @@ end
     bare::Bool       # the rows of a tree that scrolls itself, with no box
     view_height::Any # the height of the rows that can show, or nothing
     box::Any
+    label_column::Cell # the x of the label of a row from the start of its chevron
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -14944,6 +14948,153 @@ function _wtree_ref_path(reference)
         first = false
     end
     isempty(path) ? nothing : path
+end
+
+# ── The label of a node ──────────────────────────────────────────────────────
+# The label of a node is a text that the tree draws. It shows a part of the input
+# of the tree: the field `label` of a `WidgetTreeNode`, and a node that is a plain
+# value itself, as an item of a list. The rows of a tree are made one at a time,
+# and a lazy tree makes rows with no end, so the tree keeps no list of its lines: a
+# row draws the marks of its own label, and a reader finds the line of a row in
+# the canvas of that row.
+
+const _WTREE_LABEL_PART = ConcreteReference(FieldReferenceStep("label"), EmptyReference())
+
+# The part that the label of `node`, the node at `path`, shows, or `nothing` for a
+# label that the tree draws from a document or a picture.
+function _find_wtree_label_part(node, path::Vector{Int})
+    node isa WidgetTreeNode &&
+        return _is_drawn_value(node.label) ? concat_references(_wtree_path_ref(path), _WTREE_LABEL_PART) : nothing
+    node === nothing || !_is_drawn_value(node) ? nothing : _wtree_path_ref(path)
+end
+
+# The path of the node, the part and the range of `reference` when it names the
+# label of a node of `w` as a whole, or a caret or a range in it, as
+# `_find_wtree_label_part` names the label: `(path, part, range)`, where `range` is
+# `nothing` for the label as a whole. `nothing` for any other reference, such as a
+# node itself.
+function _split_wtree_label_reference(w::WidgetTree, geometry, reference)
+    reference isa Reference || return nothing
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    path = Int[]
+    k = 1
+    while k + 1 <= length(steps)
+        field, index = steps[k], steps[k + 1]
+        (field isa FieldReferenceStep && field.name == (isempty(path) ? "roots" : "children") &&
+         index isa RangeReferenceStep && is_element_reference_step(index)) || break
+        push!(path, index.start + 1)
+        k += 2
+    end
+    isempty(path) && return nothing
+    rest = steps[k:end]
+    range = !isempty(rest) && last(rest) isa RangeReferenceStep ? last(rest) : nothing
+    named = range === nothing ? length(rest) : length(rest) - 1
+    (named == 0 && range === nothing) && return nothing
+    part = _find_wtree_label_part(_find_wtree_node(geometry, w, path), path)
+    part === nothing && return nothing
+    given = foldr(ConcreteReference, steps[1:(k - 1 + named)]; init = EmptyReference())
+    strip_reference_types(part) == given ? (path, part, range) : nothing
+end
+
+# The row of `path` in the open tree, or `nothing`.
+function _find_wtree_row(geometry::WTreeGeometry, path)
+    index = get(geometry.index, path, nothing)
+    index === nothing ? nothing : geometry.rows[index]
+end
+
+function _find_wtree_row(geometry::WTreeListGeometry, path)
+    link = _find_wtree_list_node(geometry, path)
+    link === nothing ? nothing : link.value.row
+end
+
+# The path of the canvas of the row of `path` from the canvas of the tree, or
+# `nothing` for a node with no row, such as one under a closed node.
+function _find_wtree_row_place(iomap::WidgetTreeToGraphicsCanvasIoMap, path)
+    row = _find_wtree_row_index(unwrap_cell(iomap.geometry), path)
+    row === nothing && return nothing
+    last = length(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements)))
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(last - 1, last),
+        ConcreteReference(FieldReferenceStep("elements"),
+            ConcreteReference(RangeReferenceStep(row - 1, row), EmptyReference()))))
+end
+
+# The canvas of the row of `path`, or `nothing`.
+function _find_wtree_row_canvas(iomap::WidgetTreeToGraphicsCanvasIoMap, path)
+    place = _find_wtree_row_place(iomap, path)
+    place === nothing && return nothing
+    canvas = unwrap_cell(try_evaluate_reference(unwrap_cell(iomap.output), place))
+    canvas isa GraphicsCanvas ? canvas : nothing
+end
+
+# The line of the label of `row` and the canvas of the row that holds it, or
+# `nothing` for a row whose label shows no part. The label is the text of the row
+# that starts at the column of the labels.
+function _find_wtree_label_line(iomap::WidgetTreeToGraphicsCanvasIoMap, row::WTreeRow)
+    node = _find_wtree_node(unwrap_cell(iomap.geometry), iomap.input, row.path)
+    part = _find_wtree_label_part(node, row.path)
+    part === nothing && return nothing
+    canvas = _find_wtree_row_canvas(iomap, row.path)
+    canvas === nothing && return nothing
+    x = row.chevron_x0 + unwrap_cell(iomap.label_column)
+    elements = unwrap_cell(getfield(canvas, :elements))
+    for k in 1:length(elements)
+        element = unwrap_cell(elements[k])
+        element isa GraphicsText && Int(unwrap_cell(getfield(element, :x))) == x &&
+            return (DrawnTextLine(element, part, 0), canvas)
+    end
+    nothing
+end
+
+# The place in the canvas of the tree of the label of a node as a whole, its text,
+# or of a caret or a range in it, its characters; `nothing` for any other reference.
+function _map_wtree_label_forward(iomap::WidgetTreeToGraphicsCanvasIoMap, reference)
+    geometry = unwrap_cell(iomap.geometry)
+    split = _split_wtree_label_reference(iomap.input, geometry, reference)
+    split === nothing && return nothing
+    path, _, range = split
+    row = _find_wtree_row(geometry, path)
+    row === nothing && return nothing
+    found = _find_wtree_label_line(iomap, row)
+    found === nothing && return nothing
+    line, canvas = found
+    place = range === nothing ? _find_element_path(canvas, line.text) :
+                                map_drawn_caret_forward([line], canvas, reference)
+    place === nothing ? nothing : concat_references(_find_wtree_row_place(iomap, path), place)
+end
+
+# The path of the node that the selection of the tree names, or of the node whose
+# label holds the selection; `nothing` for no node.
+function _find_wtree_selected_path(iomap::WidgetTreeToGraphicsCanvasIoMap)
+    w = iomap.input
+    path = _wtree_ref_path(w.selection)
+    path === nothing || return path
+    split = _split_wtree_label_reference(w, unwrap_cell(iomap.geometry), w.selection)
+    split === nothing ? nothing : first(split)
+end
+
+# The label of a node reads like the text of a control (`_read_drawn_control_text`):
+# a plain click on it chooses the node (D12), and only a press with Alt reaches the
+# text. A press reads the label of the row under it, and a drag and a key the label
+# that holds the selection, in the frame of the canvas of that row. `nothing` for
+# any other event and off the label.
+function _read_wtree_label(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
+    evt isa Union{MouseClick, MouseDown, DragMove, DragEnd, KeyDown, KeyPress} || return nothing
+    evt isa Union{MouseClick, MouseDown} && !evt.modifiers.alt && return nothing
+    geometry = unwrap_cell(iomap.geometry)
+    row = if evt isa Union{MouseClick, MouseDown}
+        _find_wtree_row_at(p, iomap, evt.y)
+    else
+        split = _split_wtree_label_reference(iomap.input, geometry, iomap.input.selection)
+        split === nothing ? nothing : _find_wtree_row(geometry, first(split))
+    end
+    row === nothing && return nothing
+    found = _find_wtree_label_line(iomap, row)
+    found === nothing && return nothing
+    line, canvas = found
+    content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
+    shifted = shift_event_position(evt, -(content_x + Int(unwrap_cell(getfield(canvas, :x)))),
+                                   -(content_y + Int(unwrap_cell(getfield(canvas, :y)))))
+    _read_drawn_control_text([line], canvas, iomap.input, shifted, p.measure)
 end
 
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
@@ -15124,6 +15275,13 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         band
     end
 
+    # A canvas over a row that holds the marks of its label that `make` answers. It
+    # reads the selection in a cell of its own, as a band does, so a selection move
+    # makes the marks again and no other element of the row.
+    make_label_marks(row::WTreeRow, make) =
+        GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(@computation Int32(width[])), Cell(Int32(row.height)),
+                       CellVector(Computation(make)), layout_none, true, Cell(nothing))
+
     # The top of the row of `path` in the open tree, or 0 once the path is not in it.
     function get_row_top(path)
         g = geometry[]
@@ -15201,9 +15359,20 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             end
             label = _tree_label(node)
             label_x = x + chevron_column + column[]
+            at = length(result) + 1
             _push_text!(result, p.measure, label_style.font, label, label_x, text_y, label_style.color)
             push_tail!(result, node, label_x + first(_text_size(p.measure, label_style.font, label)),
                        row.height, text_y, icon_y)
+            # A label that shows a part of the input records its line: the band of
+            # the label as a whole or of a range in it goes behind the label, and
+            # the caret on top of the row.
+            part = _find_wtree_label_part(node, row.path)
+            if part !== nothing
+                line = DrawnTextLine(result[at], part, 0)
+                insert!(result, at, make_label_marks(row, () -> _make_drawn_bands([line], w.selection, p.measure,
+                                                                                  row_selected_color)))
+                push!(result, make_label_marks(row, () -> _make_drawn_caret_elements([line], w.selection, p.measure)))
+            end
             result
         end))
         GraphicsCanvas(Cell(Int32(0)), top,
@@ -15269,28 +15438,28 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     canvas = GraphicsCanvas(Cell(Int32(origin_x)), Cell(Int32(origin_y)),
                             outer_w, outer_h,
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h, box_geometry)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width, bare, visible_h, box_geometry,
+                                    Cell(@computation chevron_column + column[]))
 end
 
 # A row of the tree is a canvas of its own in the canvas of the rows, the last of
 # the tree's elements; a node maps to its row by its index in the open tree. A node
-# under a closed one has no row, and so no image.
+# under a closed one has no row, and so no image. The label of a node, and a caret
+# or a range in it, maps to its text in the row.
 function map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, reference)
     reference isa Reference || return nothing
     reference = strip_reference_types(reference)
     reference isa ConcreteReference || return _map_self_forward(reference)
+    label = _map_wtree_label_forward(iomap, reference)
+    label === nothing || return label
     path = _wtree_ref_path(reference)
     path === nothing && return nothing
-    row = _find_wtree_row_index(unwrap_cell(iomap.geometry), path)
-    row === nothing && return nothing
-    last = length(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements)))
-    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(last - 1, last),
-        ConcreteReference(FieldReferenceStep("elements"),
-            ConcreteReference(RangeReferenceStep(row - 1, row), EmptyReference()))))
+    _find_wtree_row_place(iomap, path)
 end
 
 map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
-# A point on a row maps to its node, the reference that a click there selects.
+# A point on a row maps to its node, on its label too, the reference that a click
+# there selects (D12).
 function map_reference_backward(p::WidgetTreeToGraphicsCanvas, iomap, reference)
     point = find_reference_point(reference)
     (point === nothing || !(iomap isa WidgetTreeToGraphicsCanvasIoMap)) && return nothing
@@ -15362,17 +15531,21 @@ map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetRowsPaneIoMap, 
 # binding can add / override (shadow) / suppress; the built-in select / collapse /
 # nav below is the fallback. A press that selects never acts, so it reads no
 # binding, such as the double click that opens the file of a row, and opens or
-# closes no row: the row under it is the answer.
+# closes no row: the row under it is the answer. Nor does a press with Alt. Then
+# the label of a node reads the event as the text of a control (`_read_wtree_label`):
+# a press with Alt on it puts the caret there, and a key moves that caret.
 function read_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt; answer = nothing)
     answer === nothing || return nothing
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    if !is_selection_press(evt)
+    if !(is_selection_press(evt) || evt isa MouseDown && evt.modifiers.alt)
         op = read_bound_gesture(w, evt)
         op === nothing || return op
         nop = _wtree_node_gesture(p, iomap, evt)
         nop === nothing || return nop
     end
+    text = _read_wtree_label(p, iomap, evt)
+    text === nothing || return text
     evt isa MouseDwell && return _read_wtree_row_dwell(p, iomap, evt)
     if evt isa MouseClick && evt.button === :left
         return _wtree_mouse_press(p, iomap, evt)
@@ -15655,10 +15828,11 @@ end
 # Up and Down move the selection by one row. With no modifier, Right opens a closed
 # node and goes into an open one, Left closes an open node and goes up from any
 # other, Home and End go to the first and the last row, and Page Up and Page Down
-# move by the rows that the view holds.
+# move by the rows that the view holds. A key that the label of a node does not
+# take while the selection is in it moves from that node.
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
     w = iomap.input
-    selected = _wtree_ref_path(w.selection)
+    selected = _find_wtree_selected_path(iomap)
     if g.key in (:up, :down)
         path = _find_wtree_neighbor_path(iomap.geometry, w, selected, g.key === :down)
     elseif _has_any_modifier_key(g.modifiers)
