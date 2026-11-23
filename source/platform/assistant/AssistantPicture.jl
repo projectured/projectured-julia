@@ -1,5 +1,6 @@
 # Fragment of `AssistantModule` — a picture in the draft: the "Picture" button,
-# and a part with no text that becomes a picture when the person sends it.
+# a part with no text that becomes a picture when the person sends it, and the
+# picture that a model sees for the file of a picture.
 
 """
     AddDraftPictureOperation(assistant)
@@ -7,7 +8,7 @@
 The "Picture" button of the composer: a picture of the part that the person
 selected as a whole, with Alt+double click, or else of the window, goes into the draft
 of `assistant` as a part before the text that the person types
-(`write_part_picture`, `write_window_picture`). With no window, or no backend
+(`write_selection_picture`, `write_window_picture`). With no window, or no backend
 that writes an image, it does nothing.
 """
 struct AddDraftPictureOperation <: Operation
@@ -19,51 +20,16 @@ OperationModule.is_self_contained_operation(::AddDraftPictureOperation) = true
 
 function evaluate_operation(editor, op::AddDraftPictureOperation)
     editor isa Editor || return nothing
-    filename = _make_picture_filename()
-    _write_selection_picture(editor, filename) === nothing && return nothing
+    filename = make_picture_filename()
+    picture = write_selection_picture(; editor, filename)
+    picture === nothing && (picture = write_window_picture(; editor, filename))
+    picture === nothing && return nothing
     evaluate_operation(editor, InsertDraftDocumentOperation(op.assistant.draft, ImageFile(filename)))
 end
 
-# A picture of the part that the person selected as a whole, or else of the window
-# that shows the selection.
-function _write_selection_picture(editor, filename::AbstractString)
-    selection = get_selection(editor.document)
-    picture = is_whole_selection(editor.document, selection) ?
-              write_part_picture(editor, selection, filename) : nothing
-    picture === nothing ? write_window_picture(editor, selection, filename) : picture
-end
-
-"""
-    register_picture_tools!(set) -> set
-
-Add the tool `take_picture` to `set`: a picture of what the editor shows, as a
-PNG file in the folder of pictures, which the tool answers as an `LlmImage`. Its
-`part` is `"window"`, the window, or `"selection"`, the part that the person
-selected as a whole with Alt+double click, or the window when the person selected no
-whole part. The MCP server gives the picture to an agent as an image.
-"""
-function register_picture_tools!(set)
-    register_tool!(set, Tool(
-        "take_picture";
-        description =
-            "Take a picture of what the editor shows: the window, or the part that the person " *
-            "selected. Use it to see what has no text, such as a plot, a layout or a widget.",
-        parameters = [(name = "part", type = "string", required = false,
-                       description = "\"window\" (the default), or \"selection\": the part that the " *
-                                     "person selected with Alt+double click, or the window when there is none")],
-        handler = (editor, args) -> _take_picture(editor, get(args, "part", "window"))))
-    set
-end
-
-function _take_picture(editor, part)
-    editor isa Editor || return "This editor shows no window."
-    part in ("window", "selection") || return "The part is \"window\" or \"selection\", not $(repr(part))."
-    filename = _make_picture_filename()
-    picture = part == "selection" ? _write_selection_picture(editor, filename) :
-              write_window_picture(editor, get_selection(editor.document), filename)
-    picture === nothing && return "The editor can take no picture: it shows no window, or no backend writes an image."
-    LlmImage("image/png", read(picture.filename))
-end
+# The code of a model that answers the file of a picture, such as a verb that writes
+# a picture of the window, answers the picture, which the model sees.
+get_model_image(image::ImageFile) = _read_picture(image)
 
 # A part of the draft that has no text, such as a plot that the person pasted,
 # becomes a picture of it, which the backend writes as a tab draws the part
@@ -73,7 +39,7 @@ function _make_part_pictures!(draft::ConversationDraft)
     for part in collect(draft.parts)
         content = part.content
         (content isa Union{ImageDocument, ImageFile} || has_text_form(content)) && continue
-        filename = _make_picture_filename()
+        filename = make_picture_filename()
         _write_document_picture(content, filename) === nothing && continue
         part.content = ImageFile(filename)
     end
@@ -90,37 +56,4 @@ function _write_document_picture(document, filename::AbstractString)
         @warn "The picture of a part could not be written." exception
         nothing
     end
-end
-
-# The days that a picture stays in the folder of pictures after it is written.
-const PICTURE_KEEP_DAYS = 30
-
-# A new name for the file of a picture, in the folder of pictures of the user:
-# `$XDG_CACHE_HOME/projectured/pictures`, by default `~/.cache/projectured/pictures`.
-# The pictures of the folder that are older than `PICTURE_KEEP_DAYS` go away first.
-function _make_picture_filename()
-    cache = get(ENV, "XDG_CACHE_HOME", "")
-    isempty(cache) && (cache = joinpath(homedir(), ".cache"))
-    directory = mkpath(joinpath(cache, "projectured", "pictures"))
-    _remove_old_pictures!(directory)
-    stem = "picture-" * Libc.strftime("%Y%m%d-%H%M%S", time())
-    filename = joinpath(directory, stem * ".png")
-    count = 1
-    while isfile(filename)
-        count += 1
-        filename = joinpath(directory, stem * "-$(count).png")
-    end
-    filename
-end
-
-# Remove each picture file `picture-*.png` of `directory` that was written more
-# than `days` days ago. Other files of the folder stay.
-function _remove_old_pictures!(directory::AbstractString; days::Real = PICTURE_KEEP_DAYS)
-    oldest = time() - days * 86400
-    for name in readdir(directory)
-        startswith(name, "picture-") && endswith(name, ".png") || continue
-        path = joinpath(directory, name)
-        isfile(path) && mtime(path) < oldest && rm(path; force = true)
-    end
-    nothing
 end

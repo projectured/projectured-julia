@@ -1,7 +1,7 @@
 # The folder of the pictures of the assistant keeps a picture for
 # `PICTURE_KEEP_DAYS` days: the name of a new picture removes the older ones.
 
-import ProjecturedPlatform.AssistantModule: _make_picture_filename, PICTURE_KEEP_DAYS
+import ProjecturedPlatform.ScreenModule: make_picture_filename, PICTURE_KEEP_DAYS
 
 # Set the time of the last change of the file at `path` to `days` days ago.
 _set_picture_age!(path, days) =
@@ -20,7 +20,7 @@ function test_assistant_picture()
                     _set_picture_age!(old, PICTURE_KEEP_DAYS + 1)
                     _set_picture_age!(recent, PICTURE_KEEP_DAYS - 1)
                     _set_picture_age!(other, PICTURE_KEEP_DAYS + 1)
-                    filename = _make_picture_filename()
+                    filename = make_picture_filename()
                     @test sort(readdir(directory)) == ["notes.txt", "picture-20261020-120000.png"]
                     @test dirname(filename) == directory
                     @test startswith(basename(filename), "picture-") && endswith(filename, ".png")

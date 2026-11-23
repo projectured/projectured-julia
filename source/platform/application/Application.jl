@@ -413,8 +413,11 @@ const EDITOR_SYSTEM =
     "`read_resource` reads a whole guide by the `resource://guide/…` name that a " *
     "search prints.\n" *
     "- `read_function_documentation` reads the documentation of one function.\n" *
-    "- `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it back. " *
-    "`take_picture` shows you what the window draws.\n\n" *
+    "- `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it back.\n" *
+    "- Code whose value is a picture answers the picture, which you see: " *
+    "`write_window_picture()` gives the window, `write_selection_picture()` the part " *
+    "that the person selected, and `write_part_picture(part)` a part, such as a tab of " *
+    "`find_pane`.\n\n" *
     "The rules:\n" *
     "- NEVER guess a name or a signature: search for it, then act. When a signature " *
     "answers the request, call the verb; a keyword that you leave out takes its default.\n" *
@@ -870,13 +873,13 @@ end
 
 Add to `set` the tools that every window of the editor gives its assistant beside
 the default ones: `undo` and `redo`, which take back the last change and put it
-back as Ctrl+Z and Ctrl+Shift+Z do, and `take_picture`, which shows the model
-what the window draws. A host calls it on the tools of its editor when it
-declares [`make_editor_api`](@ref) there.
+back as Ctrl+Z and Ctrl+Shift+Z do. A model sees what the window draws with the
+picture verbs, such as `write_window_picture`, whose picture the code tool answers.
+A host calls it on the tools of its editor when it declares
+[`make_editor_api`](@ref) there.
 """
 function register_editor_tools!(set)
     register_undo_tools!(set)
-    register_picture_tools!(set)
     set
 end
 

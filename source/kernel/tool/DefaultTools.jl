@@ -201,8 +201,9 @@ function _register_code_tool!(set::ToolSet)
         ],
         handler = (target, args) -> begin
             code = get(args, "code", nothing)
+            # A value that is a picture answers as the picture (`get_model_image`).
             get(args, "background", false) === true ||
-                return execute_julia_code!(set, target, code)
+                return _answer_evaluation_result(run_julia_code!(set, target, code))
             part = code isa AbstractString ? _describe_code_part(code) : "Run the code"
             # The unit that runs this handler does not wait for the work, so the
             # work keeps no link to it, and its calls of verbs wait for the editor.

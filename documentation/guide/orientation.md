@@ -240,7 +240,10 @@ change_setting!(:partial_render, false)
 ```
 
 The tool `undo` takes back the last change, as Ctrl+Z does, and `redo` puts it
-back. The tool `take_picture` shows you what the window draws.
+back. Code whose value is a picture answers the picture, which you see:
+`write_window_picture()` gives the window, `write_selection_picture()` the part that
+the person selected, and `write_part_picture(part)` a part, such as a tab of
+`find_pane`.
 
 ## Work with files
 

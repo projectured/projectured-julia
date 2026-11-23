@@ -30,6 +30,20 @@ export get_toy_editor
 get_toy_editor(; editor = get_evaluation_editor()) = editor
 end
 
+# A declared API with one verb whose value is a picture, as the file of a picture
+# that a verb of the screen writes is.
+module PictureToy
+import ProjecturedKernel.ToolModule: get_model_image
+using ProjecturedKernel.LlmModule: LlmImage
+export make_toy_picture
+struct ToyPicture
+    bytes::Vector{UInt8}
+end
+"""A picture of three bytes."""
+make_toy_picture() = ToyPicture(UInt8[1, 2, 3])
+get_model_image(picture::ToyPicture) = LlmImage("image/png", picture.bytes)
+end
+
 function test_code_execution()
 @testset "Code execution" begin
     set = ToolSet(; api = Module[NearToy])
@@ -101,6 +115,19 @@ function test_code_execution()
         @test get_last_evaluated_value(other) === object
         # A failure is answered, not thrown.
         @test occursin("UndefVarError", execute_julia_expression!(other, nothing, :(no_such_name_q)))
+    end
+
+    @testset "the code tool answers a value that is a picture as the picture" begin
+        # A name of its own: `set` is the set of the whole function, which `run` reads.
+        picture_set = register_default_tools!(ToolSet(; api = Module[PictureToy]))
+        run_code = code -> call_tool(picture_set, "execute_julia_code"; args = Dict{String,Any}("code" => code),
+                                     target = nothing)
+        picture = run_code("make_toy_picture()")
+        @test picture isa PictureToy.LlmImage
+        @test picture.media_type == "image/png" && picture.data == UInt8[1, 2, 3]
+        # A value that is no picture answers its text.
+        @test run_code("1 + 1") == "2\n"
+        @test get_model_image(2) === nothing
     end
 
     @testset "a verb with no editor takes the editor of the evaluation" begin

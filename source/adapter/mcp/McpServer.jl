@@ -416,7 +416,8 @@ end
 
 # The output of background work that a tool answered, once it ends: its result is
 # the result of an evaluation, whose exception marks the call as a fault and whose
-# document is kept under the id of the call, as for a call that runs at once.
+# document is kept under the id of the call, as for a call that runs at once. A
+# value that is a picture answers as the picture, which goes to the client as an image.
 function _wait_for_mcp_work(work::BackgroundWork, set, call_id, fault::Ref{Bool}, running)
     running === nothing || lock(() -> push!(running.works, work), running.lock)
     result = try
@@ -432,7 +433,8 @@ function _wait_for_mcp_work(work::BackgroundWork, set, call_id, fault::Ref{Bool}
     result.exception === nothing || (fault[] = true)
     (call_id !== nothing && result.value isa Document) &&
         keep_tool_call_value!(set, call_id, result.value)
-    result.output
+    image = get_model_image(result.value)
+    image === nothing ? result.output : image
 end
 
 # The arguments of a call as the MCP log shows them: the code alone when the call

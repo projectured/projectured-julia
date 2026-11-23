@@ -218,6 +218,27 @@ struct EvaluationResult
 end
 
 """
+    get_model_image(value) -> image or nothing
+
+The picture that a model sees for `value`, the value of code that the model ran,
+such as the file of a picture that a verb wrote, or `nothing` for a value that is
+no picture, which the model reads as text. The code tool answers the picture in
+place of the text, and a client of the tools that shows images, such as the MCP
+server, gives it as an image. A package whose type is a picture adds a method that
+answers its `LlmImage`.
+"""
+function get_model_image end
+
+get_model_image(value) = nothing
+
+# What the code tool answers for `result`: the picture of its value when the value
+# is a picture, else its text.
+function _answer_evaluation_result(result::EvaluationResult)
+    image = get_model_image(result.value)
+    image === nothing ? result.output : image
+end
+
+"""
     ToolSet(; api = ApiEntry[], meaning_model = nothing, relevance_model = nothing)
 
 The tools and resources one editor exposes, plus the state its built-in tools

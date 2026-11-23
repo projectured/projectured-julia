@@ -29,6 +29,7 @@ using ..EditorModule
 using ..EventModule
 using ..FaultModule
 using ..FeedModule
+using ..FocusModule
 using ..GestureBindingModule
 using ..GestureModule
 using ..DragTrackingModule
@@ -66,7 +67,8 @@ export ScreenDocument, WindowDocument, AUTOMATIC_WINDOW_PLACE, is_automatic_wind
 export WindowPlace, WindowPlacementContext, find_window_part_box, make_part_top_placement,
        make_top_center_place, compute_anchored_place, find_display_area, FixedPlacement, make_fixed_placement,
        find_screen_reference, find_window_box, make_window_center_placement
-export write_part_picture, write_window_picture
+export write_part_picture, write_selection_picture, write_window_picture, make_picture_filename,
+       PICTURE_KEEP_DAYS
 export show_window_layers, make_window_layer_bindings, WINDOW_LAYER_MORE_KEY, WINDOW_LAYER_FEWER_KEY
 export RenderSettings
 

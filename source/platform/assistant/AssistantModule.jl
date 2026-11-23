@@ -93,6 +93,7 @@ import ..SerializationModule: pred_arguments, make_pred_document
 import ..TaskModule: get_result_codes, format_task_parameters, get_task_columns,
                      format_task_column, get_task_actions, make_task_kind_document
 import ..TreeModule: get_tree_children_steps, format_tree_node_label, is_explorer_entry_type
+import ..ToolModule: get_model_image
 
 export AgentBackgroundTask, AgentBackgroundTaskResult
 export Assistant, ASSISTANT_TITLE, DEFAULT_ASSISTANT_SYSTEM, DEFAULT_AGENT_INSTRUCTIONS, ASSISTANT_ANSWER_INSTRUCTIONS,
@@ -112,7 +113,7 @@ export ExternalAgentSession, is_external_agent_turn_running, CancelAssistantTurn
 export is_assistant_turn_running, make_assistant_stop_button, make_assistant_picture_button
 export SetAssistantWakesOperation, make_assistant_wakes_box
 export send_go_on!, GO_ON_PROMPT, wake_assistant!, ASSISTANT_WAKE_LIMIT
-export AddDraftPictureOperation, register_picture_tools!
+export AddDraftPictureOperation
 export compute_assistant_overview_title, find_first_prompt, find_last_prompt, compute_prompt_count,
        compute_assistant_turn_side, describe_assistant_activity, collect_open_assistant_requests,
        find_assistant_start_time,

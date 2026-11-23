@@ -77,7 +77,7 @@ The Picture button evaluates `AddDraftPictureOperation(assistant)`, in `source/p
 
 At the submit (`SubmitDraftTurnOperation`), a part with no text form becomes a picture of it. A part has a text form (`has_text_form` of the conversation slice) when it has a `:string` natural projection, or when it is text, a form or thinking; a picture is left as it is. The picture is written with `write_image(document, NaturalToGraphics(; measure = FontFileMeasure()), filename)`, and the part becomes that `ImageFile`. A part that the backend can not write stays as it is.
 
-`register_picture_tools!(set)` adds the tool `take_picture` to the tool set. Its argument `part` is `"window"` (the default) or `"selection"`, and it answers an `LlmImage`. The application registers it beside the undo tools in `start_application!` (`source/platform/application/Application.jl`).
+The assistant sees a picture through the code tool: the verbs `write_window_picture`, `write_selection_picture` and `write_part_picture` of the screen slice answer an `ImageFile`, and the method `get_model_image(::ImageFile)` of this slice reads it as an `LlmImage` (`_read_picture`), which the code tool answers in place of the text. The "Picture" button of the composer calls `write_selection_picture`, else `write_window_picture`.
 
 ### The API a loaded package offers
 
