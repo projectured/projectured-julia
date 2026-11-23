@@ -61,6 +61,14 @@ function ProgramTask(command::Union{Cmd,AbstractVector{<:AbstractString}};
                 name === nothing ? basename(first(arguments)) : String(name))
 end
 
+# A file keeps what the program runs: its arguments, its folder, its environment, its
+# time limit and its name, which the constructor reads back.
+is_pred_constructible(::Type{ProgramTask}) = true
+pred_arguments(task::ProgramTask) =
+    ((task.arguments,), _collect_task_keywords(task, (:working_directory, :environment, :time_limit, :name)))
+make_pred_document(::Type{ProgramTask}, positional, keywords) =
+    ProgramTask(String.(only(positional)); _read_task_keywords(keywords)...)
+
 """
     ProgramResult
 

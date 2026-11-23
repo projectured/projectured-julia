@@ -96,6 +96,13 @@ end
 BuildRemoveTask(; working_directory::AbstractString, path::AbstractString) =
     BuildRemoveTask(String(working_directory), String(path))
 
+# A file keeps a step of a build as the call of its keyword constructor, with each
+# field that holds something.
+const _BuildStepKind = Union{BuildCommandTask,BuildCopyTask,BuildRemoveTask}
+is_pred_constructible(::Type{<:_BuildStepKind}) = true
+pred_arguments(step::_BuildStepKind) = ((), _collect_task_keywords(step, fieldnames(typeof(step))))
+make_pred_document(type::Type{<:_BuildStepKind}, positional, keywords) = type(; _read_task_keywords(keywords)...)
+
 """
     BuildStepResult
 

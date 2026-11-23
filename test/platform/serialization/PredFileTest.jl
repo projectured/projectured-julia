@@ -177,6 +177,15 @@ function test_pred_file()
         @test parse_pred_text(print_pred_text(PredFileOperator(:(=)))).operator === :(=)
     end
 
+    @testset "a mapping of names reads back, and a name that is no Julia name is refused" begin
+        mapping = (first = 1, second = "two")
+        text = sprint(io -> SerializationModule._print_pred_value(io, mapping, "", 0))
+        @test text == "(first = 1, second = \"two\")"
+        @test SerializationModule._evaluate_pred(Meta.parse(text)) == mapping
+        odd = NamedTuple{(Symbol("a-b"),)}((1,))
+        @test_throws FileCutException sprint(io -> SerializationModule._print_pred_value(io, odd, "", 0))
+    end
+
     @testset "a styled text reads back with its font and its colour" begin
         block = TextBlock(TextLine([TextString("hello", StyleFont("DejaVu Sans", 14), StyleColor(1.0, 0.0, 0.0, 1.0))]))
         text = print_pred_text(block)

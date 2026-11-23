@@ -92,6 +92,36 @@ function test_program_task()
             @test _make_program(["sh", "-c", "exit 0"]).arguments == ["sh", "-c", "exit 0"]
         end
 
+        @testset "a file keeps what a program runs" begin
+            write_value = value -> sprint(io -> SerializationModule._print_pred_value(io, value, "", 0))
+            read_value = text -> SerializationModule._evaluate_pred(Meta.parse(text))
+            task = ProgramTask(["sh", "-c", "echo one"]; working_directory = "/work", name = "one",
+                               environment = Dict("WORD" => "one", "A_FIRST" => "two"), time_limit = 2.5)
+            text = write_value(task)
+            @test text == "ProgramTask([\"sh\", \"-c\", \"echo one\"], working_directory = \"/work\", " *
+                          "environment = (A_FIRST = \"two\", WORD = \"one\"), time_limit = 2.5, name = \"one\")"
+            read = read_value(text)
+            @test read isa ProgramTask
+            @test (read.arguments, read.working_directory, read.environment, read.time_limit, read.name) ==
+                  (task.arguments, task.working_directory, task.environment, task.time_limit, task.name)
+            # A task with no environment and no time limit writes neither.
+            plain = ProgramTask(["true"]; working_directory = "/work")
+            @test write_value(plain) == "ProgramTask([\"true\"], working_directory = \"/work\", name = \"true\")"
+            read = read_value(write_value(plain))
+            @test isempty(read.environment) && read.time_limit === nothing
+            # A name of the environment that is no Julia name does not read back, so the
+            # save refuses it and says where it is.
+            odd = ProgramTask(["true"]; working_directory = "/work", environment = Dict("MY-VAR" => "1"))
+            message = try
+                write_value(odd)
+                ""
+            catch exception
+                exception isa FileCutException || rethrow()
+                sprint(showerror, exception)
+            end
+            @test startswith(message, "cannot write a Symbol at environment.MY-VAR")
+        end
+
         @testset "a folder that does not exist ends the task ERROR" begin
             execution = _run_program(ProgramTask(`ls`; working_directory = "/no/such/folder"))
             @test execution.result isa TaskStartFailure

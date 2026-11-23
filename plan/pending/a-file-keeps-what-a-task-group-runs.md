@@ -64,7 +64,17 @@ folder that the tree reads, and not what a read found."
    preparation, a task of no group and a group of groups. On main it fails at the save
    with "cannot write a ProjecturedPlatform.TaskModule.ProgramTask at entries.tasks.task",
    and the other 131 checks of `test_task_document` pass.
-2. ⬜ The file forms of `ProgramTask`, the three build steps and `ResultCodes`.
+2. ✅ The file forms of `ProgramTask`, the three build steps and `ResultCodes`. Done
+   2026-11-23. `TaskResult.jl` holds what each kind shares: `ResultCodes` is
+   constructible, and a helper writes the keywords of a kind with each field that holds
+   something, the environment as a mapping of names in the order of the names. A
+   `ProgramTask` is `ProgramTask(arguments, working_directory = …, name = …)`, with
+   `environment` and `time_limit` only when it has them. A build step is the call of its
+   keyword constructor. Proposed decision 1 is in the writer of a mapping of names in
+   `PredFile.jl`, for every mapping: a name that is no Julia name is refused, as a
+   symbol that does not read back is, with the place, such as
+   `environment.MY-VAR`. Tests: `test_program_task` 39 of 39, `test_build_step` 40 of
+   40, `test_pred_file` 90 of 90.
 3. ⬜ The file forms of `TaskGroup`, `TaskGroupDocument` and `TaskDocument`.
 
 The tests of each step: `test_task_document`, `test_program_task`, `test_build_step`,

@@ -59,6 +59,44 @@ const UPDATE_RESULT_CODES = ResultCodes(["KEEP", "SKIP", "CANCEL", "INSERT", "UP
                                         [:success, :info, :info, :warning, :warning, :error],
                                         "KEEP")
 
+# A file keeps the codes of a group as their call, so a load gives the same codes.
+is_pred_constructible(::Type{ResultCodes}) = true
+
+# The environment of a task in a file: a mapping of names in the order of the names,
+# because the notation holds no dictionary. The reader makes the dictionary again.
+function _write_task_environment(environment::AbstractDict)
+    names = sort!(collect(keys(environment)))
+    NamedTuple{Tuple(Symbol.(names))}(Tuple(environment[name] for name in names))
+end
+
+_read_task_environment(::Nothing) = nothing
+_read_task_environment(names::NamedTuple) =
+    Dict{String,String}(String(name) => String(value) for (name, value) in pairs(names))
+
+# The keywords that a file writes for a kind of task that is data: each field of
+# `names` that holds something, with the environment as a mapping of names. A field
+# that holds `nothing` or an empty environment is left out, so the constructor gives
+# its default.
+function _collect_task_keywords(task, names)
+    keywords = Pair{Symbol,Any}[]
+    for name in names
+        value = getfield(task, name)
+        value === nothing && continue
+        if name === :environment
+            isempty(value) && continue
+            value = _write_task_environment(value)
+        end
+        push!(keywords, name => value)
+    end
+    keywords
+end
+
+# The keywords of a kind of task that a file gives, with the environment as a
+# dictionary, for its constructor.
+_read_task_keywords(keywords) =
+    Pair{Symbol,Any}[name => (name === :environment ? _read_task_environment(value) : value)
+                     for (name, value) in keywords]
+
 """
     get_result_codes(task) -> ResultCodes
     get_result_codes(result) -> ResultCodes

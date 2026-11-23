@@ -457,10 +457,13 @@ function _print_pred_value(io::IO, v::NamedTuple, where, indent)
     isempty(v) && return print(io, "(;)")
     print(io, "(")
     for (index, name) in enumerate(keys(v))
+        at = isempty(where) ? String(name) : where * "." * String(name)
+        # A name that is no Julia name, such as `MY-VAR`, does not read back, so it is
+        # refused, as a symbol that does not read back is.
+        Base.isidentifier(name) || _refuse_pred_value(name, at)
         index > 1 && print(io, ", ")
         print(io, name, " = ")
-        _print_pred_value(io, v[name],
-                          isempty(where) ? String(name) : where * "." * String(name), indent)
+        _print_pred_value(io, v[name], at, indent)
     end
     # One field needs the comma to stay a named tuple rather than a parenthesis.
     print(io, Base.length(v) == 1 ? ",)" : ")")

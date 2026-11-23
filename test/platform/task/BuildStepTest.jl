@@ -158,5 +158,25 @@ function test_build_step()
             hardlink(joinpath(folder, "lib.so"), joinpath(folder, "linked.so"))
             @test is_build_step_up_to_date(linked)
         end
+
+        @testset "a file keeps each step of a build" begin
+            write_value = value -> sprint(io -> SerializationModule._print_pred_value(io, value, "", 0))
+            steps = [BuildCommandTask(; action = "Compiling", subject = "a.cc", working_directory = "/work",
+                                      arguments = ["c++", "-c", "a.cc"], input_files = ["a.cc"],
+                                      output_files = ["a.o"], dependency_file = "a.d",
+                                      environment = Dict("CXX" => "c++")),
+                     BuildCopyTask(; working_directory = "/work", source_file = "lib.so",
+                                   target_file = "bin/lib.so", postprocess = ["strip", "bin/lib.so"]),
+                     BuildRemoveTask(; working_directory = "/work", path = "out")]
+            for step in steps
+                read = SerializationModule._evaluate_pred(Meta.parse(write_value(step)))
+                @test typeof(read) === typeof(step)
+                @test [getfield(read, name) for name in fieldnames(typeof(step))] ==
+                      [getfield(step, name) for name in fieldnames(typeof(step))]
+            end
+            # A field that holds nothing is not in the file.
+            @test !occursin("dependency_root", write_value(first(steps)))
+            @test write_value(last(steps)) == "BuildRemoveTask(working_directory = \"/work\", path = \"out\")"
+        end
     end
 end
