@@ -419,6 +419,8 @@ function test_task_document()
             # The file holds the commands of the group, and nothing of its run.
             text = print_pred_text(ExplorerSection("Saved", Any[document, alone]))
             @test occursin("echo two", text) && !occursin("TaskExecution", text)
+            # The file names the group as its code does, not by its native layout.
+            @test occursin("TaskGroup([ProgramTask(", text) && !occursin("MTaskGroup", text)
             loaded = parse_pred_text(text)
             loaded_group, loaded_alone = loaded.entries[1], loaded.entries[2]
             @test loaded_group isa TaskGroupDocument

@@ -75,12 +75,27 @@ folder that the tree reads, and not what a read found."
    symbol that does not read back is, with the place, such as
    `environment.MY-VAR`. Tests: `test_program_task` 39 of 39, `test_build_step` 40 of
    40, `test_pred_file` 90 of 90.
-3. ⬜ The file forms of `TaskGroup`, `TaskGroupDocument` and `TaskDocument`.
+3. ✅ The file forms of `TaskGroup`, `TaskGroupDocument` and `TaskDocument`. Done
+   2026-11-23. `TaskGroup` writes its tasks, `name`, `action`, `jobs`,
+   `stop_at_failure`, `codes` and `preparation`; `TaskDocument` writes its task and its
+   title; `TaskGroupDocument` writes its group, its title, its description and its job
+   count, and its reader calls `wrap_task_group_document`. Found on the way: the writer
+   named a call by `nameof` of the type, so a file said `MTaskGroup(…)`, because the
+   bare name `TaskGroup` of a `@document [M, C]` schema is an alias of the native layout
+   `MTaskGroup`. The kernel gives `get_document_schema_name` for the name that a reader
+   sees, and the reader of a file already knows both names, so the writer now names a
+   document and a value by `get_document_schema_name`. In projectured-julia only
+   `TaskGroup` and `TaskExecution` have such a bare name, and no file wrote either
+   before; omnet-julia has 30 such schemas, and no saved file and no test text of it
+   names a native layout. omnet-julia defines no file form of a type of this plan.
+   Tests: `test_task_document` 154 of 154, `test_task_group` 111 of 111,
+   `test_program_task` 39 of 39, `test_build_step` 40 of 40, `test_pred_file` 90 of 90.
 
 The tests of each step: `test_task_document`, `test_program_task`, `test_build_step`,
 `test_task_group` and `test_pred_file`.
 
 ## State
 
-Open. The work is in the worktree `projectured-julia-task-file-form`, on the branch
-`task-file-form`.
+All three steps are done on the branch `task-file-form` in the worktree
+`projectured-julia-task-file-form`. The land on main waits for the approval of the
+owner; at the land, the plan goes to `plan/done`.

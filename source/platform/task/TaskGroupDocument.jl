@@ -175,6 +175,21 @@ function wrap_task_group_document(group::TaskGroup; title::AbstractString = grou
     doc
 end
 
+# A file keeps the group, its title, its description and its count of jobs, and not
+# its run, its rows or its view. A load wraps the group again, not started, with a new
+# identifier, and the group joins the task list of the session at its first start.
+pred_arguments(doc::TaskGroupDocument) =
+    ((get_task_group(doc),), Pair{Symbol,Any}[:title => getfield(doc, :title)[],
+                                              :description => getfield(doc, :description)[],
+                                              :jobs => getfield(doc, :jobs)[]])
+
+function make_pred_document(::Type{<:TaskGroupDocument}, positional, keywords)
+    options = Dict{Symbol,Any}(keywords)
+    doc = wrap_task_group_document(only(positional); title = options[:title], description = options[:description])
+    set_cell_value!(getfield(doc, :jobs), options[:jobs])
+    doc
+end
+
 """
     find_task_group_document(doc, index) -> TaskGroupDocument or nothing
 

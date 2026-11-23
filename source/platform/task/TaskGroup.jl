@@ -255,6 +255,18 @@ end
 
 get_result_codes(group::TaskGroup) = group.codes
 
+# A file keeps what a group runs, and not what became of it: its tasks, its name, its
+# action, its jobs, its stop rule, its codes and its preparation. A load gives the
+# group, not started; its runs and its counts come with its next start.
+is_pred_constructible(::Type{TaskGroup}) = true
+pred_arguments(group::TaskGroup) =
+    ((collect(Any, group.tasks),),
+     Pair{Symbol,Any}[:name => group.name, :action => group.action, :jobs => group.jobs,
+                      :stop_at_failure => group.stop_at_failure, :codes => group.codes,
+                      :preparation => group.preparation])
+make_pred_document(::Type{TaskGroup}, positional, keywords) =
+    TaskGroup(AbstractTask[only(positional)...]; keywords...)
+
 # ── The tally ────────────────────────────────────────────────────────────────
 
 # The tally of the executions that the group holds now. Call it under the lock of

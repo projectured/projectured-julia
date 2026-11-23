@@ -97,6 +97,12 @@ end
 accepts_pasted_document(::TaskDocument) = false
 has_document_duplicate(::TaskDocument) = true
 
+# A file keeps the task and its title, and not its executions or its group: a load
+# gives a task of no group, not started.
+pred_arguments(document::TaskDocument) =
+    ((getfield(document, :task)[],), Pair{Symbol,Any}[:title => getfield(document, :title)[]])
+make_pred_document(::Type{<:TaskDocument}, positional, keywords) = TaskDocument(only(positional); keywords...)
+
 # A search finds the group of a task where the group is, not back through the task.
 is_field_walked(::TaskDocument, name::Symbol) = name !== :group
 

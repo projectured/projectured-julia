@@ -494,7 +494,9 @@ end
 # a changed field should be a changed line.
 function _print_pred_value(io::IO, document::Document, where, indent)
     positional, keywords = pred_arguments(document)
-    print(io, nameof(typeof(document)), "(")
+    # The call names the schema, as its code does: the type of a schema whose bare
+    # name is its native layout has a coded name, such as `MTaskGroup`.
+    print(io, get_document_schema_name(typeof(document)), "(")
     isempty(positional) && isempty(keywords) && return print(io, ")")
     print(io, "\n")
     for value in positional
@@ -536,7 +538,7 @@ end
 function _print_pred_value(io::IO, value, where, indent)
     is_pred_constructible(typeof(value)) || _refuse_pred_value(value, where)
     positional, keywords = pred_arguments(value)
-    print(io, nameof(typeof(value)), "(")
+    print(io, get_document_schema_name(typeof(value)), "(")
     for (index, element) in enumerate(positional)
         index > 1 && print(io, ", ")
         _print_pred_value(io, element, where, indent)
