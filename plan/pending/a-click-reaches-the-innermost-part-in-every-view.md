@@ -1233,8 +1233,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 - [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
-  The table, the list and the tree follow D4: a plain click on the text of a
-  cell puts the caret there, and a plain click on the padding chooses the row.
+  The table, the list and the tree follow D12: a plain click on the text of a
+  row, a node or a label cell chooses the row or the node, as on its padding,
+  and an Alt+click puts the caret in the text (D10).
 
   Done so far (2026-11-10):
   - **A fact and an icon throw on a rest of the pointer** (43 examples). Every
@@ -1619,6 +1620,27 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       press and a move on the text; they expect the caret in that row now.
       widget/list 3 → 0. A drag in the text of a list in its pane does not
       extend: `_read_rows_pane` gives a part of a drag only to a bar.
+    - ~~The tree~~ (cd006aa96; widget/tree and examples/widget_tree 9 lines
+      each in run 10, all `alt:no-caret`). The label of a node is a text that the tree draws,
+      and by D12 a plain click on it chooses the node, as now. The part of the
+      label is `roots[i].children[j].label`, and the node itself for a node that
+      is a plain value, as `items[i]` in a list. The text reads like the text of
+      a control (`_read_control_text`): an Alt+click gives the caret at the
+      character, an Alt+double click the label as a whole, an Alt press starts
+      the drag of a range, and a key moves the caret or the range, read-only.
+      Up on the first line and Down on the last go on to the tree, which moves
+      from the node of the caret. A move names the node. The rows of a tree are
+      made one at a time, and a lazy tree makes rows with no end, so the tree
+      keeps no list of its lines: each row draws the marks of its own label in
+      a cell that reads the selection, as its bands do, and a reader finds the
+      line of a row in the canvas of that row. `test_widget_tree` 111 checks a
+      plain click and an Alt+click on both kinds of label, the forward map and
+      the drawn caret, a key in the label, Down from it, and an Alt+click in a
+      lazy list of rows; the tests of the trees of documents, of the help, of
+      the pointer, of the tooltips and of the rows that scroll pass. The views
+      that print a tree, such as the file system and the tree of documents,
+      get the path of a label from the tree now; what each one does with it
+      is their own work.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
