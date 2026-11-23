@@ -51,9 +51,11 @@ write_part_picture(part; editor)     # a part with its reference, or a reference
   the guides and the test of omnet-julia that name it change.
 - The "Picture" button of the composer calls `write_selection_picture`, else
   `write_window_picture`.
-- A part in a tab that is not shown: the page that the window printed for that tab. No
-  function finds the IO map that prints a part now, so the way to it goes to the owner
-  first (step 3).
+- A part in a tab that is not shown is not in this plan. The owner first chose, on
+  2026-11-24, to put the hidden pages into the output inside a node that the rendering
+  leaves out whole, so that the laziness of the cells makes it cost nothing; then the
+  owner decided to leave the pictures of hidden pages out for now. Until then a part in
+  a hidden tab gives the picture of its group, which shows the tab that is shown.
 
 ## Steps
 
@@ -78,9 +80,13 @@ write_part_picture(part; editor)     # a part with its reference, or a reference
    `test_assistant_picture` 4 of 4, `test_part_picture` 18 of 18, the layering guard of
    the platform with the 9 known entries of main, `test_assistant_documentation` 2923
    with the 5 known entries of main.
-3. ⬜ A part in a tab that is not shown gives the page that the window printed for that
-   tab, after the decision of the owner on the way to it.
+3. Left out by the decision of the owner on 2026-11-24: a part in a tab that is not
+   shown gives the page that the window printed for that tab. The way that the owner
+   chose first is above, for a later plan.
 
 ## State
 
-Open.
+Steps 1 and 2 are done on the branch `log-text` in the worktree
+`projectured-julia-log-text`, and the test of omnet-julia on its branch `picture-verbs`
+in the worktree `omnet-julia-picture-verbs`. The land on main of both waits for the
+approval of the owner; at the land, the plan goes to `plan/done`.
