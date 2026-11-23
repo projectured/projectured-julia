@@ -2,7 +2,7 @@
 
 ## The problem
 
-This is F11 of [the-editor-for-the-assistant-of-the-catch-up.md](../pending/the-editor-for-the-assistant-of-the-catch-up.md).
+This is F11 of [the-editor-for-the-assistant-of-the-catch-up.md](the-editor-for-the-assistant-of-the-catch-up.md).
 `write_document_file!` of a document that holds a task group fails:
 
     cannot write a ProjecturedPlatform.TaskModule.ProgramTask at entries.children.elements.tasks.task

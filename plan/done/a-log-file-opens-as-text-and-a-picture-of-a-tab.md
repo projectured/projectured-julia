@@ -80,13 +80,12 @@ write_part_picture(part; editor)     # a part with its reference, or a reference
    `test_assistant_picture` 4 of 4, `test_part_picture` 18 of 18, the layering guard of
    the platform with the 9 known entries of main, `test_assistant_documentation` 2923
    with the 5 known entries of main.
-3. Left out by the decision of the owner on 2026-11-24: a part in a tab that is not
-   shown gives the page that the window printed for that tab. The way that the owner
-   chose first is above, for a later plan.
+3. Deferred by the owner on 2026-11-24: a part in a tab that is not shown gives the
+   page that the window printed for that tab. The way that the owner chose first is
+   above, for a later plan.
 
 ## State
 
-Steps 1 and 2 are done on the branch `log-text` in the worktree
-`projectured-julia-log-text`, and the test of omnet-julia on its branch `picture-verbs`
-in the worktree `omnet-julia-picture-verbs`. The land on main of both waits for the
-approval of the owner; at the land, the plan goes to `plan/done`.
+Done 2026-11-24: the owner considers the plan done, and step 3 is deferred. Steps 1
+and 2 landed on main by a fast-forward at `77accf146`, and the test of omnet-julia on
+its main at `cfdb5c3a6`; neither is pushed. The IDE gets them with its next build.
