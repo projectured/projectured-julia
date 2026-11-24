@@ -214,6 +214,42 @@ the word of the owner.
    - Record here: the size of the artifact folders, of the bundle without the image and the store,
      and of the archive, before and after, measured as in "What the bundle holds now".
 
+   **What step 3 did and found, 2026-11-24.** All builds ran in the worktrees with Julia 1.13.1,
+   the Julia of the seed depot, and not with the `merged` Julia of the main checkouts. So no build
+   prelinked.
+   - **The app packages.** Each one resolves and passes `check_stand_ins`: `projectured` (137
+     packages), `omnet_run` (65), `omnet_ide` (161), the 12 legacy samples (65 each), and
+     `inet-julia` (68). The first try found a defect of step 1, fixed in `2db7b593f`: an app
+     package is in its own manifest with the path `"."`. `omnet_simulate` and `omnet_demo` stop
+     before the resolve, also with the builder of `main`: `ProjecturedAdaptagrams` names
+     `ProjecturedGraph` and has no `[sources]` entry for it.
+   - **Version drift.** A first resolve in a worktree takes the newest installed versions, for
+     example `Libiconv_jll` 1.18.1 on `LazyJLLWrappers`. To test this change and nothing else, each
+     build started from the versions of `main`: the manifest of `omnet_ide` of 2026-11-23, and for
+     `projectured` the versioned entries of `environment/all`.
+   - **`JULIA_PROBE_LIBSTDCXX=0`.** A distribution needs it, because `build_distribution` stops
+     when the bundle holds the newer `libstdc++` of the machine. `bin/build_projectured` sets it;
+     `bin/build_omnet_ide` does not, so its builds here set it by hand.
+   - **The projectured distribution** ran as `build_projectured_distribution` without
+     `build_source_archive`, whose offer for Julia names 1.13.0 and so stops on 1.13.1. Its
+     relocation check starts `bwrap`, which can not start inside the `bwrap` of `julia-worktree`,
+     so the checks and the archive ran once more outside it, on the same bundle. All checks pass:
+     the bundle holds what the build declared, its `libstdc++`, no missing library, the copy
+     starts with no depot and with the checkout hidden (0.53 s), and the copy reads the web
+     client, the fonts and the guides from its bundle.
+   - **The projectured bundle:** 1567 MB; the program 1197 MB; the rest 370 MB, of it `lib/` 307
+     MB and `share/` 61 MB. The artifact folders: 22 folders, 44.4 MB. The removal step removed
+     4057 files and links, 37.4 MB. The archive (`tar.xz`): 240.6 MB. No projectured distribution
+     was built before, so there is no archive to compare. The folders of the six new stand-ins
+     and of `LERC_jll` and `Giflib_jll` were 25.1 MB in the IDE of 2026-11-23, and about 2.3 MB of
+     the removal was in `lib/`. So the artifact folders were about 44.4 + 35.1 + 25.1 = 104.6 MB
+     before, near the 106.3 MB of the IDE.
+   - **The projectured start** with no window and a scratch home, 40 s: alive, 87 libraries
+     mapped, 909 MB resident, nothing on stderr. `libSDL2_image` loads with its empty
+     dependencies. No library of the image formats, the mixer, gfx, Cairo, PulseAudio or FFmpeg
+     is mapped; of libunwind only `libunwind.so.8`. A start does not call `IMG_SavePNG`; the SDL
+     suite does (`test_write_image`), and it passes.
+
 ## The rule of measurement
 
 - A size and a count need no idle machine and no word of the owner. This plan measures no time.
