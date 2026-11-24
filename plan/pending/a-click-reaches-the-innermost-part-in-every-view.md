@@ -1629,7 +1629,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       character, an Alt+double click the label as a whole, an Alt press starts
       the drag of a range, and a key moves the caret or the range, read-only.
       Up on the first line and Down on the last go on to the tree, which moves
-      from the node of the caret. A move names the node. The rows of a tree are
+      from the node of the caret. A move named the node in this commit; the
+      item of the views over a tree below makes it name the character. The rows of a tree are
       made one at a time, and a lazy tree makes rows with no end, so the tree
       keeps no list of its lines: each row draws the marks of its own label in
       a cell that reads the selection, as its bands do, and a reader finds the
@@ -1711,8 +1712,27 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         `test_filesystem_to_widget` 46, `test_file_dialog` 32 and the 1 broken
         of main. The static guards give the violations of main (main 3dcb5f516:
         `GestureModule.jl:37` and 37 known).
-      - [ ] T5. The walk of the examples of the views over a tree, compared with
-        run 12.
+      - [x] T5. The walk of the examples of the views over a tree, compared with
+        run 12. Done. Run 13 (46 examples of trees, outlines, files, the
+        explorer, the work plan and the assistant work): no new throw, no
+        status change; `move:differs` 87 → 40, 0 in each example of a plain
+        tree. It found three places that read the new form, which 47c0cc291
+        fixes: the explorer took a caret in a label for a row (`_find_node_steps`
+        now gives `nothing` for a path with a step of a view in it, so an
+        Alt+double click on a label selects the label and shows the page of no
+        row); the tree of a work plan and the tree of the work of an assistant
+        print the plan and the work itself as their root, so a caret in the label
+        of the root is a step of the tree at the head of the path, which their
+        forward maps now take into the tree, so the caret is drawn. Run 14 (the
+        12 examples of those views and of the tree of documents) against run
+        12: only `move:differs` changes, 51 → 10; the 10 that stay are on the
+        bar of the progress and on a chevron, as in run 12. The 25 lines "the
+        caret … is not inside …" of the trees of documents stay: the step now
+        stands at the document of the node, `.root‹…›`, and the walk takes the
+        collection of the children of the node, `.root.items`, as the deepest
+        part there, because a path inside the document of a node maps to the row
+        of the node. That is a limit of the walk, not of the view; the walk is
+        not changed.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
