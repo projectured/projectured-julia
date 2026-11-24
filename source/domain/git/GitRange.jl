@@ -97,6 +97,33 @@ _format_log_date(date::AbstractString) = replace(first(date, 19), 'T' => ' ')
 # can hold thousands of commits.
 is_field_walked(::GitCommitRange, name::Symbol) = !(name in (:commits, :table, :listing))
 
+# The range keeps the row of its table while the selection is in the commit that the
+# page shows below the table, and the place in that commit while the selection is in
+# the table, as a commit keeps the place in its tree.
+has_dormant_selection(::GitCommitRange) = true
+
+# The commit that the page of a range shows below its table: the item of the row
+# that the selection of the table names, live or dormant, or the first commit when
+# the table names no row; `nothing` for a range with no commit.
+function _find_chosen_commit(range::GitCommitRange)
+    commits = range.commits
+    isempty(commits) && return nothing
+    table = getfield(range, :table)[]
+    rows = table.document.rows
+    k = _find_selected_row(get_stored_selection(table))
+    k === nothing || !(1 <= k <= length(rows)) ? commits[1] : rows[k].item
+end
+
+# The number of the row of the roster that a selection of its arrangement names,
+# `.document.rows[k].<rest>`, or `nothing`.
+function _find_selected_row(path)
+    path isa ConcreteReference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) >= 3 && steps[1] == FieldReferenceStep("document") && steps[2] == FieldReferenceStep("rows") &&
+     steps[3] isa RangeReferenceStep && steps[3].stop == steps[3].start + 1) || return nothing
+    steps[3].stop
+end
+
 pred_arguments(range::GitCommitRange) =
     ((range.repository, range.revisions), isempty(range.paths) ? Pair{Symbol,Any}[] : Pair{Symbol,Any}[:paths => range.paths])
 

@@ -123,7 +123,12 @@ its tests. Each step updates the page of its part in `documentation/`.
    (`make_navigator_choice_operation`). Tests: a navigator on `commits[2]` of a range: Next
    shows `commits[3]`, Back shows `commits[2]` again, Next is off at the last commit; the same on a
    plain vector of documents, to show that the navigator knows nothing of git.
-4. **The page of a range shows the chosen commit below its table** (P3). Tests in `GitViewTest` and
+4. ✅ **The page of a range shows the chosen commit below its table** (P3). Done. Facts of the work:
+   the chosen commit is the item of the row that the stored selection of the table names
+   (`.document.rows[k]`), and `has_dormant_selection(::GitCommitRange)` keeps that row while the
+   selection is in the commit below. A roster table answers Return as a move into a cell, and opens
+   a row only on a double press; so a double press, and not Return, puts the keys into the commit
+   below, and Return keeps its meaning of a table. A press in the commit below puts the keys there too. Tests in `GitViewTest` and
    `GitGestureTest`: the commit below shows the first row; Down in the table shows the subject of the
    next commit below; a press on row 3 shows commit 3; a press on a hash still opens the page of the
    commit; the table keeps its row while the keys are in the commit below.

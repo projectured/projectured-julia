@@ -7,7 +7,9 @@
 #                            diff.<rest>      children[3].content.<rest>   the diffs, in the pane
 #     a change               diff.<rest>      children[1].content.<rest>   the text, in the pane
 #     a file at a revision   content.<rest>   children[2].content.<rest>   the text, in the pane
-#     a range of commits     table.<rest>     children[2].<rest>           the table, below its line
+#     a range of commits     table.<rest>     children[2].elements[1].child.<rest>        the table, below its line
+#                            commits[j].<rest> children[2].elements[2].child.children[1].<rest>
+#                                                                          the chosen commit, below the table
 
 # The styles of the kinds of the lines of a git text, from a `GitTheme` scaled or not.
 _make_git_text_styles(theme) =
@@ -442,18 +444,29 @@ end
     GitCommitRangeToWidget(; gap)
 
 Draw a [`GitCommitRange`](@ref) as a page: a line with its revisions, the count of
-its commits and its paths, and the state of its read, and under it the table of its
-commits, which fills the rest of the height. A row shows the short hash of a commit,
-then the columns of the list of gitk: the subject, the author and the date. A person
-filters and sorts the table in its bar, and the hash of a row opens the commit.
+its commits and its paths, and the state of its read, and under it a split pane that
+fills the rest of the height: the table of its commits at the top, a third of the
+height, and the page of the chosen commit below it, as gitk shows them. A row shows
+the short hash of a commit, then the columns of the list of gitk: the subject, the
+author and the date. A person filters and sorts the table in its bar. The chosen
+commit is the row that the selection of the table names, or the first commit, so Up
+and Down in the table show the commit above and below at once; the table keeps its
+row while the selection is in the commit below. The hash of a row opens the commit
+as a page of its own.
 """
 @projection UntrackedCell struct GitCommitRangeToWidget <: Projection
     gap::Int = get_widget_style(nothing, :section_gap)
 end
 
 const _RANGE_LINE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
-const _RANGE_TABLE_PLACE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
+const _RANGE_SPLIT_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2))
+const _RANGE_TABLE_PLACE_STEPS = (_RANGE_SPLIT_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                                  FieldReferenceStep("child"))
+const _RANGE_HOLDER_STEPS = (_RANGE_SPLIT_STEPS..., FieldReferenceStep("elements"), RangeReferenceStep(1, 2),
+                             FieldReferenceStep("child"))
+const _RANGE_COMMIT_PLACE_STEPS = (_RANGE_HOLDER_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 const _RANGE_TABLE_STEP = FieldReferenceStep("table")
+const _RANGE_COMMITS_STEP = FieldReferenceStep("commits")
 
 # The line above the table: the revisions, the count of the commits, the paths, and
 # a read that is still to come or failed.
@@ -470,33 +483,95 @@ end
 function print_document(p::GitCommitRangeToWidget, recursion, range::GitCommitRange, ctx)
     line = WidgetLabel("")
     set_cell_computation!(line, () -> _format_range_line(range))
-    output = GridLayout(Any[line, getfield(range, :table)[]], 1; vertical_gap = p.gap, column_policy = Fill,
+    # The one child of a layout whose child is the chosen commit, which follows the
+    # row of the table.
+    holder = VerticalLayout(CellVector(@computation Any[something(_find_chosen_commit(range),
+                                                                  WidgetLabel("No commit to show"))]),
+                            Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
+    split = WidgetSplitPane(:vertical, Any[LayoutConstraint(getfield(range, :table)[]; height = Relative(1)),
+                                           LayoutConstraint(holder; height = Relative(2))])
+    output = GridLayout(Any[line, split], 1; vertical_gap = p.gap, column_policy = Fill,
                         row_policies = Any[Content, Fill])
     iomap = SimpleIoMap(p, range, output)
-    # The grid passes a key by its own selection, so it carries the path of the range
-    # below it. The table is a document of the range, which holds its own.
+    # The grid and the split pane pass a key by their own selection, so each carries
+    # the part of the path of the range below it. The table and the commit are
+    # documents of the range, which hold their own.
     set_output_path_computations!(output, range, path -> map_reference_forward(p, iomap, path); dormant = false)
+    set_output_path_computations!(split, output, path -> _find_typed_path_below(path, _RANGE_SPLIT_STEPS))
+    set_output_path_computations!(holder, output, path -> _find_typed_path_below(path, _RANGE_HOLDER_STEPS))
     iomap
 end
 
-# `table.<rest>` ↔ the table in the grid.
+# The place of the chosen commit in the commits of `range`, or `nothing`.
+function _find_chosen_index(range::GitCommitRange)
+    chosen = _find_chosen_commit(range)
+    chosen === nothing ? nothing : findfirst(commit -> commit === chosen, collect(range.commits))
+end
+
+# `table.<rest>` ↔ the table in the split pane; `commits[j].<rest>` ↔ the commit
+# below it, when commit `j` is the chosen one.
 function map_reference_forward(::GitCommitRangeToWidget, iomap::SimpleIoMap, reference)
     output = iomap.output
     reference isa EmptyReference && return EmptyReference(get_reference_node_type(output))
+    range = iomap.input
     rest = _find_git_path_below(reference, (_RANGE_TABLE_STEP,))
+    if rest !== nothing
+        is_fully_typed_reference(rest) ||
+            (rest = annotate_reference_types(getfield(range, :table)[], strip_reference_types(rest)))
+        return concat_references(annotate_reference_types(output,
+                                                          extend_reference(EmptyReference(), _RANGE_TABLE_PLACE_STEPS...)),
+                                 rest)
+    end
+    index = _find_chosen_index(range)
+    index === nothing && return nothing
+    rest = _find_git_path_below(reference, (_RANGE_COMMITS_STEP, ElementReferenceStep(index)))
     rest === nothing && return nothing
-    is_fully_typed_reference(rest) ||
-        (rest = annotate_reference_types(getfield(iomap.input, :table)[], strip_reference_types(rest)))
-    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _RANGE_TABLE_PLACE_STEPS...)),
-                      rest)
+    concat_references(annotate_reference_types(output, extend_reference(EmptyReference(), _RANGE_COMMIT_PLACE_STEPS...)),
+                      annotate_reference_types(range.commits[index], rest))
 end
 
 # A path into the line names nothing, so a press on it leaves the selection where
-# it is; a path into the grid itself names the whole range.
+# it is; a path into the table or the commit takes its step; a path into the grid
+# itself names the whole range.
 function map_reference_backward(::GitCommitRangeToWidget, iomap::SimpleIoMap, reference)
     _find_git_path_below(reference, _RANGE_LINE_STEPS) === nothing || return nothing
     rest = _find_git_path_below(reference, _RANGE_TABLE_PLACE_STEPS)
-    rest === nothing ? EmptyReference() : ConcreteReference(_RANGE_TABLE_STEP, rest)
+    rest === nothing || return ConcreteReference(_RANGE_TABLE_STEP, rest)
+    rest = _find_git_path_below(reference, _RANGE_COMMIT_PLACE_STEPS)
+    if rest !== nothing
+        index = _find_chosen_index(iomap.input)
+        return index === nothing ? nothing :
+               ConcreteReference(_RANGE_COMMITS_STEP, ConcreteReference(ElementReferenceStep(index), rest))
+    end
+    isempty(get_reference_steps(strip_reference_types(reference))) ? EmptyReference() : nothing
+end
+
+# The default reader maps the answer of the page back. The open of a row by a double
+# press puts the keys into the commit below, back where they were on it, as an
+# explorer moves into its page; a press on the hash of a row, a link, opens the commit
+# as a page of its own. Return in the table moves into a cell, as in any table.
+function read_intent(p::GitCommitRangeToWidget, recursion, change::Intent, iomap::SimpleIoMap)
+    answer = invoke(read_intent, Tuple{Projection, Any, Intent, Any}, p, recursion, change, iomap)
+    gesture = change.gesture
+    (answer.operation !== nothing && gesture isa MouseClick && gesture.count == 2) || return answer
+    Intent(answer.gesture, _move_row_open_into_commit(answer.operation, iomap.input), answer.description, answer.domain)
+end
+
+# The open of the commit of a row, `commits[j]`, as the move of the selection into
+# the commit below the table: to the selection that the commit keeps, or to the top
+# node of its tree. Any other operation as it is.
+_move_row_open_into_commit(operation, range::GitCommitRange) = operation
+_move_row_open_into_commit(operation::CompoundOperation, range::GitCommitRange) =
+    CompoundOperation(Any[_move_row_open_into_commit(member, range) for member in operation.operations])
+function _move_row_open_into_commit(operation::OpenPageOperation, range::GitCommitRange)
+    (operation.document === nothing && operation.target === nothing && operation.place === :here) || return operation
+    steps = get_reference_steps(strip_reference_types(operation.reference))
+    (length(steps) == 2 && steps[1] == _RANGE_COMMITS_STEP && steps[2] isa RangeReferenceStep) || return operation
+    stored = get_stored_selection(range.commits[steps[2].stop])
+    place = stored isa ConcreteReference ? strip_reference_types(stored) :
+            extend_reference(EmptyReference(), FieldReferenceStep("tree"), FieldReferenceStep("root"))
+    ReplaceSelectionOperation(annotate_reference_types(range, concat_references(extend_reference(EmptyReference(),
+                                                                                                 steps...), place)))
 end
 
 # The default map maps the answer of the grid back. The page keeps the

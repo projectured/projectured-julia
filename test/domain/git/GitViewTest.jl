@@ -149,12 +149,41 @@ function test_git_views()
                 @test all(text -> text in texts(), ("hash", "subject", "author", "date"))
                 @test all(text -> text in texts(), ("second subject continues here", "first",
                                                     "Ann Author <ann@example.org>", "2026-01-02 03:04:05", "73521a2"))
-                # The cells of a row stand on one row of the table, from left to right.
-                drawn = _git_view_texts(backend)
-                place(text) = only((entry[2], entry[3]) for entry in drawn if first(entry) == text)
-                (hash_x, hash_y) = place("fd72243")
-                (subject_x, subject_y) = place("second subject continues here")
+                # The cells of a row stand on one row of the table, from left to right; the
+                # subject shows in the header of the commit below the table too.
+                (hash_x, hash_y) = _git_view_place(backend, "fd72243")
+                (subject_x, subject_y) = _git_view_place(backend, "second subject continues here")
                 @test abs(subject_y - hash_y) <= 4 && hash_x < subject_x
+            end
+
+            @testset "the page of a range shows the chosen commit below its table" begin
+                range = GitCommitRange(repository, "v1")
+                editor, backend = _git_view_editor(range; height = 900)
+                texts() = first.(_git_view_texts(backend))
+                click(x, y) = _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                # No row is chosen: the first commit of the log shows below the table.
+                @test _git_view_run_frames_until(editor, () -> "Parent 73521a2" in texts())
+                @test _git_view_place(backend, "fd72243")[2] < _git_view_place(backend, "Parent 73521a2")[2]
+                # A press on a row shows its commit below.
+                click(_git_view_place(backend, "first")...)
+                @test _git_view_run_frames_until(editor, () -> "No parent: the first commit" in texts())
+                @test !("Parent 73521a2" in texts())
+                # Up in the table shows the commit of the row above.
+                _git_view_press!(editor, backend, KeyDown(:up, ModifierKeys(); time = 0.0))
+                @test _git_view_run_frames_until(editor, () -> "Parent 73521a2" in texts())
+                # A press in the commit below puts the selection there, and the table
+                # keeps its row, so the commit stays.
+                click(_git_view_place(backend, "gone.txt  +0 −1")...)
+                @test _git_view_run_frames_until(editor, () -> "-bye" in texts() && !("+LINE 19" in texts()))
+                @test occursin("commits[1]", string(strip_reference_types(range.selection)))
+                @test "Parent 73521a2" in texts()
+                # A double press on a row puts the keys into the commit below, and opens no page.
+                click(_git_view_place(backend, "first")...)
+                @test _git_view_run_frames_until(editor, () -> "No parent: the first commit" in texts())
+                (x, y) = _git_view_place(backend, "first")
+                _git_view_press!(editor, backend, MouseClick(:left, x + 2, y + 2, 2, ModifierKeys(); time = 0.0))
+                @test occursin("commits[2]", string(strip_reference_types(range.selection)))
+                @test "No parent: the first commit" in texts()
             end
 
             @testset "Next and Previous step through the commits of a range" begin
