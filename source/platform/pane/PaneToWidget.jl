@@ -443,11 +443,17 @@ function _make_tab_label(tab::PaneTab)
 end
 
 # The part of a group's selection that its tabbed pane needs. A live caret or range
-# in the name of a tab passes whole, because the tab bar draws it and reads the
-# keys in it; everything else is the routing prefix. A group that lost the focus
-# shows no caret in a name.
+# in the name of a tab, and the name as a whole, pass whole, because the tab bar
+# draws them and reads the keys in the name; everything else is the routing prefix.
+# A group that lost the focus shows no caret in a name.
 _get_group_routing(group::PaneGroup, selection) =
-    (is_live_selection(group) && _is_place_in_tab_name(selection)) ? selection : _index_prefix(selection)
+    (is_live_selection(group) && (_is_place_in_tab_name(selection) || _is_tab_name(selection))) ? selection :
+    _index_prefix(selection)
+
+# Whether `selection` names the name of a tab as a whole.
+_is_tab_name(selection) = (@reference_case selection begin
+    ::PaneGroup.tabs[i].rest... => _is_title_name_path(rest)
+end) === true
 
 # The page of tab `i` of the strip `pane`, which shows `content`. The strip is the
 # output of this projection, so the close button of the page holds the part of the
@@ -520,6 +526,19 @@ _is_title_path(rest) = (@reference_case rest begin
     ::PaneTab.title.inner... => true
 end) === true
 
+# Whether `rest`, a path below a tab, names the name of its title as a whole: the
+# name, or its text.
+function _is_title_name_path(rest)
+    steps = collect(get_reference_steps(strip_reference_types(rest)))
+    steps == [FieldReferenceStep("title"), FieldReferenceStep("name")] ||
+        steps == [FieldReferenceStep("title"), FieldReferenceStep("name"), FieldReferenceStep("value")]
+end
+
+# Whether `rest`, a path below a tab page of the widget, names the text of its
+# label as a whole.
+_is_selector_text_path(rest) =
+    collect(get_reference_steps(strip_reference_types(rest))) == [FieldReferenceStep("selector"), FieldReferenceStep("text")]
+
 # The place in the name that a tab page of the widget holds, as its range step.
 _find_selector_range(rest) = @reference_case rest begin
     ::WidgetTabPage.selector.text{s:e} => _get_last_range_step(rest)
@@ -549,6 +568,9 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
                 return concat_references(
                     @reference(::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String),
                     ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
+            # The name as a whole is the text of the label as a whole.
+            _is_title_name_path(rest) &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::WidgetTabLabel.text::String
             # The header is the view of the title, so any other part of the title is
             # the header, as the pointer on the header is the title.
             _is_title_path(rest) &&
@@ -608,6 +630,9 @@ function map_reference_backward(p::PaneGroupToWidgetTabbedPane,
                     @reference(::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String),
                     ConcreteReference(String, _make_name_range_step(range), EmptyReference(Position)))
             end
+            # The text of the label as a whole is the name as a whole.
+            _is_selector_text_path(rest) &&
+                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PaneTabTitle.name::PrimitiveString.value::String
             # The header of a tab is the view of its title, so any other part of
             # the header names the title whole, as the pointer on it does.
             _is_selector_path(rest) &&

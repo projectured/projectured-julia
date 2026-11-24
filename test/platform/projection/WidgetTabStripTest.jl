@@ -478,6 +478,63 @@ end
     @test _shown_tab(iomap, "7 t…")[2]
 end
 
+# Every rectangle of a printed strip, as (x, y, width), through its canvases and
+# viewports.
+function _strip_rects(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int}[])
+    if node isa GraphicsCanvas
+        for e in node.elements
+            _strip_rects(e, ox + Int(node.x), oy + Int(node.y), found)
+        end
+    elseif node isa GraphicsViewport
+        _strip_rects(node.content, ox + Int(node.x), oy + Int(node.y), found)
+    elseif node isa GraphicsRect
+        push!(found, (ox + Int(node.x), oy + Int(node.y), Int(node.w)))
+    end
+    found
+end
+
+# The part under the pointer that `operation`, the answer to a move, names, or
+# `nothing`.
+function _target_of(operation)
+    operation isa ReplaceMouseTargetOperation && return operation.path
+    operation isa CompoundOperation || return nothing
+    for member in operation.operations
+        target = _target_of(member)
+        target === nothing || return target
+    end
+    nothing
+end
+
+@testset "the name of a tab reads like the text of a control: a plain click opens the tab, an Alt+click puts the caret" begin
+    pane = _pane()
+    proj = _proj()
+    iomap = print_document(proj, pane)
+    x, y, _, _ = only(t for t in _strip_texts(iomap.output) if t[3] == "two")
+    alt = ModifierKeys(alt = true)
+    # A plain click on the name opens its tab.
+    @test _select_tab(read_intent(proj, iomap, _press(x + 10 + 1, y + 2)), 2)
+    # An Alt+click after the first character puts the caret there, in the name.
+    caret = read_intent(proj, iomap, MouseClick(:left, x + 10 + 1, y + 2, alt; time = 0.0))
+    @test caret isa ReplaceSelectionOperation
+    name = strip_reference_types(WidgetModule._make_tab_name_part(pane.selector_element_pairs[2].selector, 2))
+    @test strip_reference_types(caret.path) ==
+          concat_references(name, ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
+    # The caret maps forward to its place in the name.
+    box = find_reference_box(iomap.output, map_reference_forward(proj, iomap, caret.path); measure = _stub)
+    @test box !== nothing && (Int(box.x), Int(box.y)) == (x + 10, y)
+    # A press with Alt starts the drag of a range there, and grabs no tab.
+    down = read_intent(proj, iomap, MouseDown(:left, x + 10 + 1, y + 2, alt; time = 0.0))
+    @test down isa CompoundOperation && any(op -> op isa StartDragOperation, down.operations)
+    # A move on the name names the character under the pointer.
+    target = _target_of(read_intent(proj, iomap, MouseMove(x + 10 + 1, y + 2; time = 0.0)))
+    @test target !== nothing && strip_reference_types(target) == strip_reference_types(caret.path)
+    # The name selected as a whole draws a band behind it, as wide as the name.
+    band(rects) = any(rect -> rect[1] == x && rect[3] == 3 * 10, rects)
+    @test !band(_strip_rects(iomap.output))
+    evaluate_operation((document = pane,), ReplaceSelectionOperation(annotate_reference_types(pane, name)))
+    @test band(_strip_rects(print_document(proj, pane).output))
+end
+
 @testset "in a slot the line under the tabs reaches the edge also when the open page has no content" begin
     proj = _proj()
     pane = WidgetTabbedPane(Any[("a", nothing), ("b", WidgetLabel("b"))])

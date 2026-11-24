@@ -42,6 +42,56 @@ end
     @test get_pane_tab_title_string(group.tabs[1]) == "notes!"
 end
 
+# The top left corner of the first text `text` that `node` draws, through its
+# canvases and viewports, or `nothing`.
+function _text_point(node, text, ox = 0, oy = 0)
+    if node isa GraphicsCanvas
+        for element in node.elements
+            found = _text_point(element, text, ox + Int(node.x), oy + Int(node.y))
+            found === nothing || return found
+        end
+    elseif node isa GraphicsViewport
+        return _text_point(node.content, text, ox + Int(node.x), oy + Int(node.y))
+    elseif node isa GraphicsText && string(node.text) == text
+        return (ox + Int(node.x), oy + Int(node.y))
+    end
+    nothing
+end
+
+@testset "an Alt+click on a name puts the caret at the character, so typing edits the name there" begin
+    tree, group, editor = _seeded()
+    x, y = _text_point(print_document(_chain(), editor.document).output, "notes")
+    _press!(editor, MouseClick(:left, x + 10 + 1, y + 2, ModifierKeys(alt = true); time = 0.0))
+    @test get_pane_focus_title(tree) == (group, 1)
+    _type!(editor, "!")
+    @test get_pane_tab_title_string(group.tabs[1]) == "n!otes"
+end
+
+# The rectangles that `node` draws, as (x, y, width), through its canvases and
+# viewports.
+function _rects(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int}[])
+    if node isa GraphicsCanvas
+        for element in node.elements
+            _rects(element, ox + Int(node.x), oy + Int(node.y), found)
+        end
+    elseif node isa GraphicsViewport
+        _rects(node.content, ox + Int(node.x), oy + Int(node.y), found)
+    elseif node isa GraphicsRect
+        push!(found, (ox + Int(node.x), oy + Int(node.y), Int(node.w)))
+    end
+    found
+end
+
+@testset "the name of a tab selected as a whole draws a band behind it" begin
+    tree, group, editor = _seeded()
+    output() = print_document(_chain(), editor.document).output
+    x, _ = _text_point(output(), "notes")
+    band(rects) = any(rect -> rect[1] == x && rect[3] == 5 * 10, rects)
+    @test !band(_rects(output()))
+    evaluate_operation(editor, ReplaceSelectionOperation(get_pane_tab_name_path(tree, group, 1)))
+    @test band(_rects(output()))
+end
+
 @testset "typing edits the name and nothing else" begin
     tree, group, editor = _seeded()
     _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))

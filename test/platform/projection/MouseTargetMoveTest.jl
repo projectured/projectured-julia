@@ -367,8 +367,9 @@ end
     tabs = WidgetTabbedPane([("One", page_one), ("Two", tab_two)])
     (screen, play!) = _mtm_screen(_mtm_window(:w, 0, tabs))
     page(i) = (FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(i))
+    # A move on the name of a tab names the character under the pointer there.
     play!(WindowInput(:w, MouseMove(60, 10; time = 0.0)))
-    @test get_mouse_target(tabs) == _mtm_path(page(2)..., FieldReferenceStep("selector"))
+    @test get_mouse_target(tabs) == _mtm_path(page(2)..., FieldReferenceStep("selector"), RangeReferenceStep(1, 1))
     # A page that is a widget holds the rest of the path.
     play!(WindowInput(:w, MouseMove(20, 60; time = 0.1)))
     @test get_mouse_target(tabs) ==
