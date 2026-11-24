@@ -39,7 +39,7 @@ export Preference, make_baked_preference, make_exposed_preferences,
        is_performance_counters_requested, write_preferences
 export Usage, format_usage, format_version_line, collect_option_flags
 export get_app_module_name, prepare_program_start!, LOG_LEVEL_NAMES, write_app_package,
-       StandIn, write_if_changed
+       StandIn, check_stand_ins, write_if_changed
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, STRIP_UNCOMPILED_FORMS, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!

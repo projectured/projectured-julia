@@ -22,24 +22,45 @@ const PROJECTURED_BACKENDS = (sdl = ("ProjecturedSDL", :SdlBackend),
 """
     PROJECTURED_STAND_INS
 
-The JLL packages that a binary does not carry, as `"<name>" => "<uuid>"`:
+The JLL packages that a binary does not carry, as [`StandIn`](@ref)s:
 [`write_app_package`](@ref) puts an empty stand-in in their place. It is the
 default of `stand_ins` in [`build_executable`](@ref), so it holds for each binary
 that this builder builds, in this repository and in the repositories that use it.
-`SDL2_jll` and SimpleDirectMediaLayer load `alsa_plugins_jll`, and it brings
-FFmpeg, which is built with `--enable-nonfree` and so may not be given to anyone,
-and PulseAudio with GPL-3 and AGPL-3 libraries. No binary plays sound: the
-platform starts SDL for video only. A binary with no SDL gets an empty package,
-which costs nothing.
+A binary that does not hold a package that names a stand-in gets an empty package,
+which costs nothing. Each stand-in claims the version of the package that it
+replaces.
 
-It keeps two of the dependencies of the real one: the libraries of `SDL2_jll`
-link `libsamplerate.so.0` and `libiconv.so.2`, and `SDL2_jll` names neither JLL.
-A container of Debian 12 found them missing on 2026-09-30.
+- `alsa_plugins_jll`: `SDL2_jll` and SimpleDirectMediaLayer load it, and it
+  brings FFmpeg, which is built with `--enable-nonfree` and so may not be given to
+  anyone, and PulseAudio with GPL-3 and AGPL-3 libraries. No binary plays sound:
+  the platform starts SDL for video only. It keeps two of the dependencies of the
+  real one: the libraries of `SDL2_jll` link `libsamplerate.so.0` and
+  `libiconv.so.2`, and `SDL2_jll` names neither JLL. A container of Debian 12
+  found them missing on 2026-09-30.
+- `Libtiff_jll`, `libwebp_jll`, `JpegTurbo_jll` and `libpng_jll`: `SDL2_image_jll`
+  2.6.2 names them, but its library reads images with its own code and links none
+  of them. With them leave `LERC_jll` and `Giflib_jll`, which only the first two
+  name. The only call of `SDL2_image` is `IMG_SavePNG`.
+- `SDL2_mixer_jll` and `SDL2_gfx_jll`: SimpleDirectMediaLayer names them, and no
+  program calls a function of them.
 """
 const PROJECTURED_STAND_INS = [
-    StandIn("alsa_plugins_jll", "5ac2f6bb-493e-5871-9171-112d4c21a6e7";
+    StandIn("alsa_plugins_jll", "5ac2f6bb-493e-5871-9171-112d4c21a6e7"; version = "1.2.13",
             keeps = ["libsamplerate_jll" => "9427e74d-4e05-59c1-8ff3-7d74b6e52ac8",
-                     "Libiconv_jll" => "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"])]
+                     "Libiconv_jll" => "94ce4f54-9a6c-5748-9c1c-f9c7231a4531"],
+            named_by = ["SDL2_jll", "SimpleDirectMediaLayer"]),
+    StandIn("Libtiff_jll", "89763e89-9b03-5906-acba-b20f662cd828"; version = "4.4.0",
+            named_by = ["SDL2_image_jll"]),
+    StandIn("libwebp_jll", "c5f90fcd-3b7e-5836-afba-fc50a0988cb2"; version = "1.4.0",
+            named_by = ["SDL2_image_jll"]),
+    StandIn("JpegTurbo_jll", "aacddb02-875f-59d6-b918-886e6ef4fbf8"; version = "3.2.1",
+            named_by = ["SDL2_image_jll"]),
+    StandIn("libpng_jll", "b53b4c65-9356-5827-b1ea-8c7a1a84506f"; version = "1.6.59",
+            named_by = ["SDL2_image_jll"]),
+    StandIn("SDL2_mixer_jll", "7e88e5ca-120e-58e7-9660-b2187fd466c0"; version = "2.8.1",
+            named_by = ["SimpleDirectMediaLayer"]),
+    StandIn("SDL2_gfx_jll", "323748d4-b4be-59be-a22c-1904c60787cb"; version = "1.0.4",
+            named_by = ["SimpleDirectMediaLayer"])]
 
 """
     PROJECTURED_SOURCE_OFFERS

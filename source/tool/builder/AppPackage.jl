@@ -261,40 +261,52 @@ function _compute_app_load_order(context::BuildContext, packages, imports)
 end
 
 """
-    StandIn(name, uuid; keeps = Pair{String,String}[])
+    StandIn(name, uuid; version, keeps = Pair{String,String}[], named_by = String[])
 
 A JLL package that a binary must not carry: [`write_app_package`](@ref) writes a
-package of the same `name` and `uuid` in its place. `keeps` are
-`"<name>" => "<uuid>"` of the dependencies of the real one that the binary still
-needs: a library that another JLL links and does not name. The stand-in loads
-them, so a package that loads the stand-in loads them first.
+package of the same `name` and `uuid` in its place.
+
+- `version` — the version that the stand-in claims: the version of the package
+  that it replaces. Pkg checks the compat of each package that names it against
+  this version, so a version that no dependent accepts stops the resolve.
+- `keeps` — `"<name>" => "<uuid>"` of the dependencies of the real one that the
+  binary still needs: a library that another JLL links and does not name. The
+  stand-in loads them, so a package that loads the stand-in loads them first.
+- `named_by` — the packages that name the JLL and use none of its libraries.
+  [`check_stand_ins`](@ref) stops when another package names it, because that
+  package can need a library that the stand-in does not hold.
 """
 struct StandIn
     name::String
     uuid::String
+    version::String
     keeps::Vector{Pair{String,String}}
+    named_by::Vector{String}
 end
 
-StandIn(name::AbstractString, uuid::AbstractString; keeps = Pair{String,String}[]) =
-    StandIn(String(name), String(uuid),
-            Pair{String,String}[String(k) => String(v) for (k, v) in keeps])
+StandIn(name::AbstractString, uuid::AbstractString; version::AbstractString,
+        keeps = Pair{String,String}[], named_by = String[]) =
+    StandIn(String(name), String(uuid), String(version),
+            Pair{String,String}[String(k) => String(v) for (k, v) in keeps],
+            String[String(package) for package in named_by])
 
-# A package in place of a JLL: the same name and uuid, the dependencies it keeps,
-# and the three bindings that a user of a JLL reads, all empty.
+# A package in place of a JLL: the same name and uuid, the version that it claims,
+# the dependencies it keeps, and the three bindings that a user of a JLL reads, all
+# empty.
 function _write_stand_in_package(directory, stand_in::StandIn)
     mkpath(joinpath(directory, "src"))
     project = Dict{String,Any}("name" => stand_in.name, "uuid" => stand_in.uuid,
-                               "version" => "0.0.1")
+                               "version" => stand_in.version)
     isempty(stand_in.keeps) || (project["deps"] = Dict{String,Any}(stand_in.keeps))
     write_if_changed(joinpath(directory, "Project.toml"),
                      sprint(io -> TOML.print(io, project; sorted = true)))
     kept = isempty(stand_in.keeps) ? "" :
-        "# The libraries that the binary still needs from the real one.\n" *
+        "# The libraries that are still needed from the real one.\n" *
         join(("import " * name for (name, _) in stand_in.keeps), "\n") * "\n"
     write_if_changed(joinpath(directory, "src", "$(stand_in.name).jl"), """
-        # Written by `ProjecturedBuilder.write_app_package`: a stand-in for the JLL
-        # package `$(stand_in.name)`, which this binary does not carry. It has the
-        # same name and uuid, and no library of its own.
+        # Written by `ProjecturedBuilder`: a stand-in for the JLL package
+        # `$(stand_in.name)` $(stand_in.version). It has the same name and uuid, and
+        # no library of its own.
         module $(stand_in.name)
         $(kept)const artifact_dir = ""
         const PATH_list = String[]
@@ -302,6 +314,44 @@ function _write_stand_in_package(directory, stand_in::StandIn)
         is_available() = false
         end
         """)
+end
+
+"""
+    check_stand_ins(manifest, stand_ins; user = "check_stand_ins") -> Nothing
+
+Stop with an error when the manifest at `manifest` does not hold each of
+`stand_ins` as a stand-in, or when a package outside the `named_by` of a stand-in
+names it. Such a package can need a library of the real JLL, and with the
+stand-in it fails only when it runs. The project of the manifest is not in it, so
+the package or environment that lists a stand-in does not count. `user` starts
+the message of the error.
+
+[`build_executable`](@ref) calls it after the resolve of the written package.
+"""
+function check_stand_ins(manifest::AbstractString, stand_ins; user::AbstractString = "check_stand_ins")
+    entries = TOML.parsefile(manifest)["deps"]
+    problems = String[]
+    for stand_in in stand_ins
+        found = get(entries, stand_in.name, nothing)
+        if found === nothing
+            push!(problems, "$(stand_in.name) is not in it, so its project does not list the stand-in")
+            continue
+        end
+        haskey(only(found), "path") ||
+            push!(problems, "it holds the real $(stand_in.name) and not the stand-in")
+        for (package, versions) in entries, entry in versions
+            dependencies = get(entry, "deps", String[])
+            dependencies isa AbstractDict && (dependencies = collect(keys(dependencies)))
+            stand_in.name in dependencies && !(package in stand_in.named_by) &&
+                push!(problems, "$package names the stand-in $(stand_in.name), whose " *
+                                "libraries it does not hold. Leave $(stand_in.name) out of " *
+                                "the stand-ins, or add $package to its `named_by` if " *
+                                "$package uses none of its libraries")
+        end
+    end
+    isempty(problems) ||
+        error("$user: in $manifest, " * join(problems, "; and "))
+    nothing
 end
 
 # The one line of the module that differs between two builds of the same thing.

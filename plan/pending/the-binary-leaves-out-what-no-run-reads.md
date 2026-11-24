@@ -1,6 +1,8 @@
 # The binary leaves out what no run reads
 
-Status: PENDING. Written on 2026-11-24 at the request of the owner. Not approved yet.
+Status: IN PROGRESS. Written on 2026-11-24 at the request of the owner. The owner approved it on
+2026-11-24 ("yes, implement both plans"). The work is on the branch `stand-ins` of the worktrees
+`projectured-julia-stand-ins` and `omnet-julia-stand-ins`.
 
 ## The ask
 
@@ -157,7 +159,20 @@ with `julia-worktree new`. The tests of omnet-julia run in a scratch copy of `en
 whose paths go to the two worktrees. Mark each step done here. A step lands on `main` only with
 the word of the owner.
 
-1. [ ] **Items 2 and 3: six more stand-ins, and the check of who names them** (decisions 1, 2, 7).
+1. [x] **Items 2 and 3: six more stand-ins, and the check of who names them** (decisions 1, 2, 7).
+   Done on 2026-11-24. What the implementation found and decided:
+   - One check for binaries and environments: `check_stand_ins(manifest, stand_ins; user)` in
+     `AppPackage.jl`. It also stops when the manifest holds the real package or no stand-in at
+     all. It collects each problem and names all of them in one error.
+   - `build_executable` calls it after the resolve. With `compile = false`, `resolve` is `false`
+     by default, so a build that only writes its package checks nothing; step 3 resolves.
+   - The comment of the written stand-in names the version that it stands for, and no longer says
+     "this binary", because plan
+     [the-developer-environments-hold-no-cairo.md](the-developer-environments-hold-no-cairo.md)
+     writes the same form for the developer environments.
+   - Test: `test_build_executable` passes in the worktree, 418 pass and 1 broken (the known
+     marker). The static guards `test/suite/documentation.jl` and `exports.jl` fail with the same
+     output as on `main`; the other four pass.
    - projectured-julia: `named_by` and `version` in `StandIn` (`AppPackage.jl`), if they are not
      there yet; the check after the resolve in `build_executable`, and the list in
      `ProjecturedProgram.jl`. `builder.md` says what a stand-in names, which version it claims,

@@ -255,7 +255,8 @@ function test_build_executable()
             context = _test_context()
             uuid = "00000000-0000-0000-0000-0000000000aa"
             keep = "00000000-0000-0000-0000-0000000000ab"
-            stand_ins = [StandIn("some_jll", uuid; keeps = ["Kept_jll" => keep])]
+            stand_ins = [StandIn("some_jll", uuid; version = "1.2.3",
+                                 keeps = ["Kept_jll" => keep])]
             directory = write_app_package(context; name = "quiet", packages = [A_PACKAGE],
                                           main = :(begin 0 end), stand_ins)
             project = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(directory,
@@ -267,6 +268,9 @@ function test_build_executable()
             stand_in_project = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(stand_in,
                                                                           "Project.toml"))
             @test stand_in_project["uuid"] == uuid
+            # It claims the version of the package that it replaces, so the compat
+            # of a package that names it holds.
+            @test stand_in_project["version"] == "1.2.3"
             # It keeps a dependency of the real one, and loads it.
             @test stand_in_project["deps"] == Dict("Kept_jll" => keep)
             source = read(joinpath(stand_in, "src", "some_jll.jl"), String)
@@ -287,11 +291,57 @@ function test_build_executable()
                                 debug_info = 1, cpu_target = "", stand_ins)
             @test occursin("stand-in: some_jll, which this binary does not carry; it " *
                            "keeps Kept_jll", info)
-            @test only(PROJECTURED_STAND_INS).name == "alsa_plugins_jll"
-            @test only(PROJECTURED_STAND_INS).uuid ==
-                  "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
-            @test Set(first.(only(PROJECTURED_STAND_INS).keeps)) ==
+            # The default: the sound chain, the image formats that SDL2_image does
+            # not read, and the parts of SDL that no program calls. Each one names
+            # its version and the packages that may name it.
+            defaults = Dict(stand_in.name => stand_in for stand_in in PROJECTURED_STAND_INS)
+            @test Set(keys(defaults)) ==
+                  Set(["alsa_plugins_jll", "Libtiff_jll", "libwebp_jll", "JpegTurbo_jll",
+                       "libpng_jll", "SDL2_mixer_jll", "SDL2_gfx_jll"])
+            @test all(VersionNumber(stand_in.version) > v"0.1" for stand_in in values(defaults))
+            @test all(!isempty(stand_in.named_by) for stand_in in values(defaults))
+            @test defaults["alsa_plugins_jll"].uuid == "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
+            @test Set(first.(defaults["alsa_plugins_jll"].keeps)) ==
                   Set(["libsamplerate_jll", "Libiconv_jll"])
+            @test defaults["libpng_jll"].named_by == ["SDL2_image_jll"]
+            @test defaults["SDL2_mixer_jll"].named_by == ["SimpleDirectMediaLayer"]
+        end
+
+        @testset "a build stops when another package names a stand-in" begin
+            stand_in = StandIn("some_jll", "00000000-0000-0000-0000-0000000000aa";
+                               version = "1.2.3", named_by = ["User_jll"])
+            # A manifest of the form that Pkg writes: the stand-in by its path, and
+            # each package with the names of what it needs.
+            function write_manifest(entries...)
+                path = joinpath(mktempdir(), "Manifest.toml")
+                write(path, "manifest_format = \"2.0\"\n\n" * join(entries, "\n"))
+                path
+            end
+            entry(name, uuid; deps = String[], path = nothing) =
+                "[[deps.$name]]\n" * (isempty(deps) ? "" : "deps = $(repr(deps))\n") *
+                (path === nothing ? "" : "path = $(repr(path))\n") *
+                "uuid = \"$uuid\"\nversion = \"1.0.0\"\n"
+            the_stand_in = entry("some_jll", stand_in.uuid; path = "stand_in/some_jll")
+            user = entry("User_jll", "00000000-0000-0000-0000-0000000000b1"; deps = ["some_jll"])
+            other = entry("Other", "00000000-0000-0000-0000-0000000000b2"; deps = ["some_jll"])
+            # Only a package of `named_by` names it: the check passes.
+            @test check_stand_ins(write_manifest(the_stand_in, user), [stand_in]) === nothing
+            # Another package names it, and the error says which and what to do.
+            message = try
+                check_stand_ins(write_manifest(the_stand_in, user, other), [stand_in];
+                                user = "build_executable")
+                ""
+            catch exception
+                sprint(showerror, exception)
+            end
+            @test startswith(message, "build_executable: ")
+            @test occursin("Other names the stand-in some_jll", message)
+            @test !occursin("User_jll names", message)
+            # The real package and not the stand-in, or no stand-in at all.
+            real_one = entry("some_jll", stand_in.uuid)
+            @test_throws r"holds the real some_jll" check_stand_ins(write_manifest(real_one, user),
+                                                                    [stand_in])
+            @test_throws r"some_jll is not in it" check_stand_ins(write_manifest(user), [stand_in])
         end
 
         @testset "each build carries no sound libraries unless it asks for them" begin
@@ -311,7 +361,7 @@ function test_build_executable()
             end
             deps, folders, source = read_build("silent")
             @test deps["alsa_plugins_jll"] == "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
-            @test folders == ["alsa_plugins_jll"]
+            @test Set(folders) == Set(stand_in.name for stand_in in PROJECTURED_STAND_INS)
             @test occursin("stand-in: alsa_plugins_jll, which this binary does not carry", source)
             deps, folders, source = read_build("sound"; stand_ins = StandIn[])
             @test !haskey(deps, "alsa_plugins_jll")
@@ -1285,8 +1335,8 @@ function test_build_executable()
             project = build_projectured_executable(; context = context, compile = false)
             @test project == joinpath(context.root, "build", "app", "projectured")
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
-            # The packages of the binary, and the stand-in that keeps the sound
-            # libraries out of it.
+            # The packages of the binary, and the stand-ins that keep the libraries
+            # that it does not use out of it.
             # `ProjecturedKernel` reads the preference `precompile_calls` that the
             # build writes, so it joins as an import.
             @test Set(keys(deps)) == Set(["ProjecturedPlatform",
@@ -1295,7 +1345,8 @@ function test_build_executable()
                                           "ProjecturedMCP", "ProjecturedACP",
                                           "ProjecturedLanguageServer", "ProjecturedSDL",
                                           "ProjecturedWeb", "ProjecturedBuild",
-                                          "ProjecturedKernel", "alsa_plugins_jll"])
+                                          "ProjecturedKernel",
+                                          [stand_in.name for stand_in in PROJECTURED_STAND_INS]...])
             source = read(joinpath(project, "src", "ProjecturedApp.jl"), String)
             @test occursin("ProjecturedPlatform.run_application_command(ARGS; backends = " *
                            "(sdl = ProjecturedSDL.SdlBackend, web = ProjecturedWeb.WebBackend))",

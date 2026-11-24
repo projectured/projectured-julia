@@ -237,8 +237,11 @@ output directory.
   `--log-level=<level>` over it, so this is the default and not the answer.
 - `imports`, `init` and `stand_ins` — passed on to [`write_app_package`](@ref)
   unchanged; the build record names each stand-in. The default of `stand_ins` is
-  [`PROJECTURED_STAND_INS`](@ref), so no binary carries the sound libraries. A
-  binary that plays sound passes `stand_ins = StandIn[]`.
+  [`PROJECTURED_STAND_INS`](@ref), so no binary carries the sound libraries, the
+  image formats that `SDL2_image` does not read, or the parts of SDL that no
+  program calls. After the resolve, the build stops when a package outside the
+  `named_by` of a stand-in names it, see [`check_stand_ins`](@ref). A binary that
+  plays sound passes a list without `alsa_plugins_jll` and `SDL2_mixer_jll`.
 - `after_write` — a function called with the directory of the written package,
   after the package and its preferences are there and before it is resolved.
   A caller that must put another file into the package, or read what the last
@@ -443,7 +446,10 @@ function build_executable(context::BuildContext; name::AbstractString,
     # A caller that only wants to SEE what a build would write pays nothing for
     # it. A caller that will compile the package, or run it, needs it resolved.
     # Skip the precompile only when `compile_app` is going to do it again anyway.
-    resolve && resolve_app_project(project; precompile = precompile)
+    if resolve
+        resolve_app_project(project; precompile = precompile)
+        check_stand_ins(joinpath(project, "Manifest.toml"), stand_ins; user = "build_executable")
+    end
     compile || return project
 
     compile! = () -> compile_app(project, output, name; force, optimization, debug_info,
