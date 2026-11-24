@@ -39,4 +39,22 @@ function test_introduced_path()
           nothing
     @test find_introduced_path(projection, EmptyReference()) === nothing
 end
+@testset "a step of a projection at the end of a path names a path in its output" begin
+    projection = IntroducedPathProbeProjection()
+    output_path = extend_reference(EmptyReference(), FieldReferenceStep("elements"), ElementReferenceStep(2))
+    step = make_introduced_reference(projection, IntroducedPathProbe(name = "probe"), output_path)
+    # The step after the path of a document inside the input, and the step alone.
+    at_node = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("items"), ElementReferenceStep(1)),
+                                step)
+    @test find_last_introduced_path(projection, at_node) == output_path
+    @test find_last_introduced_path(projection, step) == output_path
+    # A step of another projection, a step that is not the last one, and a path
+    # with no step name nothing in this output.
+    @test find_last_introduced_path(IntroducedPathOtherProjection(), at_node) === nothing
+    @test find_last_introduced_path(projection, concat_references(step, extend_reference(EmptyReference(),
+                                                                  FieldReferenceStep("name")))) === nothing
+    @test find_last_introduced_path(projection, extend_reference(EmptyReference(), FieldReferenceStep("name"))) ===
+          nothing
+    @test find_last_introduced_path(projection, EmptyReference()) === nothing
+end
 end # test_introduced_path

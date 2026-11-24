@@ -121,6 +121,27 @@ find_introduced_path(projection, reference) =
     is_introduced_reference(reference, projection) ? reference.head.output_path : nothing
 
 """
+    find_last_introduced_path(projection, reference) -> Union{Reference,Nothing}
+
+The path in the output of `projection` that `reference` names when its last step
+is a step that `projection` introduced, and `nothing` for any other reference.
+
+A view that prints a part for a document inside its input, as the text of the
+row of a node, names that part by the path of that document and then its own
+step, which holds the path of the part from the root of the output. So the step
+stands at the innermost document that the part was printed for, and the forward
+map of the view gives the place back with this function.
+"""
+function find_last_introduced_path(projection, reference)
+    reference isa ConcreteReference || return nothing
+    while reference.tail isa ConcreteReference
+        reference = reference.tail
+    end
+    step = reference.head
+    step isa ProjectionReferenceStep && step.projection === projection ? step.output_path : nothing
+end
+
+"""
     normalize_named_node_reference(reference) -> Reference
 
 The reference of the document node this caret **names**.

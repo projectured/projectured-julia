@@ -80,8 +80,8 @@ function test_outline()
         found = map_outline_backward(slots, caret; introduce = drawn)
         @test steps(found)[1:2] == record
         @test steps(found)[3] == ProjectionReferenceStep(:view, caret)
-        @test find_outline_introduced_path(:view, found) == caret
-        @test find_outline_introduced_path(:other, found) === nothing
+        @test find_last_introduced_path(:view, found) == caret
+        @test find_last_introduced_path(:other, found) === nothing
         # A place for which `introduce` answers nothing, and a caret with no
         # `introduce`, is the record.
         @test steps(map_outline_backward(slots, mark; introduce = (_, _) -> nothing)) == record

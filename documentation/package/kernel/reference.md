@@ -218,6 +218,9 @@ an offset in the output of a later stage. The projection's forward map takes off
 step, `find_introduced_path(projection, reference)`, and answers that path, so the next
 stage maps it as any path of its input. The step stands at the node that printed the
 part: the bracket of a nested array is `.elements[2]‹.open{0}›`, named by the inner array.
+A view that prints a part for a document inside its input in one print, as the label of a
+node of a tree, puts its own step after the path of that document, and its forward map
+reads it with `find_last_introduced_path(projection, reference)`.
 Such a path has no input pre-image, so a reader declines an edit whose reference has an
 introduced step anywhere, `has_introduced_step(reference)`.
 

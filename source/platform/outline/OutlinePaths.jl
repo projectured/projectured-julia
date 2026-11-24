@@ -111,11 +111,12 @@ _is_outline_caret(steps) = !isempty(steps) && last(steps) isa RangeReferenceStep
 
 The forward map of a view that builds an outline with `slots`: a part that
 `projection` drew maps to its place in the output, both one that a reference names
-whole and a caret in a text of the row of a record (`find_outline_introduced_path`),
-and any other path maps through the slots (`map_outline_forward`).
+whole and a caret in a text of the row of a record, the path of the record and
+then the step of the view (`find_last_introduced_path`), and any other path maps
+through the slots (`map_outline_forward`).
 """
 map_outline_view_forward(projection, slots, reference) =
-    something(find_introduced_path(projection, reference), find_outline_introduced_path(projection, reference),
+    something(find_introduced_path(projection, reference), find_last_introduced_path(projection, reference),
               Some(map_outline_forward(slots, reference)))
 
 """
@@ -175,23 +176,6 @@ function _annotate_outline_path(input, path)
     end
 end
 
-"""
-    find_outline_introduced_path(projection, reference) -> Reference or nothing
-
-The path in the output of `projection` that `reference` names when it ends in a
-step that `projection` introduced, as [`map_outline_backward`](@ref) makes for a
-caret in a text that the view drew in a row: the path of the record in the input,
-then the step, which holds the path of the place from the root of the output. The
-path of the step is the answer; any other reference answers `nothing`.
-"""
-function find_outline_introduced_path(projection, reference)
-    reference isa ConcreteReference || return nothing
-    while reference.tail isa ConcreteReference
-        reference = reference.tail
-    end
-    step = reference.head
-    step isa ProjectionReferenceStep && step.projection === projection ? step.output_path : nothing
-end
 
 """
     route_outline_paths!(input, output, image; embedded = ()) -> output
