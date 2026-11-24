@@ -327,7 +327,9 @@ stand-in, so it does not count: a package project is in its own manifest with th
 path `"."`, and an environment is not in it. `user` starts the message of the
 error.
 
-[`build_executable`](@ref) calls it after the resolve of the written package.
+[`build_executable`](@ref) calls it after the resolve of the written package. A
+test calls it with the manifest of a developer environment and
+[`ENVIRONMENT_STAND_INS`](@ref).
 """
 function check_stand_ins(manifest::AbstractString, stand_ins; user::AbstractString = "check_stand_ins")
     entries = TOML.parsefile(manifest)["deps"]

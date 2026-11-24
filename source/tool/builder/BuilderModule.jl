@@ -56,7 +56,8 @@ export build_distribution, ARCHIVE_FORMATS, DEFAULT_ARCHIVE, check_archive_forma
 export bundle_licence_texts!
 export SourceOffer, build_source_archive
 export build_package_release!, collect_outside_paths
-export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, PROJECTURED_SOURCE_OFFERS,
+export PROJECTURED_BACKENDS, PROJECTURED_STAND_INS, ENVIRONMENT_STAND_INS,
+       write_environment_stand_ins!, PROJECTURED_SOURCE_OFFERS,
        APPLICATION_OPTIONS, make_application_usage, PROJECTURED_REQUIREMENTS,
        PROJECTURED_LICENCES, PROJECTURED_CREDITS, PROJECTURED_EXTRA_TEXTS,
        PROJECTURED_DATA_TEXTS, PROJECTURED_SOURCE, PROJECTURED_ASSETS,

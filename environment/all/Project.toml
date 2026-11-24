@@ -1,6 +1,7 @@
 [deps]
 AgentClientProtocol = "9897b34e-e318-42ec-8700-51bd28135f60"
 AutoIntegration = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
+Cairo_jll = "83423d85-b0ee-5818-9007-b63ccbeb887a"
 ClaudeCodeACP = "397ce549-bc36-418a-97e7-6295a63dbdc4"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
@@ -127,10 +128,12 @@ Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 SimpleDirectMediaLayer = "98e33af6-2ee5-5afd-9e75-cbc738b767c4"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
+alsa_plugins_jll = "5ac2f6bb-493e-5871-9171-112d4c21a6e7"
 
 [sources]
 AgentClientProtocol = {path = "../../../AgentClientProtocol.jl"}
 AutoIntegration = {path = "../../../AutoIntegration.jl"}
+Cairo_jll = {path = "../../package/Cairo_jll"}
 ClaudeCodeACP = {path = "../../../ClaudeCodeACP.jl"}
 ModelContextProtocol = {path = "../../../ModelContextProtocol.jl"}
 Projectured = {path = "../../package/Projectured"}
@@ -250,3 +253,4 @@ ProjecturedXMLTest = {path = "../../package/ProjecturedXMLTest"}
 ProjecturedYAML = {path = "../../package/ProjecturedYAML"}
 ProjecturedYAMLExample = {path = "../../package/ProjecturedYAMLExample"}
 ProjecturedYAMLTest = {path = "../../package/ProjecturedYAMLTest"}
+alsa_plugins_jll = {path = "../../package/alsa_plugins_jll"}

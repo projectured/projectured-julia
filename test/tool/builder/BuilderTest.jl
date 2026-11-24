@@ -471,6 +471,27 @@ function test_build_executable()
                   "libuv"
         end
 
+        @testset "the developer environments hold the stand-ins" begin
+            repository = normpath(joinpath(@__DIR__, "..", "..", ".."))
+            @test Set(stand_in.name for stand_in in ENVIRONMENT_STAND_INS) ==
+                  Set(["alsa_plugins_jll", "Cairo_jll"])
+            # The folders in git are what the builder writes, in the form of the
+            # stand-in of a binary.
+            written = write_environment_stand_ins!(mktempdir())
+            for stand_in in ENVIRONMENT_STAND_INS
+                for file in ("Project.toml", joinpath("src", "$(stand_in.name).jl"))
+                    @test read(joinpath(written, stand_in.name, file), String) ==
+                          read(joinpath(repository, "package", stand_in.name, file), String)
+                end
+            end
+            # Each environment holds each stand-in, and no other package names one.
+            for environment in ("all", "readme-data-frame")
+                @test check_stand_ins(joinpath(repository, "environment", environment,
+                                               "Manifest.toml"),
+                                      ENVIRONMENT_STAND_INS) === nothing
+            end
+        end
+
         @testset "an archive carries the licence texts of what it holds" begin
             # The texts of the colour data that the program holds are in the repository.
             repository = normpath(joinpath(@__DIR__, "..", "..", ".."))

@@ -63,6 +63,47 @@ const PROJECTURED_STAND_INS = [
             named_by = ["SimpleDirectMediaLayer"])]
 
 """
+    ENVIRONMENT_STAND_INS
+
+The JLL packages that the developer environments do not hold, as
+[`StandIn`](@ref)s. Each environment lists each of them in `[deps]`, and in
+`[sources]` with the path of the folder that [`write_environment_stand_ins!`](@ref)
+writes, `package/<name>` of this repository: a stand-in is a package, and an
+environment holds no code. The release copy of the packages leaves them out. The
+developer environments of other repositories that use this builder name the same
+folders. A test of each repository runs [`check_stand_ins`](@ref) with the
+manifest of its environment.
+
+- `alsa_plugins_jll`, the same stand-in as in [`PROJECTURED_STAND_INS`](@ref). No
+  test plays sound. With the real one, each load of SDL loads FFmpeg, PulseAudio,
+  GStreamer and about 25 more JLLs.
+- `Cairo_jll`: `HarfBuzz_jll` names it only for `libharfbuzz-cairo`, a library
+  that its wrapper does not name, and no library of HarfBuzz links Cairo. The video
+  code needs FFmpeg, and FFmpeg brings HarfBuzz through `libass_jll`.
+"""
+const ENVIRONMENT_STAND_INS = [
+    only(filter(stand_in -> stand_in.name == "alsa_plugins_jll", PROJECTURED_STAND_INS)),
+    StandIn("Cairo_jll", "83423d85-b0ee-5818-9007-b63ccbeb887a"; version = "1.18.7",
+            named_by = ["HarfBuzz_jll"])]
+
+"""
+    write_environment_stand_ins!(directory = <repository>/package) -> String
+
+Write each of [`ENVIRONMENT_STAND_INS`](@ref) into `directory/<name>`, in the form
+that a build writes a stand-in, and answer `directory`. The folders are in git,
+because an environment resolves before any tool can run; a test checks that they
+are equal to a new write.
+"""
+function write_environment_stand_ins!(directory::AbstractString =
+                                          joinpath(make_projectured_build_context().root,
+                                                   "package"))
+    for stand_in in ENVIRONMENT_STAND_INS
+        _write_stand_in_package(joinpath(directory, stand_in.name), stand_in)
+    end
+    directory
+end
+
+"""
     PROJECTURED_SOURCE_OFFERS
 
 The sources that a `projectured` distribution gives beside its archive: the
@@ -413,10 +454,12 @@ The packages that stay out of the registry although they are neither an example
 package nor a test package: each one depends on a package that the registry
 does not hold, reads a folder outside its own, compiles native code on the
 machine of the user, or serves only the development of this repository, as the
-flat namespace of `ProjecturedAll` does.
+flat namespace of `ProjecturedAll` does and as the stand-ins of the developer
+environments, [`ENVIRONMENT_STAND_INS`](@ref), do.
 """
 const PROJECTURED_RELEASE_EXCLUSIONS = ["ProjecturedAdaptagrams", "ProjecturedBench",
-                                        "ProjecturedBuild", "ProjecturedBuilder", "ProjecturedREPL"]
+                                        "ProjecturedBuild", "ProjecturedBuilder", "ProjecturedREPL",
+                                        [stand_in.name for stand_in in ENVIRONMENT_STAND_INS]...]
 
 """
     PROJECTURED_PACKAGE_ASSETS

@@ -1,13 +1,17 @@
 # The developer environments hold no Cairo
 
-**Status: PENDING.** Written on 2026-11-24. It waits for the approval of the owner.
+**Status: IN PROGRESS.** Written on 2026-11-24. The owner approved it on 2026-11-24 ("yes,
+implement both plans"), and added the sound plugins ("yes, remove the sound-plugins in the
+developer environment"). The work is on the branch `stand-ins` of the worktrees
+`projectured-julia-stand-ins`, `omnet-julia-stand-ins` and `inet-julia-stand-ins`.
 
 ## The ask
 
 The owner asked: "We should try to get rid of the cairo dependency, what are we using it for?" The
 answer was: no code uses Cairo, and neither binary holds it, but the developer environments do. To
 the question "Do you want me to plan the removal of Cairo from the developer environment too?", the
-owner said: "Yes".
+owner said: "Yes". With the approval, the owner also said: "yes, remove the sound-plugins in the
+developer environment". So `alsa_plugins_jll` moved from "Not in this plan" into decision 1.
 
 ## What the environments hold now
 
@@ -58,23 +62,32 @@ omnet-julia) and 2026-10-29 (`readme-data-frame`, inet-julia).
 
 Each decision is proposed by the assistant.
 
-1. **An empty `Cairo_jll` in the four environments.** Each environment lists `Cairo_jll` in
-   `[deps]`, with a `[sources]` path to an empty package. Rejected: an empty `alsa_plugins_jll` in
-   its place, because `ProjecturedVideo` still brings `FFMPEG_jll`, and Cairo with it. Rejected: a
-   wait for a HarfBuzz build without Cairo upstream, which nobody has proposed.
+1. **An empty `Cairo_jll` and an empty `alsa_plugins_jll` in the four environments.** Each
+   environment lists both in `[deps]`, with a `[sources]` path to an empty package. The sound
+   plugins are the decision of the owner. An empty `alsa_plugins_jll` alone does not remove Cairo,
+   because `ProjecturedVideo` still brings `FFMPEG_jll`, and Cairo with it. Rejected: a wait for a
+   HarfBuzz build without Cairo upstream, which nobody has proposed.
 2. **One empty package for the three repositories**, at projectured-julia
-   `environment/stand_in/Cairo_jll/`. The builder function that writes the stand-ins of a binary
-   writes it too, so both have one form. The constant `ENVIRONMENT_STAND_INS` in
-   `ProjecturedProgram.jl` holds it, and `write_environment_stand_ins!()` writes the folder. The
-   folder is in git, because an environment resolves before any tool can run. omnet-julia and
-   inet-julia name it by `../../../projectured-julia/environment/stand_in/Cairo_jll`, the same way
-   that they name the packages. Rejected: a copy in each repository, which can drift.
+   `package/Cairo_jll/` (and `package/alsa_plugins_jll/`). The builder function that writes the
+   stand-ins of a binary writes it too, so both have one form. The constant
+   `ENVIRONMENT_STAND_INS` in `ProjecturedProgram.jl` holds it, and
+   `write_environment_stand_ins!()` writes the folder. The folder is in git, because an
+   environment resolves before any tool can run. omnet-julia and inet-julia name it by
+   `../../../projectured-julia/package/Cairo_jll`, the same way that they name the packages.
+   Rejected: a copy in each repository, which can drift.
+   - **Changed in the implementation:** the plan first put the folders at
+     `environment/stand_in/`. The tree guard `test/suite/tree.jl` stops on that: "an
+     environment holds no code". A stand-in is a package of a `Project.toml` and
+     `src/<Name>.jl`, which is what the rule for `package/` asks. The release copy of the
+     packages takes each folder of `package/`, so `PROJECTURED_RELEASE_EXCLUSIONS` names the two
+     stand-ins.
 3. **Each stand-in claims a version.** `StandIn` gets the keyword `version`, with no default,
    because Pkg checks the compat of dependents against it. The value is the version of the package
    that the stand-in replaces. `Cairo_jll` claims 1.18.7. The stand-in of the binaries,
    `alsa_plugins_jll`, claims 1.2.13.
-4. **A check of each environment.** `check_environment_stand_ins(manifest)` in the builder stops
-   with an error in two cases:
+4. **A check of each environment.** `check_stand_ins(manifest, ENVIRONMENT_STAND_INS)` in the
+   builder stops with an error in two cases. It is the check of the binaries too, so no second
+   function was made.
    - The manifest holds a package of `ENVIRONMENT_STAND_INS` as a real package.
    - A package outside the `named_by` of the stand-in names it.
 
@@ -91,8 +104,20 @@ Each decision is proposed by the assistant.
 Each step is one commit with its tests, in a worktree that `julia-worktree new` makes. Mark each
 step done here. A step lands on `main` only with the word of the owner.
 
-1. [ ] **projectured-julia: the empty package, the check, and its two environments**
-   (decisions 1 to 5).
+1. [x] **projectured-julia: the empty package, the check, and its two environments**
+   (decisions 1 to 5). Done on 2026-11-24. What the implementation found and decided:
+   - The keywords `version` and `named_by` came with step 1 of the other plan, and
+     `check_stand_ins` is the one check for both. `ENVIRONMENT_STAND_INS` takes the stand-in of
+     `alsa_plugins_jll` from `PROJECTURED_STAND_INS`, so the two lists can not differ for it.
+   - `Pkg.resolve` sorts the lines of `[deps]` and `[sources]` again when it writes the
+     project. The commit keeps the order of the lines as it was and adds only the new ones; the
+     project hash in the manifest depends on the content, not on the order.
+   - Counts: `environment/all` 338 → 309 packages, `environment/readme-data-frame` 161 → 107.
+     Only the two stand-ins changed their version.
+   - Tests: the builder test 436 pass and 1 broken; the SDL, video and builder suites together
+     1913 pass and 6 broken (the known markers). The video suite writes `.mp4` files, so
+     `ffmpeg` runs with `libass` and HarfBuzz and without Cairo. The packages of
+     `environment/readme-data-frame` load.
    - Source: `version` and `named_by` in `StandIn` (`AppPackage.jl`), if they are not there yet;
      the version of `alsa_plugins_jll`; `ENVIRONMENT_STAND_INS`,
      `write_environment_stand_ins!` and `check_environment_stand_ins`; the folder
@@ -107,11 +132,25 @@ step done here. A step lands on `main` only with the word of the owner.
    - The suite of `ProjecturedVideo` writes a video, so `ffmpeg` runs with `libass` and HarfBuzz
      and without Cairo. The suite of `ProjecturedSDL` passes. The packages of
      `environment/readme-data-frame` load.
-2. [ ] **omnet-julia: its environment.** `Cairo_jll` in `[deps]` and `[sources]` of
-   `environment/all`, and a resolve. `test/build.jl` calls the check. `OmnetIdeExample`, which holds
-   `ProjecturedVideo`, loads.
-3. [ ] **inet-julia: its environment.** `Cairo_jll` in `[deps]` and `[sources]` of
-   `environment/all`, and a resolve. `test/runner/build.jl` calls the check.
+2. [x] **omnet-julia: its environment.** `Cairo_jll` and `alsa_plugins_jll` in `[deps]` and
+   `[sources]` of `environment/all`, and a resolve. `test/build.jl` calls the check. Done on
+   2026-11-24, commit `7d7a90818` on the branch `stand-ins` of `omnet-julia-stand-ins`.
+   - `OmnetIdeExample` is not in `environment/all`, so the check loads `ProjecturedVideo` and
+     `OmnetIde` there instead; both load.
+   - `test/build.jl` in `environment/build`: 123 pass and 1 broken (the known marker).
+   - The worktree ran it before step 1 landed: `julia-worktree run --with` mounts the projectured
+     worktree at the neutral path of projectured-julia. Count: 426 → 397 packages. The resolve in
+     the worktree also moved `LibSSH2_jll` from 1.11.103 to 1.11.104, a JLL of the standard
+     library: the worktree runs Julia 1.13.1, and the main checkout another Julia.
+3. [x] **inet-julia: its environment.** `Cairo_jll` and `alsa_plugins_jll` in `[deps]` and
+   `[sources]` of `environment/all`, and a resolve. `test/runner/build.jl` calls the check.
+   Done on 2026-11-24, commit `86910a9` on the branch `stand-ins` of `inet-julia-stand-ins`.
+   - `julia-worktree` knows only projectured-julia and omnet-julia, so the run used `bwrap`
+     directly: the projectured and omnet worktrees mounted over the paths of their main
+     checkouts. A tree of links does not work, because Pkg resolves a path from the real place
+     of the project.
+   - Count: 290 → 263 packages; only the two stand-ins changed their version. The build test
+     passes, 16 of 16.
 
 Record here the count of packages of each environment before and after.
 
@@ -127,11 +166,6 @@ Record here the count of packages of each environment before and after.
 
 ## Not in this plan
 
-- **An empty `alsa_plugins_jll` in the developer environments.** Each load of `ProjecturedSDL` in
-  an environment loads that chain now. An empty package frees 27 more packages in each `all`
-  environment, among them `PulseAudio_jll`, `GStreamer_jll`, `BlueZ_jll` and `Dbus_jll`. In
-  `readme-data-frame` it frees 53, among them `FFMPEG_jll`. With decision 2 it is one more entry of
-  `ENVIRONMENT_STAND_INS`.
 - **The environments of single packages**, such as `package/ProjecturedSDLTest`. Each one resolves
   alone and keeps the real `Cairo_jll`.
 - **A HarfBuzz build without Cairo in Yggdrasil**, so that `HarfBuzz_jll` names no `Cairo_jll`.
