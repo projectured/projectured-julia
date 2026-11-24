@@ -20,7 +20,7 @@ function collect_pivot_cell_views()
         signature = Base.unwrap_unionall(method.sig)
         length(signature.parameters) == 2 || continue
         argument = signature.parameters[2]
-        (argument isa DataType && argument <: Type) || continue
+        Base.isType(argument) || continue
         view = argument.parameters[1]
         view isa TypeVar && continue
         push!(views, view)

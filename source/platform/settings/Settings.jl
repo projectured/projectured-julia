@@ -42,8 +42,7 @@ function compute_loaded_settings_types()
         signature = Base.unwrap_unionall(method.sig)
         length(signature.parameters) == 2 || continue
         argument = signature.parameters[2]
-        (argument isa DataType && argument <: Type && length(argument.parameters) == 1) ||
-            continue
+        Base.isType(argument) || continue
         T = argument.parameters[1]
         T isa Type && push!(types, T)
     end

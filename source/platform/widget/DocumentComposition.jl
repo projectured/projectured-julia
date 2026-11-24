@@ -41,7 +41,7 @@ function collect_graphics_projection_types()
         length(signature.parameters) == 2 || continue
         # A method for `Type{<:T}` keeps its own `where` inside the tuple.
         argument = Base.unwrap_unionall(signature.parameters[2])
-        (argument isa DataType && argument.name === Type.body.name) || continue
+        Base.isType(argument) || continue
         type = argument.parameters[1]
         type isa TypeVar && (type = type.ub)
         type isa Type && type !== Any && !(type in types) && push!(types, type)

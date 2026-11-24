@@ -64,7 +64,7 @@ function _collect_session_explorer_entry_types()
     types = Type[]
     for method in methods(is_session_explorer_entry_type)
         argument = Base.unwrap_unionall(method.sig).parameters[2]
-        (argument isa DataType && argument <: Type && length(argument.parameters) == 1) || continue
+        Base.isType(argument) || continue
         type = argument.parameters[1]
         type isa Type && Base.invokelatest(is_session_explorer_entry_type, type) && push!(types, type)
     end

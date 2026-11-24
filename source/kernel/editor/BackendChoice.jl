@@ -37,7 +37,7 @@ function collect_backend_types()
         argument = signature.parameters[2]
         # A method for `Type{T}` of one concrete `T`; a method for a set of
         # types names no backend that can be made.
-        (argument isa DataType && argument.name === Type.body.name) || continue
+        Base.isType(argument) || continue
         type = argument.parameters[1]
         (type isa DataType && isconcretetype(type) && type <: Backend) || continue
         push!(types, type)

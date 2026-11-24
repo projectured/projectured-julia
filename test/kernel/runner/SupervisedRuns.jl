@@ -16,7 +16,10 @@ of their own.
 """
 function test_supervised_runs()
     tests = Module(:SupervisorTests)
-    Core.eval(tests, :(include(path::AbstractString) = Base.include($tests, path)))
+    # A module that `Module` makes has an `include` of its own on a newer Julia,
+    # and none on an older one.
+    isdefined(tests, :include) ||
+        Core.eval(tests, :(include(path::AbstractString) = Base.include($tests, path)))
     Core.eval(tests, :(using Test))
     Core.eval(tests, :(using ProjecturedKernelTest: read_name_filter, read_part_records))
     Base.include(tests, joinpath(@__DIR__, "TestSupervisor.jl"))
