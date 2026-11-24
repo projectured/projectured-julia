@@ -1660,7 +1660,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       `FileSystemToWidgetTree` and `FileSystemChooserToWidget`, and the views
       that chain over a tree of documents. The outline views have the form that
       D2 needs: the path of the record, then the step of the view
-      (`make_outline_row_text_reference`, `find_outline_introduced_path`).
+      (`make_outline_row_text_reference`, `find_last_introduced_path`).
     - **The views over a tree** (the owner, 2026-11-24, "Yes, continue", to: put
       the step of each view over a tree at the node, as the outline views do,
       and make a move on a label name the label, with the row lit from the start
@@ -1733,6 +1733,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         part there, because a path inside the document of a node maps to the row
         of the node. That is a limit of the walk, not of the view; the walk is
         not changed.
+
+      **The views over a tree landed** (2026-11-24, owner: "Yes, land it").
+      The 12 commits rebased with no conflict over main db122b784, and main
+      moved forward to 7870ffc4a. No test ran after the rebase: the 4 commits
+      of main after 23e85358a change only plans of other work, and no file of
+      the branch. No repository outside projectured-julia names the removed
+      `find_outline_introduced_path`. Not pushed.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
