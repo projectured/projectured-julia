@@ -468,6 +468,10 @@ function build_executable(context::BuildContext; name::AbstractString,
             end
         end
     end
+    # Right after the compile, so it holds for each kind of build.
+    removed, bytes = remove_unread_files!(output, joinpath(project, "Manifest.toml"))
+    @info "build_executable: removed $removed files and links that no run reads, " *
+          "$(round(bytes / 2^20; digits = 1)) MB"
     fonts && bundle_fonts!(output)
     bundle_assets!(context, assets, output)
     print_build_report!(output, name)

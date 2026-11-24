@@ -369,6 +369,104 @@ function test_build_executable()
             @test !occursin("stand-in:", source)
         end
 
+        @testset "a build removes the files that no run reads" begin
+            root = mktempdir()
+            output = joinpath(root, "bundle")
+            # A JLL of the build, in a depot of the test: its wrapper names one
+            # program as a product.
+            uuid = "00000000-0000-0000-0000-0000000000c1"
+            tree = "1111111111111111111111111111111111111111"
+            depot = joinpath(root, "depot")
+            slug = Base.version_slug(Base.UUID(uuid), Base.SHA1(hex2bytes(tree)))
+            wrappers = joinpath(depot, "packages", "Tool_jll", slug, "src", "wrappers")
+            mkpath(wrappers)
+            write(joinpath(wrappers, "x86_64-linux-gnu.jl"), """
+                function __init__()
+                    JLLWrappers.@init_executable_product(
+                        tool,
+                        "bin/tool",
+                    )
+                end
+                """)
+            manifest = joinpath(root, "Manifest.toml")
+            write(manifest, """
+                manifest_format = "2.0"
+
+                [[deps.Tool_jll]]
+                git-tree-sha1 = "$tree"
+                uuid = "$uuid"
+                version = "1.0.0+0"
+                """)
+            # An artifact folder with what a build of a library leaves.
+            artifact = joinpath(output, "share", "julia", "artifacts", tree)
+            for file in ("include/tool.h", "lib/libtool.a", "lib/libtool.la", "lib/libtool.so.1.0",
+                         "lib/pkgconfig/tool.pc", "share/man/man1/tool.1", "share/doc/tool/README",
+                         "share/licenses/Tool/LICENSE", "share/X11/locale/C/XLC_LOCALE",
+                         "bin/tool-1.0", "bin/other", "logs/build.log.gz")
+                mkpath(dirname(joinpath(artifact, file)))
+                write(joinpath(artifact, file), "x")
+            end
+            mkpath(joinpath(artifact, "share", "alsa", "conf.d"))
+            symlink("libtool.so.1.0", joinpath(artifact, "lib", "libtool.so.1"))
+            symlink("libtool.so.1", joinpath(artifact, "lib", "libtool.so"))
+            # The product is a link, so the file that it points to stays too.
+            symlink("tool-1.0", joinpath(artifact, "bin", "tool"))
+            # The libraries of the runtime and their links.
+            lib = joinpath(output, "lib")
+            mkpath(lib)
+            for file in ("libunwind.so.8.2.0", "libunwind-x86_64.so.8.2.0",
+                         "libunwind-ptrace.so.0.0.0", "libuv.so.2.0.0")
+                write(joinpath(lib, file), "x")
+            end
+            symlink("libunwind.so.8.2.0", joinpath(lib, "libunwind.so.8"))
+            symlink("libunwind-x86_64.so.8.2.0", joinpath(lib, "libunwind-x86_64.so.8"))
+            symlink("libunwind-x86_64.so.8", joinpath(lib, "libunwind-generic.so"))
+            symlink("libuv.so.2.0.0", joinpath(lib, "libuv.so.2"))
+
+            count, bytes = remove_unread_files!(output, manifest; depots = [depot])
+            gone = ["include", "lib/libtool.a", "lib/libtool.la", "lib/pkgconfig", "share/man",
+                    "share/doc", "bin/other", "logs"]
+            kept = ["lib/libtool.so.1.0", "lib/libtool.so.1", "lib/libtool.so",
+                    "share/licenses/Tool/LICENSE", "share/X11/locale/C/XLC_LOCALE",
+                    "share/alsa/conf.d", "bin/tool", "bin/tool-1.0"]
+            @test all(!ispath(joinpath(artifact, path)) && !islink(joinpath(artifact, path))
+                      for path in gone)
+            @test all(ispath(joinpath(artifact, path)) for path in kept)
+            if Sys.islinux()
+                @test Set(readdir(lib)) == Set(["libunwind.so.8.2.0", "libunwind.so.8"])
+                # Three files and three links of the runtime.
+                @test count == 8 + 6
+                @test bytes == 8 + 3
+            else
+                @test (count, bytes) == (8, 8)
+            end
+            # No link points to nothing.
+            links = [joinpath(folder, file) for (folder, _, files) in walkdir(output)
+                     for file in files if islink(joinpath(folder, file))]
+            @test all(ispath, links)
+            # A second call finds nothing.
+            @test remove_unread_files!(output, manifest; depots = [depot]) == (0, 0)
+            # When the products of a JLL are not known, bin/ stays whole.
+            write(joinpath(artifact, "bin", "other"), "x")
+            @test remove_unread_files!(output, manifest; depots = [joinpath(root, "nowhere")]) ==
+                  (0, 0)
+            @test isfile(joinpath(artifact, "bin", "other"))
+            # The libuv of the runtime stays for a build that holds LibUV_jll.
+            if Sys.islinux()
+                write(joinpath(lib, "libuv.so.2.0.0"), "x")
+                write(manifest, read(manifest, String) * """
+
+                    [[deps.LibUV_jll]]
+                    uuid = "183b4373-6708-53ba-ad28-60e28bb38547"
+                    version = "2.0.1+20"
+                    """)
+                remove_unread_files!(output, manifest; depots = [depot])
+                @test isfile(joinpath(lib, "libuv.so.2.0.0"))
+            end
+            @test first(only(filter(entry -> first(entry) == "libuv", UNUSED_RUNTIME_LIBRARIES))) ==
+                  "libuv"
+        end
+
         @testset "an archive carries the licence texts of what it holds" begin
             # The texts of the colour data that the program holds are in the repository.
             repository = normpath(joinpath(@__DIR__, "..", "..", ".."))

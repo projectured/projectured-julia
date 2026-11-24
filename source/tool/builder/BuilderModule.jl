@@ -43,6 +43,7 @@ export get_app_module_name, prepare_program_start!, LOG_LEVEL_NAMES, write_app_p
 export INCREMENTAL_MARK, PORTABLE_CPU_TARGET, STRIP_UNCOMPILED_FORMS, resolve_app_project, build_executable,
        compile_app!, get_smoke_flag, build_info, bundle_fonts!, bundle_assets!,
        print_build_report!
+export UNUSED_RUNTIME_LIBRARIES, collect_product_paths, remove_unread_files!
 export LAUNCHER, REACTIVE_HEADROOM, get_object_archive, compile_linked_app!,
        link_executable!, prelink_executable!, strip_bundle!
 export REACTIVE_STORE, collect_tracked_sources, write_trace_workload,
@@ -78,6 +79,7 @@ include("Preference.jl")
 include("Usage.jl")
 include("AppPackage.jl")
 include("Executable.jl")
+include("UnreadFiles.jl")
 include("LinkedExecutable.jl")
 include("ReactiveBuild.jl")
 include("Distribution.jl")

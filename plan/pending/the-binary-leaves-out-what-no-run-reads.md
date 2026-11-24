@@ -182,8 +182,19 @@ the word of the owner.
      package outside `named_by` names a stand-in, and passes when only the app package and
      `named_by` name it.
    - omnet-julia `test/build.jl`: the app package of `omnet_ide` (`compile = false`) holds the
-     seven stand-ins.
-2. [ ] **Items 1 and 4: the build removes the files that no run reads** (decisions 3 to 6).
+     seven stand-ins. It passes in the worktree: 122 pass and 1 broken (the known marker).
+2. [x] **Items 1 and 4: the build removes the files that no run reads** (decisions 3 to 6).
+   Done on 2026-11-24. What the implementation found and decided:
+   - The bundle holds no `Manifest.toml`, so the step takes the manifest of the written package:
+     `remove_unread_files!(output, manifest; depots)`, in a fragment of its own,
+     `UnreadFiles.jl`. It answers the count of files and links and their bytes.
+   - `collect_product_paths(manifest)` finds the source of each JLL of the manifest in the
+     depots by its slug, and reads each wrapper file of that version: the product paths of all
+     platforms, which keeps a little more than needed and never less. When the source of a JLL is
+     in no depot, `bin/` stays whole in each artifact folder, so a build never stops for it.
+   - A folder goes only when the removal emptied it. A folder that was empty before stays,
+     because a library can read it by its path.
+   - Test: 429 pass and 1 broken (the known marker).
    - projectured-julia: `remove_unread_files!` and `UNUSED_RUNTIME_LIBRARIES`, the call in
      `build_executable`, and a section in `builder.md`.
    - Test `test/tool/builder/BuilderTest.jl`, on a bundle folder that the test writes: an artifact
