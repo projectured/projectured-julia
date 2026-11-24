@@ -1659,10 +1659,37 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       `FileSystemToWidgetTree` and `FileSystemChooserToWidget`, and the views
       that chain over a tree of documents. The outline views have the form that
       D2 needs: the path of the record, then the step of the view
-      (`make_outline_row_text_reference`, `find_outline_introduced_path`). Open
-      (the owner): a move on a label names the label, the innermost part (the
-      rule of 2026-10-22), or the node; and whether the views over a tree take
-      the step at the node in this plan.
+      (`make_outline_row_text_reference`, `find_outline_introduced_path`).
+    - **The views over a tree** (the owner, 2026-11-24, "Yes, continue", to: put
+      the step of each view over a tree at the node, as the outline views do,
+      and make a move on a label name the label, with the row lit from the start
+      of the path). The reflection view maps no part of its input, a row too is
+      its step at the root, so it keeps its map. The drop zone of a drag
+      (`_locate_collection_index`) splits a path at its last element, so a step
+      at the end of a path changes nothing there. The steps:
+      - [ ] T1. The tree: a move on a label names the character under the
+        pointer, as a move on a text field does; the band of the row under the
+        pointer reads the node from the start of the path. `test_widget_tree`.
+      - [ ] T2. The step of a view at the end of a path: the kernel function
+        `find_last_introduced_path(projection, reference)`, beside
+        `find_introduced_path`, gives the path in the output of the step of
+        `projection` that ends `reference`. It replaces
+        `find_outline_introduced_path`, which came on 2026-11-13 after the last
+        release of the platform (0.3.0, 2026-10-22), so no version step. The
+        tree module loads before the outline module, so the function goes lower
+        (the assistant's decision). The tests of the kernel step and of the
+        outline.
+      - [ ] T3. The tree of documents: the backward map of the label of a node,
+        a caret or a range in it, is the path of the document of the node, then
+        the step of the view (D2); the forward map reads a step at the end of a
+        path. The row menu of the explorer (`_find_node_steps`) drops a step of
+        the view at the end. The tests of the tree of documents, the explorer,
+        the work plan and the tree of processes.
+      - [ ] T4. The tree of the file system, in its view and in the explorer, and
+        the file chooser: the same, with the step at the file. The tests of the
+        file system and of the chooser.
+      - [ ] T5. The walk of the examples of the views over a tree, compared with
+        run 12.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
