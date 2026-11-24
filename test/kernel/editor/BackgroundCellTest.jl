@@ -172,6 +172,20 @@ function test_editor_background_cell()
         @test [(r.number, r.description, r.value_count, r.finished) for r in store.records] ==
               [(1, "times ten", 1, nothing), (2, "a broken read", 1, nothing)]
         @test store.records[1].inputs == ["7"] && length(only(store.records[2].inputs)) == 80
+        # A text that is too long loses its middle, and keeps its start and its end.
+        cut = only(store.records[2].inputs)
+        @test startswith(cut, "\"a path that") && endswith(cut, "the record cuts it\"") && count('…', cut) == 1
+        # A tuple gives each part a share, so the path of the read of a file keeps the name
+        # of its file, and the short parts after it stay whole.
+        format_input = ProjecturedKernel.EditorModule._format_work_input
+        path = "/" * join(fill("a-long-folder-name", 6), "/") * "/b.txt"
+        shown = format_input((path, :a_format_of_the_file_with_a_long_name, true, 0))
+        @test length(shown) <= 80 && startswith(shown, "(\"/a-long") &&
+              occursin("/b.txt\", :a_format", shown) && endswith(shown, ", true, 0)")
+        @test length(format_input((path,))) == 80 && endswith(format_input((path,)), "/b.txt\",)")
+        @test format_input(("short", 1)) == "(\"short\", 1)"
+        # A tuple of more parts than the length can share is cut as one text.
+        @test length(format_input(Tuple(1:40))) == 80
         @test store.change_count == changes + 2
         put!(gate, true)
         @test _wait_until_final(editor, first_cell)

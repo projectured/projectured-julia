@@ -842,7 +842,7 @@ An example: a folder of a simulation has 2,000 result files, and each file entry
 
 ### The record of each work
 
-The editor keeps one `BackgroundWorkRecord` for each work of a background cell. A record holds the number of the work in the order of the works of the editor, the description of the source, the count of its values, its first three inputs as text of at most 80 characters, the time of its start, the time of its end, the count of failed values, and the message of the first failure. The time of the end is `nothing` while the work runs.
+The editor keeps one `BackgroundWorkRecord` for each work of a background cell. A record holds the number of the work in the order of the works of the editor, the description of the source, the count of its values, its first three inputs as text of at most 80 characters, the time of its start, the time of its end, the count of failed values, and the message of the first failure. The time of the end is `nothing` while the work runs. A longer text of an input loses its middle, so a path keeps the name of its file, and a tuple, such as the inputs of the read of a file, gives each of its parts a share of the 80 characters, so a long part does not push the others out.
 
 `BackgroundWorkStore(; capacity = 100)` holds the records, oldest first: the last `capacity` records of works that ended, and every record of a work that runs. Its `change_count` grows at each change. `get_background_work_store(editor)` returns the store of an editor, which `get_session_document!` keeps for each editor, as it keeps `BackgroundDemands`.
 

@@ -85,6 +85,10 @@ of its values, its first three inputs as text, the time of its start, the time o
 its end or `nothing` while it runs, the count of its values that failed, and the
 message of the first failure, or an empty text. A plain value: it holds no input
 and no answer, so it keeps no document alive.
+
+The text of an input has at most 80 characters. A longer text loses its middle, so
+a path keeps the name of its file, and a tuple gives each of its parts a share of
+the 80 characters, so a long part does not push the others out.
 """
 struct BackgroundWorkRecord
     number::Int
@@ -138,10 +142,50 @@ get_background_work_store(editor::Editor) = get_session_document!(BackgroundWork
 const _RECORDED_INPUT_COUNT = 3
 const _RECORDED_INPUT_LENGTH = 80
 
-# An input of a work as text, at most `_RECORDED_INPUT_LENGTH` characters.
+# An input of a work as text, at most `_RECORDED_INPUT_LENGTH` characters. A text
+# that is too long loses its middle, so a path keeps its start and the name of its
+# file. A tuple, such as the inputs of the read of a file, gives each of its parts a
+# share of the length, so a long part does not push the parts after it out.
 function _format_work_input(input)
-    text = sprint(show, input; context = :limit => true)
-    length(text) <= _RECORDED_INPUT_LENGTH ? text : first(text, _RECORDED_INPUT_LENGTH - 1) * "…"
+    text = _show_work_input(input)
+    length(text) <= _RECORDED_INPUT_LENGTH && return text
+    input isa Tuple || return _cut_middle(text, _RECORDED_INPUT_LENGTH)
+    ending = length(input) == 1 ? ",)" : ")"
+    width = _RECORDED_INPUT_LENGTH - 1 - length(ending) - 2 * (length(input) - 1)
+    width >= 2 * length(input) || return _cut_middle(text, _RECORDED_INPUT_LENGTH)
+    "(" * join(_fit_texts(String[_show_work_input(part) for part in input], width), ", ") * ending
+end
+
+_show_work_input(input) = sprint(show, input; context = :limit => true)
+
+# `text` in at most `width` characters: a longer text keeps its start and its end,
+# with "…" in place of the middle. The end gets the odd character, because the end
+# of a path is the name of its file.
+function _cut_middle(text::String, width::Int)
+    length(text) <= width && return text
+    width <= 1 && return "…"
+    head = (width - 1) ÷ 2
+    first(text, head) * "…" * last(text, width - 1 - head)
+end
+
+# The texts `parts` in at most `width` characters in all: a text that is not longer
+# than an even share of what is left keeps all of its characters, and the longer
+# texts share the rest, each cut in the middle.
+function _fit_texts(parts::Vector{String}, width::Int)
+    shares = length.(parts)
+    long = collect(eachindex(parts))
+    left = width
+    while !isempty(long)
+        share = left ÷ length(long)
+        fitting = filter(i -> shares[i] <= share, long)
+        isempty(fitting) && break
+        left -= sum(shares[i] for i in fitting)
+        filter!(i -> !(i in fitting), long)
+    end
+    for (k, i) in enumerate(long)
+        shares[i] = left ÷ length(long) + (k <= left % length(long) ? 1 : 0)
+    end
+    String[_cut_middle(parts[i], shares[i]) for i in eachindex(parts)]
 end
 
 # Add the record of a work of `source` that starts for `inputs`, and answer its
