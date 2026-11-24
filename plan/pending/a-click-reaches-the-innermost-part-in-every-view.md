@@ -1641,6 +1641,28 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       that print a tree, such as the file system and the tree of documents,
       get the path of a label from the tree now; what each one does with it
       is their own work.
+      The walk over main 23e85358a (run 11) and with the tree (run 12): no
+      example changes its status and no new throw. `alt:no-caret` 508 → 446
+      lines: widget/tree, examples/widget_tree, tree/tree, examples/document_tree,
+      examples/filesystem_widget and systemprocess/tree go to 0, and the work
+      plan, the assistant work and the explorer lose the lines of their tree.
+      `move:differs` 271 → 321: a move on a label names the node, and the
+      Alt+double click selects the label (the open question below). The kind
+      `plain:caret-outside` 8 → 33: the walk script counts there each line "the
+      caret … is not inside …", also of an Alt+click. All 25 new lines are an
+      Alt+click on the label of a view over a tree of documents (tree, explorer,
+      work plan, system process). A plain click there still chooses the node
+      (a probe: `MouseUp (81, 43)` selects `@.root`). The view names the label
+      by its step at the root of its input, `‹DocumentTreeToWidgetTree
+      .roots[1].label{6}›`, and not at the node, so the path breaks D2. The
+      views over a tree have the same backward map: `DocumentTreeToWidgetTree`,
+      `FileSystemToWidgetTree` and `FileSystemChooserToWidget`, and the views
+      that chain over a tree of documents. The outline views have the form that
+      D2 needs: the path of the record, then the step of the view
+      (`make_outline_row_text_reference`, `find_outline_introduced_path`). Open
+      (the owner): a move on a label names the label, the innermost part (the
+      rule of 2026-10-22), or the node; and whether the views over a tree take
+      the step at the node in this plan.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
