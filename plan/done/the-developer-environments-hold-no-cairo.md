@@ -1,9 +1,9 @@
 # The developer environments hold no Cairo
 
-**Status: IN PROGRESS.** Written on 2026-11-24. The owner approved it on 2026-11-24 ("yes,
+**Status: DONE on 2026-11-25.** Written on 2026-11-24. The owner approved it on 2026-11-24 ("yes,
 implement both plans"), and added the sound plugins ("yes, remove the sound-plugins in the
-developer environment"). The work is on the branch `stand-ins` of the worktrees
-`projectured-julia-stand-ins`, `omnet-julia-stand-ins` and `inet-julia-stand-ins`.
+developer environment"). The owner approved the landing and the push on 2026-11-25 ("Land and
+push"). It landed on `main` of projectured-julia, omnet-julia and inet-julia.
 
 ## The ask
 
@@ -134,7 +134,7 @@ step done here. A step lands on `main` only with the word of the owner.
      `environment/readme-data-frame` load.
 2. [x] **omnet-julia: its environment.** `Cairo_jll` and `alsa_plugins_jll` in `[deps]` and
    `[sources]` of `environment/all`, and a resolve. `test/build.jl` calls the check. Done on
-   2026-11-24, commit `7d7a90818` on the branch `stand-ins` of `omnet-julia-stand-ins`.
+   2026-11-24, commit `252fc968a` of omnet-julia.
    - `OmnetIdeExample` is not in `environment/all`, so the check loads `ProjecturedVideo` and
      `OmnetIde` there instead; both load.
    - `test/build.jl` in `environment/build`: 123 pass and 1 broken (the known marker).
@@ -144,7 +144,7 @@ step done here. A step lands on `main` only with the word of the owner.
      library: the worktree runs Julia 1.13.1, and the main checkout another Julia.
 3. [x] **inet-julia: its environment.** `Cairo_jll` and `alsa_plugins_jll` in `[deps]` and
    `[sources]` of `environment/all`, and a resolve. `test/runner/build.jl` calls the check.
-   Done on 2026-11-24, commit `86910a9` on the branch `stand-ins` of `inet-julia-stand-ins`.
+   Done on 2026-11-24, commit `86910a9` of inet-julia.
    - `julia-worktree` knows only projectured-julia and omnet-julia, so the run used `bwrap`
      directly: the projectured and omnet worktrees mounted over the paths of their main
      checkouts. A tree of links does not work, because Pkg resolves a path from the real place

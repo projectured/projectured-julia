@@ -1,8 +1,8 @@
 # The binary leaves out what no run reads
 
-Status: IN PROGRESS. Written on 2026-11-24 at the request of the owner. The owner approved it on
-2026-11-24 ("yes, implement both plans"). The work is on the branch `stand-ins` of the worktrees
-`projectured-julia-stand-ins` and `omnet-julia-stand-ins`.
+Status: DONE on 2026-11-25. Written on 2026-11-24 at the request of the owner. The owner approved
+it on 2026-11-24 ("yes, implement both plans"), and the landing and the push on 2026-11-25 ("Land
+and push"). It landed on `main` of projectured-julia and omnet-julia.
 
 ## The ask
 
@@ -202,7 +202,7 @@ the word of the owner.
      a program that a product names and one that no product names; and `lib/` with the parts of
      `libunwind` and `libuv` and their links. The test checks each file that goes and each file
      that stays, and that no link points to nothing. A second call removes nothing.
-3. [ ] **Whole builds and the record.**
+3. [x] **Whole builds and the record.**
    - Each binary of the three repositories writes and resolves its app package
      (`compile = false`), so the check of step 1 runs for each one: `projectured`, each binary of
      omnet-julia and each binary of inet-julia.
@@ -219,7 +219,7 @@ the word of the owner.
    prelinked.
    - **The app packages.** Each one resolves and passes `check_stand_ins`: `projectured` (137
      packages), `omnet_run` (65), `omnet_ide` (161), the 12 legacy samples (65 each), and
-     `inet-julia` (68). The first try found a defect of step 1, fixed in `2db7b593f`: an app
+     `inet-julia` (68). The first try found a defect of step 1, fixed in `6eda73373`: an app
      package is in its own manifest with the path `"."`. `omnet_simulate` and `omnet_demo` stop
      before the resolve, also with the builder of `main`: `ProjecturedAdaptagrams` names
      `ProjecturedGraph` and has no `[sources]` entry for it.
@@ -228,8 +228,10 @@ the word of the owner.
      build started from the versions of `main`: the manifest of `omnet_ide` of 2026-11-23, and for
      `projectured` the versioned entries of `environment/all`.
    - **`JULIA_PROBE_LIBSTDCXX=0`.** A distribution needs it, because `build_distribution` stops
-     when the bundle holds the newer `libstdc++` of the machine. `bin/build_projectured` sets it;
-     `bin/build_omnet_ide` does not, so its builds here set it by hand.
+     when the bundle holds the newer `libstdc++` of the machine. `bin/build_projectured` sets it.
+     At the ask of the owner, `bin/build_omnet_ide` sets it too (`e524f0026`), and so do
+     `bin/build_omnet_run`, `bin/build_omnet_demo`, `bin/build_omnet_simulate` and
+     `bin/build_omnet_legacy_sample` (`fa9b3b2b6`), in omnet-julia.
    - **The projectured distribution** ran as `build_projectured_distribution` without
      `build_source_archive`, whose offer for Julia names 1.13.0 and so stops on 1.13.1. Its
      relocation check starts `bwrap`, which can not start inside the `bwrap` of `julia-worktree`,
@@ -249,6 +251,28 @@ the word of the owner.
      dependencies. No library of the image formats, the mixer, gfx, Cairo, PulseAudio or FFmpeg
      is mapped; of libunwind only `libunwind.so.8`. A start does not call `IMG_SavePNG`; the SDL
      suite does (`test_write_image`), and it passes.
+   - **The IDE distribution**, 2026-11-25: `bin/build_omnet_ide --distribution` in the sandbox
+     compiled the whole image in 30 minutes, with a peak of 28.2 GB. Its relocation check stopped
+     on the `bwrap` in the `bwrap`, as for `projectured`. So a scratch environment, which is
+     `environment/build` with absolute paths to the two worktrees, ran the checks and the archive
+     outside the sandbox, on the same bundle. The hidden folders were the two worktrees, the main
+     checkout of projectured-julia, the worktree depot and `~/.julia`. All checks pass: the bundle
+     holds what the build declared, and the copy starts with no depot (0.63 s).
+   - **The IDE bundle** is 1949.7 MB: the program 1582.4 MB and the other files 367.3 MB, against
+     395 MB on 2026-11-23. The artifact folders: 22 folders, 44.4 MB, against 30 folders, 106.3 MB.
+     The removal step removed 4057 files and links, 37.4 MB. The archive (`tar.xz`) is 288.0 MB.
+     No IDE archive was built before.
+   - **What changed in the other files**, by file name against 2026-11-23:
+     - The artifact folders: −61.9 MB. Items 1 to 3 said 61.8 MB.
+     - `libuv` and the four parts of `libunwind` in `lib/`: −2.3 MB. Item 4 said 2.4 MB.
+     - The other Julia: +37.3 MB. The build of 2026-11-23 used the `merged` Julia, and this one
+       the Julia 1.13.1 release, whose libraries hold debug data. `libjulia-codegen` is 16.0 MB
+       larger, and `libjulia-internal` 3.3 MB larger. The bundle holds the `libstdc++` 6.0.34 of
+       Julia, 21.6 MB with debug data, in place of the stripped 6.0.35 of the machine, 2.6 MB.
+   - **The IDE start** with no window and a scratch home, 40 s: alive, 87 libraries mapped (100
+     on 2026-11-23), 1172 MB resident, nothing on stderr. No library of the image formats, the
+     mixer, gfx, Cairo, PulseAudio or FFmpeg is mapped; of libunwind only `libunwind.so.8`.
+     `libSDL2_image` loads. At run time the binary loads the newer `libstdc++` of the machine.
 
 ## The rule of measurement
 
@@ -270,5 +294,6 @@ OpenBLAS (34 MB), which a product of two matrices of floats calls; `libgfortran`
 `libquadmath`, which `CompilerSupportLibraries_jll` opens at each start and needs; MbedTLS, whose
 package calls its library when it starts; the second copy of the image, `lib/julia/sys.so`, in the
 reactive developer build; the warning at the start of the IDE that 498 of the 3186 recorded calls
-of `ProjecturedJulia` no longer resolve; `libgmpxx` and `libxcb-dbe` (60 KB); the extension
+of `ProjecturedJulia` no longer resolve (554 in the build of 2026-11-25); the debug data in the
+libraries of the Julia release, such as `libstdc++` and `libjulia-codegen`; `libgmpxx` and `libxcb-dbe` (60 KB); the extension
 libraries of xcb; `Pkg` and `LibGit2`, which the old `SDL2_image_jll` 2.6.2 names.
