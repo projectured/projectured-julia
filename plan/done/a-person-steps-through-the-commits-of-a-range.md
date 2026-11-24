@@ -2,8 +2,8 @@
 
 > **Kind:** plan · **Status:** done, 2026-11-24; approved by the owner on 2026-11-24 ("yes, implement it") ·
 > **Branch:** `commit-steps` (worktree `projectured-julia-commit-steps`) ·
-> **Follows:** [the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md](../done/the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md),
-> [a-navigator-with-back-forward-parent-and-links.md](../done/a-navigator-with-back-forward-parent-and-links.md) ·
+> **Follows:** [the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md](the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md),
+> [a-navigator-with-back-forward-parent-and-links.md](a-navigator-with-back-forward-parent-and-links.md) ·
 > **Stands on:** [git.md](../../documentation/package/domain/git/git.md),
 > [navigator.md](../../documentation/package/platform/navigator/navigator.md)
 
