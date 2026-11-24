@@ -1740,6 +1740,48 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       of main after 23e85358a change only plans of other work, and no file of
       the branch. No repository outside projectured-julia names the removed
       `find_outline_introduced_path`. Not pushed.
+    - **The choice list, the tab title and the views of §4** (the owner,
+      2026-11-24, "Yes, continue", to: the rest of step 6). The current state of
+      the walk is run 12 with the examples of runs 13 and 14 put in
+      (`step6/current`, 1704 lines). The steps:
+      - [ ] C1. The choice list (widget/choice_list, 16 lines). Its backward map
+        gives the whole list for each point that is not in the field of the
+        typed text, so an Alt+click on the prompt "Find: " or on the label of a
+        row gives `@∅`. A part that the list draws is named by the step of the
+        view, as the defaults of `Projection` name it, and the forward map takes
+        such a path to its place; the typed text keeps its map. A plain click
+        on a row still chooses it. The example chooses nothing
+        (`choose = value -> nothing`), so the walk counts its plain click on a
+        row as a click that does nothing; that is a limit of the example, and
+        the example stays. Find why the caret `.query{0}` of a plain click on
+        the placeholder is not drawn. The test of the choice list.
+      - [ ] C2. The tab title (widget/tabbed_pane, examples/widget_tabbed_pane,
+        pane/group, pane/split: 110 lines). The strip draws the name of a tab by
+        `_push_text!` and records no line, so an Alt+click on a name gives the
+        tab and no caret. The name reads like the text of a control
+        (`_read_drawn_control_text`): a plain click opens the tab, as now; an
+        Alt+click puts the caret at the character,
+        `selector_element_pairs[i].selector{k}`, or `.selector.text{k}` in the
+        text of a `WidgetTabLabel`, which is the place that the strip already
+        draws through the view of the name; in a pane that caret is the rename
+        (`make_pane_title_caret_operation`), so an Alt+click on a title starts a
+        rename at the character. An Alt+double click selects the name as a
+        whole, and the header draws its band; a move on the name names the
+        character, as on the label of a tree, and the header lights from the
+        start of the path. The tests of the tabbed pane, the tab label, the
+        pane and the rename.
+      - [ ] C3. The views of §4 in projectured-julia. In the current walk the
+        table of cells, the result of SQL, the reflection view, the layout of a
+        list and the anchored layout have no line; the view of a data frame is
+        not in the walk, and `test_dataframes` checks it. Only
+        `ObjectToWidget` has lines (examples/object_to_widget and
+        examples/nested_object_to_widget, 15 lines, all `move:differs`): a move
+        on the value of a field names the text that the view drew,
+        `‹ObjectToWidget ….content›`, and the Alt+double click selects the
+        field, such as `.tags[1]`. The move names the field, or the character
+        in it. The test of the form.
+      - [ ] C4. The walk of the examples that C1 to C3 change, compared with
+        `step6/current`, and the suites of the files that they change.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
