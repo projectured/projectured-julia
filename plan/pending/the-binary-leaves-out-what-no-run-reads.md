@@ -60,6 +60,12 @@ pkg-config files 0.1 MB.
   still holds the whole sound chain, `HarfBuzz_jll` names `Cairo_jll`, and `Cairo_jll` names
   `libpng_jll`. A Cairo library links `libpng16.so.16`. A stand-in for `libpng_jll` in such a
   binary would break the start.
+- **Pkg checks the compat of each dependent against a stand-in.** On 2026-11-24 a scratch project
+  with `HarfBuzz_jll` and an empty `Cairo_jll` of version 0.0.1 did not resolve, and one of
+  version 1.18.7 did. `SimpleDirectMediaLayer` 0.5.0 accepts `SDL2_mixer_jll` 2.6.2 to < 3 and
+  `SDL2_gfx_jll` 1.0.3 to < 2. `SDL2_image_jll` 2.6.2+1 accepts `Libtiff_jll` 4.3.0 to 4.4. The
+  builder writes each stand-in with version 0.0.1, so these three stop the resolve.
+  `alsa_plugins_jll` works with 0.0.1 only because no package limits its version.
 - **No code calls `SDL2_mixer` or `SDL2_gfx`.** No source file of projectured-julia or omnet-julia
   calls a `Mix_` function or a drawing function of `SDL2_gfx`. `SimpleDirectMediaLayer.init()`
   calls `Mix_OpenAudio`, but no code calls `init()`. Only `SimpleDirectMediaLayer` names the two
@@ -135,6 +141,14 @@ Each decision is proposed by the assistant.
    because Julia opens some libraries only at their first use.
 6. **No option keeps the files.** No binary reads headers, static libraries, manuals or the listed
    libraries. Rejected: a command-line option to keep them, which no caller needs.
+7. **Each stand-in claims a version.** `StandIn` gets the keyword `version`, with no default. The
+   value is the version of the package that the stand-in replaces, in the manifest of
+   `omnet_ide` of 2026-11-23: `alsa_plugins_jll` 1.2.13, `Libtiff_jll` 4.4.0, `libwebp_jll`
+   1.4.0, `JpegTurbo_jll` 3.2.1, `libpng_jll` 1.6.59, `SDL2_mixer_jll` 2.8.1 and `SDL2_gfx_jll`
+   1.0.4. Rejected: a version only where a dependent limits it, which breaks when a new version of
+   a dependent adds a limit. The plan
+   [the-developer-environments-hold-no-cairo.md](the-developer-environments-hold-no-cairo.md) needs
+   `version` and `named_by` too. The plan that runs first adds both keywords.
 
 ## Steps
 
@@ -143,12 +157,13 @@ with `julia-worktree new`. The tests of omnet-julia run in a scratch copy of `en
 whose paths go to the two worktrees. Mark each step done here. A step lands on `main` only with
 the word of the owner.
 
-1. [ ] **Items 2 and 3: six more stand-ins, and the check of who names them** (decisions 1, 2).
-   - projectured-julia: `named_by` in `StandIn` (`AppPackage.jl`), the check after the resolve in
-     `build_executable`, and the list in `ProjecturedProgram.jl`. `builder.md` says what a stand-in
-     names and when a build stops.
+1. [ ] **Items 2 and 3: six more stand-ins, and the check of who names them** (decisions 1, 2, 7).
+   - projectured-julia: `named_by` and `version` in `StandIn` (`AppPackage.jl`), if they are not
+     there yet; the check after the resolve in `build_executable`, and the list in
+     `ProjecturedProgram.jl`. `builder.md` says what a stand-in names, which version it claims,
+     and when a build stops.
    - Test `test/tool/builder/BuilderTest.jl`: the default list holds seven stand-ins, each with
-     `named_by`. The check of a small written manifest stops, with the package in the error, when a
+     `named_by` and `version`. The written stand-in package claims its version. The check of a small written manifest stops, with the package in the error, when a
      package outside `named_by` names a stand-in, and passes when only the app package and
      `named_by` name it.
    - omnet-julia `test/build.jl`: the app package of `omnet_ide` (`compile = false`) holds the
