@@ -782,7 +782,11 @@ function test_file_change_store()
         end
 
         @testset "a reload of a holder gives each file(…) the file document of the editor, and reads no held file" begin
-            root = mktempdir()
+            # The test finds the read of a file by its name in the record of the work, which
+            # keeps each input as a text of at most 80 characters, the path first. So the files
+            # lie in a folder of a short path, and not in the temporary folder of the run,
+            # which can be long enough to cut the name.
+            root = mktempdir(Sys.iswindows() ? tempdir() : "/tmp")
             try
                 paths = Dict(name => joinpath(root, name) for name in ("a.txt", "b.txt", "h.pred"))
                 write(paths["a.txt"], "a on disk\n")
