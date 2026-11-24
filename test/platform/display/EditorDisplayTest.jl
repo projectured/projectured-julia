@@ -66,13 +66,22 @@ function test_editor_display()
                 logger = run_on_editor_task!(() -> Base.CoreLogging.current_logger(), editor)
                 @test Base.CoreLogging.min_enabled_level(logger) == Base.CoreLogging.Warn
                 @test _count_tabs(editor) == 1
-                # The tabs have the features of a window: the clipboard around the
-                # chrome, around the undo, around the tabs, and the full toolbar
-                # but the assistant.
-                content = run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
-                                              editor)
-                @test content isa ProjecturedPlatform.ClipboardModule.ClipboardSlice
-                shell = content.content
+                # The tabs have the features of a window: the chrome around the undo,
+                # around the tabs, and the full toolbar but the assistant. The
+                # clipboard is one for every window: it goes around the screen, and
+                # no window holds one of its own.
+                shell = run_on_editor_task!(() -> get_wrapped_document(editor.document).windows[1].content,
+                                            editor)
+                clipboards = run_on_editor_task!(editor) do
+                    found = 0
+                    node = editor.document
+                    while !(node isa ScreenDocument) && hasproperty(node, :content)
+                        node isa ProjecturedPlatform.ClipboardModule.ClipboardSlice && (found += 1)
+                        node = node.content
+                    end
+                    node isa ScreenDocument ? found : -1
+                end
+                @test clipboards == 1
                 @test shell isa WidgetShell && shell.status_bar isa WidgetStatusBar
                 @test shell.content isa ProjecturedPlatform.UndoModule.UndoBuffer
                 @test shell.content.content isa PaneTree
