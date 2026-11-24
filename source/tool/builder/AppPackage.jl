@@ -322,9 +322,10 @@ end
 Stop with an error when the manifest at `manifest` does not hold each of
 `stand_ins` as a stand-in, or when a package outside the `named_by` of a stand-in
 names it. Such a package can need a library of the real JLL, and with the
-stand-in it fails only when it runs. The project of the manifest is not in it, so
-the package or environment that lists a stand-in does not count. `user` starts
-the message of the error.
+stand-in it fails only when it runs. The project of the manifest lists each
+stand-in, so it does not count: a package project is in its own manifest with the
+path `"."`, and an environment is not in it. `user` starts the message of the
+error.
 
 [`build_executable`](@ref) calls it after the resolve of the written package.
 """
@@ -340,6 +341,7 @@ function check_stand_ins(manifest::AbstractString, stand_ins; user::AbstractStri
         haskey(only(found), "path") ||
             push!(problems, "it holds the real $(stand_in.name) and not the stand-in")
         for (package, versions) in entries, entry in versions
+            get(entry, "path", nothing) == "." && continue
             dependencies = get(entry, "deps", String[])
             dependencies isa AbstractDict && (dependencies = collect(keys(dependencies)))
             stand_in.name in dependencies && !(package in stand_in.named_by) &&

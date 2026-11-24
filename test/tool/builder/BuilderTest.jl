@@ -324,8 +324,12 @@ function test_build_executable()
             the_stand_in = entry("some_jll", stand_in.uuid; path = "stand_in/some_jll")
             user = entry("User_jll", "00000000-0000-0000-0000-0000000000b1"; deps = ["some_jll"])
             other = entry("Other", "00000000-0000-0000-0000-0000000000b2"; deps = ["some_jll"])
-            # Only a package of `named_by` names it: the check passes.
-            @test check_stand_ins(write_manifest(the_stand_in, user), [stand_in]) === nothing
+            # Only a package of `named_by` names it: the check passes. The package
+            # that the manifest belongs to lists the stand-in, and Pkg writes it with
+            # the path ".", so it does not count.
+            app = entry("SomeApp", "00000000-0000-0000-0000-0000000000b3"; deps = ["some_jll"],
+                        path = ".")
+            @test check_stand_ins(write_manifest(the_stand_in, user, app), [stand_in]) === nothing
             # Another package names it, and the error says which and what to do.
             message = try
                 check_stand_ins(write_manifest(the_stand_in, user, other), [stand_in];
