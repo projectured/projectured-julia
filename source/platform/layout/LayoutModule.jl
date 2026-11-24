@@ -57,7 +57,7 @@ export HorizontalLayoutToGraphicsCanvas, VerticalLayoutToGraphicsCanvas,
 export CellVectorToVerticalLayout
 export HorizontalLayout, VerticalLayout, GridLayout, FlowLayout, StackLayout
 export descend_reference_forward, make_slot_reference, clip_child_to_slot, make_cross_axis_context,
-       with_visible_size, get_visible_width, get_visible_height
+       with_visible_size, get_visible_width, get_visible_height, get_printed_width
 export read_child_event, read_entry_child, read_child_in_frame, read_child_event_in_frame,
        make_layout_selection_ring
 export PlaceBlocks, get_block_total, get_total_before, find_place_at

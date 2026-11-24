@@ -20,7 +20,6 @@ using ..DomainModule
 using ..EventModule
 using ..FileSystemModule
 using ..GestureBindingModule
-using ..GraphicsModule: GraphicsCanvas, GraphicsDocument, get_graphics_size
 using ..GestureModule
 using ..IntentModule
 using ..IoMapModule

@@ -1,6 +1,6 @@
 # A person steps through the commits of a range
 
-> **Kind:** plan · **Status:** approved by the owner on 2026-11-24 ("yes, implement it"); in work ·
+> **Kind:** plan · **Status:** done, 2026-11-24; approved by the owner on 2026-11-24 ("yes, implement it") ·
 > **Branch:** `commit-steps` (worktree `projectured-julia-commit-steps`) ·
 > **Follows:** [the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md](../done/the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md),
 > [a-navigator-with-back-forward-parent-and-links.md](../done/a-navigator-with-back-forward-parent-and-links.md) ·
@@ -108,19 +108,24 @@ its tests. Each step updates the page of its part in `documentation/`.
 2. ✅ **The bar of the navigator fits its width** (P5). Done, in one commit with step 3, because both
    change the same lines of the bar. Facts of the work: the navigator printer
    prints each part of the bar once more through the recursion, with no range offered, to get the
-   width that the part draws at; so the fold copies no width formula of the widgets. The edge is the
+   width that the part draws at; so the fold copies no width formula of the widgets. The width comes
+   from `get_printed_width`, a new export of the layout slice, which reads a printed part as a layout
+   reads its children; so the navigator slice needs no edge to the graphics slice. The edge is the
    maximum width that the navigator gets. The items of the address stand in a row of their own with
    no gap, with half the side padding of a toolbar item. A `WidgetLabel` with `max_lines` now also
    cuts a kept line that is wider than its bound, such as one long word like
    `master..topic/baseline-catch-up`; before, only a text of more lines than `max_lines` got the
-   `…`. The list of `…` opens at the last folded item. Tests: a navigator 400 px wide with an address
+   `…`. The list of `…` opens at the last folded item. The test that exists: a navigator 420 px wide
+   with three long names, in `NavigatorChoicesTest.jl`. Planned tests: a navigator 400 px wide with an address
    of six items: each button inside the bar; the item of the page and its arrow in view; the item `…`
    lists the folded items; a press on a listed item opens it.
 3. ✅ **Next and previous in the navigator** (P4). Done. Facts of the work: the icon font had no
    `chevron_up` in the table of the widgets; `lucide.ttf` holds it at `0xe070`, and the table names it
    now. `find_navigator_sibling` finds the last element step of the page address and checks that the
    list has an item there; `make_navigator_sibling_operation` is a choice at that step
-   (`make_navigator_choice_operation`). Tests: a navigator on `commits[2]` of a range: Next
+   (`make_navigator_choice_operation`). The tests that exist: the shelf of the navigator tests (the
+   chapters of a book, then the books), the keys and the Next button in an editor, and the commits of
+   a range in `GitViewTest.jl`. Planned tests: a navigator on `commits[2]` of a range: Next
    shows `commits[3]`, Back shows `commits[2]` again, Next is off at the last commit; the same on a
    plain vector of documents, to show that the navigator knows nothing of git.
 4. ✅ **The page of a range shows the chosen commit below its table** (P3). Done. Facts of the work:
@@ -132,7 +137,10 @@ its tests. Each step updates the page of its part in `documentation/`.
    `GitGestureTest`: the commit below shows the first row; Down in the table shows the subject of the
    next commit below; a press on row 3 shows commit 3; a press on a hash still opens the page of the
    commit; the table keeps its row while the keys are in the commit below.
-5. **Pictures of the views, headless, at one density.** The owner (2026-11-24): "no need to live
+5. ✅ **Pictures of the views, headless, at one density.** Done: an editor on the headless backend
+   with `FontFileMeasure`, and `write_image` of the SDL backend for the canvas of its window, 1200 to
+   1400 px wide and 560 px for the narrow navigator. The pictures showed each view as the steps say.
+   The owner (2026-11-24): "no need to live
    check, you can take screenshots headlessly at one display density". The pictures show a range
    with the chosen commit below its table, a commit with a long message, a commit at full size with
    Next and Previous, and the bar of a narrow navigator.

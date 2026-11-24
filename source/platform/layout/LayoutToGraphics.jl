@@ -617,6 +617,18 @@ function _child_w(cim)
     0
 end
 
+"""
+    get_printed_width(iomap) -> Int
+
+The width that a part draws at: the width of the output of `iomap`, a print of the
+part to graphics, as a layout reads the width of each child that it places; 0 for
+an output that is no graphics.
+
+Use it to fit printed parts into a width, as the bar of a navigator folds the first
+items of its address when the parts are wider than the navigator.
+"""
+get_printed_width(iomap) = Int(_child_w(iomap))
+
 function _child_h(cim)
     c = cim.output
     c isa GraphicsCanvas && return Int(c.h[])

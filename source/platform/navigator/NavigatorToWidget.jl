@@ -230,10 +230,8 @@ end
 _make_bar_widths(recursion, ctx) =
     recursion === nothing || ctx === nothing ? nothing : _BarWidths(recursion, ctx, IdDict{Any,Any}())
 
-function _get_part_width(widths::_BarWidths, part)
-    output = get!(() -> print_child(widths.recursion, part, widths.ctx), widths.printed, part).output
-    output isa GraphicsCanvas ? Int(output.w[]) : output isa GraphicsDocument ? Int(get_graphics_size(output)[1]) : 0
-end
+_get_part_width(widths::_BarWidths, part) =
+    get_printed_width(get!(() -> print_child(widths.recursion, part, widths.ctx), widths.printed, part))
 
 # Keep the prints of `parts` only.
 function _keep_printed_parts!(widths::_BarWidths, parts)
