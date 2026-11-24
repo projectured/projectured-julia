@@ -5,7 +5,9 @@
 # starts, computed from the text of that line and the wrap width. The wrap width is
 # the maximum of the range the parent gives on the width, `ctx.maximum_width`,
 # exact or bounded (so a resize re-wraps reactively), cut at the projection's
-# `max_width`; with neither, a line does not wrap.
+# `max_width`; with neither, a line does not wrap. With `visible`, a parent that
+# gives no edge gives the visible width of the scroll pane that holds the text. A
+# line with `wraps = false` never wraps.
 #
 # A soft break is no character, so no flat offset moves and every reference maps
 # to itself. The list of lines reads no width and no content, so a keystroke or a
@@ -13,20 +15,26 @@
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    WordWrapping(; max_width=nothing, measure)
+    WordWrapping(; max_width=nothing, measure, visible=false)
 
 Pixel-based word-wrap projection. `measure::TextMeasure` matches the downstream
 `TextToGraphics` measurer so wrap points line up with layout. A line wraps at
 the edge of the range the parent gives (`ctx.maximum_width`), and at
 `max_width` when that is less. With neither, a line does not wrap.
+
+With `visible`, a line wraps at the visible width (`get_visible_width`) where
+the parent gives no edge: in a pane that scrolls sideways, a line of prose wraps
+at the view, while a line with `wraps = false`, such as a line of code, keeps
+its columns and scrolls. A line with `wraps = false` never wraps.
 """
 struct WordWrapping <: Projection
     max_width::Union{Nothing, Int}
     measure::TextMeasure
+    visible::Bool
 end
 
-WordWrapping(; max_width::Union{Nothing, Integer} = nothing, measure::TextMeasure) =
-    WordWrapping(max_width === nothing ? nothing : Int(max_width), measure)
+WordWrapping(; max_width::Union{Nothing, Integer} = nothing, measure::TextMeasure, visible::Bool = false) =
+    WordWrapping(max_width === nothing ? nothing : Int(max_width), measure, visible)
 
 # ── Print ───────────────────────────────────────────────────────────────────
 
@@ -48,14 +56,16 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
 end
 
 # The width a line wraps at: the maximum of the range the parent gave, exact or
-# bounded, less the space at its sides, cut at `p.max_width`; with neither, a
-# width no line reaches. The text printer of the chain takes the space around the
-# lines, so the lines wrap inside it.
+# bounded, or with `p.visible` the visible width where the parent gave no edge,
+# less the space at its sides, cut at `p.max_width`; with neither, a width no line
+# reaches. The text printer of the chain takes the space around the lines, so the
+# lines wrap inside it.
 const _NO_WRAP_WIDTH = Int(typemax(Int32))
 
 function _wrap_width_cell(p::WordWrapping, ctx)
     limit = something(p.max_width, _NO_WRAP_WIDTH)
     edge = ctx isa PrinterContext ? ctx.maximum_width : nothing
+    edge === nothing && p.visible && ctx isa PrinterContext && (edge = get_visible_width(ctx))
     edge === nothing && return Cell(limit)
     space_width = ctx.space[1] + ctx.space[3]
     Cell(@computation begin
@@ -80,11 +90,14 @@ function _wrap_lines(text::TextBlock, lines::IdDict, wrap_w_cell::Cell, measure_
 end
 
 # The output line of `line`: its spans and every other field, and the soft breaks
-# for the width that `wrap_w_cell` holds.
+# for the width that `wrap_w_cell` holds. A line that does not wrap reads no width,
+# so a resize does not touch it.
 function _make_wrapped_line(line::TextLine, wrap_w_cell::Cell, measure_fn::TextMeasure)
-    soft_breaks = Cell(@computation CellVector{Int}(_compute_soft_breaks(line, Int(wrap_w_cell[]), measure_fn)))
+    soft_breaks = Cell(@computation CellVector{Int}(line.wraps ?
+                                                    _compute_soft_breaks(line, Int(wrap_w_cell[]), measure_fn) :
+                                                    Int[]))
     TextLine(getfield(line, :elements), getfield(line, :indentation), getfield(line, :gutter),
-             getfield(line, :fold), soft_breaks, getfield(line, :selection),
+             getfield(line, :fold), soft_breaks, getfield(line, :wraps), getfield(line, :selection),
              getfield(line, :mouse_target))
 end
 

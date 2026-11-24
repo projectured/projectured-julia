@@ -175,6 +175,25 @@ function test_git_views()
                 @test _git_view_place(backend, "+x")[2] < 600
             end
 
+            @testset "the message of a commit wraps at the view, and a line of code keeps its columns" begin
+                words = join(("word$k" for k in 1:60), ' ')
+                code = string("x = ", join(("a$k" for k in 1:80), " + "))
+                write(joinpath(repository, "wide.txt"), code * "\n")
+                _git_view_commit!(repository, string("wide\n\n", words), "2026-01-08T08:09:10+00:00")
+                editor, backend = _git_view_editor(GitCommit(repository, "HEAD"); height = 600)
+                drawn() = _git_view_texts(backend)
+                @test _git_view_run_frames_until(editor, () -> any(entry -> startswith(first(entry), "word1 "), drawn()) &&
+                                                               any(entry -> first(entry) == "+" * code, drawn()))
+                # The message: rows from the top down, which hold its words in order,
+                # each inside the window of 900 pixels at 8 pixels for a character.
+                rows = sort([entry for entry in drawn() if startswith(first(entry), "word")]; by = entry -> entry[3])
+                @test length(rows) > 1
+                @test join(first.(rows)) == words
+                @test all(entry -> entry[2] + 8 * length(rstrip(first(entry))) <= 900, rows)
+                # The line of code: one row, wider than the window.
+                @test count(entry -> occursin("a1 + a2", first(entry)), drawn()) == 1
+            end
+
             @testset "a read that failed shows the words of git" begin
                 editor, backend = _git_view_editor(GitCommit(repository, "no-such-revision"))
                 @test _git_view_run_frames_until(editor,

@@ -251,4 +251,35 @@ out = print_document(WordWrapping(measure = _WordWrappingForbiddenMeasure()), no
 
 end # @testset "WordWrapping gives no soft break to a free width and measures no word"
 
+@testset "WordWrapping keeps a line that does not wrap, and wraps at the visible width on request" begin
+
+font = StyleFont("Ubuntu Mono", 20)
+m = _test_measure(10, 18)
+prose = TextString("alpha beta gamma delta", font, color_default)
+code = TextString("x = alpha + beta + gamma + delta", font, color_default)
+input = TextBlock(TextDocument[TextLine(prose), TextLine(code; wraps = false)])
+# A pane that scrolls sideways gives its content no edge, only the width of its view.
+view = Cell(80)
+ctx = with_visible_size(PrinterContext(); width = view)
+
+# Without `visible`, a parent that gives no edge gives no wrap.
+out = print_document(WordWrapping(measure = m), nothing, input, ctx).output
+@test out.elements[1].soft_breaks == Int[]
+
+# With `visible`, the prose wraps at the 8 characters of the view, and the code
+# keeps its columns.
+out = print_document(WordWrapping(measure = m, visible = true), nothing, input, ctx).output
+@test out.elements[1].soft_breaks == [6, 11, 17]
+@test out.elements[1].wraps
+@test out.elements[2].soft_breaks == Int[]
+@test !out.elements[2].wraps
+
+# A wider view changes the rows of the prose, and does not touch the code.
+view[] = 1000
+@test out.elements[1].soft_breaks == Int[]
+@test is_cell_valid(getfield(out.elements[2], :soft_breaks))
+@test get_flat_string(out) == get_flat_string(input)
+
+end # @testset "WordWrapping keeps a line that does not wrap, and wraps at the visible width on request"
+
 end # test_word_wrapping

@@ -237,7 +237,7 @@ TextBlock(f::Function) = TextBlock(CellVector(Computation(f)), Cell(nothing))
 # ── TextLine ───────────────────────────────────────────────────────────
 
 """
-    TextLine(spans...; indentation = 0, gutter = nothing, fold = nothing)
+    TextLine(spans...; indentation = 0, gutter = nothing, fold = nothing, wraps = true)
 
 One line of a `TextBlock`: a sequence of spans that **contains no line break** and
 **implies one before itself**. A block of `n` lines therefore renders with `n-1`
@@ -269,6 +269,11 @@ starts before that character. `WordWrapping` computes them for the width of the
 view, and `TextToGraphics` starts a row at each, at the indentation of the line.
 A soft break is no character: it is not in the caret space and not in the flat
 string, so a wrap moves no offset.
+
+`wraps` says whether `WordWrapping` breaks the line into rows. A line of prose
+wraps; a line of code in a text that also holds prose, such as a line of a diff
+below the message of a commit, has `wraps = false` and stays one row, so its
+columns stay.
 """
 @document struct TextLine <: TextDocument
     elements::CollectionDocument = CellVector()
@@ -276,18 +281,20 @@ string, so a wrap moves no offset.
     gutter::Union{Document, Nothing} = nothing
     fold::Union{Document, Nothing} = nothing
     soft_breaks::Vector{Int} = Int[]
+    wraps::Bool = true
 end
 
-TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing) =
+TextLine(spans::Vector{<:TextDocument}; indentation::Integer = 0, gutter = nothing, fold = nothing,
+         wraps::Bool = true) =
     TextLine(CellVector(Cell[Cell(s) for s in spans]), Cell(Int(indentation)), Cell(gutter),
-             Cell(fold), Cell(CellVector{Int}()), Cell(nothing))
+             Cell(fold), Cell(CellVector{Int}()), Cell(wraps), Cell(nothing))
 
-TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing, fold = nothing) =
-    TextLine(collect(TextDocument, spans); indentation, gutter, fold)
+TextLine(spans::TextDocument...; indentation::Integer = 0, gutter = nothing, fold = nothing, wraps::Bool = true) =
+    TextLine(collect(TextDocument, spans); indentation, gutter, fold, wraps)
 
-TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing) =
+TextLine(f::Function; indentation::Integer = 0, gutter = nothing, fold = nothing, wraps::Bool = true) =
     TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(gutter), Cell(fold),
-             Cell(CellVector{Int}()), Cell(nothing))
+             Cell(CellVector{Int}()), Cell(wraps), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no
@@ -1518,7 +1525,7 @@ end
 _make_line_with_spans(line::TextLine, spans::Vector) =
     TextLine(CellVector(Cell[Cell(span) for span in spans]), getfield(line, :indentation),
              getfield(line, :gutter), getfield(line, :fold), getfield(line, :soft_breaks),
-             getfield(line, :selection), getfield(line, :mouse_target))
+             getfield(line, :wraps), getfield(line, :selection), getfield(line, :mouse_target))
 
 # A path on a block of lines, mapped through the segments of its line: forward from
 # the input to the output, or backward. A caret, a range, a box and `∅` keep their

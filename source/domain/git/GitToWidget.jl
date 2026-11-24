@@ -26,7 +26,9 @@ _make_git_text_styles(theme) =
 Draw a [`GitText`](@ref) as a block of lines of the text domain: a `TextLine` for
 each [`GitTextLine`](@ref), with one `TextString` in the style of its kind, and the
 label of a line of a diff in the number lane of its gutter, in the style `number`.
-`styles` holds the styles of a [`GitTheme`](@ref) by the kind of a line.
+`styles` holds the styles of a [`GitTheme`](@ref) by the kind of a line. A line of
+words (the message of a commit, a note, the words of git) wraps; a line of a file,
+of a diff and of its facts has `wraps = false`, so it keeps its columns.
 
 The flat string of the block is the `text` of the document, so the caret of the
 document, `text{s:e}`, is the flat range `{s:e}` of the block. A person selects and
@@ -56,9 +58,14 @@ end
 
 function _make_git_text_line(p::GitTextToText, line::GitTextLine, width::Int, number::StyleText)
     run = TextString(line.text, unwrap_cell(getproperty(p.styles, line.kind)))
-    width == 0 && return TextLine(run)
-    TextLine(run; gutter = TextGutter(; number = TextBlock(TextLine(TextString(lpad(line.label, width), number)))))
+    wraps = line.kind in _GIT_WORD_KINDS
+    width == 0 && return TextLine(run; wraps)
+    TextLine(run; wraps,
+             gutter = TextGutter(; number = TextBlock(TextLine(TextString(lpad(line.label, width), number)))))
 end
+
+# The kinds of the lines of words, which wrap at the width of the view.
+const _GIT_WORD_KINDS = (:message, :note, :failure)
 
 # Forward: the place `.text{s:e}` of the document is the flat range `{s:e}` of the
 # block, and the line `.lines[k]` is the caret at the start of line `k`. A place past
@@ -548,7 +555,8 @@ end
 # A text draws as the code of a file does: its lines and their gutters in a
 # `ScrollLayout`, which the pane of the page takes apart, so the gutter stays at the
 # left edge while the lines scroll. A text of a file numbers its lines with
-# `TextLineNumbering`; a text of a diff has the labels of its lines.
+# `TextLineNumbering`; a text of a diff has the labels of its lines, and its lines of
+# words wrap at the width of the view of the pane, while its code scrolls sideways.
 make_graphics_projection(::Type{<:GitDiffText}; measure, appearance) =
     _make_git_text_projection(GitDiffText, measure, appearance)
 
@@ -560,8 +568,8 @@ function _make_git_text_projection(type::Type, measure, appearance)
     line_spacing = make_style_field(TextTheme, text_theme, LineSpacing; name = :code_line_spacing)
     stage = GitTextToText(; styles = _make_git_text_styles(get_scaled_theme!(appearance, GitTheme)),
                           number = unwrap_cell(get_text_style(text_theme, :line_number_text)))
-    numbering = type === GitFileText ? (TextLineNumbering(; theme = text_theme),) : ()
-    text = ChainingProjection(stage, numbering..., TextBlockToScrollLayout(; measure, theme = text_theme, line_spacing))
+    lines = type === GitFileText ? (TextLineNumbering(; theme = text_theme),) : (WordWrapping(; measure, visible = true),)
+    text = ChainingProjection(stage, lines..., TextBlockToScrollLayout(; measure, theme = text_theme, line_spacing))
     RecursiveProjection(TypeDispatchingProjection(
         type => text,
         TextGutter => TextGutterToGraphics(),

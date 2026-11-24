@@ -1,6 +1,7 @@
 # A person steps through the commits of a range
 
-> **Kind:** plan · **Status:** proposed, 2026-11-24; it waits for the approval of the owner ·
+> **Kind:** plan · **Status:** approved by the owner on 2026-11-24 ("yes, implement it"); in work ·
+> **Branch:** `commit-steps` (worktree `projectured-julia-commit-steps`) ·
 > **Follows:** [the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md](../done/the-page-of-a-commit-shows-its-files-as-a-tree-beside-their-diffs.md),
 > [a-navigator-with-back-forward-parent-and-links.md](../done/a-navigator-with-back-forward-parent-and-links.md) ·
 > **Stands on:** [git.md](../../documentation/package/domain/git/git.md),
@@ -46,7 +47,7 @@ The owner, 2026-11-24:
 - **D2.** The comment parts of a commit wrap.
 - **D3.** The bar of the navigator takes less space, and "Open in a tab" is always in view.
 
-Proposed by the assistant:
+Proposed by the assistant, approved with the plan on 2026-11-24:
 
 - **P1. Only the message wraps.** The lines of the message wrap at the visible width of the pane.
   The code lines of a diff do not wrap and scroll sideways, as now and as in `git show` and gitk.
@@ -92,7 +93,12 @@ Proposed by the assistant:
 The work is done in a worktree of its own (`julia-worktree new`), and each step is one commit with
 its tests. Each step updates the page of its part in `documentation/`.
 
-1. **The message of a commit wraps** (P1, P2). Add `wraps` to `TextLine` and carry it in each stage
+1. ✅ **The message of a commit wraps** (P1, P2). Done. Facts of the work: the wrap at the
+   visible width is the keyword `visible` of `WordWrapping` (default `false`), so a view of code in
+   a pane that scrolls sideways stays as it is; only the chain of a `GitDiffText` sets it. The lines
+   of words of a git text are the kinds `:message`, `:note` and `:failure`; every other kind has
+   `wraps = false`. A `GitFileText` holds only code, so its chain has no `WordWrapping`. A line that
+   does not wrap reads no width, so a resize does not touch it. Add `wraps` to `TextLine` and carry it in each stage
    that copies a line (`WordWrapping`, `TextLineNumbering`, the constructors in `TextDocument.jl`).
    `WordWrapping` keeps a line with `wraps = false` whole and wraps at the visible width when no edge
    is given. `GitTextToText` marks the lines that wrap, and `_make_git_text_projection` puts
@@ -109,9 +115,10 @@ its tests. Each step updates the page of its part in `documentation/`.
    `GitGestureTest`: the commit below shows the first row; Down in the table shows the subject of the
    next commit below; a press on row 3 shows commit 3; a press on a hash still opens the page of the
    commit; the table keeps its row while the keys are in the commit below.
-5. **A live check in the IDE**, at density 1 and at density 2: the explorer, "Commits of the repairs",
-   a range, Down through the commits, a commit with a long message, Next and Previous on a commit at
-   full size, and the bar of a narrow navigator.
+5. **Pictures of the views, headless, at one density.** The owner (2026-11-24): "no need to live
+   check, you can take screenshots headlessly at one display density". The pictures show a range
+   with the chosen commit below its table, a commit with a long message, a commit at full size with
+   Next and Previous, and the bar of a narrow navigator.
 
 ## 5. Risks
 
