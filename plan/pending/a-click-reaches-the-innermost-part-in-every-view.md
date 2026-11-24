@@ -1892,6 +1892,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         `test_object_to_widget` 64, `test_editor_display` 28,
         `test_platform_slice_edges` 1 and its 6 broken, `test_navigator_document`
         32, `test_split_pane_drag` 43 and its 5 broken.
+
+      **The choice list, the tab title and the form landed** (2026-11-24,
+      owner: "Yes"). The 7 commits rebased with no conflict over main
+      50d210139, which adds one test commit of another session, and main moved
+      forward to 5bc581626. No test ran after that rebase: 50d210139 changes no
+      file of the branch. Not pushed. The views over a tree (7870ffc4a) were
+      pushed by another session.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
