@@ -515,20 +515,30 @@ function _make_node_reference(path::Vector{Int})
     extend_reference(EmptyReference(), steps...)
 end
 
+# The index path of the nodes that `reference`, a path of the widget, starts with,
+# `roots[1].children[k]…`, and the count of the steps that name them; `nothing` for
+# a path that starts at no node.
+function _split_node_indices(reference)
+    reference isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    indices = Int[]
+    at = 1
+    while at + 1 <= length(steps)
+        field, index = steps[at], steps[at + 1]
+        (field == FieldReferenceStep(isempty(indices) ? "roots" : "children") &&
+         index isa RangeReferenceStep && is_element_reference_step(index)) || break
+        push!(indices, index.start + 1)
+        at += 2
+    end
+    isempty(indices) ? nothing : (indices, at - 1)
+end
+
 # The index path of a node path `roots[1].children[k]…` of the widget, or `nothing`
 # for any other path.
 function _find_node_indices(reference)
-    reference isa Reference || return nothing
-    steps = get_reference_steps(strip_reference_types(reference))
-    (isempty(steps) || isodd(length(steps))) && return nothing
-    indices = Int[]
-    for (n, at) in enumerate(1:2:length(steps))
-        field, index = steps[at], steps[at + 1]
-        (field == FieldReferenceStep(n == 1 ? "roots" : "children") &&
-         index isa RangeReferenceStep && is_element_reference_step(index)) || return nothing
-        push!(indices, index.start + 1)
-    end
-    indices
+    split = _split_node_indices(reference)
+    split === nothing && return nothing
+    last(split) == length(get_reference_steps(strip_reference_types(reference))) ? first(split) : nothing
 end
 
 # The entry of the child of `entry` that `steps` name from `at` on: the steps of a
@@ -583,22 +593,53 @@ function _map_node_path_forward(root::_TreeEntry, reference)
     _make_node_reference(entry.path)
 end
 
-_map_tree_path_forward(p::DocumentTreeToWidgetTree, root::_TreeEntry, reference) =
-    something(find_introduced_path(p, reference), Some(_map_node_path_forward(root, reference)))
+# A part that the view drew in the row of a node is the path of the document of the
+# node and then the step of the view (`find_last_introduced_path`): it maps to that
+# part in the node that the path of the document names now, so it follows the node
+# when the rows of the tree change, and a document with no node has no place.
+function _map_tree_path_forward(p::DocumentTreeToWidgetTree, root::_TreeEntry, reference)
+    introduced = find_introduced_path(p, reference)
+    introduced === nothing || return introduced
+    drawn = find_last_introduced_path(p, reference)
+    drawn === nothing && return _map_node_path_forward(root, reference)
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    node = _map_node_path_forward(root, extend_reference(EmptyReference(), steps[1:(end - 1)]...))
+    split = _split_node_indices(drawn)
+    (node isa ConcreteReference && split !== nothing) || return nothing
+    rest = collect(get_reference_steps(strip_reference_types(drawn)))[(last(split) + 1):end]
+    concat_references(node, extend_reference(EmptyReference(), rest...))
+end
 
 map_reference_forward(p::DocumentTreeToWidgetTree, iomap::DocumentTreeToWidgetTreeIoMap, reference) =
     _map_tree_path_forward(p, iomap.root_entry, reference)
 
 # A node path of the widget maps to the path of its document, `root.<steps of a
-# collection>[i]…`; one that reaches no node has no image. Any other part of the
-# widget, the widget itself as well, is a part that the view drew: an introduced
-# reference names it.
+# collection>[i]…`; one that reaches no node has no image. A part that the view drew
+# in the row of a node, as its label or a caret in it, is the path of the document
+# of the node and then the step of the view, which holds the path of the part in the
+# widget: the step stands at the innermost document that the part was printed for.
+# Any other part of the widget, the widget itself as well, is a part that the view
+# drew: an introduced reference names it.
 function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTreeToWidgetTreeIoMap, reference)
     reference isa Reference || return nothing
-    indices = _find_node_indices(reference)
-    indices === nothing && return make_introduced_reference(p, iomap, strip_reference_types(reference))
+    path = strip_reference_types(reference)
+    split = _split_node_indices(path)
+    split === nothing && return make_introduced_reference(p, iomap, path)
+    (indices, count) = split
+    found = _map_node_indices_backward(iomap.root_entry, indices)
+    found === nothing && return nothing
+    (document_path, entry) = found
+    count == length(get_reference_steps(path)) && return document_path
+    concat_references(document_path,
+                      make_introduced_reference(p, entry.document, annotate_reference_types(iomap.output, path)))
+end
+
+# The path of the document of the node at the index path `indices` of the widget,
+# from the tree document, and the entry of the node; `nothing` for a path that
+# reaches no node.
+function _map_node_indices_backward(root::_TreeEntry, indices::Vector{Int})
     indices[1] == 1 || return nothing
-    entry = iomap.root_entry
+    entry = root
     steps = Any[FieldReferenceStep("root")]
     for k in indices[2:end]
         if _find_lazy_tree_children(entry.document) !== nothing
@@ -619,7 +660,7 @@ function map_reference_backward(p::DocumentTreeToWidgetTree, iomap::DocumentTree
         child === nothing && return nothing
         entry = child
     end
-    extend_reference(EmptyReference(), steps...)
+    (extend_reference(EmptyReference(), steps...), entry)
 end
 
 # ── Registration ─────────────────────────────────────────────────────────────

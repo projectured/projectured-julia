@@ -10,10 +10,12 @@ const _LIST_CHILD_COUNT = 50
 # no pointer, as one layer named by the row: the items of the explorer, then the
 # commands of the document of the row, each rerooted from the place of the
 # document in the tree, so it acts on the document. An item that edits an entry
-# works on the tree, also from a row of the matches.
+# works on the tree, also from a row of the matches. A part that the tree drew in
+# a row, as a character of its label, is the path of the row and then the step of
+# the tree, so the row is the path without that step.
 function _make_row_menu_operation(explorer::Explorer, gesture)
     path = gesture isa MouseClick ? get_mouse_target(explorer) : get_selection(explorer)
-    steps = _find_shown_node_steps(explorer, path)
+    steps = _find_shown_node_steps(explorer, _remove_last_drawn_step(path))
     steps === nothing && return nothing
     document = try_evaluate_reference(getfield(explorer, :tree)[].root, _make_steps(steps...), nothing)
     document === nothing && return nothing
@@ -27,6 +29,14 @@ function _make_row_menu_operation(explorer::Explorer, gesture)
     ReplaceViewStateOperation(OpenContextMenuOperation(
         Tuple{String,Document,Int}[(format_tree_node_label(document), WidgetMenu(items), 0)],
         annotate_reference_types(explorer, EmptyReference()), point))
+end
+
+# `path` without its last step when that step is a step of a view, as the step of
+# the tree at the end of the path of a character of a label; `path` itself else.
+function _remove_last_drawn_step(path)
+    path isa ConcreteReference || return path
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    last(steps) isa ProjectionReferenceStep ? _make_steps(steps[1:(end - 1)]...) : path
 end
 
 # The commands of the explorer for the row of the node at `steps` from the root

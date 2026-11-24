@@ -190,6 +190,15 @@ function test_document_tree()
         @test _nav_is(backward(_doctree_node_path(1, 3)), notes_first)
         @test _nav_is(backward(_doctree_node_path(1, 1, 2)), alpha_two)
         @test backward(_doctree_node_path(1, 9)) === nothing
+        # A caret in the label of a node is the path of the document of the node,
+        # then the step of the view, and maps back to the caret in that label.
+        caret = concat_references(_doctree_node_path(1, 1, 2),
+                                  _doctree_path(FieldReferenceStep("label"), RangeReferenceStep(1, 1)))
+        drawn = backward(caret)
+        steps = collect(_nav_steps(drawn))
+        @test _nav_is(_doctree_path(steps[1:(end - 1)]...), alpha_two)
+        @test last(steps) isa ProjectionReferenceStep && last(steps).projection === projection
+        @test _nav_is(forward(drawn), caret)
         # Any other part of the widget is a part that the view drew.
         @test has_introduced_step(backward(_doctree_path(FieldReferenceStep("scroll_position"))))
         @test has_introduced_step(backward(EmptyReference()))
