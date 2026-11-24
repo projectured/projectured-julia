@@ -30,6 +30,20 @@ function _menu_keys_texts(canvas, ox = 0, found = Tuple{String,Int}[])
     found
 end
 
+# The top left corner of the first text `text` that `canvas` draws, at any depth,
+# in the frame of `canvas`, or `nothing`.
+function _menu_keys_text_point(canvas, text, ox = 0, oy = 0)
+    x, y = ox + Int(canvas.x), oy + Int(canvas.y)
+    for element in canvas.elements
+        element isa GraphicsText && String(element.text) == text && return (x + Int(element.x), y + Int(element.y))
+        if element isa GraphicsCanvas
+            found = _menu_keys_text_point(element, text, x, y)
+            found === nothing || return found
+        end
+    end
+    nothing
+end
+
 function test_widget_menu_keys()
 @testset "a menu that the keys drive" begin
     measure = FixedMeasure(8, 12, 4, 0)
@@ -119,6 +133,40 @@ function test_widget_menu_keys()
         @test returned.operations[1].operation.value == "Chart"
         # A key with Ctrl goes on to the window under the list.
         @test read(KeyDown(:down, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+    end
+
+    @testset "the prompt of the list takes the caret by the step of the list, and a row keeps its click" begin
+        list = WidgetChoiceList(; prompt = "Add", find = query -> WidgetChoice[WidgetChoice("Chart")],
+                                choose = value -> ReplaceReferencedValueOperation(nothing, EmptyReference(), value))
+        list_projection = RecursiveProjection(TypeDispatchingProjection(vcat(
+            Pair{Type,Any}[WidgetChoiceList => ChainingProjection(WidgetChoiceListToWidget(), GridLayoutToGraphicsCanvas())],
+            LayoutToGraphics().dispatch, WidgetToGraphics(; measure).dispatch,
+            Pair{Type,Any}[TextBlock => TextToGraphics(measure = measure)])))
+        iomap = print_document(list_projection, list)
+        alt = ModifierKeys(alt = true)
+        # An Alt+click after the first character of the prompt puts the caret there.
+        x, y = _menu_keys_text_point(iomap.output, "Add: ")
+        caret = read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0))
+        @test caret isa ReplaceSelectionOperation
+        step = get_reference_head(strip_reference_types(caret.path))
+        @test step isa ProjectionReferenceStep && step.projection isa WidgetChoiceListToWidget
+        @test last(get_reference_steps(step.output_path)) == RangeReferenceStep(1, 1)
+        # The caret maps forward to the place that the list drew.
+        box = find_reference_box(iomap.output, map_reference_forward(list_projection, iomap, caret.path); measure)
+        @test box !== nothing && (Int(box.x), Int(box.y)) == (x + 8, y)
+        # A row is an item of a menu, which takes no caret: an Alt+click on it gives
+        # nothing, and a plain click chooses it.
+        x, y = _menu_keys_text_point(iomap.output, "Chart")
+        @test read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0)) === nothing
+        chosen = read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, ModifierKeys(); time = 0.0))
+        @test chosen isa CompoundOperation && chosen.operations[1] isa EditMenuPartOperation
+        @test chosen.operations[1].description == "Chart"
+        # The typed text as a whole is the text of its field as a whole, both ways.
+        own = WidgetChoiceListToWidget()
+        own_iomap = print_document(own, nothing, list, PrinterContext())
+        field = Reference(WidgetModule._CHOICE_QUERY_FIELD_STEPS..., FieldReferenceStep("content"))
+        @test map_reference_backward(own, own_iomap, field) == Reference(FieldReferenceStep("query"))
+        @test map_reference_forward(own, own_iomap, Reference(FieldReferenceStep("query"))) == field
     end
 
     @testset "a long list builds only the rows that it shows, and they follow the row" begin

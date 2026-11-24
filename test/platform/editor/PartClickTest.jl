@@ -378,14 +378,28 @@ function _pc_move!(session, x, y)
 end
 
 # Whether `path`, a part of the document of the editor, is a menu, an item of a
-# menu, or a part inside one.
+# menu, or a part inside one. A part that a view drew is one when the output path
+# of the step of the view goes through a menu or an item of a menu, by the node
+# types that the path carries.
 function _pc_is_in_menu(session, path)
     path isa ConcreteReference || return false
     steps = collect(get_reference_steps(_pc_strip_types(path)))
+    any(step -> step isa ProjectionReferenceStep && _pc_goes_through_menu(step.output_path), steps) &&
+        return true
     for k in length(steps):-1:1
         node = try_evaluate_reference(session.editor.document,
                                       foldr(ConcreteReference, steps[1:k]; init = EmptyReference()), nothing)
         node isa Union{WidgetMenu, WidgetMenuItem} && return true
+    end
+    false
+end
+
+# Whether a node of `path` has the type of a menu or of an item of a menu.
+function _pc_goes_through_menu(path)
+    while path isa ConcreteReference
+        type = path.type
+        type isa Type && type <: Union{WidgetMenu, WidgetMenuItem} && return true
+        path = path.tail
     end
     false
 end

@@ -342,25 +342,34 @@ function _choose_choice_row(list::WidgetChoiceList)
 end
 
 # A place `query{s:e}` of a list with no `edit` is the range of the field of its
-# typed text, and the whole list is the whole grid. A list with `edit` holds no
-# caret, and no other part of the list has a place.
-function map_reference_forward(::WidgetChoiceListToWidget, iomap, reference)
+# typed text, `query` is the text of the field as a whole, and the whole list is
+# the whole grid. A list with `edit` holds no selection in its typed text. A part that the list draws, such as the prompt or the
+# label of a row, is the path that the step of the list holds.
+function map_reference_forward(p::WidgetChoiceListToWidget, iomap, reference)
+    drawn = find_introduced_path(p, reference)
+    drawn === nothing || return drawn
     reference isa EmptyReference && return EmptyReference()
     iomap.input.edit === nothing || return nothing
+    # The typed text as a whole is the text of its field as a whole.
+    reference isa ConcreteReference && collect(get_reference_steps(strip_reference_types(reference))) ==
+        [FieldReferenceStep("query")] && return Reference(_CHOICE_QUERY_FIELD_STEPS..., FieldReferenceStep("content"))
     range = _find_choice_query_range(reference)
     range === nothing && return nothing
     Reference(_CHOICE_QUERY_FIELD_STEPS..., FieldReferenceStep("content"),
               RangeReferenceStep(range.start, range.stop, range.direction))
 end
 
-# A range of the field of the typed text is that range of the typed text; any
-# other place of the grid is the whole list.
-function map_reference_backward(::WidgetChoiceListToWidget, iomap, reference)
-    reference isa Reference || return EmptyReference()
+# The text of the field of the typed text is the typed text, as a whole and by a
+# range, and the whole grid is the whole list. Any other part of the grid is a part
+# that the list drew, which the step of the list names with its path in the grid.
+function map_reference_backward(p::WidgetChoiceListToWidget, iomap, reference)
+    reference isa ConcreteReference || return EmptyReference()
     steps = get_reference_steps(strip_reference_types(reference))
     n = length(_CHOICE_QUERY_FIELD_STEPS)
-    (length(steps) == n + 2 && all(k -> steps[k] == _CHOICE_QUERY_FIELD_STEPS[k], 1:n) &&
-     steps[n + 1] == FieldReferenceStep("content") && steps[end] isa RangeReferenceStep) ||
-        return EmptyReference()
+    in_field = length(steps) > n && all(k -> steps[k] == _CHOICE_QUERY_FIELD_STEPS[k], 1:n) &&
+               steps[n + 1] == FieldReferenceStep("content")
+    in_field && length(steps) == n + 1 && return Reference(FieldReferenceStep("query"))
+    (in_field && length(steps) == n + 2 && steps[end] isa RangeReferenceStep) ||
+        return make_introduced_reference(p, iomap, reference)
     _make_choice_query_reference(steps[end])
 end
