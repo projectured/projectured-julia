@@ -1667,10 +1667,14 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       its step at the root, so it keeps its map. The drop zone of a drag
       (`_locate_collection_index`) splits a path at its last element, so a step
       at the end of a path changes nothing there. The steps:
-      - [ ] T1. The tree: a move on a label names the character under the
+      - [x] T1. The tree: a move on a label names the character under the
         pointer, as a move on a text field does; the band of the row under the
         pointer reads the node from the start of the path. `test_widget_tree`.
-      - [ ] T2. The step of a view at the end of a path: the kernel function
+        Done (f8522ee41): a move off the label, on the chevron, the icon or the
+        empty part of a row, gives no answer of the tree, so the node is named
+        there. The test of a move on a row expected no answer of the tree to
+        any move; it follows the rule now. `test_widget_tree` 114.
+      - [x] T2. The step of a view at the end of a path: the kernel function
         `find_last_introduced_path(projection, reference)`, beside
         `find_introduced_path`, gives the path in the output of the step of
         `projection` that ends `reference`. It replaces
@@ -1678,16 +1682,35 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         release of the platform (0.3.0, 2026-10-22), so no version step. The
         tree module loads before the outline module, so the function goes lower
         (the assistant's decision). The tests of the kernel step and of the
-        outline.
-      - [ ] T3. The tree of documents: the backward map of the label of a node,
+        outline. Done (79594baea), with a line in the kernel reference:
+        `test_introduced_path` 12, `test_outline` 34, `test_research_to_widget`
+        123, `test_research_explorer` 20, `test_workflow_to_widget` 74.
+      - [x] T3. The tree of documents: the backward map of the label of a node,
         a caret or a range in it, is the path of the document of the node, then
         the step of the view (D2); the forward map reads a step at the end of a
         path. The row menu of the explorer (`_find_node_steps`) drops a step of
         the view at the end. The tests of the tree of documents, the explorer,
-        the work plan and the tree of processes.
-      - [ ] T4. The tree of the file system, in its view and in the explorer, and
+        the work plan and the tree of processes. Done (b0d1836d9). Any part
+        after the path of a node takes the step at the node, not the label only.
+        The forward map finds the node from the path of the document, so the
+        part follows its node when the rows change, and a document with no node
+        has no place. `_find_node_steps` stays as it is: the explorer opens the
+        page of a row that the tree selects, and its keys, Delete too, act while
+        the selection is on a row, so a caret in a label is no row there. Only
+        the row menu (`_remove_last_drawn_step`) takes the row without the step.
+        The chained views (work plan, tree of processes) take off or put on
+        their prefix only, so the step goes through them. `test_document_tree`
+        138, `test_help_tree` 48, `test_system_process` 80, `test_explorer` 524
+        (its right click moves onto a label first), `test_explorer_row_notes`
+        30, `test_work_plan` 85, `test_mouse_target_move` 93.
+      - [x] T4. The tree of the file system, in its view and in the explorer, and
         the file chooser: the same, with the step at the file. The tests of the
-        file system and of the chooser.
+        file system and of the chooser. Done (9396eed73). The tree of the
+        chooser reads its selection and its part under the pointer through the
+        new form too (`_map_chooser_tree_part`), so it draws the caret.
+        `test_filesystem_to_widget` 46, `test_file_dialog` 32 and the 1 broken
+        of main. The static guards give the violations of main (main 3dcb5f516:
+        `GestureModule.jl:37` and 37 known).
       - [ ] T5. The walk of the examples of the views over a tree, compared with
         run 12.
     - The element type of the generic views (examples/json_sorted does not
