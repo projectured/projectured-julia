@@ -30,6 +30,26 @@ end
     @test get_chosen_path(chooser) == joinpath(directory, "a.jl")
 end
 
+@testset "a caret in the label of a row is the path of its file, then the step of the view" begin
+    chooser = make_filesystem_chooser(mktempdir())
+    projection = FileSystemChooserToWidget()
+    iomap = print_document(projection, nothing, chooser, PrinterContext())
+    caret = extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(0, 1),
+                             FieldReferenceStep("roots"), RangeReferenceStep(0, 1),
+                             FieldReferenceStep("label"), RangeReferenceStep(1, 1))
+    drawn = map_reference_backward(projection, iomap, caret)
+    steps = collect(get_reference_steps(strip_reference_types(drawn)))
+    @test steps[1] == FieldReferenceStep("directory") && length(steps) == 2
+    @test last(steps) isa ProjectionReferenceStep && last(steps).projection === projection
+    @test strip_reference_types(map_reference_forward(projection, iomap, drawn)) == caret
+    # The tree draws the caret: its selection is the caret in its label.
+    getfield(chooser, :selection)[] = drawn
+    tree = iomap.output.children[1]
+    @test strip_reference_types(tree.selection) ==
+          extend_reference(EmptyReference(), FieldReferenceStep("roots"), RangeReferenceStep(0, 1),
+                           FieldReferenceStep("label"), RangeReferenceStep(1, 1))
+end
+
 @testset "the dialog draws its folder and its name, opens a folder, and a file writes its name" begin
     directory = mktempdir()
     write(joinpath(directory, "a.jl"), "x = 1\n")

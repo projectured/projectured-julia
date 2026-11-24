@@ -39,7 +39,7 @@ function print_document(p::FileSystemChooserToWidget, recursion,
     write_name = path -> WriteChosenNameOperation(chooser, relpath(path, chooser.directory.pathname))
     roots = CellVector(@computation Any[_fs_node(chooser.directory, write_name)])
     expanded = Cell(@computation _compute_open_folder_paths(Any[chooser.directory], chooser.open))
-    tree_paths = make_output_path_cells(chooser, path -> _map_chooser_tree_path(path))
+    tree_paths = make_output_path_cells(chooser, path -> _map_chooser_tree_part(p, path))
     tree = WidgetTree(Cell(Point2D(0, 0)), roots, Cell(true),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       expanded,
@@ -79,33 +79,45 @@ _make_chooser_child_path(k, rest) =
     concat_references(extend_reference(EmptyReference(), FieldReferenceStep("children"), RangeReferenceStep(k - 1, k)),
                       rest)
 
+# The place in the tree that a path of the chooser names: the node of a file, and a
+# part that the view drew in the row of a file, which is the path of the file and
+# then the step of the view, that part in the node of the file.
+_map_chooser_tree_part(p::FileSystemChooserToWidget, reference) =
+    something(_map_row_part_forward(p, reference, _map_chooser_tree_path, 2), Some(_map_chooser_tree_path(reference)))
+
 function map_reference_forward(p::FileSystemChooserToWidget, iomap, reference)
     introduced = find_introduced_path(p, reference)
     introduced === nothing || return something(introduced)
-    tree_path = _map_chooser_tree_path(reference)
+    tree_path = _map_chooser_tree_part(p, reference)
     tree_path === nothing || return _make_chooser_child_path(1, tree_path)
     field_path = _map_chooser_field_path(reference)
     field_path === nothing ? nothing : _make_chooser_child_path(2, field_path)
 end
 
-# A node of the tree is the path of its entry in the directory, a place in the
+# A node of the tree is the path of its entry in the directory, a part in the row
+# of a node, as its label, that path and then the step of the view, a place in the
 # field the same place in the name, and any other part of the view, such as a
 # scroll bar of the tree, a part that the view drew.
 function map_reference_backward(p::FileSystemChooserToWidget, iomap::SimpleIoMap, reference)
     reference isa ConcreteReference || return nothing
-    steps = get_reference_steps(strip_reference_types(reference))
+    path = strip_reference_types(reference)
+    steps = collect(get_reference_steps(path))
     is_child(k) = length(steps) >= 2 && steps[1] == FieldReferenceStep("children") &&
                   steps[2] isa RangeReferenceStep && steps[2].start + 1 == k
     if is_child(2) && length(steps) >= 3 && steps[3] == FieldReferenceStep("content")
         return extend_reference(EmptyReference(), FieldReferenceStep("name"), steps[4:end]...)
     end
     if is_child(1)
-        indices = _tree_ref_path_indices(extend_reference(EmptyReference(), steps[3:end]...))
-        indices === nothing || indices[1] != 1 ||
-            return concat_references(extend_reference(EmptyReference(), FieldReferenceStep("directory")),
+        rest = steps[3:end]
+        count = _count_tree_node_steps(rest)
+        indices = _tree_ref_path_indices(extend_reference(EmptyReference(), rest[1:count]...))
+        if indices !== nothing && indices[1] == 1
+            file = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("directory")),
                                      _fs_ref_from_indices(indices[2:end]))
+            return count == length(rest) ? file : _make_row_part_reference(p, iomap, file, path)
+        end
     end
-    make_introduced_reference(p, iomap, strip_reference_types(reference))
+    make_introduced_reference(p, iomap, path)
 end
 
 # A chevron writes the open folders of the chooser and changes what it holds;

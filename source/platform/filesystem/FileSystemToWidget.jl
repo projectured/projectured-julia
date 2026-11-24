@@ -230,11 +230,54 @@ function map_operation_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, o
     _map_open_folder_answer(p, iomap, operation, read)
 end
 
+# ── A part that the view drew in the row of a node ───────────────────────────
+# The label of the node of a file, and a caret or a range in it, is a part that the
+# view drew for that file: the path of the file, then the step of the view, which
+# holds the path of the part in the output. So the step stands at the innermost
+# document that the part was printed for.
+
+# The count of the steps at the start of `steps`, the steps of a path of a tree, that
+# name a node: `roots[k].children[a]…`.
+function _count_tree_node_steps(steps)
+    at = 1
+    while at + 1 <= length(steps) && steps[at] == FieldReferenceStep(at == 1 ? "roots" : "children") &&
+          steps[at + 1] isa RangeReferenceStep && is_element_reference_step(steps[at + 1])
+        at += 2
+    end
+    at - 1
+end
+
+# The path of a part that `p` drew in the row of the file at `file`, a path in the
+# input of `iomap`: `file`, then the step of `p` that holds `output_path`.
+function _make_row_part_reference(p, iomap, file::Reference, output_path::Reference)
+    document = try_evaluate_reference(iomap.input, file)
+    concat_references(file, make_introduced_reference(p, something(document, iomap.input),
+                                                     annotate_reference_types(iomap.output, output_path)))
+end
+
+# The place of a part that `p` drew in the row of a file, the path of the file and
+# then the step of `p`: the part in the node that `map_file` gives for the path of
+# the file now, where the step holds the path of the part after `prefix` steps from
+# the output to the tree. So the part follows its file when the rows change, and a
+# file that has no node has no place. `nothing` for any other path.
+function _map_row_part_forward(p, reference, map_file, prefix::Int = 0)
+    drawn = find_last_introduced_path(p, reference)
+    drawn === nothing && return nothing
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    node = map_file(extend_reference(EmptyReference(), steps[1:(end - 1)]...))
+    drawn_steps = collect(get_reference_steps(strip_reference_types(drawn)))
+    count = prefix < length(drawn_steps) ? _count_tree_node_steps(drawn_steps[(prefix + 1):end]) : 0
+    (node isa ConcreteReference && count > 0) || return nothing
+    concat_references(node, extend_reference(EmptyReference(), drawn_steps[(prefix + count + 1):end]...))
+end
+
 # The path of the explorer `workspace.folders[k].directory.elements[a]…` is the
 # node `roots[k].children[a]…`; `workspace.folders[k]` is its root too.
 function _map_explorer_path_forward(p::FileSystemToWidgetTree, reference)
     introduced = find_introduced_path(p, reference)
     introduced === nothing || return something(introduced)
+    drawn = _map_row_part_forward(p, reference, file -> _map_explorer_path_forward(p, file))
+    drawn === nothing || return drawn
     reference isa ConcreteReference || return nothing
     steps = get_reference_steps(strip_reference_types(reference))
     (length(steps) >= 3 && steps[1] == FieldReferenceStep("workspace") && steps[2] == FieldReferenceStep("folders") &&
@@ -246,13 +289,18 @@ function _map_explorer_path_forward(p::FileSystemToWidgetTree, reference)
 end
 
 # A node `roots[k].children[a]…` of the widget is the path
-# `workspace.folders[k].directory.elements[a]…` of the explorer.
+# `workspace.folders[k].directory.elements[a]…` of the explorer, and a part in the
+# row of the node is that path and then the step of the view.
 function _map_explorer_path_backward(p::FileSystemToWidgetTree, iomap, reference)
-    indices = _tree_ref_path_indices(reference)
-    indices === nothing && return make_introduced_reference(p, iomap, strip_reference_types(reference))
-    concat_references(extend_reference(EmptyReference(), FieldReferenceStep("workspace"), FieldReferenceStep("folders"),
-                                       RangeReferenceStep(indices[1] - 1, indices[1]), FieldReferenceStep("directory")),
-                      _fs_ref_from_indices(indices[2:end]))
+    path = strip_reference_types(reference)
+    steps = collect(get_reference_steps(path))
+    count = _count_tree_node_steps(steps)
+    indices = _tree_ref_path_indices(extend_reference(EmptyReference(), steps[1:count]...))
+    indices === nothing && return make_introduced_reference(p, iomap, path)
+    file = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("workspace"), FieldReferenceStep("folders"),
+                                              RangeReferenceStep(indices[1] - 1, indices[1]), FieldReferenceStep("directory")),
+                             _fs_ref_from_indices(indices[2:end]))
+    count == length(steps) ? file : _make_row_part_reference(p, iomap, file, path)
 end
 
 # ── Reference mapping (file-system ⇄ WidgetTree node-path) ─────────────────────
@@ -260,23 +308,29 @@ end
 # Forward: a file-system selection (`elements[a].elements[b]…` or `∅`) → the tree
 # node `roots[1].children[a].children[b]…`. A part that the view drew, such as the
 # tree itself or its bar, is the path in the tree that its introduced reference
-# holds.
+# holds, and a part in the row of a node that part in the node of its file.
 map_reference_forward(p::FileSystemToWidgetTree, iomap, reference) =
     iomap isa SimpleIoMap && iomap.input isa WorkspaceExplorer ? _map_explorer_path_forward(p, reference) :
-    something(find_introduced_path(p, reference), Some(_map_tree_reference_forward(reference)))
+    something(find_introduced_path(p, reference), _map_row_part_forward(p, reference, _map_tree_reference_forward),
+              Some(_map_tree_reference_forward(reference)))
 
 # Backward: a node path of the tree (`roots[1].children[a].children[b]…`) → the
-# file-system reference `elements[a].elements[b]…` (or `∅` for the root node). Any
-# other part of the tree, the tree itself as well, is a part that the view drew:
-# an introduced reference names it. The empty path of the file system names the
-# folder, whose row is the root row, so the tree itself needs the reference of a
-# part of the view.
+# file-system reference `elements[a].elements[b]…` (or `∅` for the root node), and
+# a part in the row of a node, as its label, that path and then the step of the
+# view. Any other part of the tree, the tree itself as well, is a part that the view
+# drew: an introduced reference names it. The empty path of the file system names
+# the folder, whose row is the root row, so the tree itself needs the reference of
+# a part of the view.
 function map_reference_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
     reference isa Reference || return nothing
     iomap.input isa WorkspaceExplorer && return _map_explorer_path_backward(p, iomap, reference)
-    idxs = _tree_ref_indices(reference)
-    idxs === nothing && return make_introduced_reference(p, iomap, strip_reference_types(reference))
-    _fs_ref_from_indices(idxs)
+    path = strip_reference_types(reference)
+    steps = collect(get_reference_steps(path))
+    count = _count_tree_node_steps(steps)
+    idxs = _tree_ref_indices(extend_reference(EmptyReference(), steps[1:count]...))
+    idxs === nothing && return make_introduced_reference(p, iomap, path)
+    file = _fs_ref_from_indices(idxs)
+    count == length(steps) ? file : _make_row_part_reference(p, iomap, file, path)
 end
 
 # The tree node `roots[1].children[a]…` of a file-system reference, or nothing on

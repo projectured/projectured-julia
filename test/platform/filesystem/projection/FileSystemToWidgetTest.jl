@@ -138,6 +138,15 @@ end
             path = map_reference_backward(projection, iomap, row)
             @test evaluate_reference(explorer, path) === full
             @test repr(strip_reference_types(map_reference_forward(projection, iomap, path))) == ".roots[1].children[2]"
+            # A caret in the label of the row is the path of the folder, then the step
+            # of the view, and maps back to the caret in that label.
+            caret = concat_references(row, extend_reference(EmptyReference(), FieldReferenceStep("label"),
+                                                            RangeReferenceStep(2, 2)))
+            drawn = map_reference_backward(projection, iomap, caret)
+            steps = collect(get_reference_steps(strip_reference_types(drawn)))
+            @test last(steps) isa ProjectionReferenceStep && last(steps).projection === projection
+            @test evaluate_reference(explorer, extend_reference(EmptyReference(), steps[1:(end - 1)]...)) === full
+            @test strip_reference_types(map_reference_forward(projection, iomap, drawn)) == strip_reference_types(caret)
             evaluate_operation(editor, ReleaseDocumentOperation(explorer))
             store = find_file_change_store(editor)
             @test !is_folder_watched(dir; store) && !is_folder_watched(full.pathname; store)
