@@ -66,7 +66,7 @@ A page can keep state that its document must not keep, such as the place of a lo
 `NavigatorToWidget` draws a navigator as a `GridLayout` of one column:
 
 ```
-children[1]                       the bar: Back, Forward, Parent and the items of the address
+children[1]                       the bar: Back, Forward, Parent, Previous, Next, Open in a tab, the view switch and the address
 children[2].children[1].<rest>    the page; <rest> is a path in the page
 ```
 
@@ -76,7 +76,9 @@ The printer prints no child but the address copy in the path view. The page docu
 
 The maps put `content` and the address before a path in the page, and take them off: `content.<address>.<rest>` and `children[2].children[1].<rest>`. A layout passes a key to the child that its own selection names, so the printer wires the bar and the holder of the page to carry the part of the selection of the grid below them; the page is a document of the content and holds its own. A path in the content that is not on the page has no image, and a path into the bar maps back to nothing, as does a path to a field that only the view keeps; a part that the view introduced keeps its path after the page. The forward map keeps the types of the path inside the page and gives the steps of the grid and of the layout their types, because a tab splices the image into its own path and needs a type on every node.
 
-**The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. Then a control shows the address in one of three views, and the address follows it. The bar ends with Open in a tab, a `WidgetToolbarItem` with the icon `:external_link`, after the address, so the path view keeps its place in the bar. A press answers an open of the page in a new tab, rooted at the content, which goes up to the editor; so every navigator, also one inside a page or beside a tree, opens its page in a tab of its own. The new tab starts at the page with no visits, and the navigator keeps its page.
+**The bar.** Back, Forward and Parent are `WidgetToolbarItem`s with the icons `:arrow_left`, `:arrow_right` and `:arrow_up`. A button is off when its list is empty, or when the page has no parent. Previous and Next, with the icons `:chevron_up` and `:chevron_down`, open the item before and after the page in the list that holds it (`make_navigator_sibling_operation`): the last element step of the address, `[j]`, becomes `[j - 1]` or `[j + 1]`, the rest of the address stays where it still reaches, as a choice of the address does, and Back returns. The order is the order of the list in the content, such as the order of the log for the commits of a range, and not the order of a sorted table. A button is off at the end of its list, and its tooltip names the item that it opens. Then comes Open in a tab, a `WidgetToolbarItem` with the icon `:external_link`. A press answers an open of the page in a new tab, rooted at the content, which goes up to the editor; so every navigator, also one inside a page or beside a tree, opens its page in a tab of its own. The new tab starts at the page with no visits, and the navigator keeps its page. Then a control shows the address in one of three views, and the address follows it. The buttons stand first, so a narrow bar keeps each of them in view.
+
+**The bar fits the width of the navigator.** The items of the names view stand in a row of their own with no gap, with half the side padding of a toolbar item. When the bar is wider than the navigator, the first items of the address fold into one item `…`, as few as make the rest fit, and at most all but the page; a press on `…` lists them, and a choice opens its page. The name of the page is a `WidgetLabel` of one line, which cuts it with `…` where the bar still has no room. The printer gets the width of each part of the bar from a print of its own through the recursion, with no range offered, so the fold uses the widths that the parts draw at. A bar with no width given does not fold, and only the names view folds.
 
 **The address.** `NavigatorAddress(steps, view, edited)` holds the address as the bar shows it: an editable copy beside the committed `address`. Its steps are `FieldReferenceStep`s and element `RangeReferenceStep`s, and `ReferenceInsertion`s while a person types a step. While `edited` is `false`, the copy is the address, and the views show the steps of the page address (`get_navigator_address_steps`). Each visit makes `edited` `false` again. The control is a `WidgetToggleGroup` of the step look, "Names", "Path" and "Types", which writes `view`; a press shows the next view, and Shift+press the one before. The reader marks a write of the copy as view state.
 
@@ -88,7 +90,7 @@ The maps put `content` and the address before a path in the page, and take them 
 
 The path view is edited in place, as the address bar of a browser is. Ctrl+L (`make_navigator_address_edit_operation`) writes the steps of the page into the address copy, with an empty `ReferenceInsertion` after them that holds the caret, shows the path view, and keeps the view before in `view_before`.
 
-While an edit is on, the bar holds the syntax of the address copy: the navigator view prints the copy with a projection of its own, `make_navigator_address_projection(navigator)`, and keeps its IO map. That projection holds the navigator, because a hint needs the content, which the copy does not hold. The view maps a path in the copy, `address_draft.<rest>`, to `children[1].children[5].<rest>` in the bar and back, and its reader passes an answer of the path view, and a key that no part of it answered, such as Tab, through that projection. A committed step, `.name` or `[i]`, is a value and holds no caret: a press in it selects the step, and a key on it turns it into an insertion with its text and the key, Backspace with its text less the last character. An insertion holds the text of any number of steps; its hint completes the name of a field of the node before it, and Tab takes the hint.
+While an edit is on, the bar holds the syntax of the address copy: the navigator view prints the copy with a projection of its own, `make_navigator_address_projection(navigator)`, and keeps its IO map. That projection holds the navigator, because a hint needs the content, which the copy does not hold. The view maps a path in the copy, `address_draft.<rest>`, to `children[1].children[8].<rest>` in the bar and back, and its reader passes an answer of the path view, and a key that no part of it answered, such as Tab, through that projection. A committed step, `.name` or `[i]`, is a value and holds no caret: a press in it selects the step, and a key on it turns it into an insertion with its text and the key, Backspace with its text less the last character. An insertion holds the text of any number of steps; its hint completes the name of a field of the node before it, and Tab takes the hint.
 
 - **Enter** (`make_navigator_address_commit_operation`) reads the text of each insertion as steps. A path that reaches opens as a visit, and the view before the edit shows again. A path that does not reach to its end stays in the copy, with its insertions as steps, the selection on the first step that reaches no node, and a mark in the bar that names it (`unreached_step`). A text that is no path stays, and Enter does nothing.
 - **Escape** (`make_navigator_address_reset_operation`) makes the copy the address again, shows the view before, and selects the page.
@@ -118,13 +120,15 @@ The actions of the buttons have no callback: the press always comes back through
 
 ### Keys and the menu of a part
 
-Alt and an arrow walk the structure of a document, so the navigator takes Ctrl.
+Alt and an arrow walk the structure of a document, so the navigator takes Ctrl. Ctrl+PageDown goes to the next tab, so Ctrl+Shift+PageDown goes to the next item of the list that holds the page.
 
 | Gesture | Effect |
 | --- | --- |
 | `Ctrl+[` | go back |
 | `Ctrl+]` | go forward |
 | `Ctrl+Up` | go to the parent page |
+| `Ctrl+Shift+PageDown` | go to the next item of the list that holds the page |
+| `Ctrl+Shift+PageUp` | go to the previous item of the list that holds the page |
 | `Ctrl+Return` | open the selected part as a page |
 | `Ctrl+L` | edit the path of the address |
 | right click on a part of the page | the menu of the part: "Open as a page", "Open in a new tab", and "Add to explorer" |

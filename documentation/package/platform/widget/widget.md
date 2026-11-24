@@ -274,7 +274,7 @@ Each move adds a delta to slot `k` and takes it from slot `k+1`, clamped to the 
 
 ### Text that fits, marks and rows
 
-A `WidgetLabel` breaks a long text at the width that its parent gives. `max_lines` keeps it to that many lines, and the last one ends with "…" where the text goes on. `line_spacing`, a `LineSpacing` of the style slice, sets the height of each line, so labels and fields of several sizes keep one rhythm; an outline gives every part of a row the line of its text. `corner_radius` rounds its box, and `gestures` are its own bindings, so a label with a ground and a radius is a chip that a press answers.
+A `WidgetLabel` breaks a long text at the width that its parent gives. `max_lines` keeps it to that many lines, and the last one ends with "…" where the text goes on; a kept line that is wider than the bound by itself, such as one long word, is cut with "…" too. `line_spacing`, a `LineSpacing` of the style slice, sets the height of each line, so labels and fields of several sizes keep one rhythm; an outline gives every part of a row the line of its text. `corner_radius` rounds its box, and `gestures` are its own bindings, so a label with a ground and a radius is a chip that a press answers.
 
 A `WidgetText` takes `text_style`, its own font and colour, and `line_spacing`. `wrap = true` breaks a plain value at the width of its parent through `WordWrapping`; a soft break is no character, so the caret and an edit see the same text. A `quiet` field draws its box only while it holds the caret: the colours of its box are cells that read its selection, so a caret that comes or goes draws the box again and prints nothing.
 

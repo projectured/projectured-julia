@@ -1,8 +1,10 @@
 # Fragment of `NavigatorModule` — the keys of a navigator. Each key of the table is
 # an `override`: it claims its chord also after the page answered it, as Back in a
 # browser works on every page. A table of rows answers Return with any modifier,
-# for one. No other table of the repository binds these five chords. Alt and an
-# arrow walk the structure of a document, so the navigator takes Ctrl.
+# for one. No other table of the repository binds these seven chords. Alt and an
+# arrow walk the structure of a document, so the navigator takes Ctrl. Ctrl+Page
+# Down goes to the next tab, so Ctrl+Shift+Page Down goes to the next item of the
+# list that holds the page.
 
 # The menu of a part on a page, on a right click: open the part as a page, or in
 # a new tab, and add a document to the explorer of the editor. The part is the one
@@ -27,6 +29,8 @@ const _NAVIGATOR_POINTER_BINDINGS = GestureBinding[
     override(KeyDown(:left_bracket; ctrl)) => "Go back" => make_navigator_back_operation(doc)
     override(KeyDown(:right_bracket; ctrl)) => "Go forward" => make_navigator_forward_operation(doc)
     override(KeyDown(:up; ctrl)) => "Go to the parent page" => make_navigator_parent_operation(doc)
+    override(KeyDown(:page_down; ctrl, shift)) => "Go to the next item" => make_navigator_sibling_operation(doc, 1)
+    override(KeyDown(:page_up; ctrl, shift)) => "Go to the previous item" => make_navigator_sibling_operation(doc, -1)
     override(KeyPress('\n'; ctrl)) => "Open as a page" => _open_selected_page(doc)
     override(KeyDown(:l; ctrl)) => "Edit the address" => make_navigator_address_edit_operation(doc)
     splice(_NAVIGATOR_POINTER_BINDINGS)

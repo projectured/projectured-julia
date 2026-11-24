@@ -1354,8 +1354,10 @@ end
 # The lines of a text of at most `max_lines`, when it is above 0: the last line
 # that is drawn ends with "…", and it is cut to fit `bound` with the ellipsis.
 function _limit_text_lines(measure, font::StyleFont, lines::Vector{String}, bound::Int, max_lines::Int)
-    (max_lines <= 0 || length(lines) <= max_lines) && return lines
-    kept = lines[1:max_lines]
+    max_lines <= 0 && return lines
+    # A kept line that is wider than the bound, such as one long word, is cut too.
+    kept = String[_make_ellipsis_line(measure, font, line, bound) for line in lines[1:min(max_lines, length(lines))]]
+    length(lines) <= max_lines && return kept
     kept[end] = _make_ellipsis_line(measure, font, kept[end] * " " * lines[max_lines + 1], bound)
     kept
 end
@@ -11053,6 +11055,7 @@ const LUCIDE_ICON_GLYPHS = (
     :arrow_up_down  => 0xe37d,  # arrow-up-down
     :refresh        => 0xe145,  # refresh-cw
     :chevron_right  => 0xe06f,  # chevron-right
+    :chevron_up     => 0xe070,  # chevron-up
     :check          => 0xe06c,  # check
     :x              => 0xe1b2,  # x
     :close          => 0xe1b2,  # x

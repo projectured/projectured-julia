@@ -66,6 +66,7 @@ _nav_count(backend, text) = count(entry -> entry[1] == text, _nav_texts(backend)
 # The glyphs of the icons of the buttons of the bar.
 const _NAV_BACK = string(Char(0xe048))
 const _NAV_PARENT = string(Char(0xe04a))
+const _NAV_NEXT = string(Char(0xe06d))
 
 _nav_press!(editor, backend, events...) =
     (foreach(event -> push_event!(backend, event), events); run_frame!(editor))
@@ -225,6 +226,22 @@ function test_navigator_to_widget()
         @test editor.iomap === root_iomap
     end
 
+    @testset "Ctrl+Shift+Page Down and Up, and the Next button, open the next and the previous item" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf, @reference(shelf, books[1]))
+        editor, backend = _nav_editor(navigator)
+        evaluate_operation(editor, ReplaceSelectionOperation(@reference(navigator, content.books[1].title)))
+        page(key) = KeyDown(key, ModifierKeys(ctrl = true, shift = true); time = 0.0)
+        _nav_press!(editor, backend, page(:page_down))
+        @test _nav_is(navigator.address, @reference(shelf, books[2]))
+        _nav_press!(editor, backend, page(:page_up))
+        @test _nav_is(navigator.address, @reference(shelf, books[1]))
+        click = _nav_click(backend, _NAV_NEXT)
+        @test click !== nothing
+        _nav_press!(editor, backend, click)
+        @test _nav_is(navigator.address, @reference(shelf, books[2]))
+    end
+
     @testset "the address shows names, a path, or a path with types" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf, @reference(shelf, books[2]))
@@ -263,7 +280,7 @@ function test_navigator_to_widget()
         navigator.address_draft.view = :types
         shelf.books[2].chapters = _nav_vector(NavigatorTestChapter[])
         iomap = print_document(make_navigator_projection(), nothing, navigator, nothing)
-        (address, mark, cut) = iomap.output.children[1].children[5:7]
+        (address, mark, cut) = iomap.output.children[1].children[8:10]
         @test address isa WidgetLabel
         @test occursin("::NavigatorTestBook.chapters", address.content)
         @test mark isa WidgetIcon && mark.name === :x && mark.role === :error

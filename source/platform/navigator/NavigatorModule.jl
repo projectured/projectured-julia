@@ -20,6 +20,7 @@ using ..DomainModule
 using ..EventModule
 using ..FileSystemModule
 using ..GestureBindingModule
+using ..GraphicsModule: GraphicsCanvas, GraphicsDocument, get_graphics_size
 using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
@@ -58,7 +59,7 @@ export get_navigator_page_address, get_navigator_address_steps, get_navigator_pa
        find_navigator_parent_address, is_navigator_stop, find_navigator_selected_address,
        make_navigator_open_operation, make_navigator_back_operation,
        make_navigator_forward_operation, make_navigator_parent_operation
-export find_navigator_choices, make_navigator_choice_operation
+export find_navigator_choices, make_navigator_choice_operation, find_navigator_sibling, make_navigator_sibling_operation
 export make_navigator_address_edit_operation, make_navigator_address_commit_operation,
        make_navigator_address_reset_operation, is_navigator_address_selected
 export find_navigator_target, find_edited_document_target, find_navigator_address, open_page!

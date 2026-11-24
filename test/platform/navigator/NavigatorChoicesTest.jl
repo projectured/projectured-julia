@@ -35,11 +35,11 @@ import ProjecturedKernel.DeviceModule: Device, Keyboard, Mouse, Display
 # An editor with a window of a fixed size, where the context menu window opens
 # the list of choices in a window of its own, with the rows of an opened window
 # that a host gives.
-function _nav_window_editor(document)
+function _nav_window_editor(document; width::Int = 700)
     backend = HeadlessBackend()
     editor = build_editor(document, _nav_natural(); backend, devices = Device[Keyboard(), Mouse(), Display()],
                           appearance = false, settings = false,
-                          window = (; title = "W", width = 700, height = 400,
+                          window = (; title = "W", width, height = 400,
                                     opened_window_projections = make_opened_window_projections(;
                                         measure = FixedMeasure(8, 12, 4, 0))))
     run_frame!(editor)
@@ -65,6 +65,14 @@ function _nav_press_text!(editor, backend, window, text, time; pick = first)
     (_, x, y) = pick([entry for entry in _nav_drawn(_nav_force(window.content)) if entry[1] == text])
     _nav_send!(editor, backend, window.id, MouseDown(:left, x + 2, y + 2, ModifierKeys(); time),
                MouseUp(:left, x + 2, y + 2, ModifierKeys(); time = time + 0.05))
+end
+
+# Each text of the bar of the navigator in `window`: the texts on the row of the
+# switch of the views, below the strip of the tabs.
+function _nav_bar_texts(window)
+    drawn = _nav_drawn(_nav_force(window.content))
+    row = only(entry[3] for entry in drawn if entry[1] == "Names")
+    [entry for entry in drawn if abs(entry[3] - row) <= 4]
 end
 
 # The glyph of the arrow before a name of the address.
@@ -195,6 +203,35 @@ function test_navigator_choices()
         _nav_press_text!(editor, backend, only(_nav_others(editor, main)), "B", 1.5)
         @test get_navigator_page(navigator) === shelf.books[2].chapters[1]
         @test isempty(_nav_others(editor, main))
+    end
+
+    @testset "a narrow bar keeps its buttons, folds the first items of the address and cuts the page" begin
+        shelf = NavigatorTestShelf("A shelf with a long name", _nav_vector([
+            NavigatorTestBook("A book with a long name", _nav_vector([
+                NavigatorTestChapter("A chapter with a very long name", nothing)]), nothing)]), nothing)
+        navigator = Navigator(shelf, @reference(shelf, books[1].chapters[1]))
+        editor, backend = _nav_window_editor(navigator; width = 420)
+        main = only(_nav_windows(editor))
+        bar = _nav_bar_texts(main)
+        texts = first.(bar)
+        # Each part of the bar stands inside the window, at 8 pixels for a character:
+        # the buttons first, then the switch of the views.
+        @test "Names" in texts
+        @test all(entry -> entry[2] + 8 * length(entry[1]) <= 420, bar)
+        # The shelf and the book fold into "…", and the name of the page is cut.
+        @test "…" in texts
+        @test !any(text -> startswith(text, "A shelf") || startswith(text, "A book"), texts)
+        page = only(text for text in texts if startswith(text, "A chapter"))
+        @test endswith(page, "…") && length(page) < length("A chapter with a very long name")
+        # A press on "…" lists the folded items from the last, and Return opens it.
+        _nav_press_text!(editor, backend, main, "…", 1.0)
+        @test length(_nav_others(editor, main.id)) == 1
+        _nav_send!(editor, backend, main.id, _nav_key_down(:return; time = 1.2))
+        @test get_navigator_page(navigator) === shelf.books[1]
+        # The book is the page now, and the shelf stays folded.
+        texts = first.(_nav_bar_texts(only(_nav_windows(editor))))
+        @test "…" in texts
+        @test any(text -> startswith(text, "A book"), texts)
     end
 
     @testset "Escape closes the list, and a key with Ctrl goes on to the navigator" begin

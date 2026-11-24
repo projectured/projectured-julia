@@ -221,6 +221,30 @@ function test_navigator_visits()
         @test _nav_is(find_navigator_selected_address(navigator), @reference(shelf, books[1].chapters[2]))
     end
 
+    @testset "Next and Previous open the item after and before the page in its list" begin
+        shelf = _nav_make_shelf()
+        navigator = Navigator(shelf, @reference(shelf, books[1].chapters[1]))
+        holder = _NavHolder(navigator)
+        # The last element step of the address names the list: the chapters of book A.
+        @test make_navigator_sibling_operation(navigator, -1) === nothing
+        _nav_apply!(holder, make_navigator_sibling_operation(navigator, 1))
+        @test _nav_is(navigator.address, @reference(shelf, books[1].chapters[2]))
+        @test length(navigator.back) == 1
+        # The last chapter of A has no Next: the chapters of B are another list.
+        @test find_navigator_sibling(navigator, 1) === nothing
+        _nav_apply!(holder, make_navigator_sibling_operation(navigator, -1))
+        @test _nav_is(navigator.address, @reference(shelf, books[1].chapters[1]))
+        # Back returns to the page before.
+        _nav_apply!(holder, make_navigator_back_operation(navigator))
+        @test _nav_is(navigator.address, @reference(shelf, books[1].chapters[2]))
+        # On a book, Next opens the next book; the whole content is in no list.
+        _nav_apply!(holder, make_navigator_parent_operation(navigator))
+        _nav_apply!(holder, make_navigator_sibling_operation(navigator, 1))
+        @test _nav_is(navigator.address, @reference(shelf, books[2]))
+        _nav_apply!(holder, make_navigator_parent_operation(navigator))
+        @test find_navigator_sibling(navigator, 1) === nothing && find_navigator_sibling(navigator, -1) === nothing
+    end
+
     @testset "Parent skips a collection and selects the page that it leaves" begin
         shelf = _nav_make_shelf()
         navigator = Navigator(shelf, @reference(shelf, books[1].chapters[2]))

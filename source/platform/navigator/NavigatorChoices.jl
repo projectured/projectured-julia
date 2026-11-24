@@ -109,3 +109,53 @@ function make_navigator_choice_operation(navigator::Navigator, index::Integer, s
     _make_visit_operation(navigator, NavigatorVisit(content, address, page),
                           vcat(navigator.back, _make_current_visit(navigator)), NavigatorVisit[])
 end
+
+"""
+    find_navigator_sibling(navigator, step) -> Tuple{Int, ReferenceStep} or nothing
+
+The item `step` places after the page (`1`) or before it (`-1`) in the list that
+holds the page: the last element step of the address of the page, `[j]`, becomes
+`[j + step]`. The answer is the place of that step on the address and the new
+step, as [`make_navigator_choice_operation`](@ref) takes them; `nothing` when the
+address has no element step, or when the list has no item there.
+
+# Example
+
+    find_navigator_sibling(navigator, 1)   # (2, [4]) for the address .commits[3]
+"""
+function find_navigator_sibling(navigator::Navigator, step::Integer)
+    steps = get_reference_steps(get_navigator_page_address(navigator))
+    index = findlast(s -> s isa RangeReferenceStep && s.stop == s.start + 1, steps)
+    index === nothing && return nothing
+    number = steps[index].stop + step
+    number >= 1 || return nothing
+    choice = RangeReferenceStep(number - 1, number)
+    node = try_evaluate_reference(navigator.content, extend_reference(EmptyReference(), steps[1:(index - 1)]..., choice),
+                                  _NOT_REACHED)
+    node === _NOT_REACHED ? nothing : (index, choice)
+end
+
+"""
+    make_navigator_sibling_operation(navigator, step) -> Operation or nothing
+
+Next (`step = 1`) and Previous (`step = -1`): the visit of the item after or
+before the page in the list that holds it ([`find_navigator_sibling`](@ref)), as a
+choice at that step of the address: the rest of the address stays where it still
+reaches, the page that the person leaves goes on the back list, and the new page is
+selected. `nothing` at the end of the list. The order is the order of the list in
+the content, such as the order of the log for the commits of a range.
+"""
+function make_navigator_sibling_operation(navigator::Navigator, step::Integer)
+    found = find_navigator_sibling(navigator, step)
+    found === nothing ? nothing : make_navigator_choice_operation(navigator, found...)
+end
+
+# The name of the item that Next (`step = 1`) or Previous (`-1`) opens, or `nothing`.
+function _find_sibling_label(navigator::Navigator, step::Integer)
+    found = find_navigator_sibling(navigator, step)
+    found === nothing && return nothing
+    index, choice = found
+    steps = get_reference_steps(get_navigator_page_address(navigator))
+    node = evaluate_reference(navigator.content, extend_reference(EmptyReference(), steps[1:(index - 1)]..., choice))
+    _get_address_label(node, (choice,))
+end

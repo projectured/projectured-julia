@@ -16,10 +16,18 @@
     NavigatorToWidget(; gap, section_gap)
 
 The projection of a [`Navigator`](@ref): a bar above the page. The bar holds the
-Back, Forward and Parent buttons, which show an arrow, and the address as a
-breadcrumb: the name of each document from the content to the page. A press on a
-name opens that page. `gap` is the space between the parts of the bar, and
-`section_gap` the space between the bar and the page.
+Back, Forward and Parent buttons, which show an arrow, the Previous and Next
+buttons, which open the item before and after the page in the list that holds it,
+the Open in a tab button,
+and the address as a breadcrumb: the name of each document from the content to the
+page. A press on a name opens that page. `gap` is the space between the parts of
+the bar, `section_gap` the space between the bar and the page, and `crumb_padding`
+the padding of an item of the address.
+
+The buttons stand first, so a narrow bar keeps each of them in view. The bar never
+grows past the width of the navigator: when the address does not fit, its first
+items fold into one item `…`, whose press lists them, and the name of the page is
+cut with `…` where it is still too wide.
 
 A press on a button answers the operation of the button, a key that the page
 does not answer reaches the `@gestures` table of the navigator, and a path in the
@@ -29,6 +37,7 @@ page goes back with the field `content` and the address before it.
     gap::Int = get_widget_style(nothing, :label_gap)
     section_gap::Int = get_widget_style(nothing, :section_gap)
     syntax_theme::Any = nothing
+    crumb_padding::Any = _make_crumb_padding(nothing)
 end
 
 """
@@ -40,7 +49,16 @@ scaled or not, or the default values for `nothing`. `syntax_theme`, a
 """
 make_navigator_projection(; widget_theme = nothing, syntax_theme = nothing) =
     NavigatorToWidget(; gap = get_widget_style(widget_theme, :label_gap),
-                      section_gap = get_widget_style(widget_theme, :section_gap), syntax_theme)
+                      section_gap = get_widget_style(widget_theme, :section_gap), syntax_theme,
+                      crumb_padding = _make_crumb_padding(widget_theme))
+
+# The padding of an item of the address: the padding of a toolbar item above and
+# below, so an item is as high as a button, and half of it at the sides, so the
+# names of the address stand close together.
+function _make_crumb_padding(widget_theme)
+    padding = unwrap_cell(get_widget_style(widget_theme, :toolbar_item_padding))
+    Inset(padding.top[], padding.bottom[], div(padding.left[], 2), div(padding.right[], 2))
+end
 
 # `actions` holds the action of each button of the bar, and `crumbs` each item of
 # the address, so the reader knows the press of which part an
@@ -55,6 +73,7 @@ make_navigator_projection(; widget_theme = nothing, syntax_theme = nothing) =
     output::Any
     actions::Any
     crumbs::Any
+    folded::Any
     address_projection::Any
     address_iomap::Any
 end
@@ -62,43 +81,57 @@ end
 const _BAR_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(0, 1))
 const _PAGE_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
                      FieldReferenceStep("children"), RangeReferenceStep(0, 1))
-# The path view while a person edits the address: after the three buttons and the
+# The path view while a person edits the address: after the six buttons and the
 # control of the views.
-const _ADDRESS_PART_STEPS = (_BAR_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(4, 5))
+const _ADDRESS_PART_STEPS = (_BAR_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(7, 8))
 
 function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, ctx)
     actions = (back = _make_action("Back", :arrow_left, () -> !isempty(navigator.back)),
                forward = _make_action("Forward", :arrow_right, () -> !isempty(navigator.forward)),
                parent = _make_action("Parent", :arrow_up,
                                      () -> find_navigator_parent_address(navigator) !== nothing),
-               open_tab = _make_action("Open in a tab", :external_link, () -> true))
+               previous = _make_action("Previous", :chevron_up, () -> find_navigator_sibling(navigator, -1) !== nothing),
+               next = _make_action("Next", :chevron_down, () -> find_navigator_sibling(navigator, 1) !== nothing),
+               open_tab = _make_action("Open in a tab", :external_link, () -> true),
+               fold = Action("…"))
     # Each button names the key of the navigator that does what it does.
     note(title, binding, text) = TooltipNote(; title, keys = find_bound_keys(Navigator, binding), text)
+    # The buttons stand first, so a narrow bar keeps each of them in view. The label
+    # of Open in a tab says what it does.
     buttons = Any[WidgetToolbarItem(actions.back; tooltip = note("Back", "Go back", "Go to the page before.")),
                   WidgetToolbarItem(actions.forward; tooltip = note("Forward", "Go forward", "Go to the next page.")),
                   WidgetToolbarItem(actions.parent;
-                                    tooltip = note("Parent", "Go to the parent page", "Go to the page that holds this page."))]
-    # The bar ends with Open in a tab, after the address, so the path view keeps its
-    # place in the bar. Its label says what it does.
-    open_tab = WidgetToolbarItem(actions.open_tab)
-    crumbs = Cell(@computation _make_address_crumbs(navigator))
+                                    tooltip = note("Parent", "Go to the parent page", "Go to the page that holds this page.")),
+                  _make_sibling_button(navigator, actions.previous, -1, note),
+                  _make_sibling_button(navigator, actions.next, 1, note),
+                  WidgetToolbarItem(actions.open_tab)]
+    crumbs = Cell(@computation _make_address_crumbs(navigator, p.crumb_padding))
     switch = _make_view_switch(navigator.address_draft)
+    fold = WidgetToolbarItem(actions.fold; padding = p.crumb_padding,
+                             tooltip = TooltipNote(; title = "The parts before",
+                                                   text = "The parts of the address that the bar has no room for.",
+                                                   hint = "A press lists them."))
     address_projection = make_navigator_address_projection(navigator; p.syntax_theme)
     # The address is a part of the bar, which the view draws, so its offer gives no
     # space: the space of the slot goes to the grid of the view.
     address_ctx = ctx === nothing ? nothing : with_size_range(ctx)
     address_iomap = print_document(address_projection, recursion, navigator.address_draft, address_ctx)
     path = _make_path_action(navigator)
+    # A part prints for its width with no range offered, so it is as wide as it draws.
+    widths = _make_bar_widths(recursion, ctx === nothing ? nothing :
+                                         with_size_range(ctx; width = (nothing, nothing), height = (nothing, nothing)))
+    edge = ctx === nothing ? nothing : ctx.maximum_width
+    folded = Cell(@computation _count_folded_crumbs(navigator, crumbs[], Any[buttons..., switch], fold, widths, edge,
+                                                    p.gap))
     bar = HorizontalLayout(CellVector(Computation(() -> Any[buttons..., switch,
-                                                            _make_address_part(navigator, crumbs[], address_iomap.output,
-                                                                               path)...,
-                                                            open_tab])),
+                                                            _make_address_part(navigator, crumbs[], folded[], fold,
+                                                                               address_iomap.output, path)...])),
                            Cell(:center), Cell(p.gap), Cell(Content), Cell(nothing), Cell(nothing))
     page = VerticalLayout(CellVector(@computation Any[get_navigator_page_view(navigator)]),
                           Cell(:left), Cell(0), Cell(Fill), Cell(Fill), Cell(nothing))
     output = GridLayout(Any[bar, page], 1; vertical_gap = p.section_gap,
                         column_policy = Fill, row_policies = Any[Content, Fill])
-    iomap = NavigatorToWidgetIoMap(p, navigator, output, (; actions..., path), crumbs, address_projection,
+    iomap = NavigatorToWidgetIoMap(p, navigator, output, (; actions..., path), crumbs, folded, address_projection,
                                    address_iomap)
     # The grid passes a key to the part that its selection names, so it maps only a
     # live selection. A layout passes a key by its own selection too, so the bar and
@@ -109,6 +142,20 @@ function print_document(p::NavigatorToWidget, recursion, navigator::Navigator, c
     set_output_path_computations!(bar, output, path -> _get_path_below(path, _BAR_STEPS))
     set_output_path_computations!(page, output, path -> _get_path_below(path, _PAGE_STEPS[1:2]))
     iomap
+end
+
+# The button of Previous (`step = -1`) or Next (`1`), whose tooltip names the item
+# that it opens.
+function _make_sibling_button(navigator::Navigator, action::Action, step::Int, note::Function)
+    binding, title = step > 0 ? ("Go to the next item", "Next") : ("Go to the previous item", "Previous")
+    where = step > 0 ? "after" : "before"
+    button = WidgetToolbarItem(action)
+    set_cell_computation!(getfield(button, :tooltip), function ()
+        label = _find_sibling_label(navigator, step)
+        note(title, binding, label === nothing ? "No item stands $(where) this page in its list." :
+                                                 "Go to $(label), the item $(where) this page in its list.")
+    end)
+    button
 end
 
 # A button of the bar, which shows `icon` and says `label`. Its press is the
@@ -146,8 +193,10 @@ end
 # The widgets of the address in the view that the address copy names. The path
 # view is a press that starts an edit, and while an edit is on, the syntax of the
 # address copy, with a mark when Enter read a path that reaches no node. The types
-# view puts the same mark before the steps that an edit cut.
-function _make_address_part(navigator::Navigator, crumbs, address_output, path)
+# view puts the same mark before the steps that an edit cut. The names view is a row
+# of its items with no gap between them, where `fold` stands for the first `folded`
+# items.
+function _make_address_part(navigator::Navigator, crumbs, folded::Int, fold, address_output, path)
     draft = navigator.address_draft
     view = draft.view
     if view === :path
@@ -161,7 +210,57 @@ function _make_address_part(navigator::Navigator, crumbs, address_output, path)
         cut = _find_cut_steps_text(navigator)
         return cut === nothing ? Any[types] : Any[types, _make_unreached_icon(), WidgetLabel(cut)]
     end
-    _get_crumb_widgets(crumbs)
+    shown = _get_crumb_widgets(crumbs[(folded + 1):end])
+    Any[HorizontalLayout(folded == 0 ? shown : Any[fold, shown...]; vertical_align = :center)]
+end
+
+# ── The width of the bar ──────────────────────────────────────────────────────
+#
+# The bar folds the first items of the address when the bar is wider than the
+# navigator. Each part of the bar is printed once more for its width, with no
+# space offered, as the layout prints it where it stands, so the fold uses the
+# widths that the parts draw at. A print stays while its part is in the bar.
+
+struct _BarWidths
+    recursion::Any
+    ctx::Any
+    printed::IdDict{Any,Any}
+end
+
+_make_bar_widths(recursion, ctx) =
+    recursion === nothing || ctx === nothing ? nothing : _BarWidths(recursion, ctx, IdDict{Any,Any}())
+
+function _get_part_width(widths::_BarWidths, part)
+    output = get!(() -> print_child(widths.recursion, part, widths.ctx), widths.printed, part).output
+    output isa GraphicsCanvas ? Int(output.w[]) : output isa GraphicsDocument ? Int(get_graphics_size(output)[1]) : 0
+end
+
+# Keep the prints of `parts` only.
+function _keep_printed_parts!(widths::_BarWidths, parts)
+    live = IdDict{Any,Bool}(part => true for part in parts)
+    foreach(part -> haskey(live, part) || delete!(widths.printed, part), collect(keys(widths.printed)))
+    nothing
+end
+
+# How many of the first items of the address fold into `fold`: none when the bar
+# fits within `edge`, the width of the navigator; else the fewest that make the
+# rest fit, and at most all but the page, whose name its label cuts. Only the
+# names view folds, and a bar with no width given does not.
+function _count_folded_crumbs(navigator::Navigator, crumbs, fixed::Vector, fold, widths, edge, gap::Int)
+    (widths === nothing || edge === nothing || navigator.address_draft.view !== :titles ||
+     length(crumbs) <= 1) && return 0
+    parts = Any[fixed..., fold]
+    for crumb in crumbs
+        crumb.arrow === nothing || push!(parts, crumb.arrow)
+        push!(parts, crumb.widget)
+    end
+    _keep_printed_parts!(widths, parts)
+    width(part) = _get_part_width(widths, part)
+    room = Int(edge[]) - sum(width, fixed) - gap * length(fixed)
+    items = [(crumb.arrow === nothing ? 0 : width(crumb.arrow)) + width(crumb.widget) for crumb in crumbs]
+    sum(items) <= room && return 0
+    room -= width(fold)
+    something(findfirst(k -> sum(items[(k + 1):end]) <= room, 1:(length(crumbs) - 1)), length(crumbs) - 1)
 end
 
 # The mark before the part of an address that reaches no node: a cross in the
@@ -219,21 +318,22 @@ struct _AddressCrumb
     address::Reference
 end
 
-function _make_address_crumbs(navigator::Navigator)
+function _make_address_crumbs(navigator::Navigator, padding)
     parts = _get_address_parts(navigator)
     crumbs = _AddressCrumb[]
     for (index, (label, tooltip, address)) in enumerate(parts)
+        # The name of the page is one line, cut with "…" where the bar has no room.
         widget, action = if index == length(parts)
-            WidgetLabel(label; tooltip), nothing
+            WidgetLabel(label; tooltip, max_lines = 1, padding), nothing
         else
             action = Action(label)
-            WidgetToolbarItem(action; tooltip), action
+            WidgetToolbarItem(action; tooltip, padding), action
         end
         arrow, choices = if index == 1
             nothing, nothing
         else
             choices = Action("Choose another part"; icon = :chevron_right)
-            WidgetToolbarItem(choices; tooltip = "The other parts in the place of $(label)."), choices
+            WidgetToolbarItem(choices; tooltip = "The other parts in the place of $(label).", padding), choices
         end
         push!(crumbs, _AddressCrumb(label, widget, action, arrow, choices, address))
     end
@@ -289,6 +389,26 @@ function _make_choice_menu_operation(navigator::Navigator, crumb::_AddressCrumb,
                             find, choose = step -> make_navigator_choice_operation(navigator, index, step))
     point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
     ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[(crumb.label, list, 0)],
+                                                       annotate_reference_types(navigator, EmptyReference()),
+                                                       point))
+end
+
+# The list of the items of the address that the bar folds, as the menu of the
+# navigator, at the point of the press. A choice opens the page of its item, with
+# the page that the person leaves selected, as a press on an item does.
+function _make_fold_menu_operation(iomap::NavigatorToWidgetIoMap, gesture)
+    navigator = iomap.input
+    folded = iomap.crumbs[1:iomap.folded]
+    page = get_navigator_page_address(navigator)
+    find = query -> WidgetChoice[WidgetChoice(crumb.label; value = index)
+                                 for (index, crumb) in enumerate(folded)
+                                 if all(word -> occursin(word, lowercase(crumb.label)), split(lowercase(query)))]
+    list = WidgetChoiceList(; row = length(folded), placeholder = "type a name", empty = "No part matches", find,
+                            choose = index -> something(make_navigator_open_operation(navigator, folded[index].address;
+                                                                                      selection = page),
+                                                        DoNothingOperation()))
+    point = gesture isa MouseClick ? (gesture.x, gesture.y) : nothing
+    ReplaceViewStateOperation(OpenContextMenuOperation(Tuple{String,Document,Int}[("The parts before", list, 0)],
                                                        annotate_reference_types(navigator, EmptyReference()),
                                                        point))
 end
@@ -431,7 +551,9 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
     navigator, actions = iomap.input, iomap.actions
     make = operation.action === actions.back ? make_navigator_back_operation :
            operation.action === actions.forward ? make_navigator_forward_operation :
-           operation.action === actions.parent ? make_navigator_parent_operation : nothing
+           operation.action === actions.parent ? make_navigator_parent_operation :
+           operation.action === actions.previous ? (n -> make_navigator_sibling_operation(n, -1)) :
+           operation.action === actions.next ? (n -> make_navigator_sibling_operation(n, 1)) : nothing
     make === nothing || return something(make(navigator), DoNothingOperation())
     # Open in a tab: an open of the page in a new tab, rooted at the content, which
     # goes on up to the editor.
@@ -441,6 +563,8 @@ function _translate_answer(iomap::NavigatorToWidgetIoMap, operation::InvokeActio
         return something(make_navigator_address_edit_operation(navigator), DoNothingOperation())
     # A press on an item of the address opens its page, with the page that the
     # person leaves selected, as Parent does.
+    # A press on the item of the folded items lists them.
+    operation.action === actions.fold && return _make_fold_menu_operation(iomap, gesture)
     # A press on the arrow before an item opens the list of its choices.
     index = findfirst(crumb -> crumb.choices === operation.action, iomap.crumbs)
     index === nothing || return _make_choice_menu_operation(navigator, iomap.crumbs[index], gesture)

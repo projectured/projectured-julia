@@ -157,6 +157,20 @@ function test_git_views()
                 @test abs(subject_y - hash_y) <= 4 && hash_x < subject_x
             end
 
+            @testset "Next and Previous step through the commits of a range" begin
+                range = GitCommitRange(repository, "v1")
+                wait_for_cell!(getfield(range, :commits); editor = nothing)
+                @test length(range.commits) == 2
+                navigator = Navigator(range, @reference(range, commits[1]))
+                holder = _GitViewHolder(navigator)
+                @test find_navigator_sibling(navigator, -1) === nothing
+                evaluate_operation(holder, make_navigator_sibling_operation(navigator, 1))
+                @test get_navigator_page(navigator) === range.commits[2]
+                @test find_navigator_sibling(navigator, 1) === nothing
+                evaluate_operation(holder, make_navigator_back_operation(navigator))
+                @test get_navigator_page(navigator) === range.commits[1]
+            end
+
             @testset "a commit with a long message shows its tree, and its diffs in the pane" begin
                 mkpath(joinpath(repository, "deep", "inner"))
                 write(joinpath(repository, "deep", "inner", "x.txt"), "x\n")
@@ -205,6 +219,12 @@ function test_git_views()
 end
 
 _format_git_view_hash(hash) = first(hash, 7)
+
+# What an operation of a navigator is evaluated against with no editor: an object
+# that holds the navigator, as an editor holds its document.
+mutable struct _GitViewHolder
+    document::Any
+end
 
 # Whether the frame draws `label` in a gutter on the row of the text `text`.
 function _git_view_has_label(backend, text, label)

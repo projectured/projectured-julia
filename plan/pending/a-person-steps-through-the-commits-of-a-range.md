@@ -105,10 +105,22 @@ its tests. Each step updates the page of its part in `documentation/`.
    `WordWrapping` in the chain. Tests: the text suite, a block with one line that wraps and one that
    does not, in a pane that scrolls sideways; `GitViewTest`, a message line of 300 characters shows
    on more than one line inside the pane, and a long code line stays one line.
-2. **The bar of the navigator fits its width** (P5). Tests: a navigator 400 px wide with an address
+2. ✅ **The bar of the navigator fits its width** (P5). Done, in one commit with step 3, because both
+   change the same lines of the bar. Facts of the work: the navigator printer
+   prints each part of the bar once more through the recursion, with no range offered, to get the
+   width that the part draws at; so the fold copies no width formula of the widgets. The edge is the
+   maximum width that the navigator gets. The items of the address stand in a row of their own with
+   no gap, with half the side padding of a toolbar item. A `WidgetLabel` with `max_lines` now also
+   cuts a kept line that is wider than its bound, such as one long word like
+   `master..topic/baseline-catch-up`; before, only a text of more lines than `max_lines` got the
+   `…`. The list of `…` opens at the last folded item. Tests: a navigator 400 px wide with an address
    of six items: each button inside the bar; the item of the page and its arrow in view; the item `…`
    lists the folded items; a press on a listed item opens it.
-3. **Next and previous in the navigator** (P4). Tests: a navigator on `commits[2]` of a range: Next
+3. ✅ **Next and previous in the navigator** (P4). Done. Facts of the work: the icon font had no
+   `chevron_up` in the table of the widgets; `lucide.ttf` holds it at `0xe070`, and the table names it
+   now. `find_navigator_sibling` finds the last element step of the page address and checks that the
+   list has an item there; `make_navigator_sibling_operation` is a choice at that step
+   (`make_navigator_choice_operation`). Tests: a navigator on `commits[2]` of a range: Next
    shows `commits[3]`, Back shows `commits[2]` again, Next is off at the last commit; the same on a
    plain vector of documents, to show that the navigator knows nothing of git.
 4. **The page of a range shows the chosen commit below its table** (P3). Tests in `GitViewTest` and
