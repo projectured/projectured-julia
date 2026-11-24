@@ -109,6 +109,13 @@ function test_work_plan()
         @test _nav_is(map_reference_backward(projection, iomap, inside), _workplan_step_path(3))
         @test has_introduced_step(map_reference_backward(projection, iomap,
                                                          _workplan_path(FieldReferenceStep("children"), ElementReferenceStep(1))))
+        # The tree prints the plan itself as its root: a caret in the label of the
+        # root is a step of the tree at the plan, and goes into the tree again.
+        step = ConcreteReference(ProjectionReferenceStep(:tree, _workplan_path(FieldReferenceStep("label"))),
+                                 EmptyReference())
+        @test _nav_is(map_reference_forward(projection, iomap, step),
+                      _workplan_path(FieldReferenceStep("children"), ElementReferenceStep(3), FieldReferenceStep("child"),
+                                     FieldReferenceStep("root"), step.head))
         # The tree keeps its open nodes when the plan is drawn again, and the view
         # follows the plan.
         tree.expanded = IdDict{Any,Any}(plan => IdDict{Any,Any}(plan.steps[2] => IdDict{Any,Any}()))

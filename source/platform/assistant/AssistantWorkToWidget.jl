@@ -231,15 +231,17 @@ end
 
 # The path in the tree of `kind` of a path from the page: a part of the work is the
 # same path below the root of the tree of the work, and a part of `processes` is
-# the same path below the root of the tree of the processes. `nothing` for a path
-# that the tree does not show.
+# the same path below the root of the tree of the processes. The tree of the work
+# prints the work itself as its root, so a part that it drew in the row of the
+# root, as a caret in its label, is a step of the tree at the work, and goes below
+# the root of that tree too. `nothing` for a path that the tree does not show.
 function _map_into_work_tree(kind::Symbol, path::ConcreteReference)
     steps = get_reference_steps(strip_reference_types(path))
     root = FieldReferenceStep("root")
     if kind === :work
         is_work = steps[1] in (FieldReferenceStep("subagents"),
                                FieldReferenceStep("background_tasks"),
-                               FieldReferenceStep("work_items"))
+                               FieldReferenceStep("work_items")) || steps[1] isa ProjectionReferenceStep
         return is_work ? extend_reference(EmptyReference(), root, steps...) : nothing
     end
     steps[1] == FieldReferenceStep("processes") || return nothing

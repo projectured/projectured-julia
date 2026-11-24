@@ -230,6 +230,13 @@ function test_explorer()
         @test _nav_has_text(backend, "alpha one") && _nav_has_text(backend, "beta")
         click = _explorer_click(backend, "alpha")
         @test click !== nothing
+        # An Alt+double click on the label of the row selects the label, a part that
+        # the tree drew in the row, and shows the page of no row.
+        _nav_press!(editor, backend, MouseClick(:left, click.x, click.y, 2, ModifierKeys(alt = true); time = 0.0))
+        label = collect(get_reference_steps(strip_reference_types(getfield(explorer, :selection)[])))
+        @test label[1:2] == [FieldReferenceStep("tree"), FieldReferenceStep("root")]
+        @test last(label) isa ProjectionReferenceStep
+        @test get_navigator_page(navigator) === content
         _nav_press!(editor, backend, click)
         @test get_navigator_page(navigator) === alpha
         @test _nav_is(navigator.address, _explorer_entry_path(1))

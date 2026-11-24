@@ -150,12 +150,15 @@ function map_reference_backward(::ExplorerToWidget, iomap::ExplorerToWidgetIoMap
 end
 
 # The steps from the root section to the node of the tree that `path`, from the
-# explorer, names; `nothing` for a path that names no node.
+# explorer, names; `nothing` for a path that names no node. A part that the tree
+# drew in a row, as a caret in its label, is the path of the node and then a step
+# of the view, and names no node: the explorer shows the page of no row for it.
 function _find_node_steps(path)
     path isa ConcreteReference || return nothing
     steps = get_reference_steps(strip_reference_types(path))
     (length(steps) >= 2 && steps[1] == FieldReferenceStep("tree") && steps[2] == FieldReferenceStep("root")) ||
         return nothing
+    any(step -> step isa ProjectionReferenceStep, steps) && return nothing
     steps[3:end]
 end
 

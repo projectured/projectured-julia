@@ -104,14 +104,17 @@ end
 
 # A path of the steps of the plan is the same path below the root of the tree
 # document. The plan itself is the whole view, and a part that the view drew is
-# named by its introduced path.
+# named by its introduced path. The tree prints the plan itself as its root, so a
+# part that the tree drew in the row of the root, as a caret in its label, is a
+# step of the tree at the plan: it goes below the root of the tree document too.
 function map_reference_forward(p::WorkPlanToWidget, iomap, reference)
     reference isa Reference || return nothing
     introduced = find_introduced_path(p, reference)
     introduced === nothing || return introduced
     path = strip_reference_types(reference)
     path isa EmptyReference && return path
-    (get_reference_steps(path)[1] == FieldReferenceStep("steps") &&
+    head = get_reference_steps(path)[1]
+    ((head == FieldReferenceStep("steps") || head isa ProjectionReferenceStep) &&
      _get_work_plan_content(iomap.input) === :steps) || return nothing
     concat_references(extend_reference(EmptyReference(), _STEP_TREE_STEPS...), path)
 end

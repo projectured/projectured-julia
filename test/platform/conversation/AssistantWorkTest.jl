@@ -41,6 +41,13 @@ function test_assistant_work()
             end
             # The tree of the work keeps its open nodes when the page draws again.
             @test haskey(work.work_tree.expanded, work)
+            # The tree prints the work itself as its root: a caret in the label of the
+            # root is a step of the tree at the work, and goes below the root of the tree.
+            step = ConcreteReference(ProjectionReferenceStep(:tree, extend_reference(EmptyReference(),
+                                                                                    FieldReferenceStep("label"))),
+                                     EmptyReference())
+            @test _work_page_is(ProjecturedPlatform.AssistantModule._map_into_work_tree(:work, step),
+                                FieldReferenceStep("root"), step.head)
         end
 
         @testset "the pointer on a link of the page of the work of an agent draws the line under it" begin
