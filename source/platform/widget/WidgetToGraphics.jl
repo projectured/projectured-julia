@@ -14933,6 +14933,22 @@ function _wtree_path_ref(path::Vector{Int}, k::Int=1)
         ConcreteReference(RangeReferenceStep(idx - 1, idx), tail))
 end
 
+# The path of the node that `reference` names or that it goes on inside, as a caret
+# in the label of the node does; `nothing` when it starts at no node.
+function _find_wtree_node_prefix(reference)
+    path = Int[]
+    cur = reference
+    name = "roots"
+    while cur isa ConcreteReference && cur.head == FieldReferenceStep(name)
+        t = cur.tail
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || break
+        push!(path, t.head.start + 1)
+        cur = t.tail
+        name = "children"
+    end
+    isempty(path) ? nothing : path
+end
+
 function _wtree_ref_path(reference)
     cur = reference
     path = Int[]
@@ -15074,14 +15090,16 @@ end
 
 # The label of a node reads like the text of a control (`_read_drawn_control_text`):
 # a plain click on it chooses the node (D12), and only a press with Alt reaches the
-# text. A press reads the label of the row under it, and a drag and a key the label
-# that holds the selection, in the frame of the canvas of that row. `nothing` for
-# any other event and off the label.
+# text. A move on it names the character under the pointer, as a move on a text
+# does, so the part under the pointer is the innermost part. A press and a move
+# read the label of the row under them, and a drag and a key the label that holds
+# the selection, in the frame of the canvas of that row. `nothing` for any other
+# event and off the label.
 function _read_wtree_label(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, evt)
-    evt isa Union{MouseClick, MouseDown, DragMove, DragEnd, KeyDown, KeyPress} || return nothing
+    evt isa Union{MouseClick, MouseDown, MouseMove, DragMove, DragEnd, KeyDown, KeyPress} || return nothing
     evt isa Union{MouseClick, MouseDown} && !evt.modifiers.alt && return nothing
     geometry = unwrap_cell(iomap.geometry)
-    row = if evt isa Union{MouseClick, MouseDown}
+    row = if evt isa Union{MouseClick, MouseDown, MouseMove}
         _find_wtree_row_at(p, iomap, evt.y)
     else
         split = _split_wtree_label_reference(iomap.input, geometry, iomap.input.selection)
@@ -15094,6 +15112,10 @@ function _read_wtree_label(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGra
     content_x, content_y = _get_content_offset(_get_box_geometry(iomap))
     shifted = shift_event_position(evt, -(content_x + Int(unwrap_cell(getfield(canvas, :x)))),
                                    -(content_y + Int(unwrap_cell(getfield(canvas, :y)))))
+    if evt isa MouseMove
+        caret = find_drawn_caret([line], canvas, shifted.x, shifted.y, p.measure)
+        return caret === nothing ? nothing : ReplaceMouseTargetOperation(annotate_reference_types(iomap.input, caret))
+    end
     _read_drawn_control_text([line], canvas, iomap.input, shifted, p.measure)
 end
 
@@ -15270,8 +15292,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     function make_band(row::WTreeRow, color, read)
         band = GraphicsRect(0, 0, 0, 0; color = color, radius = p.row_radius)
         set_cell_computation!(getfield(band, :w), () -> Int32(width[]))
-        set_cell_computation!(getfield(band, :h),
-                              () -> Int32(_wtree_ref_path(read()) == row.path ? row.height : 0))
+        set_cell_computation!(getfield(band, :h), () -> Int32(read() == row.path ? row.height : 0))
         band
     end
 
@@ -15336,8 +15357,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                 push!(result, band)
             end
             push!(result,
-                  make_band(row, p.layer_hovered_color, () -> get_mouse_target(w)),
-                  make_band(row, row_selected_color, () -> w.selection),
+                  make_band(row, p.layer_hovered_color, () -> _find_wtree_node_prefix(get_mouse_target(w))),
+                  make_band(row, row_selected_color, () -> _wtree_ref_path(w.selection)),
                   make_current_mark(row))
             x = row.chevron_x0
             if _wtree_has_children(node)

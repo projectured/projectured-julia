@@ -80,22 +80,31 @@ end
     @test geom.rows[2].chevron_x0 == left + theme.indent   # indented one level
 end
 
-@testset "a move onto a row makes it the part under the pointer; moving off it clears it" begin
+@testset "a move onto a row makes its node the part under the pointer, and on its label the character there; moving off it clears it" begin
     w, io = _fresh()
     driver = MttDriver(_treeproj, w)
     r1 = io.geometry.rows[1]
     r2 = io.geometry.rows[2]
+    # A point after the first character of the label of row `k`.
+    on_label(k, text) = Int(only(e for e in _rows_canvas(io).elements[k].elements
+                                 if e isa GraphicsText && e.text == text).x) + 8 + 1
 
-    _mtt_move!(driver, r1.chevron_x1 + 5, r1.y0 + 2, 1.0)
-    @test WidgetModule._wtree_ref_path(get_mouse_target(w)) == [1]
+    # Off the label, on the chevron, the part under the pointer is the node.
+    _mtt_move!(driver, r1.chevron_x0 + 2, r1.y0 + 2, 1.0)
+    @test get_mouse_target(w) == _node([1])
 
-    # A different row becomes the part under the pointer instead.
-    _mtt_move!(driver, r2.chevron_x1 + 5, r2.y0 + 2, 1.1)
-    @test WidgetModule._wtree_ref_path(get_mouse_target(w)) == [1, 1]
+    # On the label of another row it is the character under the pointer, and the
+    # row of its node lights, from the start of the path.
+    _mtt_move!(driver, on_label(2, "a.jl"), r2.y0 + 2, 1.1)
+    @test get_mouse_target(w) == concat_references(_node([1, 1]), ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))
+    @test any(Int(r.h[]) == r2.height for r in _bands(io, 2))
+    @test all(Int(r.h[]) == 0 for r in _bands(io, 1))
 
-    # The tree's own reader never answers a motion: the light comes only from
-    # the mouse target that a move writes.
-    @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
+    # The reader of the tree answers a move on a label, and no other move: the
+    # move names the node there.
+    @test _readop(io, MouseMove(r1.chevron_x0 + 2, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
+    @test _readop(io, MouseMove(on_label(1, "src"), r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) isa
+          ReplaceMouseTargetOperation
 
     # The leave of the window clears it.
     _mtt_leave!(driver, 1.2)
