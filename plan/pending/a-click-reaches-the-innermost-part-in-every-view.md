@@ -1853,8 +1853,45 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         `test_object_field_to_widget` 49. The walk (run 16):
         examples/object_to_widget 2 → 0 and examples/nested_object_to_widget
         13 → 0.
-      - [ ] C4. The walk of the examples that C1 to C3 change, compared with
+      - [x] C4. The walk of the examples that C1 to C3 change, compared with
         `step6/current`, and the suites of the files that they change.
+
+        Done. The full walk (run 18, the 546 examples, 2 h 1 min, on the
+        branch before the rebase below): 1704 → 1611 lines, no example changes
+        its status, and no example has more lines. The examples that change:
+        widget/choice_list 16 → 10, widget/tabbed_pane 13 → 5,
+        examples/widget_tabbed_pane 21 → 9, pane/group 26 → 10, pane/split 50 →
+        38, examples/widget 92 → 76, examples/object_to_widget 2 → 0,
+        examples/nested_object_to_widget 13 → 0, and the two inspectors, which
+        show a form: examples/chart_inspector 28 → 22,
+        examples/sequencechart_inspector 68 → 66. By kind: `move:differs` −45,
+        `alt:no-caret` −28, `alt2:not-drawn` −19, `alt:outside` −7,
+        `alt:not-caret-part` −2, `plain:nothing` −1, and the line "the caret …
+        is not inside …" +9, all on the names of the tabs that are not open
+        (the limit of the walk in C2). Run 18 is the baseline of the next
+        work. `test_platform` (33 min): 238268 pass, and the 7 that fail
+        (`test_platform_slice_edges` 2, `test_editor_display` 5) were on main
+        too; main fixed them in 84326bc04 while the suite ran. A first run of
+        the suite stopped by a signal 15 that no person and no service sent,
+        after `test_widget_split_pane`; the second run went through.
+        `test_chart_projection` 590, `test_research_to_widget` 123,
+        `test_command_palette` 13, `test_command_palette_decorator` 36. The
+        static guards give the violations of main.
+
+        Main moved by 9 commits of another session meanwhile (to 84326bc04,
+        pushed). Two of its files are files of C2 too (`PaneToWidget.jl`,
+        `WidgetToGraphics.jl`, by ed3293ec8, a double click on the header of a
+        tab maximizes its group). The branch rebased over it with no conflict.
+        That rule takes a plain double click whose answer chooses a whole tab,
+        so the Alt+double click on a name, which names the name, keeps its
+        answer. After the rebase: `test_pane_construct` 78 (the test of
+        ed3293ec8), `test_pane_gestures` 131, `test_pane_rename` 48,
+        `test_pane_to_widget` 44, `test_pane_reader` 162,
+        `test_widget_tab_strip` 82, `test_widget_tab_label` 24,
+        `test_mouse_target_move` 93, `test_widget_menu_keys` 54,
+        `test_object_to_widget` 64, `test_editor_display` 28,
+        `test_platform_slice_edges` 1 and its 6 broken, `test_navigator_document`
+        32, `test_split_pane_drag` 43 and its 5 broken.
     - The element type of the generic views (examples/json_sorted does not
       build). Not a cause of the clicks; the owner, on 2026-11-19: "fix in this
       plan". The copy of a `JsonObject` gives its field `entries` a
