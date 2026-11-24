@@ -144,6 +144,21 @@ end # @testset
 
 end # @testset
 
+@testset "a move on the text of a field names the field, and in a vector the element" begin
+
+    app = make_nested_object_to_widget_document_example()
+    editor, backend = _otw_editor(app)
+    function target_on(text)
+        (_, x, y) = first(entry for entry in _otw_drawn(last(rendered_output(backend))) if entry[1] == text)
+        push_event!(backend, MouseMove(x + 2, y + 2; time = 0.0))
+        run_frame!(editor)
+        collect(get_reference_steps(strip_reference_types(get_mouse_target(app))))
+    end
+    @test target_on("MyApp") == [FieldReferenceStep("name")]
+    @test target_on("beta") == [FieldReferenceStep("tags"), ElementReferenceStep(2)]
+
+end # @testset
+
 @testset "a card keeps its collapse while a field is edited" begin
 
     app = make_nested_object_to_widget_document_example()

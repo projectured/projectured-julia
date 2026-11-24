@@ -268,7 +268,7 @@ _coerce(_, v) = v
 #
 # `<path of a field><rest>` ↔ `<steps to its widget>.<slot>.object.<path><rest>`,
 # where the rest is empty or a range in the text of the value. The whole field is
-# the whole widget. A part of the form that the object has no path for, such as a
+# the whole widget, and the slot of the widget as a whole. A part of the form that the object has no path for, such as a
 # label, is a path that this projection introduces, as the defaults of
 # `Projection` map it.
 
@@ -297,6 +297,9 @@ function map_reference_backward(p::ObjectToWidget, iomap::ObjectToWidgetIoMap, r
             rest = steps[(length(widget_steps) + 1):end]
             isempty(rest) && return path
             slot === nothing && break
+            # The slot of the widget as a whole holds the field, so it is the field
+            # as a whole, as a move on the text of the widget names it.
+            length(rest) == 1 && rest[1] == FieldReferenceStep(String(slot)) && return path
             inner = (FieldReferenceStep(String(slot)), FieldReferenceStep("object"))
             (_has_form_prefix(rest, inner) && !any(step -> step isa ProjectionReferenceStep, rest)) ||
                 break
