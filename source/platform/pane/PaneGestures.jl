@@ -81,6 +81,44 @@ function _toggle_maximize(tree::PaneTree)
     make_pane_maximize_operation(tree, group)
 end
 
+# A double click on the header of a tab chooses the tab, as one click does, and then
+# does what Ctrl+M does for the group of that tab. `answer` is the answer of the tab
+# strip to the click. A click in the page of a tab is no click on its header, also
+# when the content claims nothing there and the answer names the tab. An answer that
+# chooses no whole tab, such as a click in a name that holds the caret, stays as it
+# is.
+function _toggle_maximize_at(tree::PaneTree, answer)
+    header = _find_pointed_tab_header(tree)
+    chosen = _find_chosen_tab(tree, answer)
+    (header !== nothing && chosen !== nothing && chosen[1] === header[1] && chosen[2] == header[2]) ||
+        return nothing
+    toggle = find_pane_maximized_group(tree) !== nothing ? make_pane_restore_operation(tree) :
+             tree.root isa PaneGroup ? nothing : make_pane_maximize_operation(tree, header[1])
+    toggle === nothing ? nothing : CompoundOperation(Any[answer, toggle])
+end
+
+# Whether `answer` is a selection, or a compound that holds one: the kind of answer
+# that a click on a tab gives.
+_is_selection_answer(answer) =
+    answer isa ReplaceSelectionOperation ||
+    (answer isa CompoundOperation && any(_is_selection_answer, answer.operations))
+
+# The group and the index of the tab that `answer` selects whole, or `nothing`.
+function _find_chosen_tab(tree::PaneTree, answer)
+    if answer isa CompoundOperation
+        for operation in answer.operations
+            found = _find_chosen_tab(tree, operation)
+            found === nothing || return found
+        end
+        return nothing
+    end
+    answer isa ReplaceSelectionOperation || return nothing
+    rest = _after_field(strip_reference_types(answer.path), "root")
+    found = rest === nothing ? nothing : _focus_walk(tree.root, rest)
+    (found === nothing || found[2] == 0 || !(found[3] isa EmptyReference)) && return nothing
+    (found[1], found[2])
+end
+
 # ── The tab title ──────────────────────────────────────────────────────────
 #
 # A rename is not a mode. The title is a text document, so putting the caret in it
@@ -202,6 +240,8 @@ end
     KeyDown(:page_down; ctrl) => "Focus the next tab" => _sibling_tab(doc, 1)
     KeyDown(:page_up; ctrl) => "Focus the previous tab" => _sibling_tab(doc, -1)
     KeyDown(:m; ctrl) => "Maximize the focused group, or give back the layout" => _toggle_maximize(doc)
+    override(MouseClick(:left, _, _, 2;), _is_selection_answer(answer)) =>
+        "Maximize the group of the tab, or give back the layout" => _toggle_maximize_at(doc, answer)
     when(KeyDown(k; alt), k in (:left, :right, :up, :down)) =>
         "Walk from a whole tab to its neighbour or into its content" =>
             _walk_tab(doc, k)

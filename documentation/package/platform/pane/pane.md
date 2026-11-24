@@ -107,6 +107,7 @@ The `@gestures PaneTree` table is in `PaneGestures.jl`:
 | `Ctrl+Tab` and `Ctrl+Shift+Tab` | focus the next or the previous group |
 | `Ctrl+PageDown` and `Ctrl+PageUp` | focus the next or the previous tab |
 | `Ctrl+M` | make the focused group fill the window, and give back the layout |
+| a double click on the header of a tab | choose the tab, and make its group fill the window, or give back the layout |
 | `Alt+Left` and `Alt+Right` | from a whole tab, select the tab beside it |
 | `Alt+Down` | from a whole tab, select its content as a whole |
 | `F2` and `Escape` | put the caret in the tab name, and take it out |
@@ -132,6 +133,8 @@ A drag of a divider writes the weights of that split, at any depth. A drag of a 
 ### Maximize a group
 
 Ctrl+M makes the focused group fill the window, with its tab strip, and Ctrl+M again gives back the layout. The layout does not change: `maximized` of the tree names the group, and the splits and their weights stay, so the restore gives back the same layout. `make_pane_maximize_operation(tree, group)` and `make_pane_restore_operation(tree)` write the field as view state, so the undo records no maximize. `pred_arguments` of the tree writes only `root`, so a save does not write it. `is_field_walked` of the tree answers `false` for `maximized`, so a search finds the group only under `root`. Ctrl+M does nothing when the root is a group, because no other group exists.
+
+A plain double click on the header of a tab does the same for the group of that tab. It is an `override` rule of the table of the tree on the answer of the strip: the strip answers each click on a header with the choice of the tab, and the rule adds the maximize or the restore to that answer when the answer chooses the whole tab under the pointer. The reader of the tree gives each answer of the widgets to the rules of the tree, as the generic reader does at each level, so an `override` rule of the tree reads it; a plain rule answers only when the widgets answer nothing. The rule reads the header under the pointer from the mouse target of the tree (`_find_pointed_tab_header`), as the menu of a tab does, because a click in a page whose content claims nothing also answers the whole tab. A double click with a modifier, such as Alt, which selects a part, keeps its answer.
 
 `find_pane_maximized_group(tree)` answers the group that fills the window, or `nothing`. It answers the group of the field only while the tree holds the group and while the focus is in that group or outside the layout, such as in a menu of the shell. Every view reads this function and not the field, so the window never hides the group that has the focus.
 

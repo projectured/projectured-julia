@@ -5825,11 +5825,15 @@ function _selected_split_slot(w::WidgetSplitPane, n::Int)
     1 <= slot <= n ? slot : 0
 end
 
-# The answer `(op, i)` of the first slot that drew at the point `(x, y)` and answers
+# The answer `(op, i)` of the topmost slot that drew at the point `(x, y)` and answers
 # the event that `make_evt` makes at the point in its frame; `nothing` when none does.
-# A move of the pointer reads the slots so (`_read_split_slot_move`).
+# A move of the pointer reads the slots so (`_read_split_slot_move`), in the order of
+# a click (`_find_composite_slot_at`): a slot drawn later is on top. So the pointer
+# names the part that shows, also where a closed slot draws past its edge, such as
+# the tab strip of a group that a maximize hides.
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
-    for (i, entry) in enumerate(child_iomaps)
+    for i in reverse(eachindex(child_iomaps))
+        entry = child_iomaps[i]
         point = _find_widget_child_point(entry, x, y)
         point === nothing && continue
         (lx, ly) = point

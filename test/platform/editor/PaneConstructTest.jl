@@ -291,5 +291,58 @@ end
     @test get_pane_focus(tree)[1] === left_group
 end
 
+@testset "a double click on a tab header fills the window with its group, and a double click gives back the layout" begin
+    left_group, right_group = get_pane_groups(tree)
+    @test get_pane_focus(tree)[1] === left_group
+    driver = MttDriver(projection, tree, iomap)
+    # A point on the header of the first tab of `group`: the first point of the
+    # strip where a click chooses that tab.
+    function header_point(group)
+        wanted = get_pane_tab_reference(tree, group, 1)
+        r = get_pane_rectangle(tree, group)
+        x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
+        for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
+            op = read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+            op isa ReplaceSelectionOperation && op.path == wanted && return (x, y)
+        end
+        nothing
+    end
+    # The pointer goes to the point, as a hand moves it, and the two clicks of a
+    # double click come there.
+    function double_click!(x, y; modifiers = ModifierKeys())
+        _mtt_move!(driver, x, y, 1.0)
+        press!(MouseClick(:left, x, y, 1, modifiers; time = 1.0))
+        press!(MouseClick(:left, x, y, 2, modifiers; time = 1.1))
+    end
+    target = header_point(right_group)
+    @test target !== nothing
+    # An Alt+double click selects a part, and fills nothing.
+    double_click!(target...; modifiers = ModifierKeys(alt = true))
+    @test find_pane_maximized_group(tree) === nothing
+    # One click chooses the tab, and the second click of a double click fills the
+    # window with its group.
+    _mtt_move!(driver, target..., 2.0)
+    press!(MouseClick(:left, target..., 1, ModifierKeys(); time = 2.0))
+    @test get_pane_focus(tree) == (right_group, 1)
+    @test find_pane_maximized_group(tree) === nothing
+    press!(MouseClick(:left, target..., 2, ModifierKeys(); time = 2.1))
+    @test get_pane_focus(tree) == (right_group, 1)
+    @test find_pane_maximized_group(tree) === right_group
+    @test get_pane_rectangle(tree, left_group) === nothing
+    assert_rendered!()
+    # A double click in the page of the tab is no double click on its header.
+    double_click!(point(right_group, 0.5, 0.5)...)
+    @test find_pane_maximized_group(tree) === right_group
+    # The group fills the window, so its header moved. A double click there gives
+    # back the layout.
+    target = header_point(right_group)
+    @test target !== nothing
+    double_click!(target...)
+    @test find_pane_maximized_group(tree) === nothing
+    @test get_pane_rectangle(tree, left_group) !== nothing
+    @test get_pane_focus(tree)[1] === right_group
+    assert_rendered!()
+end
+
 end # testset
 end # function

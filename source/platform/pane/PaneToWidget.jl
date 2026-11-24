@@ -802,7 +802,20 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     answer === nothing && press isa MouseClick && press.button === :left &&
         (answer = _focus_from_press(iomap, press))
     gesture isa MouseMove && (answer = _join_tab_operations(answer, _read_drop_leave(iomap, gesture)))
+    change.operation === nothing || (answer = _read_tree_rules(p, iomap, gesture, answer))
     Intent(change.gesture, answer)
+end
+
+# The rules of the tree read the answer of the child, as the rules of each level do
+# in the generic reader: a rule replaces the answer only when its `override`
+# condition holds for it, such as the double click on the header of a tab, which
+# adds the maximize to the choice of the tab. An answer that collects, such as the
+# layers of a menu, is no answer for the rules.
+function _read_tree_rules(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, gesture, answer)
+    (gesture === nothing || gesture isa CollectIntents || !(answer isa Operation) ||
+     is_collecting_operation(answer)) && return answer
+    own = read_gesture(p, iomap, gesture; answer)
+    own isa Operation ? own : answer
 end
 
 # A move at a point where the tree has no group, such as the move to `(-1, -1)` that

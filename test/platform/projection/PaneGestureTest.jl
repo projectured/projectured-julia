@@ -315,6 +315,26 @@ end
     @test tree.maximized === nothing
 end
 
+@testset "a double click on a tab header only chooses the tab with one group" begin
+    tree, group, editor = _seeded()
+    proj = _chain()
+    iomap = print_document(proj, tree)
+    wanted = get_pane_tab_reference(tree, group, 1)
+    target = nothing
+    for y in 0:2:40, x in 0:2:400
+        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        if op isa ReplaceSelectionOperation && op.path == wanted
+            target = (x, y)
+            break
+        end
+    end
+    @test target !== nothing
+    _mtt_move!(MttDriver(proj, tree, iomap), target..., 1.0)
+    op = read_intent(proj, iomap, MouseClick(:left, target..., 2, ModifierKeys(); time = 1.0))
+    @test op isa ReplaceSelectionOperation && op.path == wanted
+    @test tree.maximized === nothing
+end
+
 @testset "a focus move to a different group ends the maximize" begin
     # Two groups side by side, the right one maximized.
     function maximized()
