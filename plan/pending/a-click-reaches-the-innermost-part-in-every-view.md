@@ -1744,7 +1744,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       2026-11-24, "Yes, continue", to: the rest of step 6). The current state of
       the walk is run 12 with the examples of runs 13 and 14 put in
       (`step6/current`, 1704 lines). The steps:
-      - [ ] C1. The choice list (widget/choice_list, 16 lines). Its backward map
+      - [x] C1. The choice list (widget/choice_list, 16 lines). Its backward map
         gives the whole list for each point that is not in the field of the
         typed text, so an Alt+click on the prompt "Find: " or on the label of a
         row gives `@∅`. A part that the list draws is named by the step of the
@@ -1755,7 +1755,31 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         row as a click that does nothing; that is a limit of the example, and
         the example stays. Find why the caret `.query{0}` of a plain click on
         the placeholder is not drawn. The test of the choice list.
-      - [ ] C2. The tab title (widget/tabbed_pane, examples/widget_tabbed_pane,
+
+        Work: the backward map names a part that the list drew by
+        `make_introduced_reference(p, iomap, path)`, so the path in the grid
+        keeps its node types, and the forward map takes off the step first
+        (`find_introduced_path`). A row is an item of a menu, and an item of a
+        menu takes no caret, also on an Alt+click (the owner, 2026-11-13): its
+        Alt+click gives nothing, and its Alt+double click selects the row by the
+        step of the list. The walk excused a menu only when the path evaluates
+        in the document, which a step of a view does not; it now also reads the
+        node types of the output path of a step (`_pc_goes_through_menu`). The
+        caret `.query{0}` that is not drawn is not a cause of the list: the same
+        line comes in widget/text, widget/textarea and the filter of the
+        explorer, so it is a fault of the text field, and it stays for its own
+        work. `test_widget_menu_keys` 52 (a new test set: an Alt+click on the
+        prompt gives the caret by the step of the list, and its forward map
+        draws it there; an Alt+click on a row gives nothing, and a plain click
+        chooses it; the typed text as a whole is the text of its field as a
+        whole, both ways, so an Alt+double click on the placeholder selects
+        `.query`); `test_context_menu_window` 74, `test_insertion_choices`
+        20, `test_elements` 23, `test_window_wrappers` 74. The walk (run 16):
+        widget/choice_list 16 → 10 lines. What stays: the plain click on a row
+        of the example, which chooses nothing (5); the caret of the field (2);
+        and an Alt+double click on a row selects the row, which no ring or band
+        shows (3), as in each menu (widget/menu has the same 9 lines).
+      - [x] C2. The tab title (widget/tabbed_pane, examples/widget_tabbed_pane,
         pane/group, pane/split: 110 lines). The strip draws the name of a tab by
         `_push_text!` and records no line, so an Alt+click on a name gives the
         tab and no caret. The name reads like the text of a control
@@ -1770,7 +1794,47 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         character, as on the label of a tree, and the header lights from the
         start of the path. The tests of the tabbed pane, the tab label, the
         pane and the rename.
-      - [ ] C3. The views of §4 in projectured-julia. In the current walk the
+
+        Work: the strip records the line of each name that it draws as text
+        (`DrawnTextLine`, the part `selector_element_pairs[i].selector`, or
+        `….selector.text` of a `WidgetTabLabel`, `_make_tab_name_part`), and the
+        header draws the marks of the selection for it
+        (`make_drawn_selection_elements`, in `selected_color`, a new field of
+        `WidgetTabbedPaneToGraphicsCanvas`). The strip reads the name first
+        (`_read_tab_name_text`): an Alt+click gives the caret, a press with Alt
+        starts the drag of a range and grabs no tab, and a drag moves the end of
+        the range in the name that holds the selection; a key still goes to the
+        view of the name, whose answers now name the part of the name, so in a
+        name that is a plain string a key edits `selector{s:e}`, not
+        `selector.text{s:e}`. A move on a name names the character
+        (`_find_tab_name_caret`), and the header lights from the start of the
+        path. The forward map takes the name and a place in it to the text of
+        the name (`_map_tab_name_forward`). In the pane the text of the label as
+        a whole is the name of the title as a whole (`.title.name`,
+        `.title.name.value`), both ways, and the group passes the whole name to
+        its tabbed pane (`_get_group_routing`), so the band is drawn there too.
+        `test_widget_tab_strip` 82 (a new test set: a plain click on a name opens
+        the tab, an Alt+click gives the caret, which maps forward to the
+        character, a press with Alt starts a range, a move names the character,
+        and the name selected as a whole draws its band), `test_pane_rename` 48
+        (an Alt+click on a name starts a rename at the character; the name
+        selected as a whole draws its band), `test_mouse_target_move` 93 (a move
+        on the name of a tab names the character now), `test_widget_tab_label`
+        24, `test_pane_gestures` 128, `test_pane_to_widget` 44,
+        `test_pane_reader` 162, `test_navigator_document` 32,
+        `test_widget_shell_layout` 14, `test_widget_shell_pointer` 6,
+        `test_widget_selection` 120, `test_widget_forward` 22, `test_pane_drag`
+        291, `test_routed_gesture` 37, `test_part_pointer_shape` 32,
+        `test_split_pane_drag` 43 and its 5 broken of main. The walk (runs 16
+        and 17): widget/tabbed_pane 13 → 5, examples/widget_tabbed_pane 21 →
+        9, pane/group 26 → 10, pane/split 50 → 38, examples/widget 92 → 76. No
+        line stays on a name in a pane. What stays: the close glyph and the
+        icons, and the padding of the strip, where an Alt+double click gives the
+        whole pane, as before; and in a tabbed pane of strings the names of the
+        tabs that are not open, where the walk takes the open page as the
+        deepest part, because it lists no string field as a part and a tab that
+        is not open has no image. That is a limit of the walk.
+      - [x] C3. The views of §4 in projectured-julia. In the current walk the
         table of cells, the result of SQL, the reflection view, the layout of a
         list and the anchored layout have no line; the view of a data frame is
         not in the walk, and `test_dataframes` checks it. Only
@@ -1780,6 +1844,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
         `‹ObjectToWidget ….content›`, and the Alt+double click selects the
         field, such as `.tags[1]`. The move names the field, or the character
         in it. The test of the form.
+
+        Work: the move names the slot of the widget of the field as a whole,
+        `….content`, with no step `object` after it, and the backward map took
+        only `….content.object…`. The slot as a whole holds the field, so it is
+        the field as a whole now. `test_object_to_widget` 64 (a new test set: a
+        move on "MyApp" names `.name`, and on "beta" `.tags[2]`),
+        `test_object_field_to_widget` 49. The walk (run 16):
+        examples/object_to_widget 2 → 0 and examples/nested_object_to_widget
+        13 → 0.
       - [ ] C4. The walk of the examples that C1 to C3 change, compared with
         `step6/current`, and the suites of the files that they change.
     - The element type of the generic views (examples/json_sorted does not
