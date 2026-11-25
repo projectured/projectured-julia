@@ -1458,11 +1458,13 @@ function test_build_executable()
             project = build_projectured_executable(; context = context, compile = false)
             @test project == joinpath(context.root, "build", "app", "projectured")
             deps = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(project, "Project.toml"))["deps"]
-            # The packages of the binary, and the stand-ins that keep the libraries
-            # that it does not use out of it.
+            # The packages of the binary, the standard libraries that its code
+            # loads by name, and the stand-ins that keep the libraries that it does
+            # not use out of it.
             # `ProjecturedKernel` reads the preference `precompile_calls` that the
             # build writes, so it joins as an import.
             @test Set(keys(deps)) == Set(["ProjecturedPlatform",
+                                          first.(EDITOR_STANDARD_LIBRARIES)...,
                                           PROJECTURED_APPLICATION_IMPORTS...,
                                           "ProjecturedOllama", "ProjecturedAnthropic",
                                           "ProjecturedMCP", "ProjecturedACP",
@@ -1637,6 +1639,27 @@ function test_build_executable()
             @test occursin("  C4 A.jl:9 include", message)
             @test endswith(message, "Run the build again with --found. It founds the store again, " *
                                     "and takes as long as a whole build.")
+        end
+
+        @testset "a binary of the editor keeps the standard libraries that its code loads" begin
+            # The builder depends on no package of the editor, so it holds the list
+            # itself; it must be the list of the kernel.
+            kernel_list = Base.moduleroot(parentmodule(parse_application_arguments)).DocumentModule.LOADABLE_STANDARD_LIBRARIES
+            @test [first(entry) for entry in EDITOR_STANDARD_LIBRARIES] == [String(name) for name in keys(kernel_list)]
+            @test [last(entry) for entry in EDITOR_STANDARD_LIBRARIES] == [string(id.uuid) for id in values(kernel_list)]
+            main = :(begin
+                0
+            end)
+            deps_of(packages) = ProjecturedBuilder.BuilderModule.TOML.parsefile(joinpath(
+                write_app_package(_test_context(); name = "libraries", packages = packages, main = main),
+                "Project.toml"))["deps"]
+            # A package that reaches the kernel takes the libraries into its deps.
+            editor_deps = deps_of(["ProjecturedPlatform"])
+            for (library, uuid) in EDITOR_STANDARD_LIBRARIES
+                @test get(editor_deps, library, nothing) == uuid
+            end
+            # A package that does not reach the kernel takes none of them.
+            @test !any(library -> haskey(deps_of([A_PACKAGE]), library), first.(EDITOR_STANDARD_LIBRARIES))
         end
     end
 end

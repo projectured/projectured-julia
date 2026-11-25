@@ -52,6 +52,22 @@ a real answer to want.
 const LOG_LEVEL_NAMES = ("debug", "info", "warn", "error", "none")
 
 """
+    EDITOR_STANDARD_LIBRARIES
+
+The standard libraries that a binary of the editor keeps, each name with its
+uuid: the libraries that the code of a model and a file load by name, which
+`LOADABLE_STANDARD_LIBRARIES` of the kernel lists. The builder depends on no
+package of the editor, so it holds the list itself, and a test of the builder
+compares the two lists.
+"""
+const EDITOR_STANDARD_LIBRARIES = (
+    "Dates" => "ade2ca70-3891-5945-98fb-dc099432e06a",
+    "Statistics" => "10745b16-79ce-11e8-11f9-7d13ad32a3b2",
+    "Printf" => "de0858da-6303-5e67-8744-51eddeeeb8d7",
+    "Random" => "9a3f8284-a2c9-5f02-9a11-845980a1fd5c",
+)
+
+"""
     write_app_package(context; name, packages, imports, init, main,
                        info, usage, log_level, stand_ins) -> String
 
@@ -80,6 +96,10 @@ Write the package this build compiles, and answer its directory.
 - `log_level` — the level the binary logs from when nobody says another. It is
   interpolated into the module rather than written as a preference, because the
   module that reads it is the module this writes.
+- The libraries of [`EDITOR_STANDARD_LIBRARIES`](@ref) join `[deps]` when a
+  package of `packages` or `imports` depends on `ProjecturedKernel`, so that the
+  image keeps them, also when the build leaves out the standard libraries that
+  no package names.
 - `stand_ins` — [`StandIn`](@ref)s of JLL packages that the binary must not
   carry. Each one is replaced by a package of the same name and uuid, written
   under `stand_in/`, with no library: its `artifact_dir` is empty, and so are its
@@ -114,6 +134,11 @@ function write_app_package(context::BuildContext; name::AbstractString, packages
         package_dir = get_package_directory(context, package)
         deps[String(package)] = get_package_uuid(package_dir)
         sources[String(package)] = Dict("path" => relpath(package_dir, directory))
+    end
+    if "ProjecturedKernel" in _collect_local_dependencies(context, (packages..., imports...))
+        for (library, uuid) in EDITOR_STANDARD_LIBRARIES
+            deps[library] = uuid
+        end
     end
     for stand_in in stand_ins
         _write_stand_in_package(joinpath(directory, "stand_in", stand_in.name), stand_in)

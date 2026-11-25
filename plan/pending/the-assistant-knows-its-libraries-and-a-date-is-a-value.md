@@ -382,11 +382,22 @@ tests of the steps before it. The work is in a worktree that
 
   Done on 2026-11-25. `test_pivot()` has 367 passed and 4 broken, the 4
   markers that `main` has.
-- [ ] **6. A built binary holds the libraries.** Proposed decision 7.
+- [x] **6. A built binary holds the libraries.** Proposed decision 7.
   *Check:* a test of the builder reads the `[deps]` of the package that it
   writes, and finds each library of the list. If the machine has room for a
   build, the check of a built program runs `using Statistics; mean([1, 2])`
   through `execute_julia_code`; if not, the plan says so.
+
+  Done on 2026-11-25. The builder depends on no package of the editor, so it
+  holds the list itself as `EDITOR_STANDARD_LIBRARIES` in `AppPackage.jl`, and a
+  test compares it with `LOADABLE_STANDARD_LIBRARIES`. `write_app_package` adds
+  the libraries to `[deps]` when a package of the build reaches
+  `ProjecturedKernel`. Today all four are in the manifests of both binaries
+  already, through other packages: Statistics through DataFrames and
+  FixedPointNumbers. The part `test_build_executable` has 443 passed and the 1
+  broken marker of `main`; it needs more than the default limit of 1536 MiB of a
+  part, so the request gave it 6 GB. No binary was built: a build takes long and
+  much memory, and a library in `[deps]` is in the image.
 - [ ] **7. The guides.** The guide of the assistant says what is in scope and
   which `using` runs. The guide of the serialization describes the qualified
   name and its list. The guide of the chart describes the time axis and updates
