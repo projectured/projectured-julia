@@ -2394,6 +2394,17 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     immutable native form keeps the selection that it was made with.
     `test_selection` 63 (a new test set: a path through the native form writes its
     plain selection, and a clear clears it), `test_kernel` 5348 and its 5 broken.
+    The module graph view had the same fault as the views of O1 in a reader of
+    its own: it passed each answer but its descent on unchanged
+    (`….ModuleGraphView.title{4}`); the rest goes to the default reader now (omnet
+    c8bb90869), `test_module_views` 19. The omnet walk (run 4, and run 5 with no
+    network, which gives the same lines): 952 → 956 lines, the throws 76 → 1 (the
+    one left is legacy/run_entry, whose build fails on omnet main); the module
+    appearance gives 65 lines of the kinds of 5.4 where it gave 61 throws.
+    `test_platform` 239041, 46 broken and 1 fail at `TaskGroupTableTest.jl:209`,
+    which passes twice alone (65): one undo takes back one run of typing, and a
+    run ends after a pause of the wall clock (`TYPING_PAUSE`), so the check fails
+    on a slow machine; that is a check of main that depends on the time.
   - [x] O7. The walk over the omnet pages against run 1, and the atom tests of
     omnet (the IDE, cosim, the presentation and the legacy slice).
 
