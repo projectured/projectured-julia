@@ -322,7 +322,7 @@ end
     wanted = get_pane_tab_reference(tree, group, 1)
     target = nothing
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
         if op isa ReplaceSelectionOperation && op.path == wanted
             target = (x, y)
             break
@@ -330,7 +330,7 @@ end
     end
     @test target !== nothing
     _mtt_move!(MttDriver(proj, tree, iomap), target..., 1.0)
-    op = read_intent(proj, iomap, MouseClick(:left, target..., 2, ModifierKeys(); time = 1.0))
+    op = read_intent(proj, nothing, Intent(MouseClick(:left, target..., 2, ModifierKeys(); time = 1.0)), iomap).operation
     @test op isa ReplaceSelectionOperation && op.path == wanted
     @test tree.maximized === nothing
 end

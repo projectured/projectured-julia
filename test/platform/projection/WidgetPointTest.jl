@@ -67,7 +67,7 @@ end
     t = only(t for t in _collect_task_view_texts(get_iomap_output(iomap)) if t[3] == "Bananas")
     steps(path) = collect(get_reference_steps(strip_reference_types(path)))
     click(modifiers) =
-        read_intent(projection, iomap, MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0))
+        read_intent(projection, nothing, Intent(MouseClick(:left, t[1] + 2, t[2] + 2, 1, modifiers; time = 0.0)), iomap).operation
     plain = click(ModifierKeys())
     @test plain isa ReplaceSelectionOperation && steps(plain.path) == [FieldReferenceStep("items"), _at(2)]
     alt = click(ModifierKeys(alt = true))

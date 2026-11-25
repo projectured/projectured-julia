@@ -512,9 +512,9 @@ end
     x, y, _, _ = only(t for t in _strip_texts(iomap.output) if t[3] == "two")
     alt = ModifierKeys(alt = true)
     # A plain click on the name opens its tab.
-    @test _select_tab(read_intent(proj, iomap, _press(x + 10 + 1, y + 2)), 2)
+    @test _select_tab(read_intent(proj, nothing, Intent(_press(x + 10 + 1, y + 2)), iomap).operation, 2)
     # An Alt+click after the first character puts the caret there, in the name.
-    caret = read_intent(proj, iomap, MouseClick(:left, x + 10 + 1, y + 2, alt; time = 0.0))
+    caret = read_intent(proj, nothing, Intent(MouseClick(:left, x + 10 + 1, y + 2, alt; time = 0.0)), iomap).operation
     @test caret isa ReplaceSelectionOperation
     name = strip_reference_types(WidgetModule._make_tab_name_part(pane.selector_element_pairs[2].selector, 2))
     @test strip_reference_types(caret.path) ==
@@ -523,10 +523,10 @@ end
     box = find_reference_box(iomap.output, map_reference_forward(proj, iomap, caret.path); measure = _stub)
     @test box !== nothing && (Int(box.x), Int(box.y)) == (x + 10, y)
     # A press with Alt starts the drag of a range there, and grabs no tab.
-    down = read_intent(proj, iomap, MouseDown(:left, x + 10 + 1, y + 2, alt; time = 0.0))
+    down = read_intent(proj, nothing, Intent(MouseDown(:left, x + 10 + 1, y + 2, alt; time = 0.0)), iomap).operation
     @test down isa CompoundOperation && any(op -> op isa StartDragOperation, down.operations)
     # A move on the name names the character under the pointer.
-    target = _target_of(read_intent(proj, iomap, MouseMove(x + 10 + 1, y + 2; time = 0.0)))
+    target = _target_of(read_intent(proj, nothing, Intent(MouseMove(x + 10 + 1, y + 2; time = 0.0)), iomap).operation)
     @test target !== nothing && strip_reference_types(target) == strip_reference_types(caret.path)
     # The name selected as a whole draws a band behind it, as wide as the name.
     band(rects) = any(rect -> rect[1] == x && rect[3] == 3 * 10, rects)

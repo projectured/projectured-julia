@@ -302,7 +302,7 @@ end
         r = get_pane_rectangle(tree, group)
         x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
         for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
-            op = read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
+            op = read_intent(projection, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0)), iomap).operation
             op isa ReplaceSelectionOperation && op.path == wanted && return (x, y)
         end
         nothing

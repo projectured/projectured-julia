@@ -146,7 +146,7 @@ function test_widget_menu_keys()
         alt = ModifierKeys(alt = true)
         # An Alt+click after the first character of the prompt puts the caret there.
         x, y = _menu_keys_text_point(iomap.output, "Add: ")
-        caret = read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0))
+        caret = read_intent(list_projection, nothing, Intent(MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0)), iomap).operation
         @test caret isa ReplaceSelectionOperation
         step = get_reference_head(strip_reference_types(caret.path))
         @test step isa ProjectionReferenceStep && step.projection isa WidgetChoiceListToWidget
@@ -157,8 +157,8 @@ function test_widget_menu_keys()
         # A row is an item of a menu, which takes no caret: an Alt+click on it gives
         # nothing, and a plain click chooses it.
         x, y = _menu_keys_text_point(iomap.output, "Chart")
-        @test read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0)) === nothing
-        chosen = read_intent(list_projection, iomap, MouseClick(:left, x + 8 + 1, y + 2, ModifierKeys(); time = 0.0))
+        @test read_intent(list_projection, nothing, Intent(MouseClick(:left, x + 8 + 1, y + 2, alt; time = 0.0)), iomap).operation === nothing
+        chosen = read_intent(list_projection, nothing, Intent(MouseClick(:left, x + 8 + 1, y + 2, ModifierKeys(); time = 0.0)), iomap).operation
         @test chosen isa CompoundOperation && chosen.operations[1] isa EditMenuPartOperation
         @test chosen.operations[1].description == "Chart"
         # The typed text as a whole is the text of its field as a whole, both ways.

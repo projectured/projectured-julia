@@ -112,15 +112,16 @@ function test_workflow_to_widget()
             end
             hit = nothing
             for y in 0:6:1500, x in 0:6:1300
-                operation = read_intent(editor.projection, editor.iomap,
-                                        MouseClick(:left, x, y, 1, ModifierKeys(alt = true); time = 0.0))
+                operation = read_intent(editor.projection, nothing,
+                                        Intent(MouseClick(:left, x, y, 1, ModifierKeys(alt = true); time = 0.0)),
+                                        editor.iomap).operation
                 drawn(operation) && (hit = (x, y, operation); break)
             end
             @test hit !== nothing
             if hit !== nothing
                 x, y, caret = hit
                 steps = collect(get_reference_steps(strip_reference_types(caret.path)))
-                plain = read_intent(editor.projection, editor.iomap, MouseClick(:left, x, y; time = 0.0))
+                plain = read_intent(editor.projection, nothing, Intent(MouseClick(:left, x, y; time = 0.0)), editor.iomap).operation
                 @test plain isa ReplaceSelectionOperation &&
                       collect(get_reference_steps(strip_reference_types(plain.path))) == steps[1:(end - 1)]
             end
