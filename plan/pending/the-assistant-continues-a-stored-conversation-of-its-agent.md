@@ -312,23 +312,80 @@ fakes and do not wait for that land.
      with the `data` of the answer, and a handler that throws a
      `ProtocolException` with `data` sends it. `RESOURCE_NOT_FOUND` (-32002)
      exists.
-2. [ ] **`ClaudeCodeACP` answers `session/list`** (P8, P9). Test with a
+2. [x] **`ClaudeCodeACP` answers `session/list`** (P8, P9). Test with a
    temporary `CLAUDE_CONFIG_DIR`: a folder that exists and one that is gone, the
    three sources of a title, the order, two pages, a record of a process that
    runs (the test process) and of one that ended, a record of an own `claude`.
    Measure the time of a list of this machine once, and record it with what it
    measures.
-3. [ ] **`ClaudeCodeACP` answers `session/load`** (P6, P7). Test with stored
+3. [x] **`ClaudeCodeACP` answers `session/load`** (P6, P7). Test with stored
    files: a branch, a compaction, an edit with its diff, a meta prompt, a
    thinking with no text, the updates before the answer in the order of the
    chain, no `claude` at the load, `--resume` at the first prompt, and
    `RESOURCE_NOT_FOUND` for a session with no file.
-4. [ ] **`ClaudeCodeACP` checks at each prompt** (P10). Test: a held
+4. [x] **`ClaudeCodeACP` checks at each prompt** (P10). Test: a held
    conversation gives the error with the program; a conversation that another
    program changed gives the error, and the next prompt starts `claude` again
    with `--resume`; an own `claude` does not count. Update the README. The
    version becomes 0.1.12. Then report and ask the owner to approve the land of
    `ClaudeCodeACP`.
+
+   Steps 2 to 4 done 2026-11-25 on the branch `session-list-and-load` of
+   `ClaudeCodeACP.jl`, in one commit for the code and the tests (9b383a4) and
+   one for the README (12541cf), because the check needs the load and the list
+   in its tests. 482 tests pass, 78 of them new. The land waits for the
+   approval of the owner. What the work found and decided:
+   - **A new file `src/history.jl`** holds the readers: `find_claude_conversations`,
+     `read_conversation_title`, `find_conversation_chain`,
+     `foreach_conversation_record`, `make_replay_updates!`, `find_claude_holders`,
+     `find_last_answer_record` and `foreach_line_backward`.
+     `find_claude_last_answer` of the fork reads the file from its end now.
+   - **A prompt of a person** is a `user` record with text that is not of a
+     subagent, not meta, not the summary of a compaction, whose `origin` is none
+     or `{"kind": "human"}` (a task notification has
+     `{"kind": "task-notification"}`, a message of another session
+     `{"kind": "peer"}`), and whose text does not start with `<command-name>`,
+     `<command-message>`, `<local-command-` or `[Request interrupted by user`.
+     A survey of the 95175 `user` records of this machine gave these forms.
+   - **The list reads at most the first 1 MiB of a file** for the folder and the
+     first prompt (the first `user` record of each of the 149 files comes in its
+     first 1797 bytes), and **its end in blocks of 64 KiB** for the titles and the
+     last prompt. `claude` writes `custom-title`, `ai-title` and `last-prompt`
+     again after each turn: 37519, 35848 and 40052 such records in 149 files,
+     the last one of each at most 34 KB before the end of its file. A file whose
+     start has no prompt of a person counts when its end has a `last-prompt`.
+   - **The time of the list**, measured in one job of 2 cores with the files of
+     this machine in the cache of the system: 123 of the 149 files are listed;
+     the first list in a new process takes 1.63 s, compilation included, and a
+     second list 0.035 s.
+   - **The time of the replay** of the largest file (110.5 MB): its chain of 24619
+     records takes 0.43 s, and the translation of the chain into 13575 updates
+     (219 prompts, 26 compactions) 1.59 s, without the send. The second largest
+     (109.8 MB): 13509 records in 0.21 s, 6663 updates in 0.39 s.
+   - **P6 changed in one detail:** only the first prompt starts `claude` after a
+     load. A change of an option before it changes only the flags of that start,
+     as the handler of the options did before.
+   - **The check of P10.** The session keeps `last_answer_uuid`: the last answer
+     in the file at a load or a resume, then the uuid of each answer event of
+     its own `claude`, which is the uuid of the record in the file (checked
+     with the real `claude`). Before a prompt, the agent reads the last answer
+     of the file from its end. Another uuid is an answer of another program,
+     and its `entrypoint` names that program. Two cases count as no conflict: a
+     session that knows no answer yet takes the answer of the file as known, so
+     a `claude` that gives no uuid can not refuse each prompt; and while a turn
+     runs in the own `claude`, only the holder counts, because the file can hold
+     the answer before its event comes.
+   - **The error** has the code `INVALID_REQUEST`, as "A prompt runs in this
+     session" has, and `data.claudeCode = {heldBy, isOpen}`.
+   - **An own `claude`** is a process of the agent, or a child of one up to 4
+     parents, so a `claude` command that is a script still counts as own. A
+     test fake gets the process id of the test process for this; it has no
+     `Base.Process`, so no signal goes to that id.
+   - **The tests use a configuration of their own:** `runtests.jl` sets
+     `CLAUDE_CONFIG_DIR` to an empty temporary folder, so no test reads the
+     files of the person.
+   - **`Dates`** is a new dependency of `ClaudeCodeACP`, for the time of a row
+     in ISO 8601. It is a standard library.
 5. [ ] **The kernel gets the verbs** (P2). `AgentSessionInfo`,
    `list_agent_sessions`, `load_agent_session!` and
    `AgentSessionConflictException` in `source/kernel/agent/`, with their
@@ -380,6 +437,10 @@ fakes and do not wait for that land.
 - A subagent shows as one tool call (P7).
 - A conversation of another folder continues in that folder, so Claude works
   there, and not in the folder of the window.
+- A resume, which an assistant that shows its turns sends after a stop of its
+  connection, takes the last answer in the file at the resume as known. Turns
+  that another program added while the connection was stopped then do not show
+  until a load.
 - Step 9 measures the open of the largest conversation. If it is too slow or
   too large, this plan records the numbers, and the memory of a long transcript
   goes to a plan of its own, because the memory of a long list is one question
