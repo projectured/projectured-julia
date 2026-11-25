@@ -658,9 +658,6 @@ end
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
         name = String(head.captures[1])
-        # The keywords `using` and `import`, which the text names for the standard
-        # libraries, are no names of the editor.
-        name in ("using", "import") && continue
         @test name in words || error("the system text names `" * name * "`, which no model can write")
     end
     # The guide that the text names. A name that no declared module defines, such as

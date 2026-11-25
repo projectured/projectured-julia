@@ -1,9 +1,9 @@
 # The assistant knows its libraries, and a date is a value
 
-**Status:** pending. Written on 2026-11-25, and written again on the same day
-after three questions of the owner. The owner asked for this plan ("yes, write
-the plan", then "yes, rewrite the plan"). The proposed decisions below are
-approved with the plan, when the owner approves the plan.
+**Status:** approved by the owner on 2026-11-25 ("yes, start it in a
+worktree", to "Do you approve the plan, so that I start it in a worktree?").
+Done on 2026-11-25 on the branch `assistant-libraries`: all ten steps. The
+branch is not landed: the land waits for the word of the owner.
 
 The plan lands nothing and pushes nothing: it ends with a request to land.
 
@@ -176,8 +176,12 @@ The session proposes them. They are approved with the plan.
    > without its module. No package of the editor, such as ProjecturedPlatform,
    > is in scope. To use a standard library of Julia, write `using Dates`,
    > `using Statistics`, `using Printf` or `using Random`: these four load when
-   > you ask. The packages of the window are fixed, so a `using` or an `import`
+   > you ask. The packages of the window are fixed, so a using or an import
    > of any other package is refused.
+
+   *Changed in step 10:* the two keywords of the last sentence have no
+   backticks. The tests of the names of a window, in projectured-julia and in
+   omnet-julia, read each name in backticks as a name that a model writes.
 
    The rule "NEVER guess a name or a signature: search for it" gets a second
    sentence: "`search_api` finds the names of the editor; the names of the
@@ -468,9 +472,41 @@ tests of the steps before it. The work is in a worktree that
   - The tool itself: `prepare_window!` set the field `collapse_thinking`, which
     `Assistant` lost in commit `06e96df1d`, so every rehearsal of `main` failed;
     `tool/video/record_assistant_window.jl` has the same line.
-- [ ] **10. The check before the land.** All the parts in worker processes, with
+- [x] **10. The check before the land.** All the parts in worker processes, with
   no network, as `CLAUDE.md` says under "Main is green": 0 unmarked `Fail`,
   0 `Error`, and `done` for each part. Then the request to land.
+
+  The run of all parts at `fc6f0fb61`, on 2026-11-25, with no network: 770
+  parts, 769 done and 1 timeout; 3520169 passed, 6 failed, 9 errors and 3598
+  broken. The parts that did not pass:
+
+  | Part | Result | Cause |
+  | --- | --- | --- |
+  | `test_exports` | 2 failed | of `main`: the export order of `GestureModule.jl:37`, from `c5a6627f2` of 2026-11-20 |
+  | `test_documentation` | 3 failed | of `main`: no guide names the slices `source/adapter/dataframes` and `source/platform/arrangement` |
+  | `test_scroll_work` | 1 failed | of `main`: `ScrollWorkTest.jl:195`, a count of the work of the Files pane |
+  | `test_application` | timeout at 600 s | under the load of 10 workers; alone it ends in 438 s with 1 failure of `main`, `ApplicationTest.jl:2006`, a click in the Files pane |
+  | `test_assistant_documentation` | 9 errors | of this branch: an example of the chart calls `Date`, and the text of the window names `using` and `import`; `ed118dee7` lets the test take the names of the standard libraries and the two keywords, and the part alone has 3179 passed and the 5 broken markers |
+
+  The plan of the JSON views (`plan/done/the-editor-shows-a-json-file-through-its-views.md`)
+  names the two failures of the Files pane as new failures of `main`, with no
+  marker, and the record of another branch on `main` `28dfc9f93` has them with
+  the same counts. The guards fail on `main` too, so CI of `main` is red since
+  2026-11-20. This plan marks none of them.
+
+  The fast parts of omnet-julia `main` `fa9b3b2b6` against this branch, in a
+  worktree with `--with`: 265 parts, 265 done; 42824 passed, 0 failed, 2 errors
+  and 267 broken. The 2 errors were `OmnetIde/test_prompt_names`, which reads
+  each name in backticks of the text of a window, and the text had `` `using` ``
+  and `` `import` `` bare; the text writes the two keywords with no backticks
+  now (decision 3), and the part has 199 of 199. A first start of this run
+  stopped at the load: the precompile of `OmnetPresentationExample` was killed
+  at the cap of 8 GB, and the run with 16 GB loaded every package.
+
+  After the run of all parts, two commits changed one test and one sentence of
+  the text of the window; the parts that they reach, `test_assistant_documentation`
+  and `OmnetIde/test_prompt_names`, ran again and pass. The record of the run is
+  of `fc6f0fb61`.
 
 ## Not in this plan
 

@@ -410,8 +410,8 @@ const EDITOR_SYSTEM =
     "Base and each name of the index are in scope by themselves, so write a name " *
     "without its module. No package of the editor, such as ProjecturedPlatform, is in " *
     "scope. To use a standard library of Julia, write " * _LOADABLE_LIBRARY_LINES *
-    ": these load when you ask. The packages of the window are fixed, so a `using` or " *
-    "an `import` of any other package is refused. " *
+    ": these load when you ask. The packages of the window are fixed, so a using or an " *
+    "import of any other package is refused. " *
     "The variable `editor` is the running editor, and a verb acts on it, so the code " *
     "does not pass it. Code that needs no document of the window, such as a long " *
     "computation, runs with `background` set to true, so the person can go on working.\n" *
