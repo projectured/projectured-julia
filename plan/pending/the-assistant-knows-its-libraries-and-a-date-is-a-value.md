@@ -350,19 +350,38 @@ tests of the steps before it. The work is in a worktree that
   `_TEXT_VALUE_TYPES`; `_evaluate_pred` and `_evaluate_splice` call
   `_build_text_value`, and `_print_text_value` of `PredFile.jl` writes the
   value. The part `test_pred_file` of `test_platform()` has 106 of 106. The
-  edit of a date through the tab of a record is not tested yet: step 7 checks
-  it with the guide of the record table. The guide of the serialization has a
-  paragraph on dates.
-- [ ] **4. The time axis of the chart.** Proposed decision 5.
+  part `test_record_table` has 36 of 36: in an editor, a table of records with
+  dates shows them, a change of a date through `replace_referenced_value!`
+  shows in its row, a sort orders the drawn rows by date with a record of no
+  date last, and the file keeps `Dates.Date("…")`. A sort orders the drawn rows
+  of the arrangement and leaves the rows of the roster in their order. The guide
+  of the serialization has a paragraph on dates.
+- [x] **4. The time axis of the chart.** Proposed decision 5.
   *Check:* tests of the ticks and labels for a span of 6 hours, 2 days,
   3 weeks, 5 months and 3 years. A test of the readout. A test that a zoom and
   a click on a sample work on a time axis. A test of a chart with dates in a
   `.pred` file. A test that a chart that mixes dates and numbers says why in the
   legend. `test_chart()` passes whole.
-- [ ] **5. The pivot line chart over dates.** Proposed decision 6.
+
+  Done on 2026-11-25. `get_plot_coordinate`, `is_date_column`, the lazy
+  `ChartDateColumn` and `get_series_x` are in `ChartDocument.jl`; the ticks are
+  `compute_time_ticks` of the new fragment `ChartTimeAxis.jl`. The mixed case
+  draws the series of the kind of the first one, and the legend entry of each
+  other series says "x holds numbers, the axis shows dates" or the reverse. A
+  column of no concrete element type, as a `.pred` file reads it, is a date
+  column when its first element is a date. The finest step whose labels fit
+  wins, so a span of 3 years on the default width shows quarters, and a span of
+  30 years shows every second year. `test_chart()` has 763 of 763, with the new
+  part `test_chart_time_axis`. `environment/all/Manifest.toml` names `Dates`
+  for `ProjecturedChart`, as `Pkg.resolve` writes it; the workers had to start
+  again after the new dependency.
+- [x] **5. The pivot line chart over dates.** Proposed decision 6.
   *Check:* a pivot of records with a date cell, as a line chart, gives a time
   axis, and the step between two dates that are 7 days apart is 7 times the
   step of 1 day. `test_pivot()` passes whole.
+
+  Done on 2026-11-25. `test_pivot()` has 367 passed and 4 broken, the 4
+  markers that `main` has.
 - [ ] **6. A built binary holds the libraries.** Proposed decision 7.
   *Check:* a test of the builder reads the `[deps]` of the package that it
   writes, and finds each library of the list. If the machine has room for a

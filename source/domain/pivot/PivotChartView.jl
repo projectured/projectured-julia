@@ -136,13 +136,16 @@ function make_pivot_cell_document(pivot::PivotTable, ::PivotLineChartView, row_k
     values === nothing && return WidgetLabel("")
     present = data.present[(row_key, column_key)]
     numeric = all(category -> category isa Real, data.categories)
-    x = Float64[numeric ? Float64(category) : k for (k, category) in enumerate(data.categories)]
+    dated = !isempty(data.categories) && all(category -> category isa Union{Date,DateTime}, data.categories)
+    x = dated ? Union{Date,DateTime}[category for category in data.categories] :
+        Float64[numeric ? Float64(category) : k for (k, category) in enumerate(data.categories)]
     series = Any[]
     for s in eachindex(data.series)
         shown = findall(present[:, s])
         push!(series, ChartLineSeries(_describe_pivot_series(data.series[s]), x[shown], values[shown, s]))
     end
-    x_axis = ChartAxis(; min = isempty(x) ? 0.0 : minimum(x), max = isempty(x) ? 1.0 : maximum(x),
+    x_axis = ChartAxis(; min = isempty(x) ? 0.0 : dated ? minimum(DateTime, x) : minimum(x),
+                       max = isempty(x) ? 1.0 : dated ? maximum(DateTime, x) : maximum(x),
                        show_title = false, show_labels = false, grid = :none)
     _make_pivot_chart(series, x_axis, _make_pivot_value_axis(data))
 end

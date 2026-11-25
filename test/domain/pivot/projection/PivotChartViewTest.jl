@@ -57,6 +57,23 @@ pie = pivot.cells[1][1].chart.series[1]
 many = make_pivot_table((k = string.(1:20), v = collect(1.0:20.0)); cells = ["k"])
 @test get_pivot_cell_view(many) isa PivotRowsView
 
+# ── A line chart over dates ─────────────────────────────────────────────────
+
+# The categories are the dates themselves, so two dates 7 days apart are 7 times
+# as far as two dates 1 day apart.
+Date = PivotModule.Date
+dates = [Date(2026, 3, 1), Date(2026, 3, 2), Date(2026, 3, 9)]
+dated = make_pivot_table((d = dates, v = [1.0, 2.0, 4.0]); cells = ["d"], measures = [PivotMeasure("v", :sum)])
+getfield(dated, :cell_view)[] = PivotLineChartView()
+dated_chart = dated.cells[1][1].chart
+dated_line = dated_chart.series[1]
+@test dated_line isa ChartLineSeries && collect(dated_line.x) == dates
+@test dated_chart.x_axis.min == Date(2026, 3, 1) && dated_chart.x_axis.max == Date(2026, 3, 9)
+step(a, b) = ChartModule.get_plot_coordinate(b) - ChartModule.get_plot_coordinate(a)
+@test step(dates[1], dates[3]) == 8 * step(dates[1], dates[2])
+@test step(dates[2], dates[3]) == 7 * step(dates[1], dates[2])
+@test ChartModule._is_time_chart(dated_chart)
+
 # ── The charts draw in their cells ──────────────────────────────────────────
 
 projection = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
