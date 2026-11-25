@@ -2384,6 +2384,16 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `reference.md` say the rule; `test_reference_evaluation` has a new test set
     (a path that records the cell form resolves on the mutable form, and a node of
     another document type holds no recorded type of it).
+
+    The walk of the omnet pages then showed the next stop on the same path: the
+    write of a selection took the selection field of each node on the path as a
+    cell, and the native form holds it as a plain value, live, as
+    `map_selection_forward` reads it already (`setindex!(::Nothing, …)`). The
+    selection walkers of `SelectionDefaults.jl` read and write the field of
+    either form now (`_read_selection_field`, `_write_selection_field!`); an
+    immutable native form keeps the selection that it was made with.
+    `test_selection` 63 (a new test set: a path through the native form writes its
+    plain selection, and a clear clears it), `test_kernel` 5348 and its 5 broken.
   - [x] O7. The walk over the omnet pages against run 1, and the atom tests of
     omnet (the IDE, cosim, the presentation and the legacy slice).
 
