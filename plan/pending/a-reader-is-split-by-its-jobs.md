@@ -1108,3 +1108,49 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
     `Fail` or `Error` on the branch is a fault of the branch, and no run of main goes beside
     it. The check is the land run of `CLAUDE.md` in each worktree, with no network, through
     `julia-worktree run`.
+  - The land run of projectured (1 h 14 min, the record of 3766c0a3a) ends each of its
+    768 parts: 3520443 pass, 7 fail, 0 error, 3601 broken. The 7 failures are in 4 parts, and
+    each is a failure of main that has no mark:
+    - `test_exports`, 2: `GestureModule.jl:37` exports its names in an order that
+      `MouseGesture.jl` does not define them, since main c5a6627f2 of 2026-11-23.
+    - `test_documentation`, 3: `dragtracking.md:94` and `pane.md:291` link to the plan of the
+      tab that moves along its strip in `plan/pending`, which main moved to `plan/done` in
+      d85427334 of 2026-11-23.
+    - `test_scroll_work`, 1 (`ScrollWorkTest.jl:195`, the count of the work of the Files
+      pane), and `test_application`, 1 (`ApplicationTest.jl:2006`, an Alt+double click on a
+      row of the Files pane selects no file). The plan of the JSON file through its views
+      found both on main at 567b5665b, with no mark.
+
+    The branch changes none of these test files, none of the files that the two guards name,
+    and nothing in `source/kernel/gesture/`. The record of another branch over main
+    3dcb5f516 has the same two guard failures.
+  - inet, at the neutral paths of `julia-worktree` in `bwrap` with no network, against the
+    omnet and the projectured branches (the tool mounts no inet-julia, so the command is
+    written out):
+    - `test_queuing`: 402 pass, 21 fail, 16 error, 1 broken. The fail and the error counts
+      are those of step 7; the pass count was 422. Each failure is in `tutorial.jl`, where a
+      page gives each embed inside a `File`, and the test asks for the embed. The one line of
+      the branch in that file, the 4-argument call at line 253, passes.
+    - `test_inet`: 390 pass, 46 fail, 34 error, from one cause: `open_page!` is ambiguous in
+      `InetTest`, because `ProjecturedAll` exports the one of the navigator (since
+      2026-10-15) and `OmnetPresentation` its own (since 2026-08-31). The branch changes
+      neither.
+    - The guards: `style.jl` passes, `packagegraph.jl` has 39 of 39, and `tree.jl` finds the
+      two `precompile` folders of `InetExample` and `InetRunner`, which inet main tracks since
+      2026-10-29.
+  - omnet, the two land commands of its `CLAUDE.md` with `--with` the projectured branch:
+    - All the parts (1 h 09 min, the record of 5d6885c2a): 268 parts done, 880645 pass,
+      0 fail, 0 error, 334 broken.
+    - The three suites of `test/runtests.jl`: 125 pass, 0 fail, 0 error, 88 broken.
+    - The last full record of main, at cfdb5c3a6, has 265 parts and 267 broken. Of the 67
+      more, 64 and 4 are in two parts that main added after it, `test_presentation_atoms` and
+      `test_ide_gestures_compile_little`. `test_task_group_pane` has one pass and one broken
+      fewer: its loop counts one of each for each look at the group while it runs.
+  - Three facts of the runs, none of the branch:
+    - The omnet worktree had no `Manifest.toml` in `environment/all` and `environment/build`,
+      so the runner found no `ProjecturedKernelTest`. The copies of main fixed it, as
+      `julia-worktree new` does.
+    - A depot made by hand from `compiled` alone has no `tmp`, and `TMPDIR` of the run names
+      it, so each `mktemp` fails. The first omnet run stopped after 31 parts for this.
+    - With a depot that must compile `OmnetPresentationExample`, its precompilation was
+      killed at the cap of 8 GB, and at 9 GB. The job of 14 GB compiled it.
