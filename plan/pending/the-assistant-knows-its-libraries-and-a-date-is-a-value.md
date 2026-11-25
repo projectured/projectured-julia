@@ -73,6 +73,10 @@ such as `ToolScratch`. So the assistant can not know whether a `using` works.
 - **The assistant knows that it can not use `using` or `import`** (2026-11-25:
   "the assistant should be aware of the fact that it can't use packages via
   using/import, so it's not going to try and fail").
+- **A `using` of a library that is in scope runs, and each other `using` is
+  refused** (2026-11-25: "yes, change the plan", to "Shall I change decisions 3
+  and 4 of the plan this way?", after the question "do you think it would be
+  better to allow using/import for the assistant?").
 - **One plan has three parts:** the names, the date in the `.pred` file, and
   the time axis of the chart (2026-11-25: "yes, write the plan", to "Shall I
   write one plan in `plan/pending/` with these three parts").
@@ -127,27 +131,46 @@ The session proposes them. They are approved with the plan.
    such as ProjecturedPlatform, is in scope." with:
 
    > Base and each name of the index are in scope by themselves, so write a name
-   > without its module. The packages of the window are fixed: `using` and
-   > `import` do not run, so do not write them. No package name, such as
-   > ProjecturedPlatform, is in scope.
+   > without its module. The packages of the window are fixed: a `using` or an
+   > `import` of a package that is not in scope is refused. No package of the
+   > editor, such as ProjecturedPlatform, is in scope.
 
-   The description of the package, which the text of the window shows with the
-   domains, says:
+   The platform text names no library of the adapter, because the adapter can be
+   absent. The description of the package names them. The text of the window
+   shows it with the domains, only while the package is loaded:
 
-   > Dates, Statistics, Printf and Random are ready: write `today()`,
+   > Dates, Statistics, Printf and Random are in scope: write `today()`,
    > `Date(2026, 11, 24)`, `mean(values)`, `@sprintf("%.2f", x)` or
    > `rand(Xoshiro(1), 3)` with no `using`. The names `Dates`, `Statistics`,
    > `Printf` and `Random` reach the other names of each, such as `Dates.format`.
 
    The rehearsal of step 8 can change these two texts.
-4. **The code tool refuses `using` and `import`.** Today the result of a
-   `using` depends on how the window started, so the text of decision 3 is true
-   only with a refusal. When the code of the model holds a top-level `using` or
-   `import`, `execute_julia_code` runs no statement of it. It answers:
+4. **The code tool refuses a `using` and an `import` of a package that is not
+   in scope.** In scope are Base, Core and the module of each entry that
+   `register_assistant_api!` holds. With decision 2 these are `Dates`,
+   `Statistics`, `Printf` and `Random`, and `DataFrames` when its adapter is
+   loaded.
+   - A `using` or an `import` of such a module, or of names of it, runs:
+     `using Dates`, `using Dates: Time`, `import Base: show`. It loads nothing
+     and opens nothing. A model writes `using Dates` from habit, and a refusal
+     would cost it a round for nothing.
+   - For each other top-level `using` or `import`, `execute_julia_code` runs no
+     statement of the code. It answers with the modules of the registry, so the
+     answer says what the window holds:
 
-   > `using` and `import` do not run in this window: its packages are fixed.
-   > Base and the names of the index are in scope, and `search_api` finds a name.
-   > To add a method to a function of Base, write `Base.show(…) = …`.
+     > `using` and `import` run in this window only for a package that is in
+     > scope: Base, Dates, Statistics, Printf and Random. The packages of the
+     > window are fixed. The names of the index are in scope too, and
+     > `search_api` finds a name.
+   - The scratch module binds the module of each marked name of the editor too,
+     such as `PaneModule`. A `using` of such a module is refused, because it
+     brings the exports of the module beside the declared names.
+   - Why no free `using`: a package that the window has not loaded compiles in
+     the process of the window, and a built binary can not load it. Each package
+     of the editor is loaded, so `using ProjecturedKernel` would open the inside
+     of the editor, and the model could write to a cell with no operation that
+     undo takes back. And the result would change from window to window: today
+     it depends on how the window started.
 
    The refusal is a guard against a try that fails. It is no security boundary:
    `Base.require` and `Core.eval` stay. The evaluator of the person keeps
@@ -261,10 +284,12 @@ tests of the steps before it. The work is in a worktree that
   `test_package_graph()` passes.
 - [ ] **2. The text of the window, and the refusal.** Proposed decisions 3 and
   4. Change `EDITOR_SYSTEM` and give the package its description.
-  `execute_julia_code` refuses a top-level `using` and `import`.
-  *Check:* a test sends `x_1 = 1; using Dates` and gets the refusal, and
-  `x_1` is not bound after it. A test sends `import Base: show` and gets the
-  refusal. A `using` in the evaluator of the person still runs. The tests of the
+  `execute_julia_code` refuses a top-level `using` and `import` of a package
+  that is not in scope.
+  *Check:* a test sends `x_1 = 1; using Plots` and gets the refusal, and `x_1`
+  is not bound after it. `using ProjecturedKernel` and `using PaneModule` get
+  the refusal. `using Dates`, `using Dates: Time` and `import Base: show` run.
+  A `using` in the evaluator of the person still runs. The tests of the
   assistant text that compare its words change with it.
 - [ ] **3. A `.pred` file keeps a date.** Proposed decision 5, in the package
   of step 1.
@@ -297,8 +322,9 @@ tests of the steps before it. The work is in a worktree that
 - [ ] **8. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
   give the model a task: "record that entry 21 was repaired today, and show the
   repaired entries over time". Run seeds 1 to 10.
-  *Check:* the code of the model uses `today()` and a `Date`, holds no `using`,
-  no `import`, no `Libc.strftime` and no index as the x of a date. The saved
+  *Check:* the code of the model uses `today()` and a `Date`. It holds no
+  refused `using` or `import`, no `Libc.strftime` and no index as the x of a
+  date. The saved
   table holds `Date(…)`. The chart has a time axis. If the texts of decision 3
   give fewer than 9 of 10, change them and run again, and write the numbers here.
 - [ ] **9. The check before the land.** All the parts in worker processes, with
