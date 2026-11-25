@@ -8,7 +8,7 @@
 
 An agent that answers the request `method` with `handlers[method](agent, params)`.
 A handler answers a result, or throws a `ProtocolException` for an error
-answer. It runs on a task of its own, so it can send updates with
+answer, with its `data` when it has one. It runs on a task of its own, so it can send updates with
 `send_fake_update` and ask the client with `ask_fake_client` before it answers.
 A request with no handler gets "method not found".
 
@@ -96,8 +96,9 @@ function _answer_fake_request(agent::FakeAcpAgent, message::Dict{String,Any})
         Dict("jsonrpc" => "2.0", "id" => message["id"], "result" => handler(agent, params))
     catch exception
         exception isa ProtocolException || rethrow()
-        Dict("jsonrpc" => "2.0", "id" => message["id"],
-             "error" => Dict("code" => exception.code, "message" => exception.message))
+        failure = Dict{String,Any}("code" => exception.code, "message" => exception.message)
+        exception.data === nothing || (failure["data"] = exception.data)
+        Dict("jsonrpc" => "2.0", "id" => message["id"], "error" => failure)
     end
     send_fake_message(agent, answer)
 end

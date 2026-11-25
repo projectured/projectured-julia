@@ -262,6 +262,57 @@ function fork_agent_session!(connection::AcpConnection; session_id::AbstractStri
     end
 end
 
+# A load is the request `session/load`, for an agent whose answer to
+# `initialize` has `loadSession`. The agent sends the history as updates of the
+# session before its answer; they wait with the other updates of the open, and
+# the open puts them into the queue of its session. An error of the protocol, as
+# for a session that the agent does not keep, answers `nothing`, as an agent that
+# can not load does. A needed sign-in, a timeout and a closed connection go to
+# the caller.
+function load_agent_session!(connection::AcpConnection; session_id::AbstractString,
+                             directory::AbstractString = connection.directory,
+                             mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                             on_event = nothing, events::Union{Nothing,AgentEventQueue} = nothing)
+    _run_session_open!(connection, mcp_servers, instructions, on_event, events) do send, meta, servers
+        get(ACP.get_json(connection.agent_capabilities), "loadSession", false) === true || return nothing
+        result = try
+            send(ACP.LoadSessionRequest(session_id = String(session_id), cwd = String(directory),
+                                        mcp_servers = servers, meta = meta))
+        catch exception
+            exception isa ACP.ProtocolException || rethrow()
+            @debug "The agent did not load the session." exception
+            return nothing
+        end
+        (String(session_id), _get_config_options(result))
+    end
+end
+
+# The list is the request `session/list`, for an agent whose answer to
+# `initialize` has `sessionCapabilities.list`, read page by page. A cursor that
+# came before ends the list, so an agent that answers the same page again does
+# not hold the call.
+function list_agent_sessions(connection::AcpConnection; directory::Union{Nothing,AbstractString} = nothing)
+    transport = _get_started_transport(connection)
+    sessions = AgentSessionInfo[]
+    _has_session_capability(connection, "list") || return sessions
+    cursors = Set{String}()
+    cursor = nothing
+    while true
+        result = ACP.send_request!(transport, ACP.ListSessionsRequest(
+            cwd = directory === nothing ? nothing : String(directory), cursor = cursor); timeout = 60)
+        page = ACP.get_json(result)
+        rows = get(page, "sessions", Any[])
+        for row in (rows isa Vector{Any} ? rows : Any[])
+            row isa Dict{String,Any} || continue
+            session = _read_session_info(row)
+            session === nothing || push!(sessions, session)
+        end
+        cursor = _find_string(page, "nextCursor")
+        (cursor === nothing || cursor in cursors) && return sessions
+        push!(cursors, cursor)
+    end
+end
+
 # The open of a session: `open(send, meta, servers)` sends the request of the
 # open with `send` and answers the id of the session that opened and the JSON of
 # its options, or `nothing` for no session. `meta` holds the instructions for
@@ -339,6 +390,19 @@ end
 
 _is_sign_in_error(exception) =
     exception isa ACP.ProtocolException && exception.code == ACP.AUTHENTICATION_REQUIRED
+
+# The refusal of a prompt in a session that another program writes, as
+# `claude-code-acp` sends it: an error whose `data.claudeCode` names the program
+# in `heldBy` and says in `isOpen` whether it holds the session now. `nothing`
+# for another error.
+function _find_session_conflict(exception)
+    exception isa ACP.ProtocolException && exception.data isa Dict{String,Any} || return nothing
+    fields = get(exception.data, "claudeCode", nothing)
+    fields isa Dict{String,Any} || return nothing
+    program = _find_string(fields, "heldBy")
+    (program === nothing || isempty(program)) && return nothing
+    AgentSessionConflictException(program, get(fields, "isOpen", false) === true, exception.message)
+end
 
 # Whether the answer to `initialize` has the session method `name` in its
 # `sessionCapabilities`, such as `"resume"` or `"close"`.
@@ -489,6 +553,8 @@ function send_agent_prompt!(connection::AcpConnection, session_id::AbstractStrin
             ACP.send_request!(transport, request)
         catch exception
             _is_sign_in_error(exception) && throw(_make_sign_in_exception(connection))
+            conflict = _find_session_conflict(exception)
+            conflict === nothing || throw(conflict)
             rethrow()
         end
         Symbol(string(get(ACP.get_json(result), "stopReason", "end_turn")))
@@ -713,7 +779,7 @@ function _translate_connection_update!(connection::AcpConnection, turn::Union{No
         return Any[]
     end
     turn === nothing && return Any[]
-    kind == "user_message_chunk" && return _translate_subagent_prompt!(connection, turn, session_id, update)
+    kind == "user_message_chunk" && return _translate_user_message!(connection, turn, session_id, update)
     kind == "compaction_update" && return _translate_compaction_update!(connection, session_id, update)
     kind == "compaction_summary_chunk" && return _translate_compaction_chunk!(connection, session_id, update)
     _translate_session_update!(turn, update)
@@ -774,18 +840,21 @@ function _forget_finished_subagent!(connection::AcpConnection, child_id::String)
     nothing
 end
 
-# The `user_message_chunk` of a child session is the prompt of its subagent, an
-# `LlmMessage` of the role `:user`, one for each chunk. A chunk of a session that
-# the client opened is the prompt that the client sent, and gives no event.
-function _translate_subagent_prompt!(connection::AcpConnection, turn::AcpTurn, session_id::String,
-                                     update::Dict{String,Any})
-    _find_parent_session(connection, session_id) === nothing && return Any[]
-    _make_subagent_prompt!(turn, _read_content_text(get(update, "content", nothing)))
+# A `user_message_chunk` is a message of the person, an `LlmMessage` of the role
+# `:user`, one for each chunk: in a child session, the prompt of its subagent; in
+# a session that the client opened, a message that the person wrote in another
+# place, such as the phone of Remote Control, or a message of the history that a
+# load sends. While a prompt of the client runs in that session, a chunk is that
+# prompt, which the client has, and gives no event.
+function _translate_user_message!(connection::AcpConnection, turn::AcpTurn, session_id::String,
+                                  update::Dict{String,Any})
+    _find_parent_session(connection, session_id) === nothing && haskey(connection.turns, session_id) && return Any[]
+    _make_user_message!(turn, _read_content_text(get(update, "content", nothing)))
 end
 
-# The prompt of a subagent, after the block that its frame left open; none for
-# an empty text.
-function _make_subagent_prompt!(turn::AcpTurn, text::String)
+# A message of the person, after the block that the frame left open; none for an
+# empty text.
+function _make_user_message!(turn::AcpTurn, text::String)
     isempty(text) && return Any[]
     push!(_close_open_block!(Any[], turn), LlmMessage(:user, LlmContent[LlmText(text)]))
 end
@@ -812,7 +881,7 @@ function _deliver_session_message!(connection::AcpConnection, session_id::String
     turn = _find_session_turn!(connection, recipient_id)
     turn === nothing && return nothing
     text = join(filter(!isempty, String[_read_content_text(block) for block in blocks]), '\n')
-    _send_turn_events!(turn, _make_subagent_prompt!(turn, text))
+    _send_turn_events!(turn, _make_user_message!(turn, text))
     nothing
 end
 

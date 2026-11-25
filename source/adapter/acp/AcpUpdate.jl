@@ -440,6 +440,48 @@ function _read_session_info_update(update::Dict{String,Any})
                            process_id = process_id isa Integer && !(process_id isa Bool) ? process_id : nothing)
 end
 
+# A row of `session/list`: its id, its folder, its title and the time of its last
+# change, with its last prompt and the program that holds it in
+# `_meta.claudeCode`, as `claude-code-acp` sends them. `nothing` for a row with
+# no id or no folder.
+function _read_session_info(row::Dict{String,Any})
+    id = _find_string(row, "sessionId")
+    directory = _find_string(row, "cwd")
+    (id === nothing || isempty(id) || directory === nothing) && return nothing
+    fields = something(_find_claude_meta(row), Dict{String,Any}())
+    AgentSessionInfo(id, directory, _find_string(row, "title"), _find_string(fields, "lastPrompt"),
+                     _read_iso_time(_find_string(row, "updatedAt")), something(_find_string(fields, "heldBy"), ""))
+end
+
+# A time of ISO 8601, as `2026-11-25T10:00:00.123Z`, in seconds after 1970.
+# A time with no zone counts as UTC. `nothing` for no time or another form.
+function _read_iso_time(text::Union{Nothing,String})
+    text === nothing && return nothing
+    found = match(r"^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:?\d{2})?$", text)
+    found === nothing && return nothing
+    year, month, day, hour, minute, second = (parse(Int, found[index]) for index in 1:6)
+    seconds = 86_400.0 * _count_days_after_1970(year, month, day) + 3600 * hour + 60 * minute + second
+    found[7] === nothing || (seconds += parse(Float64, "0" * found[7]))
+    zone = found[8]
+    if zone !== nothing && zone != "Z"
+        digits = replace(zone[2:end], ":" => "")
+        offset = 3600 * parse(Int, digits[1:2]) + 60 * parse(Int, digits[3:4])
+        seconds -= zone[1] == '+' ? offset : -offset
+    end
+    seconds
+end
+
+# The number of days from 1970-01-01 to a date of the Gregorian calendar, by the
+# algorithm `days_from_civil` of Howard Hinnant.
+function _count_days_after_1970(year::Int, month::Int, day::Int)
+    shifted_year = month <= 2 ? year - 1 : year
+    era = fld(shifted_year, 400)
+    year_of_era = shifted_year - era * 400
+    day_of_year = div(153 * (month > 2 ? month - 3 : month + 9) + 2, 5) + day - 1
+    day_of_era = 365 * year_of_era + div(year_of_era, 4) - div(year_of_era, 100) + day_of_year
+    era * 146_097 + day_of_era - 719_468
+end
+
 # The title of a `session_info_update`: `nothing` when the update leaves it out,
 # empty when it clears it.
 function _read_session_title(update::Dict{String,Any})

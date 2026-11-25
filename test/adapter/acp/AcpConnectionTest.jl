@@ -247,6 +247,147 @@ function test_acp_connection()
             stop_agent_connection!(connection)
         end
 
+        @testset "a load gives the history of a session before its answer, and an agent that can not load answers nothing" begin
+            user_chunk(text, id) = Dict("sessionUpdate" => "user_message_chunk", "messageId" => id,
+                                        "content" => Dict("type" => "text", "text" => text))
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/load" => function (agent, params)
+                    session = params["sessionId"]
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "session_info_update", "title" => "Stored"))
+                    send_fake_update(agent, session, user_chunk("One.", "u1"))
+                    send_fake_update(agent, session, merge(_make_text_update("A"), Dict("messageId" => "m1")))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "tool_call", "toolCallId" => "t1",
+                        "title" => "Read a.jl", "kind" => "read", "status" => "pending"))
+                    send_fake_update(agent, session, Dict("sessionUpdate" => "tool_call_update", "toolCallId" => "t1",
+                        "status" => "completed"))
+                    send_fake_update(agent, session, user_chunk("Two.", "u2"))
+                    send_fake_update(agent, session, merge(_make_text_update("B"), Dict("messageId" => "m2")))
+                    Dict("configOptions" => FAKE_CONFIG_OPTIONS)
+                end))
+            connection = make_fake_connection(agent)
+            events = Any[]
+            queue = AgentEventQueue()
+            @test load_agent_session!(connection; session_id = "stored-1", directory = "/work", instructions = "Host.",
+                                      on_event = event -> push!(events, event), events = queue) == "stored-1"
+            params = only(get_received(agent, "session/load"))["params"]
+            @test (params["sessionId"], params["cwd"]) == ("stored-1", "/work")
+            @test params["_meta"]["claudeCode"]["options"]["systemPrompt"]["append"] == "Host."
+            @test only(events) isa AgentOptionsUpdate
+            history = take_agent_events!(queue)
+            @test history[1] == AgentSessionInfoUpdate("Stored")
+            messages = filter(event -> event isa LlmMessage, history)
+            @test [(message.role, only(message.content)) for message in messages] ==
+                  [(:user, LlmText("One.")), (:user, LlmText("Two."))]
+            @test history[2] === messages[1] && history[3:4] == Any[LlmTextStart(), LlmTextDelta("A")]
+            @test history[5] == LlmTextStop() && history[6] isa AgentToolCallUpdate && history[7] isa AgentToolCallUpdate
+            @test history[8] === messages[2] && history[9:10] == Any[LlmTextStart(), LlmTextDelta("B")]
+            # The loaded session is a session of the connection: the next prompt
+            # closes the block that the history left open, in the queue.
+            send_agent_prompt!(connection, "stored-1", [LlmText("Three.")]; on_event = identity)
+            @test take_agent_events!(queue) == Any[LlmTextStop()]
+            stop_agent_connection!(connection)
+            # An agent that does not keep the session answers nothing.
+            refusing = _make_fake_agent(Dict{String,Function}(
+                "session/load" => (agent, params) -> throw(ProtocolException(-32002, "No such session"))))
+            connection = make_fake_connection(refusing)
+            @test load_agent_session!(connection; session_id = "stored-1", directory = "/work") === nothing
+            @test isempty(connection.session_queues)
+            stop_agent_connection!(connection)
+            # An agent that does not advertise `loadSession` gets no request.
+            capabilities = deepcopy(FAKE_INITIALIZE_RESULT)
+            delete!(capabilities["agentCapabilities"], "loadSession")
+            plain = _make_fake_agent(Dict{String,Function}("initialize" => (agent, params) -> capabilities))
+            connection = make_fake_connection(plain)
+            @test load_agent_session!(connection; session_id = "stored-1", directory = "/work") === nothing
+            @test isempty(get_received(plain, "session/load"))
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a message of the person outside a prompt of the client reaches the queue, and one in a prompt does not" begin
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => function (agent, params)
+                    send_fake_update(agent, params["sessionId"], Dict("sessionUpdate" => "user_message_chunk",
+                        "content" => Dict("type" => "text", "text" => "Hi")))
+                    send_fake_update(agent, params["sessionId"], _make_text_update("Hello"))
+                    Dict("stopReason" => "end_turn")
+                end))
+            connection = make_fake_connection(agent)
+            queue = AgentEventQueue()
+            session_id = open_agent_session!(connection; events = queue)
+            events = Any[]
+            send_agent_prompt!(connection, session_id, [LlmText("Hi")]; on_event = event -> push!(events, event))
+            @test events == Any[LlmTextStart(), LlmTextDelta("Hello"), LlmTextStop()]
+            send_fake_update(agent, session_id, Dict("sessionUpdate" => "user_message_chunk",
+                "content" => Dict("type" => "text", "text" => "From the phone")))
+            message = only(_take_queue_events(queue, 1))
+            @test message isa LlmMessage && message.role === :user && only(message.content) == LlmText("From the phone")
+            stop_agent_connection!(connection)
+        end
+
+        @testset "the list reads each page, with the last prompt and the holder of a session" begin
+            rows = [Dict("sessionId" => "s1", "cwd" => "/work", "title" => "Fix the parser",
+                         "updatedAt" => "2026-11-25T21:41:31.791Z",
+                         "_meta" => Dict("claudeCode" => Dict("lastPrompt" => "And the test.", "heldBy" => "VS Code"))),
+                    Dict("sessionId" => "s2", "cwd" => "/other", "updatedAt" => "2026-11-25T22:41:31+01:00"),
+                    Dict("sessionId" => "s3"),
+                    Dict("sessionId" => "s4", "cwd" => "/work", "updatedAt" => "yesterday")]
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/list" => function (agent, params)
+                    cursor = get(params, "cursor", nothing)
+                    cursor === nothing ? Dict("sessions" => rows[1:2], "nextCursor" => "page-2") :
+                    cursor == "page-2" ? Dict("sessions" => rows[3:4], "nextCursor" => "page-3") :
+                                         Dict("sessions" => Any[], "nextCursor" => "page-3")
+                end))
+            connection = make_fake_connection(agent)
+            sessions = list_agent_sessions(connection)
+            @test [session.id for session in sessions] == ["s1", "s2", "s4"]
+            @test sessions[1] == AgentSessionInfo("s1", "/work", "Fix the parser", "And the test.", 1795642891.791,
+                                                  "VS Code")
+            @test sessions[2].title === nothing && sessions[2].holder == "" && sessions[2].updated_at == 1795642891.0
+            @test sessions[3].updated_at === nothing
+            # The list ends at a cursor that came before.
+            @test [get(message["params"], "cursor", nothing) for message in get_received(agent, "session/list")] ==
+                  [nothing, "page-2", "page-3"]
+            list_agent_sessions(connection; directory = "/work")
+            @test last(get_received(agent, "session/list"))["params"]["cwd"] == "/work"
+            stop_agent_connection!(connection)
+            # An agent that offers no list gets no request.
+            capabilities = deepcopy(FAKE_INITIALIZE_RESULT)
+            delete!(capabilities["agentCapabilities"]["sessionCapabilities"], "list")
+            plain = _make_fake_agent(Dict{String,Function}("initialize" => (agent, params) -> capabilities))
+            connection = make_fake_connection(plain)
+            @test list_agent_sessions(connection) == AgentSessionInfo[]
+            @test isempty(get_received(plain, "session/list"))
+            stop_agent_connection!(connection)
+        end
+
+        @testset "a prompt that the agent refuses for another program throws the conflict" begin
+            conflict(is_open) = ProtocolException(-32600, "VS Code holds this conversation now.";
+                data = Dict("claudeCode" => Dict("heldBy" => "VS Code", "isOpen" => is_open)))
+            for is_open in (true, false)
+                agent = _make_fake_agent(Dict{String,Function}(
+                    "session/prompt" => (agent, params) -> throw(conflict(is_open))))
+                connection = make_fake_connection(agent)
+                session_id = open_agent_session!(connection)
+                failure = try
+                    send_agent_prompt!(connection, session_id, [LlmText("Hi")]; on_event = identity)
+                catch exception
+                    exception
+                end
+                @test failure isa AgentSessionConflictException
+                @test (failure.program, failure.is_open) == ("VS Code", is_open)
+                @test failure.message == "VS Code holds this conversation now."
+                stop_agent_connection!(connection)
+            end
+            # Another error of the prompt goes to the caller as it is.
+            agent = _make_fake_agent(Dict{String,Function}(
+                "session/prompt" => (agent, params) -> throw(ProtocolException(-32600, "A prompt runs."))))
+            connection = make_fake_connection(agent)
+            session_id = open_agent_session!(connection)
+            @test_throws ProtocolException send_agent_prompt!(connection, session_id, [LlmText("Hi")]; on_event = identity)
+            stop_agent_connection!(connection)
+        end
+
         @testset "the options of a session at the open, at a set, and in an update" begin
             agent = _make_fake_agent(Dict{String,Function}(
                 "session/set_config_option" => function (agent, params)
