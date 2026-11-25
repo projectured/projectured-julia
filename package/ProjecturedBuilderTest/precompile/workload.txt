@@ -31,11 +31,16 @@ Tuple{ProjecturedBuilderTest.var"#_run_launcher_output##0#_run_launcher_output##
 Tuple{ProjecturedBuilderTest.var"#choose#test_build_executable##77"{ProjecturedBuilderTest.var"#choose#45#test_build_executable##78"}, Bool, Bool}
 Tuple{ProjecturedBuilderTest.var"#choose#test_build_executable##77"{ProjecturedBuilderTest.var"#choose#45#test_build_executable##78"}, Symbol, Bool}
 Tuple{ProjecturedBuilderTest.var"#offer#test_build_executable##118"{ProjecturedBuilderTest.var"#offer#61#test_build_executable##119"{String}, ProjecturedBuilderTest.var"#test_build_executable##116#test_build_executable##117"{String}}, String, String}
-Tuple{ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#108#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
+Tuple{ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#113#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
 Tuple{ProjecturedBuilderTest.var"#test_build_executable##120#test_build_executable##121"{String, String, ProjecturedBuilder.BuilderModule.BuildContext, String}, Array{ProjecturedBuilder.BuilderModule.SourceOffer, 1}}
+Tuple{ProjecturedBuilderTest.var"#test_build_executable##170#test_build_executable##171", Pair{String, String}}
+Tuple{ProjecturedBuilderTest.var"#test_build_executable##172#test_build_executable##173", Symbol}
+Tuple{ProjecturedBuilderTest.var"#test_build_executable##174#test_build_executable##175", Pair{String, String}}
 Tuple{ProjecturedBuilderTest.var"#test_build_executable##48#test_build_executable##49"{ProjecturedBuilderTest.var"#read_build#32#test_build_executable##50"{Module}}, Array{String, 1}}
 Tuple{ProjecturedKernelTest.var"#descend#5"{Bool, String, Base.Dict{String, Array{Pair{Symbol, Array{Symbol, 1}}, 1}}, Base.Dict{String, Symbol}, Array{Tuple{String, Symbol, Array{Symbol, 1}, Array{Pair{Symbol, Array{Symbol, 1}}, 1}, Array{Symbol, 1}}, 1}, Array{String, 1}}, String, Nothing}
 Tuple{ProjecturedKernelTest.var"#descend#5"{Bool, String, Base.Dict{String, Array{Pair{Symbol, Array{Symbol, 1}}, 1}}, Base.Dict{String, Symbol}, Array{Tuple{String, Symbol, Array{Symbol, 1}, Array{Pair{Symbol, Array{Symbol, 1}}, 1}, Array{Symbol, 1}}, 1}, Array{String, 1}}, String, Symbol}
+Tuple{Type{Base.Broadcast.Broadcasted{Style, Axes, F, Args} where Args<:Tuple where F where Axes where Style<:Union{Nothing, Base.Broadcast.BroadcastStyle}}, Base.Broadcast.Style{Tuple}, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}, Nothing}
+Tuple{Type{Base.Broadcast.Broadcasted{Style, Axes, F, Args} where Args<:Tuple where F where Axes where Style<:Union{Nothing, Base.Broadcast.BroadcastStyle}}, Base.Broadcast.Style{Tuple}, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}
 Tuple{Type{Base.Dict{K, V} where V where K}, Base.Generator{Array{NamedTuple{(:name, :folder, :status, :version), Tuple{String, String, Symbol, Base.VersionNumber}}, 1}, ProjecturedBuilderTest.var"#test_package_release##21#test_package_release##22"}}
 Tuple{Type{Base.Dict{K, V} where V where K}, Base.Generator{Array{NamedTuple{(:name, :folder, :status, :version), Tuple{String, String, Symbol, Base.VersionNumber}}, 1}, ProjecturedBuilderTest.var"#test_package_release##25#test_package_release##26"}}
 Tuple{Type{Base.Dict{K, V} where V where K}, Base.Generator{Array{NamedTuple{(:name, :folder, :status, :version), Tuple{String, String, Symbol, Base.VersionNumber}}, 1}, ProjecturedBuilderTest.var"#test_package_release##27#test_package_release##28"}}
@@ -54,6 +59,10 @@ Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilder.BuilderModu
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##11#test_build_executable##12", Array{ProjecturedBuilder.BuilderModule.StandIn, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##133#test_build_executable##134", Array{ProjecturedBuilder.BuilderModule.SourceOffer, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##151#test_build_executable##152", Array{ProjecturedBuilder.BuilderModule.StandIn, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##170#test_build_executable##171", NTuple{4, Pair{String, String}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##172#test_build_executable##173", NTuple{4, Symbol}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##174#test_build_executable##175", NTuple{4, Pair{String, String}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##176#test_build_executable##177", NTuple{4, Base.PkgId}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##24#test_build_executable##25", Array{ProjecturedBuilder.BuilderModule.StandIn, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##38#test_build_executable##39", Array{ProjecturedBuilder.BuilderModule.StandIn, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedBuilderTest.var"#test_build_executable##4#test_build_executable##5", Base.Iterators.Filter{ProjecturedBuilderTest.var"#test_build_executable##6#test_build_executable##7", Array{NamedTuple{(:group, :label, :description), Tuple{Symbol, String, String}}, 1}}}
@@ -127,8 +136,11 @@ Tuple{Type{Pair{A, B} where B where A}, Symbol, Tuple{Symbol, Symbol}}
 Tuple{Type{ProjecturedBuilder.BuilderModule.Preference}, String, String, Int64}
 Tuple{Type{Random.Sampler{E} where E}, Random.TaskLocalRNG, Base.UnitRange{Int64}, Base.Val{1}}
 Tuple{Type{Test.Broken}, Symbol, Any}
+Tuple{Type{Tuple}, NamedTuple{(:Dates, :Statistics, :Printf, :Random), NTuple{4, Base.PkgId}}}
 Tuple{typeof(Base.:(!=)), UInt32, UInt32}
+Tuple{typeof(Base.:(&)), UInt128, UInt8}
 Tuple{typeof(Base.:(*)), Vararg{String, 4}}
+Tuple{typeof(Base.:(+)), Int64, UInt128}
 Tuple{typeof(Base.:(var"==")), Array{Any, 1}, Array{Base.Dict{Symbol, Any}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{String, 1}, Array{String, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Symbol, 1}, Array{Symbol, 1}}
@@ -147,7 +159,16 @@ Tuple{typeof(Base.:(var"==")), Pkg.Versions.VersionSpec, Base.VersionNumber}
 Tuple{typeof(Base.:(var"==")), Symbol, GlobalRef}
 Tuple{typeof(Base.:(var"==")), Tuple{Bool, Base.Dict{String, Any}}, Tuple{Bool, Base.Dict{String, Any}}}
 Tuple{typeof(Base.:(var"==")), Tuple{Bool, Base.Dict{String, Any}}, Tuple{Bool, Base.Dict{String, Base.Dict{String, Bool}}}}
+Tuple{typeof(Base.Broadcast._broadcast_getindex), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}, Int64}
+Tuple{typeof(Base.Broadcast._broadcast_getindex), NTuple{4, Pair{String, String}}, Int64}
+Tuple{typeof(Base.Broadcast._broadcast_getindex_evalf), typeof(Base.first), Pair{String, String}}
 Tuple{typeof(Base.Broadcast._getindex), Tuple{Int64}, Int64}
+Tuple{typeof(Base.Broadcast._getindex), Tuple{NTuple{4, Pair{String, String}}}, Int64}
+Tuple{typeof(Base.Broadcast.broadcastable), NTuple{4, Pair{String, String}}}
+Tuple{typeof(Base.Broadcast.broadcasted), Base.Broadcast.Style{Tuple}, typeof(Base.first), NTuple{4, Pair{String, String}}}
+Tuple{typeof(Base.Broadcast.broadcasted), typeof(Base.first), NTuple{4, Pair{String, String}}}
+Tuple{typeof(Base.Broadcast.instantiate), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}}
+Tuple{typeof(Base.Broadcast.materialize), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}}
 Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedBuilderTest.var"#test_build_executable##100#test_build_executable##101"{typeof(ProjecturedBuilder.BuilderModule._choose_prelink)}, Base.CoreLogging.LogState}
 Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedBuilderTest.var"#test_build_executable##83#test_build_executable##84", Base.CoreLogging.LogState}
 Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedBuilderTest.var"#test_build_executable##94#test_build_executable##95"{typeof(ProjecturedBuilder.BuilderModule._choose_prelink)}, Base.CoreLogging.LogState}
@@ -173,6 +194,7 @@ Tuple{typeof(Base._all), ProjecturedBuilderTest.var"#test_package_release##52#te
 Tuple{typeof(Base._all), typeof(Base.Filesystem.isdir), Array{String, 1}, Base.Colon}
 Tuple{typeof(Base._all), typeof(Base.Filesystem.ispath), Array{String, 1}, Base.Colon}
 Tuple{typeof(Base._any), Base.Fix{2, typeof(Base.in), Base.Set{String}}, Array{String, 1}, Base.Colon}
+Tuple{typeof(Base._any), ProjecturedBuilderTest.var"#test_build_executable##179#test_build_executable##180"{ProjecturedBuilderTest.var"#deps_of#test_build_executable##178"{Expr}}, NTuple{4, String}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedBuilderTest.var"#test_build_executable##2#test_build_executable##3", Array{Pair{String, String}, 1}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedBuilderTest.var"#test_package_release##62#test_package_release##63", Array{String, 1}, Base.Colon}
 Tuple{typeof(Base._bool), ProjecturedBuilder.BuilderModule.var"#176#177"{Symbol}}
@@ -208,6 +230,7 @@ Tuple{typeof(Base.collect), Base.Generator{Tuple{Pair{Symbol, Bool}, Pair{Symbol
 Tuple{typeof(Base.collect), Base.Generator{Tuple{Pair{Symbol, Bool}}, Test.var"#eval_test_function##2#eval_test_function##3"}}
 Tuple{typeof(Base.collect_similar), Array{Tuple{String, Base.Dict{String, Any}, Any}, 1}, Base.Generator{Array{Tuple{String, Base.Dict{String, Any}, Any}, 1}, Pkg.Operations.var"#80#81"}}
 Tuple{typeof(Base.convert), Type{Ptr{Nothing}}, Ptr{Nothing}}
+Tuple{typeof(Base.copy), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}}
 Tuple{typeof(Base.empty), Base.Dict{Any, Any}, Type{String}, Type{Base.Dict{String, Any}}}
 Tuple{typeof(Base.empty), Base.Dict{Any, Any}, Type{String}, Type{String}}
 Tuple{typeof(Base.empty), Base.Dict{String, Base.Dict{String, Any}}, Type{String}, Type{Any}}
@@ -223,6 +246,7 @@ Tuple{typeof(Base.getindex), Array{Base.SubString{String}, 1}, Int64}
 Tuple{typeof(Base.getindex), Array{String, 1}, Base.UnitRange{Int64}}
 Tuple{typeof(Base.getindex), Base.Dict{String, Base.VersionNumber}, String}
 Tuple{typeof(Base.getindex), Base.Dict{String, NamedTuple{(:name, :folder, :status, :version), Tuple{String, String, Symbol, Base.VersionNumber}}}, String}
+Tuple{typeof(Base.getproperty), Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedBuilder.BuilderModule.SourceOffer, 1}, ProjecturedBuilderTest.var"#test_build_executable##133#test_build_executable##134"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedBuilder.BuilderModule.StandIn, 1}, ProjecturedBuilderTest.var"#test_build_executable##11#test_build_executable##12"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedBuilder.BuilderModule.StandIn, 1}, ProjecturedBuilderTest.var"#test_build_executable##151#test_build_executable##152"}, Symbol}
@@ -231,6 +255,10 @@ Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedBuilder.BuilderM
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedBuilder.BuilderModule.StandIn, 1}, ProjecturedBuilderTest.var"#test_build_executable##46#test_build_executable##47"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{String, 1}, ProjecturedBuilder.BuilderModule.var"#_format_projectured_release_workflow##0#_format_projectured_release_workflow##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedBuilderTest.var"#test_build_executable##6#test_build_executable##7", Array{NamedTuple{(:group, :label, :description), Tuple{Symbol, String, String}}, 1}}, ProjecturedBuilderTest.var"#test_build_executable##4#test_build_executable##5"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{NTuple{4, Base.PkgId}, ProjecturedBuilderTest.var"#test_build_executable##176#test_build_executable##177"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##170#test_build_executable##171"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##174#test_build_executable##175"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{NTuple{4, Symbol}, ProjecturedBuilderTest.var"#test_build_executable##172#test_build_executable##173"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedBuilderTest.var"#test_build_executable##6#test_build_executable##7", Array{NamedTuple{(:group, :label, :description), Tuple{Symbol, String, String}}, 1}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.KeySet{String, Base.Dict{String, Array{Pair{String, String}, 1}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.KeySet{String, Base.Dict{String, NamedTuple{(:summary, :document), Tuple{String, String}}}}, Symbol}
@@ -238,6 +266,7 @@ Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedBuilder.BuilderModule.v
 Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedBuilder.BuilderModule.var"#226#227", Base.Order.ForwardOrdering}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Order.Lt{Base.Sort.var"#_sort!##10#_sort!##11"{Base.Order.By{ProjecturedBuilder.BuilderModule.var"#204#205", Base.Order.ForwardOrdering}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Order.Lt{Base.Sort.var"#_sort!##10#_sort!##11"{Base.Order.By{ProjecturedBuilder.BuilderModule.var"#226#227", Base.Order.ForwardOrdering}}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.UUID, Symbol}
 Tuple{typeof(Base.getproperty), NamedTuple{(:name, :folder, :status, :version), Tuple{String, String, Symbol, Base.VersionNumber}}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, Array{String, 1}}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, String}, Symbol}
@@ -298,12 +327,19 @@ Tuple{typeof(Base.iterate), Base.Dict{String, Any}, Int64}
 Tuple{typeof(Base.iterate), Base.Dict{String, Any}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Iterators.Filter{Pkg.Resolve.var"#build_eq_classes_soft1!##2#build_eq_classes_soft1!##3"{Array{Int64, 1}, Base.BitArray{1}}, Base.UnitRange{Int64}}, Pkg.Resolve.var"#build_eq_classes_soft1!##0#build_eq_classes_soft1!##1"{Array{Base.BitArray{2}, 1}, Array{Int64, 1}, Array{Base.BitArray{1}, 1}, Int64}}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Iterators.Filter{Pkg.Resolve.var"#build_eq_classes_soft1!##2#build_eq_classes_soft1!##3"{Array{Int64, 1}, Base.BitArray{1}}, Base.UnitRange{Int64}}, Pkg.Resolve.var"#build_eq_classes_soft1!##0#build_eq_classes_soft1!##1"{Array{Base.BitArray{2}, 1}, Array{Int64, 1}, Array{Base.BitArray{1}, 1}, Int64}}}
+Tuple{typeof(Base.iterate), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##170#test_build_executable##171"}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##170#test_build_executable##171"}}
+Tuple{typeof(Base.iterate), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##174#test_build_executable##175"}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{NTuple{4, Pair{String, String}}, ProjecturedBuilderTest.var"#test_build_executable##174#test_build_executable##175"}}
+Tuple{typeof(Base.iterate), Base.Generator{NTuple{4, Symbol}, ProjecturedBuilderTest.var"#test_build_executable##172#test_build_executable##173"}}
 Tuple{typeof(Base.iterate), Base.KeySet{String, Base.Dict{String, Any}}, Int64}
 Tuple{typeof(Base.iterate), Base.KeySet{String, Base.Dict{String, Any}}}
 Tuple{typeof(Base.iterate), Base.Pairs{Symbol, Bool, Nothing, NamedTuple{(:compile, :resolve), Tuple{Bool, Bool}}}, Int64}
 Tuple{typeof(Base.iterate), Base.Pairs{Symbol, Bool, Nothing, NamedTuple{(:compile, :resolve), Tuple{Bool, Bool}}}}
 Tuple{typeof(Base.iterate), Base.Set{String}, Int64}
 Tuple{typeof(Base.iterate), Base.Set{String}}
+Tuple{typeof(Base.iterate), NamedTuple{(:Dates, :Statistics, :Printf, :Random), NTuple{4, Base.PkgId}}, Int64}
+Tuple{typeof(Base.iterate), NamedTuple{(:Dates, :Statistics, :Printf, :Random), NTuple{4, Base.PkgId}}}
 Tuple{typeof(Base.iterate), Pair{String, String}, Int64}
 Tuple{typeof(Base.iterate), Pair{String, String}}
 Tuple{typeof(Base.join), Array{Base.SubString{String}, 1}, String}
@@ -328,6 +364,7 @@ Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Tuple{Pair{Symbol, Base.Regex
 Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Tuple{Pair{Symbol, Bool}, Pair{Symbol, Bool}}}
 Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Tuple{Pair{Symbol, Bool}, Pair{Symbol, String}}}
 Tuple{typeof(Base.merge), NamedTuple{(), Tuple{}}, Tuple{Pair{Symbol, Bool}}}
+Tuple{typeof(Base.ntuple), Base.Broadcast.var"#copy##0#copy##1"{Base.Broadcast.Broadcasted{Base.Broadcast.Style{Tuple}, Nothing, typeof(Base.first), Tuple{NTuple{4, Pair{String, String}}}}}, Base.Val{4}}
 Tuple{typeof(Base.occursin), Base.Regex, String}
 Tuple{typeof(Base.pairs), NamedTuple{(:archive,), Tuple{String}}}
 Tuple{typeof(Base.pairs), NamedTuple{(:compile, :resolve), Tuple{Bool, Bool}}}
@@ -379,6 +416,7 @@ Tuple{typeof(Base.unique), Array{Base.SubString{String}, 1}}
 Tuple{typeof(Base.unlock), Base.PipeEndpoint}
 Tuple{typeof(Base.unsafe_convert), Type{Base.Libc.RawFD}, Base.Libc.RawFD}
 Tuple{typeof(Base.unsigned), UInt64}
+Tuple{typeof(Base.values), NamedTuple{(:Dates, :Statistics, :Printf, :Random), NTuple{4, Base.PkgId}}}
 Tuple{typeof(Base.vect), Expr, Vararg{Any}}
 Tuple{typeof(Base.write), Base.GenericIOBuffer{Memory{UInt8}}, Array{UInt8, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:compile, :reactive_julia), Tuple{Bool, Bool}}, ProjecturedBuilderTest.var"#choose#test_build_executable##77"{ProjecturedBuilderTest.var"#choose#45#test_build_executable##78"}, Symbol, Bool}
@@ -390,7 +428,7 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:indent, :first_block, :sorted, :by, :inl
 Tuple{typeof(Core.kwcall), NamedTuple{(:indent, :first_block, :sorted, :by, :inline_tables), Tuple{Int64, Bool, Bool, ProjecturedBuilder.BuilderModule.var"#226#227", Base.IdSet{Base.Dict{String, V} where V}}}, typeof(Base.TOML.Printer.print_table), Function, Base.IOStream, Base.Dict{String, Any}, Array{String, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:indent, :first_block, :sorted, :by, :inline_tables), Tuple{Int64, Bool, Bool, typeof(Base.identity), Base.IdSet{Base.Dict{String, V} where V}}}, typeof(Base.TOML.Printer.print_table), Function, Base.IOStream, Base.Dict{String, Base.Dict{String, String}}, Array{String, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:indent, :first_block, :sorted, :by, :inline_tables), Tuple{Int64, Bool, Bool, typeof(Base.identity), Base.IdSet{Base.Dict{String, V} where V}}}, typeof(Base.TOML.Printer.print_table), Function, Base.IOStream, Base.Dict{String, String}, Array{String, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:into,), Tuple{String}}, ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#108#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:into,), Tuple{String}}, ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#113#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:io, :hidden_upgrades_info), Tuple{Base.IOContext{IO}, Bool}}, typeof(Pkg.Operations.show_update), Pkg.Types.EnvCache, Array{Pkg.Registry.RegistryInstance, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:join,), Tuple{Bool}}, typeof(Base.Filesystem.readdir), String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name,), Tuple{String}}, ProjecturedBuilderTest.var"#offer#test_build_executable##118"{ProjecturedBuilderTest.var"#offer#61#test_build_executable##119"{String}, ProjecturedBuilderTest.var"#test_build_executable##116#test_build_executable##117"{String}}, String, String}
@@ -412,6 +450,7 @@ Tuple{typeof(FlagSandbox._known_flag), String}
 Tuple{typeof(LogSandbox._apply_log_level!)}
 Tuple{typeof(ProjecturedBuilder.BuilderModule._collect_exported_names!), Base.Set{Symbol}, Expr}
 Tuple{typeof(ProjecturedBuilder.BuilderModule._collect_local_dependencies), ProjecturedBuilder.BuilderModule.BuildContext, NTuple{32, String}}
+Tuple{typeof(ProjecturedBuilder.BuilderModule._collect_local_dependencies), ProjecturedBuilder.BuilderModule.BuildContext, NTuple{33, String}}
 Tuple{typeof(ProjecturedBuilder.BuilderModule._collect_local_dependencies), ProjecturedBuilder.BuilderModule.BuildContext, Tuple{String, String}}
 Tuple{typeof(ProjecturedBuilder.BuilderModule._collect_outside_paths!), Array{NamedTuple{(:file, :line, :target, :kind), Tuple{String, Int64, String, Symbol}}, 1}, Expr, String, String, Base.RefValue{Int64}}
 Tuple{typeof(ProjecturedBuilder.BuilderModule._get_literal_path), Expr}
@@ -422,7 +461,7 @@ Tuple{typeof(ProjecturedBuilder.BuilderModule._write_release_workflow), String, 
 Tuple{typeof(ProjecturedBuilder.BuilderModule.has_package_directory), ProjecturedBuilder.BuilderModule.BuildContext, String}
 Tuple{typeof(ProjecturedBuilder.BuilderModule.is_build_refusal), ErrorException}
 Tuple{typeof(ProjecturedBuilder.BuilderModule.make_baked_preference), String, String, Int64}
-Tuple{typeof(ProjecturedBuilderTest._read_release_error), ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#108#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
+Tuple{typeof(ProjecturedBuilderTest._read_release_error), ProjecturedBuilderTest.var"#release#test_package_release##0"{ProjecturedBuilderTest.var"#release#113#test_package_release##1"{String, ProjecturedBuilder.BuilderModule.BuildContext}, String}}
 Tuple{typeof(ProjecturedBuilderTest.run_package_workload)}
 Tuple{typeof(ProjecturedBuilderTest.test_build_executable)}
 Tuple{typeof(ProjecturedBuilderTest.test_builder_layering)}
