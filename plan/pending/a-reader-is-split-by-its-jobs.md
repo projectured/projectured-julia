@@ -253,10 +253,13 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   [conversation.md](../../documentation/package/platform/conversation/conversation.md)) say O4.
   The 42 hand-written moves of a position and the lists of parts of the two charts go. Test:
   `test_platform()`, the chart and graph suites, `test_dataframes()`.
-- [ ] **6. One form.** The 3-argument form of `read_intent`, the bridge and the 3-to-4
+- [x] **6. One form.** Landed 2026-11-25 with step 7 after R6 (§7), rebased with no conflict
+  over main b4c60496a; main cfc64f945. The 3-argument form of `read_intent`, the bridge and the 3-to-4
   wrappers go; the docstrings of `ProjectionInterface.jl`, the guide of the projection system
   and the naming rules say the new form. Test: `test_kernel()`, `test_platform()`, the guards.
-- [ ] **7. omnet-julia and inet-julia follow:** 86 of the 89 readers only map, so they become
+- [x] **7. omnet-julia and inet-julia follow:** Landed 2026-11-25 with step 6: omnet-julia
+  main d419fe0ad, rebased with no conflict over main 873125d89; inet-julia main 861de37 by a
+  fast-forward. 86 of the 89 readers only map, so they become
   methods of `map_operation_backward`. Test: the suites of step 1, `Pkg.precompile()` with no
   warning.
 - [ ] **8. The compile-ahead lists** of the three repositories record again, as in
