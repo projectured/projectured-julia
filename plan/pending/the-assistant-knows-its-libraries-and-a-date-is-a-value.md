@@ -1,8 +1,9 @@
 # The assistant knows its libraries, and a date is a value
 
-**Status:** pending. Written on 2026-11-25. The owner asked for this plan
-("yes, write the plan"). The proposed decisions below are approved with the plan,
-when the owner approves the plan.
+**Status:** pending. Written on 2026-11-25, and written again on the same day
+after three questions of the owner. The owner asked for this plan ("yes, write
+the plan", then "yes, rewrite the plan"). The proposed decisions below are
+approved with the plan, when the owner approves the plan.
 
 The plan lands nothing and pushes nothing: it ends with a request to land.
 
@@ -14,7 +15,7 @@ not name, the work stops and the session asks.**
 The assistant of a window writes Julia code with `execute_julia_code`. Its
 namespace holds Base, the names of the editor that carry the line
 `For the assistant.`, and the names that an adapter registers. It holds no other
-package, and its text says nothing about `using`. So the assistant writes the
+library, and its text says nothing about `using`. So the assistant writes the
 usual functions of Julia again by hand, or it reaches them by a trick. The
 assistant of the OMNeT++ IDE did this for its defect repairs, on 2026-11-24:
 
@@ -26,16 +27,19 @@ ChartLineSeries("repaired", 1:length(dates), counts)         # x is 1, 2, 3 ...
 ChartAxis(names = dates)                                     # ... with the date as a label
 
 # What it must be able to write
-(number = 21, repaired_on = today(), landed_on = nothing)   # the file keeps Date("2026-11-24")
+using Dates
+(number = 21, repaired_on = today(), landed_on = nothing)   # the file keeps Dates.Date("2026-11-24")
 ChartLineSeries("repaired", dates, counts)                  # a time axis: 7 days are 7 days wide
 ```
 
 Three gaps cause this:
 
-1. **No usual library is in scope.** `Dates`, `Statistics`, `Printf` and the
-   names of `Random` beyond `rand` are not in the namespace.
+1. **The assistant can not count on a library.** A `using` resolves its name
+   through the load path of the window. When the load path has no `@stdlib`,
+   even `import Random` fails, although Julia loads `Random` at start.
 2. **A `.pred` file can not keep a date.** Its writer refuses a `Date`, so a
-   `RecordTable` keeps a date as text, and the code compares text.
+   `RecordTable` keeps a date as text, and the code compares text. A bare name
+   such as `Date` also does not say which package a reader must find.
 3. **A chart has no time axis.** The x values must be numbers. A date goes at its
    index, with the date as a label, so the steps between the points are wrong.
    The pivot line chart does the same for a cell of dates.
@@ -55,113 +59,98 @@ A survey of the 23 sessions of the assistant of the OMNeT++ IDE, 2026-10-29 to
 The survey found no use of `CSV`, `readdlm`, `sha256`, `TOML`, `norm`,
 `@which` or `subtypes`. Only 3 calls held a `using` or an `import`.
 
-The result of a `using` depends on how the window starts. The `import Random`
-of 2026-10-29 failed in the IDE. On 2026-11-25, a plain Julia process with the
-environment of the IDE, `build/app/omnet_ide`, and the default load path
-`["@", "@v#.#", "@stdlib"]` loads `Dates`, `Random` and `Statistics` in a module
-such as `ToolScratch`. So the assistant can not know whether a `using` works.
+A check on 2026-11-25 shows why a `using` works in one start and fails in
+another. With the environment of the IDE, `build/app/omnet_ide`:
+
+| Load path | `using Statistics` | `import Random` | `Base.require(PkgId)`, then `using .Statistics` |
+| --- | --- | --- | --- |
+| `["@", "@v#.#", "@stdlib"]`, the default | works | works | works |
+| `["@"]` | "Package Statistics not found in current path" | "Package Random not found in current path" | works |
 
 ## The decisions of the owner that this plan builds
 
 - **No free load of packages: the window has the typical ones ready**
   (2026-11-25: "I'm not sure if allowing the assistant to load arbitrary packages
   is a good idea, we should instead be prepared with the typical packages").
-- **A small package puts useful Julia names into the vocabulary of the
-  assistant** (2026-11-25: "a small package for putting various helpful Julia
-  stuff into the assistant's vocabulary is fine. Think through what would be
-  generally useful in addition to what the assistant already has").
-- **The assistant knows that it can not use `using` or `import`** (2026-11-25:
-  "the assistant should be aware of the fact that it can't use packages via
-  using/import, so it's not going to try and fail").
-- **A `using` of a library that is in scope runs, and each other `using` is
-  refused** (2026-11-25: "yes, change the plan", to "Shall I change decisions 3
-  and 4 of the plan this way?", after the question "do you think it would be
-  better to allow using/import for the assistant?").
-- **One plan has three parts:** the names, the date in the `.pred` file, and
-  the time axis of the chart (2026-11-25: "yes, write the plan", to "Shall I
-  write one plan in `plan/pending/` with these three parts").
+- **Think through what is generally useful beside what the assistant has**
+  (2026-11-25: "Think through what would be generally useful in addition to what
+  the assistant already has. The base package is available by default I guess").
+- **The assistant knows that it can not use other packages through `using` or
+  `import`** (2026-11-25: "the assistant should be aware of the fact that it
+  can't use packages via using/import, so it's not going to try and fail").
+- **A `using` of an allowed library runs, and each other `using` is refused**
+  (2026-11-25: "yes, change the plan", to "Shall I change decisions 3 and 4 of
+  the plan this way?", after the question "do you think it would be better to
+  allow using/import for the assistant?").
+- **No new package: the assistant writes `using` for an allowed library, and a
+  `.pred` file names the package of a value** (2026-11-25: "yes, rewrite the
+  plan", to "Shall I rewrite the plan this way?"). The owner asked before: "do
+  we really need the projectured package then? why not let the assistant simply
+  use the allowed list libraries?", and "only for loading? why not extend the
+  pred syntax? it's unclear what package is it supposed to load anyway? perpahs
+  fully qualified simbols? or using/imports?". The answer that the owner
+  approved: a qualified name such as `Dates.Date("2026-11-24")`, not a `using`
+  line in the file; a reader that loads only a library of the allowed list; a
+  code tool that loads an allowed library when the assistant asks for it; the
+  time axis of the chart and of the pivot as before.
+- **One plan has three parts:** the libraries, the date in the `.pred` file, and
+  the time axis of the chart (2026-11-25: "yes, write the plan").
 
 ## Proposed decisions
 
 The session proposes them. They are approved with the plan.
 
-1. **One package, `ProjecturedStandardLibraries`.** Its code is in
-   `source/adapter/standardlibraries/`, and its module is
-   `StandardLibrariesModule`. It makes the usual values and functions of the
-   standard libraries of Julia work in the editor. It gives two things: the
-   names for the assistant (decision 2), and the `.pred` notation of a date
-   (decision 5). Both need `Dates`, so one package holds both.
-   - It is an adapter, because the rule of 2026-10-08 says that the platform
-     takes no dependency that a new Julia process does not load. A new process
-     does not load `Dates`, `Statistics` or `Printf`.
-   - It has no third-party dependency, so it is a sub-stem, and `ProjecturedAll`
-     aggregates it. So each application that loads `ProjecturedAll` has it.
-   - The methods of decision 5 are methods of a function of the platform for a
-     type of `Dates`. The package rules give an adapter that job, as
-     `ProjecturedDataFrames` does for `DataFrame`.
-2. **The vocabulary.** The package registers these names with
-   `register_assistant_api!` in its `__init__`, as the DataFrames adapter does.
-   The scratch module binds each module of an entry by its own name too, so
-   `Dates.format` and `Random.seed!` work, although Julia does not export them.
+1. **One list of the standard libraries that the editor loads by name.** The
+   kernel holds it: `LOADABLE_STANDARD_LIBRARIES`, each name with its package
+   id, and `load_standard_library!(name) -> Module or nothing`. The function
+   loads by package id, with `Base.require(PkgId)`, so it works with each load
+   path. It answers `nothing` for a name that is not on the list.
+   - The place is a new fragment of the document layer,
+     `source/kernel/document/StandardLibrary.jl`: a document holds values of these
+     libraries, and both the code tool (layer 18) and the reader of the platform
+     reach layer 10. The file is not sealed: no file of the layer is.
+   - The kernel takes no dependency. It names the libraries by package id, and
+     Julia ships them.
+   - The list:
 
-   | Module | The names in scope |
-   | --- | --- |
-   | `Dates` | `Date`, `DateTime`, `today`, `now`, `UTC`, `Year`, `Month`, `Week`, `Day`, `Hour`, `Minute`, `Second`, `Millisecond`, `year`, `month`, `day`, `hour`, `minute`, `second`, `dayofweek`, `dayname`, `monthname`, `firstdayofmonth`, `lastdayofmonth`, `DateFormat`, `unix2datetime`, `datetime2unix`, `canonicalize` |
-   | `Statistics` | `mean`, `median`, `std`, `var`, `quantile`, `cor`, `cov`, `middle` |
-   | `Printf` | `@sprintf`, `@printf` |
-   | `Random` | `Xoshiro`, `shuffle`, `shuffle!`, `randperm`, `randstring` |
+     | Library | Why it is on the list |
+     | --- | --- |
+     | Dates | dates, times and their arithmetic; the survey found 2 failures and a work-around in each table and chart of dates |
+     | Statistics | `mean`, `median`, `std`, `quantile`, `cor`; the survey found a statistical study written by hand |
+     | Printf | `@sprintf`, `@printf`; the survey found 7 blocks of `round` and `lpad` |
+     | Random | `Xoshiro`, `shuffle`, `randperm`, `Random.seed!`; the survey found a failed `import Random` and a module taken by its package id |
 
-   No name of the list is a name that projectured-julia or omnet-julia exports.
-   The list leaves out `MersenneTwister`, because the simulator of omnet-julia
-   exports a `MersenneTwister` of its own (`source/simulator/random/RandomModule.jl:26`).
-   Base gives `rand`, `randn`, `round`, `Iterators` and `Libc` already.
+     Base gives `rand`, `randn`, `round`, `Iterators` and `Libc` already.
+   - The libraries that the list leaves out, and why:
 
-   The libraries that the set leaves out, and why:
+     | Library | Why it is not on the list |
+     | --- | --- |
+     | LinearAlgebra, TOML, SHA, CRC32c, UUIDs, Base64, Unicode | The survey found no use. A later session adds a library when its work needs it. TOML reads a file, and the rules of a window say that a file is read with a verb of the editor. |
+     | InteractiveUtils | `@which` and `subtypes` repeat `search_api`. |
+     | DelimitedFiles | It reads a file. |
+     | Pkg, Downloads, Sockets, Distributed, FileWatching, Serialization, Mmap, Libdl, Profile, Logging, REPL, Test | They install code, use the network, start processes, read the disk, or belong to the editor itself. |
+     | Distributions, StatsBase, HypothesisTests, SpecialFunctions | They are third-party. The statistical study of 2026-10-29 needed them. They are a later decision of the owner. |
+2. **The code tool runs a `using` of an allowed library, and refuses each
+   other.** `execute_julia_code` reads each top-level `using` and `import` of the
+   code of the model, also in a top-level `begin` block, before it runs a
+   statement.
+   - **Base and Core:** the statement runs as it is, for example
+     `import Base: show`.
+   - **A library of the list:** the tool loads it with
+     `load_standard_library!`, binds the module by its name in the scratch module,
+     and runs the statement in its relative form: `using Dates` runs as
+     `using .Dates`, and `using Dates: Time` as `using .Dates: Time`. So the
+     load path does not matter.
+   - **The module of an entry that `register_assistant_api!` holds,** such as
+     `DataFrames` when its adapter is loaded: the scratch module binds it
+     already, and the statement runs in its relative form.
+   - **Each other package:** no statement of the code runs. The tool answers
+     with the names of the list:
 
-   | Library | Why it is not in the set |
-   | --- | --- |
-   | LinearAlgebra, TOML, SHA, CRC32c, UUIDs, Base64, Unicode | The survey found no use. A later session adds a library when its work needs it. TOML reads a file, and the rules of a window say that a file is read with a verb of the editor. |
-   | InteractiveUtils | `@which` and `subtypes` repeat `search_api`. |
-   | DelimitedFiles | It reads a file. |
-   | Pkg, Downloads, Sockets, Distributed, FileWatching, Serialization, Mmap, Libdl, Profile, Logging, REPL, Test | They install code, use the network, start processes, read the disk, or belong to the editor itself. |
-   | Distributions, StatsBase, HypothesisTests, SpecialFunctions | They are third-party, and a sub-stem has no third-party dependency. The statistical study of 2026-10-29 needed them. They are a later decision of the owner. |
-3. **The text of the window says what is in scope.** `EDITOR_SYSTEM`
-   (`source/platform/application/Application.jl:398`) replaces "Each name of the
-   index is in scope by itself, so write it without its module; no package name,
-   such as ProjecturedPlatform, is in scope." with:
-
-   > Base and each name of the index are in scope by themselves, so write a name
-   > without its module. The packages of the window are fixed: a `using` or an
-   > `import` of a package that is not in scope is refused. No package of the
-   > editor, such as ProjecturedPlatform, is in scope.
-
-   The platform text names no library of the adapter, because the adapter can be
-   absent. The description of the package names them. The text of the window
-   shows it with the domains, only while the package is loaded:
-
-   > Dates, Statistics, Printf and Random are in scope: write `today()`,
-   > `Date(2026, 11, 24)`, `mean(values)`, `@sprintf("%.2f", x)` or
-   > `rand(Xoshiro(1), 3)` with no `using`. The names `Dates`, `Statistics`,
-   > `Printf` and `Random` reach the other names of each, such as `Dates.format`.
-
-   The rehearsal of step 8 can change these two texts.
-4. **The code tool refuses a `using` and an `import` of a package that is not
-   in scope.** In scope are Base, Core and the module of each entry that
-   `register_assistant_api!` holds. With decision 2 these are `Dates`,
-   `Statistics`, `Printf` and `Random`, and `DataFrames` when its adapter is
-   loaded.
-   - A `using` or an `import` of such a module, or of names of it, runs:
-     `using Dates`, `using Dates: Time`, `import Base: show`. It loads nothing
-     and opens nothing. A model writes `using Dates` from habit, and a refusal
-     would cost it a round for nothing.
-   - For each other top-level `using` or `import`, `execute_julia_code` runs no
-     statement of the code. It answers with the modules of the registry, so the
-     answer says what the window holds:
-
-     > `using` and `import` run in this window only for a package that is in
-     > scope: Base, Dates, Statistics, Printf and Random. The packages of the
-     > window are fixed. The names of the index are in scope too, and
-     > `search_api` finds a name.
+     > `using` and `import` run in this window only for Base and for the
+     > standard libraries Dates, Statistics, Printf and Random. The packages of
+     > the window are fixed. The names of the index are in scope, and
+     > `search_api` finds a name of the editor.
    - The scratch module binds the module of each marked name of the editor too,
      such as `PaneModule`. A `using` of such a module is refused, because it
      brings the exports of the module beside the declared names.
@@ -169,21 +158,54 @@ The session proposes them. They are approved with the plan.
      the process of the window, and a built binary can not load it. Each package
      of the editor is loaded, so `using ProjecturedKernel` would open the inside
      of the editor, and the model could write to a cell with no operation that
-     undo takes back. And the result would change from window to window: today
-     it depends on how the window started.
+     undo takes back. And the result of a `using` would change from window to
+     window, as the evidence shows.
+   - The refusal is a guard against a try that fails. It is no security
+     boundary: `Base.require` and `Core.eval` stay. The evaluator of the person
+     keeps the `using` of a Julia prompt, because a person types there. The code
+     of the editor that builds the scratch module does not go through the rule.
+3. **The text of the window says what is in scope.** `EDITOR_SYSTEM`
+   (`source/platform/application/Application.jl:398`) replaces "Each name of the
+   index is in scope by itself, so write it without its module; no package name,
+   such as ProjecturedPlatform, is in scope." with a text that takes the names
+   from the list:
 
-   The refusal is a guard against a try that fails. It is no security boundary:
-   `Base.require` and `Core.eval` stay. The evaluator of the person keeps
-   `using`, because a person types there, and the code of the editor that builds
-   the scratch module does not go through the refusal.
-5. **A `.pred` file keeps a `Date` and a `DateTime`.** A `Date` prints as
-   `Date("2026-11-24")`, and a `DateTime` as `DateTime("2026-11-24T10:15:00")`,
-   the text of `string(value)`. The reader builds each one again from that text.
-   With no date, a record keeps `nothing`, as before. A file that names
-   `Date(…)` loads only when the package is loaded. The error of today says so:
-   "a .pred file names Date, and no loaded type that a file may build has that
-   name".
-6. **The axis of a chart follows its values.** `ChartLineSeries` and
+   > Base and each name of the index are in scope by themselves, so write a name
+   > without its module. No package of the editor, such as ProjecturedPlatform,
+   > is in scope. To use a standard library of Julia, write `using Dates`,
+   > `using Statistics`, `using Printf` or `using Random`: these four load when
+   > you ask. The packages of the window are fixed, so a `using` or an `import`
+   > of any other package is refused.
+
+   The rule "NEVER guess a name or a signature: search for it" gets a second
+   sentence: "`search_api` knows the names of the editor; the names of the
+   standard libraries are those of Julia." The rehearsal of step 9 can change
+   these texts.
+4. **A `.pred` file names the package of a value of an outside type.**
+   - The syntax: a call can have a qualified head of one module and one type,
+     `M.T(…)`. Today the marker grammar takes only a plain name
+     (`FileProject.jl:468`). A bare name of a type of the editor stays as it is,
+     so each file of today reads as before.
+   - The platform keeps a short list, by name, of the outside types that a file
+     may build from their text: `Dates.Date` and `Dates.DateTime`. A list of
+     names needs no dependency of the platform.
+   - The writer prints a value of such a type as `M.T("text")`, with
+     `string(value)` as the text: `Dates.Date("2026-11-24")` and
+     `Dates.DateTime("2026-11-24T10:15:00")`. This is the text that Julia prints
+     for the value with `repr`, in a session that did not run `using Dates`.
+   - The reader finds the module `M` among the loaded modules, or it loads it
+     with `load_standard_library!` when it is on the list of decision 1. Then it
+     finds `T` in it, checks that `M.T` is on the list of the platform, and
+     builds `T("text")`. For each other qualified name, the error names the
+     package: "a .pred file names Foo.Bar, and a file builds no value of a type
+     of Foo".
+   - So a file never makes the editor load a package that is not on the list,
+     and opening a file runs no code from outside the standard libraries.
+   - Why a qualified name and not a `using` line at the top of a file: each value
+     carries its own package, so a part that is cut or copied out of a file keeps
+     it, and a line at the top of a file would stay behind. And a `using` line
+     would make a data file look like code.
+5. **The axis of a chart follows its values.** `ChartLineSeries` and
    `ChartScatterSeries` take an `x` of `Date` or `DateTime` values, and
    `ChartAxis` takes a `min` and a `max` of them. No new axis type is made.
    - One function gives the plot coordinate of an x value. It gives a number
@@ -204,15 +226,19 @@ The session proposes them. They are approved with the plan.
      each day.
    - The readout gives the time in the form of the labels. A time axis draws
      linear, and the guide says that it ignores `log`.
-   - `ProjecturedChart` takes `Dates` into `[deps]`. A standard library is no
-     third-party dependency: `ProjecturedPivot` and `ProjecturedWorkflow` have
-     one.
-7. **The pivot line chart puts dates on a time axis.** When each category of a
+   - `ProjecturedChart` takes `Dates` into `[deps]`, because the calendar steps
+     need its arithmetic. A standard library is no third-party dependency:
+     `ProjecturedPivot` and `ProjecturedWorkflow` have one.
+6. **The pivot line chart puts dates on a time axis.** When each category of a
    line chart cell is a `Date` or a `DateTime`, `x` holds the categories
    themselves and not their index.
-8. **The OMNeT++ IDE loads the package.** `OmnetIde` names
-   `ProjecturedStandardLibraries` in its `Project.toml` and imports it, as it
-   imports `ProjecturedPivot`.
+7. **A built binary holds the libraries of the list.** The builder writes each
+   library of the list into the `[deps]` of the package that it writes for a
+   binary, under `build/app/<name>/`, so the image keeps them, also with
+   `filter_stdlibs`.
+8. **The OMNeT++ IDE needs no change of its own.** It gets the rule and the text
+   from the platform. Step 8 checks that its own text of the window says nothing
+   else about packages.
 
 ## Facts of the code
 
@@ -224,26 +250,26 @@ The session proposes them. They are approved with the plan.
   surface. Each module of an entry is bound by its name (`CodeExecution.jl:190`),
   and each name of an entry arrives through `using .M: name`
   (`CodeExecution.jl:224`).
-- `make_editor_api()` (`Application.jl:386`) is the marked names and
-  `get_registered_assistant_api()`. `register_assistant_api!`
-  (`source/platform/assistant/AssistantApi.jl:32`) takes a module, or
-  `module => (names...)`, and a description.
 - `_make_soft_scope` (`CodeExecution.jl:541`) lets a `using` and an `import`
-  pass to the evaluation.
-- `describe_api` (`source/kernel/tool/Documentation.jl:883`) makes the index. A
-  `Type` goes under `types:`, and each other name goes in the list of
-  functions. A macro such as `@sprintf` is a new kind of name there, and step 1
-  checks how the index and `search_api` show it.
-- The kernel tool files are not sealed (`SEALING.md`, layer 18, all ⬜).
-- The `.pred` writer refuses each value that is no string, number, character,
-  bool, symbol, `nothing`, vector, tuple, named tuple, document, or value of a
-  type that `is_pred_constructible` accepts
-  (`source/platform/serialization/PredFile.jl:538`). `is_pred_constructible`
-  accepts a `Document` by default (`FileProject.jl:358`). `get_pred_type`
-  (`FileProject.jl:375`) finds a name in each loaded module, and
-  `get_document_schema_name(Date)` is `:Date`. So a type of `Dates` needs
-  three methods: `is_pred_constructible`, `pred_arguments` and
-  `make_pred_document`.
+  pass to the evaluation, which resolves the name through the load path.
+- `make_editor_api()` (`Application.jl:386`) is the marked names and
+  `get_registered_assistant_api()` (`source/platform/assistant/AssistantApi.jl`).
+- The kernel tool files and the kernel document files are not sealed
+  (`SEALING.md`, layers 10 and 18, all ⬜).
+- The marker grammar (`source/platform/serialization/FileProject.jl:463`)
+  takes a call whose head is an identifier, and arguments that are literals,
+  keywords or such calls. `_evaluate_pred` (`PredFile.jl:288`) reads the head
+  as a `Symbol`, builds a type of the editor by its bare name through
+  `get_pred_type`, and makes any other call a reference.
+- The writer refuses each value that is no string, number, character, bool,
+  symbol, `nothing`, vector, tuple, named tuple, document, or value of a type
+  that `is_pred_constructible` accepts (`PredFile.jl:538`).
+- `repr(Dates.Date(2026, 11, 24))` is `Dates.Date("2026-11-24")`, and
+  `repr(Dates.DateTime(2026, 11, 24, 10, 15))` is
+  `Dates.DateTime("2026-11-24T10:15:00")`, in a session that ran `import Dates`.
+  `Dates.Date(string(d)) == d` and `Dates.DateTime(string(t)) == t`.
+  `Meta.parse` reads `Dates.Date("…")` as a call whose head is
+  `Expr(:., :Dates, QuoteNode(:Date))`.
 - A roster shows a value through `format_roster_value`, which gives
   `string(value)` (`source/platform/roster/RosterDocument.jl:213`). So a table
   shows a `Date` as `2026-11-24`, and a sort orders dates.
@@ -261,8 +287,8 @@ The session proposes them. They are approved with the plan.
 - A new process of `julia-merged-next` loads `Random`, `LinearAlgebra`, `SHA`,
   `FileWatching` and `Sockets` at start. It does not load `Dates`,
   `Statistics`, `Printf`, `Unicode`, `UUIDs`, `Base64` or `Serialization`.
-- `Dates` exports 115 names, `Statistics` 13, `Printf` 4 and `Random` 25.
-  `Dates.format` and `Random.seed!` are not exported.
+- `Dates.format` and `Random.seed!` are not exported, so the assistant writes
+  them with the module name, which `using Dates` binds.
 
 ## Steps
 
@@ -270,74 +296,73 @@ Each step ends with a commit. Each step runs the tests that it names, and the
 tests of the steps before it. The work is in a worktree that
 `workspace/bin/julia-worktree` makes, with its test session.
 
-- [ ] **1. The package and its names.** Proposed decisions 1 and 2. Make
-  `ProjecturedStandardLibraries` with the kinds that it needs, by
-  `documentation/rule/package-rules.md`. Its entry file ends with one
-  `@compile_ahead`; read `documentation/design/compile-ahead.md` first.
-  `ProjecturedAll` aggregates it. Make `ProjecturedStandardLibrariesTest` with
-  `test_standardlibraries()` and its layering guard.
-  *Check:* a test builds the namespace of a `ToolSet` with `make_editor_api()`
-  and runs `today()`, `Dates.format(Date(2026, 11, 24), "yyyy-mm-dd")`,
-  `@sprintf("%.2f", mean([1, 2, 4]))` and `rand(Xoshiro(1), 1:6)` in it, with
-  no `using`. A test shows that the index lists the names of decision 2, the
-  macros among them, and that `search_api("today")` finds `today`.
-  `test_package_graph()` passes.
-- [ ] **2. The text of the window, and the refusal.** Proposed decisions 3 and
-  4. Change `EDITOR_SYSTEM` and give the package its description.
-  `execute_julia_code` refuses a top-level `using` and `import` of a package
-  that is not in scope.
-  *Check:* a test sends `x_1 = 1; using Plots` and gets the refusal, and `x_1`
-  is not bound after it. `using ProjecturedKernel` and `using PaneModule` get
-  the refusal. `using Dates`, `using Dates: Time` and `import Base: show` run.
-  A `using` in the evaluator of the person still runs. The tests of the
-  assistant text that compare its words change with it.
-- [ ] **3. A `.pred` file keeps a date.** Proposed decision 5, in the package
-  of step 1.
+- [ ] **1. The list of the standard libraries.** Proposed decision 1, in
+  `source/kernel/document/StandardLibrary.jl`.
+  *Check:* a test loads each library of the list with `load_standard_library!`
+  in a process whose `JULIA_LOAD_PATH` is `@`, and gets `nothing` for
+  `:Plots` and for `:Pkg`. `test_kernel_layering()` passes.
+- [ ] **2. The code tool and the text of the window.** Proposed decisions 2
+  and 3.
+  *Check:* in a process whose `JULIA_LOAD_PATH` is `@`, a test runs
+  `using Dates; Dates.format(today(), "yyyy")`, `using Statistics: mean`,
+  `using Printf; @sprintf("%.2f", 1.5)`, `using Random; rand(Xoshiro(1), 1:6)`
+  and `import Base: show` through `execute_julia_code`. A test sends
+  `x_1 = 1; using Plots` and gets the refusal, and `x_1` is not bound after it.
+  `using ProjecturedKernel` and `using PaneModule` get the refusal. A `using` in
+  the evaluator of the person still runs. The tests of the assistant text that
+  compare its words change with it.
+- [ ] **3. A `.pred` file keeps a date.** Proposed decision 4.
   *Check:* a `RecordTable` with a `Date`, a `DateTime` and `nothing` goes to a
-  file with `write_document_file!` and comes back from `read_document_file`
-  equal. Two saves give the same bytes. A test also edits the date of a record
-  through its tab, and through `replace_referenced_value!`, and saves it.
-- [ ] **4. The time axis of the chart.** Proposed decision 6.
+  file with `write_document_file!`, holds `Dates.Date("…")`, and comes back from
+  `read_document_file` equal. Two saves give the same bytes. A file with
+  `Dates.Date("…")` loads in a process that has not loaded `Dates`. A file with
+  `Base.Cmd(…)` or `Foo.Bar(…)` gives the error that names the package, and
+  loads nothing. Each file of the examples reads as before. A test edits the
+  date of a record through its tab, and through `replace_referenced_value!`,
+  and saves it.
+- [ ] **4. The time axis of the chart.** Proposed decision 5.
   *Check:* tests of the ticks and labels for a span of 6 hours, 2 days,
   3 weeks, 5 months and 3 years. A test of the readout. A test that a zoom and
   a click on a sample work on a time axis. A test of a chart with dates in a
-  `.pred` file, with the package of step 1. A test that a chart that mixes dates
-  and numbers says why in the legend. `test_chart()` passes whole.
-- [ ] **5. The pivot line chart over dates.** Proposed decision 7.
+  `.pred` file. A test that a chart that mixes dates and numbers says why in the
+  legend. `test_chart()` passes whole.
+- [ ] **5. The pivot line chart over dates.** Proposed decision 6.
   *Check:* a pivot of records with a date cell, as a line chart, gives a time
   axis, and the step between two dates that are 7 days apart is 7 times the
   step of 1 day. `test_pivot()` passes whole.
-- [ ] **6. The guides.** The guide of the new package in
-  `documentation/package/adapter/standardlibraries/`. The guide of the
-  assistant says what is in scope and why `using` is refused. The guide of the
-  serialization lists the date values. The guide of the chart describes the
-  time axis and updates its section "Limits". `package-rules.md` gets the new
-  package, and the summary table of `source/tool/builder/ProjecturedProgram.jl`
-  gets a row. The guides name no private project.
-- [ ] **7. The OMNeT++ IDE loads the package.** Proposed decision 8, in a
-  worktree of omnet-julia. Its text of the window has no sentence of its own
-  about packages. If it has one, it says the same as decision 3.
-  *Check:* the fast parts of omnet-julia pass against the branch. A test of
-  the IDE runs `today()` in the namespace of its assistant.
-- [ ] **8. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
+- [ ] **6. A built binary holds the libraries.** Proposed decision 7.
+  *Check:* a test of the builder reads the `[deps]` of the package that it
+  writes, and finds each library of the list. If the machine has room for a
+  build, the check of a built program runs `using Statistics; mean([1, 2])`
+  through `execute_julia_code`; if not, the plan says so.
+- [ ] **7. The guides.** The guide of the assistant says what is in scope and
+  which `using` runs. The guide of the serialization describes the qualified
+  name and its list. The guide of the chart describes the time axis and updates
+  its section "Limits". The guide of the builder names the libraries that a
+  binary keeps. The guides name no private project.
+- [ ] **8. The OMNeT++ IDE.** Proposed decision 8, in a worktree of
+  omnet-julia when its text needs a change.
+  *Check:* the fast parts of omnet-julia pass against the branch. A test of the
+  IDE runs `using Dates; today()` in the namespace of its assistant.
+- [ ] **9. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
   give the model a task: "record that entry 21 was repaired today, and show the
   repaired entries over time". Run seeds 1 to 10.
   *Check:* the code of the model uses `today()` and a `Date`. It holds no
   refused `using` or `import`, no `Libc.strftime` and no index as the x of a
-  date. The saved
-  table holds `Date(…)`. The chart has a time axis. If the texts of decision 3
-  give fewer than 9 of 10, change them and run again, and write the numbers here.
-- [ ] **9. The check before the land.** All the parts in worker processes, with
+  date. The saved table holds `Dates.Date(…)`. The chart has a time axis. If
+  the texts of decision 3 give fewer than 9 of 10, change them and run again,
+  and write the numbers here.
+- [ ] **10. The check before the land.** All the parts in worker processes, with
   no network, as `CLAUDE.md` says under "Main is green": 0 unmarked `Fail`,
   0 `Error`, and `done` for each part. Then the request to land.
 
 ## Not in this plan
 
-- A `Time` value, the time of a day, in a file or on an axis. The module name
-  `Dates` reaches `Dates.Time`.
+- A `Time` value, the time of a day, in a file or on an axis. `Dates.Time` is
+  in reach after `using Dates`.
 - A strip series and a bar series over dates.
-- The workflow keeps its times as text. With step 3 it can keep a `DateTime`,
-  which is a later plan.
+- The workflow keeps its times as text. With step 3 it can keep a
+  `Dates.DateTime`, which is a later plan.
 - A third-party library of statistics. That is a decision of the owner.
 - An editor of a date in a cell of a table. A table shows and sorts a date, and
   step 3 checks an edit through the tab of a record.
