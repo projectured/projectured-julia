@@ -104,6 +104,42 @@ function test_record_table()
         @test "3 records" in texts
     end
 
+    @testset "a date in a record shows, changes, sorts and saves" begin
+        Dates = ProjecturedKernel.DocumentModule.load_standard_library!(:Dates)
+        ledger = RecordTable("Defects"; columns = ["number", "repaired_on"],
+                             records = [(number = 21, repaired_on = Dates.Date(2026, 11, 25)),
+                                        (number = 23, repaired_on = nothing),
+                                        (number = 24, repaired_on = Dates.Date(2026, 11, 24)),
+                                        (number = 25, repaired_on = nothing)])
+        natural = NaturalToGraphics(; measure = FixedMeasure(8, 12, 4, 0))
+        backend = HeadlessBackend()
+        editor = build_editor(ledger, natural; backend, devices = Device[Keyboard(), Mouse(), Display()],
+                              window = false, tabs = false, appearance = false, settings = false, undo = true)
+        run_frame!(editor)
+        frame!() = (drain_operations!(editor); run_frame!(editor))
+        @test all(text -> text in _arrangement_texts(backend), ["2026-11-25", "2026-11-24"])
+
+        # The date of a record changes as any other value does, and its row shows it.
+        part = get_edited_document(ReferencedDocument(editor.document, EmptyReference()))
+        replace_referenced_value!(part.records[2], :repaired_on, Dates.Date(2026, 12, 1); editor)
+        frame!()
+        @test ledger.records[2].repaired_on == Dates.Date(2026, 12, 1)
+        @test "2026-12-01" in _arrangement_texts(backend)
+
+        # A sort orders the drawn rows by their dates, and a record with no date
+        # goes last.
+        sort_collection!(part, "repaired_on"; editor)
+        frame!()
+        texts = _arrangement_texts(backend)
+        places = [findfirst(==(string(number)), texts) for number in (24, 21, 23, 25)]
+        @test all(!isnothing, places) && issorted(places)
+
+        # The file keeps each date with the name of its module.
+        text = print_pred_text(ledger)
+        @test occursin("repaired_on = Dates.Date(\"2026-12-01\")", text)
+        @test collect(parse_pred_text(text).records) == collect(ledger.records)
+    end
+
     @testset "two equal records are one row" begin
         ledger = RecordTable("Ledger"; columns = ["state"],
                              records = [(state = "waiting",), (state = "waiting",)])
