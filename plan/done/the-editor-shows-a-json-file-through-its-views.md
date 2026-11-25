@@ -405,7 +405,7 @@ tests of the steps before it.
   "the code now" in the design document, changed in steps 1 to 9. The
   orientation guide names the verbs of the assistant and no path, so it stays.
 
-  Then `main` moved by 22 commits, and the branch took a rebase onto `c5f9afc92`
+  Then `main` moved by 23 commits, and the branch took a rebase onto `e0dbc7f97`
   with no conflict. In `FileSystemFileToWidget.jl` the path of `main` for a file
   with no document comes first, and then the path through the view. The wide
   check ran again on the rebased branch: `test_json` and `test_markdown` pass,
@@ -415,6 +415,40 @@ tests of the steps before it.
   branch before the rebase, and the task test passed this time. The guards give
   the same lines, with two line numbers moved in a file that `main` changed. The
   narrow tests of the plan, 36 cases, fail only at lines that fail on `main`.
+
+  Three more rebases followed `main`. The third, onto `11ea56169`, had no
+  conflict. The fourth, onto `8e792dc15`, had a conflict in `Clipboard.jl`: the
+  paste of `main` gets the selection as a keyword, and its default is now
+  `_find_content_selection(input)`, so the new paste of `main` also reads the
+  path through the content. The new insertion paste of `main` in
+  `ClipboardSliceToAny.jl` reads it in the same way. The 42 narrow cases then
+  failed only at lines of `main`, and `test_insertion_in_tab` passed 12 of 12.
+  The fifth, onto `567b5665b`, 181 commits later, had two conflicts in
+  `ProjecturedSuite.jl`, because the suites of `main` are tables of parts now.
+  The two new tests of the branch are two parts of that table.
+
+  The checks after the fifth rebase ran at the neutral path of `julia-worktree`
+  (found fact 13), on the branch and on a worktree at `567b5665b`:
+
+  | Check | `main` at `567b5665b` | The branch |
+  | --- | --- | --- |
+  | The six guards | 261 lines | the same 261 lines, 6 line numbers moved in 3 files that the branch changed |
+  | `test_json`, `test_markdown` | 1443 of 1443, 361 of 361 | the same |
+  | `test_platform` (pass, fail, error, broken) | 239042, 0, 0, 46 | 239069, 0, 0, 46 |
+  | `test_integration` (pass, fail, error, broken) | 3262948, 3, 0, 3469 | 3263007, 2, 0, 3469 |
+  | MCP, SDL, video, console, PDF, web | 550, 1383 and 5 broken, 94, 150, 54, 161 | the same |
+  | The 42 narrow cases | | 1 failure line, a line that fails on `main` too |
+
+  Two failure lines are on both sides, with no mark: `ApplicationTest.jl:2002`
+  (2006 on the branch), where an Alt+double click on a row of the Files pane does
+  not select the file of the row, and `ScrollWorkTest.jl:195`, a count of the
+  work of the Files pane. They are new failures of `main`. The third failure of
+  `main` is the time ratio of `WindowFrameGuardTest.jl:309`, 8.54 against the
+  bound 3.0, and the branch passed it. Each suite shared the machine with other
+  jobs, so its time shows no cost of the branch. The integration suite of the
+  branch keeps about 1.5 GiB more live memory from `test_window_frame_guards`
+  on, and its largest resident size is 15.8 GiB against 14.4 GiB (found facts 14
+  and 15).
 
 ## Found during the work
 
@@ -529,10 +563,51 @@ tests of the steps before it.
     probe ran `test_assistant_verbs` six times in one process, with three full
     collections after each run. The live memory grew by 84 MiB per run, from
     357 MiB to 778 MiB at the base and from 361 MiB to 782 MiB on the branch. The
-    test starts the application and never stops its editor. This plan does not
-    look for what keeps the editor. The fault F10 of the plan of the editor for
-    the assistant of the catch-up, where the IDE grows to 10 GB in 27 hours, can
-    have the same cause.
+    test starts the application and never stops its editor. The fault F10 of
+    the plan of the editor for the assistant of the catch-up, where the IDE grows
+    to 10 GB in 27 hours, can have the same cause. Found fact 14 names what
+    keeps such an editor.
+13. **The manifest of `main` names the sibling packages by a path of the
+    sandbox.** Since `b3c3b911c`, `environment/all/Manifest.toml` gives
+    `AgentClientProtocol`, `AutoIntegration`, `ClaudeCodeACP` and
+    `ModelContextProtocol` the path `../../../../../workspace/<name>.jl`. The path
+    is correct at the neutral path of `julia-worktree`,
+    `~/.cache/julia-work/projectured-julia`. In a checkout in
+    `~/workspace`, it names `/home/workspace/<name>.jl`, which does not exist, so
+    `ProjecturedACP` does not compile and `ProjecturedTest` does not load. The
+    checks of the fifth rebase that load `ProjecturedTest` ran through
+    `julia-worktree run`.
+14. **An editor that never runs its loop keeps its start steps.** `build_editor`
+    runs the start steps of the wrappers (`EditorBuild.jl`), and only the end of
+    the loop runs their stop steps (`EditorLoop.jl`). A test that draws frames
+    with `run_frame!` never runs the loop, so the message log capture stays in the
+    global logger, and other start steps stay too. Each such editor stays for the
+    life of the process. A probe made three editors of the frame guard test, with
+    a weak reference to each: all three stayed with `SdlBackend`, with
+    `HeadlessBackend`, with no `start_application!`, with no settings and with no
+    message log. When the probe ran the stop steps of each editor, none stayed. So
+    `test_window_frame_guards` keeps about 2.6 GiB per run on `main`, and 4.1 GiB
+    on the branch. This plan does not change it.
+15. **The print of the views makes an editor of a JSON file 2.3 times as large.**
+    The live memory that one editor of the frame guard test holds, with the caret
+    in the file, after a full collection:
+
+    | JSON objects in the file | `main` | The branch |
+    | --- | --- | --- |
+    | 10 | 67 MiB | 73 MiB |
+    | 100 | 101 MiB | 161 MiB |
+    | 1000 | 441 MiB | 1035 MiB |
+
+    Each object, with two fields, costs about 0.38 MiB on `main` and 0.97 MiB on
+    the branch. A count of the objects that the editor of 1000 objects reaches:
+    7.2 million on `main` and 21.3 million on the branch. The branch adds about
+    3.2 million `ReactiveCell`, 3.6 million `_Dependency` and 0.8 million
+    `ConcreteReference`, and it makes 20004 `ViewingIoMap` and 20004
+    `ViewRecursion`, about 20 per object. The view documents themselves are few:
+    10005 `TextView` and 7003 `CellVectorView`. So most of the cost is in the
+    print of each view node through its own IO map, with about 160 cells for each.
+    After the stop steps, the live memory goes back to the same value on both
+    sides, so the branch adds no leak.
 
 ## Risks
 
