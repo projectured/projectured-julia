@@ -821,9 +821,28 @@ _get_writable_names(set::ToolSet) =
 _suggest_nearest_names(error, set::ToolSet) = ""
 
 function _suggest_nearest_names(error::UndefVarError, set::ToolSet)
+    library = _suggest_standard_library(error.var)
+    library === nothing || return library
     nearest = _find_nearest_names(String(error.var), _get_writable_names(set))
     isempty(nearest) && return ""
     "\nDid you mean: " * join(("`" * name * "`" for name in nearest), ", ") * "?\n"
+end
+
+# The line for a name that the code wrote before the `using` of its standard
+# library: the name of a library of the list, such as `Dates` of `Dates.today()`,
+# or a name that a loaded library of the list exports, such as `today`. A library
+# that no module of the process holds yet is not loaded to answer; its own name
+# still gets the line.
+function _suggest_standard_library(name::Symbol)
+    for (library, id) in pairs(LOADABLE_STANDARD_LIBRARIES)
+        name === library &&
+            return "\n`" * String(library) * "` is a standard library of this window: write `using " *
+                   String(library) * "` first.\n"
+        Base.root_module_exists(id) && Base.isexported(Base.root_module(id), name) &&
+            return "\n`" * String(name) * "` is a name of the standard library " * String(library) *
+                   " of this window: write `using " * String(library) * "` first.\n"
+    end
+    nothing
 end
 
 # The names closest to a guess, at most `count`: first by the words the guess

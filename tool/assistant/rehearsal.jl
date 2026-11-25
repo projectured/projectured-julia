@@ -81,9 +81,6 @@ LlmModule.compute_meaning_vectors(llm::WatchedLlm, texts; kwargs...) =
 # selection in the file, as a take with files starts. With `closes_explorer`
 # false, the Explorer stays in its tab.
 function prepare_window!(document; closes_explorer::Bool = true)
-    for assistant in search_documents(document, node -> node isa Assistant)
-        assistant.collapse_thinking = false
-    end
     tree = only(search_documents(document, node -> node isa PaneTree))
     is_titled(title) = tab -> get_pane_tab_title_string(tab) == title
     if closes_explorer
@@ -785,10 +782,18 @@ const DEFECT_RECORDS = [
     (number = 21, title = "held data waits for ever", repaired_on = nothing),
     (number = 22, title = "a probe goes out at a window of zero", repaired_on = Dates.Date(2026, 11, 23))]
 
+# The directory of the last window of dates, where a check reads the saved file.
+const DATE_DIRECTORY = Ref("")
+
+# The window of S2 with defects.pred, and an assistant of 16 rounds: a task of
+# dates finds the table, changes it and saves it, or builds a chart of it.
 function make_date_rehearsal_editor(directory, llm)
     write_document_file!(RecordTable("Defects"; columns = ["number", "title", "repaired_on"], records = DEFECT_RECORDS),
                          joinpath(directory, DEFECTS_FILE))
-    make_rehearsal_editor(directory, llm; files = [DEFECTS_FILE])
+    DATE_DIRECTORY[] = directory
+    editor, assistant = make_rehearsal_editor(directory, llm; files = [DEFECTS_FILE])
+    assistant.max_rounds = 16
+    (editor, assistant)
 end
 
 # The code that the model ran, call by call, and the answer of each call.
@@ -804,43 +809,57 @@ function find_model_calls(editor)
     calls
 end
 
-function check_date_recorded(editor, steps_before)
-    table = only(search_documents(editor.document, node -> node isa RecordTable))
-    record = only(r for r in table.records if r.number == 21)
-    record.repaired_on == Dates.today() ||
-        return "entry 21 holds $(repr(record.repaired_on)), and not today as a Date"
+# What is wrong with how the code of the model made its dates, or `nothing`: a date
+# made with `Libc.strftime`, a `using` that the window refused, or no date at all.
+function check_date_code(editor)
     calls = find_model_calls(editor)
     codes = [code for (code, _) in calls]
     any(code -> occursin("Libc.strftime", code), codes) && return "the code made a date with Libc.strftime"
     any(((_, answer),) -> occursin("PackageLoadRefusedException", answer), calls) &&
         return "a using of a package outside the list was refused"
-    any(code -> occursin("today()", code) || occursin("Date(", code), codes) ||
-        return "no code wrote today() or a Date"
-    tab = find_pane(DEFECTS_FILE; editor)
-    tab === nothing || !has_unsaved_edits(tab) || return "defects.pred holds edits that are not saved"
-    occursin("Dates.Date(\"$(Dates.today())\")", print_pred_text(table)) ||
-        return "the table does not write the date of entry 21 as Dates.Date"
+    any(code -> occursin("today()", code) || occursin("Date(", code) || occursin("DateTime", code), codes) ||
+        return "no code wrote today(), a Date or a DateTime"
+    nothing
+end
+
+function check_date_recorded(editor, steps_before)
+    table = only(search_documents(editor.document, node -> node isa RecordTable))
+    record = only(r for r in table.records if r.number == 21)
+    record.repaired_on == Dates.today() && record.repaired_on isa Dates.Date ||
+        return "entry 21 holds $(repr(record.repaired_on)), and not today as a Date"
+    fault = check_date_code(editor)
+    fault === nothing || return fault
+    saved = read(joinpath(DATE_DIRECTORY[], DEFECTS_FILE), String)
+    occursin("Dates.Date(\"$(Dates.today())\")", saved) ||
+        return "the saved defects.pred holds no Dates.Date of today"
+    nothing
+end
+
+function check_date_chart(editor, steps_before)
     dated = [chart for chart in search_documents(editor.document, node -> node isa Chart)
              if any(series -> series isa Union{ChartLineSeries,ChartScatterSeries} &&
                               ProjecturedAll.ChartModule.is_date_column(series.x), chart.series)]
     isempty(dated) && return "no chart has dates on its x axis"
-    nothing
+    check_date_code(editor)
 end
 
 const DATE_TASKS = [
-    SingleTask("dates", "In defects.pred, record that entry 21 was repaired today, save the file, and show " *
-                        "the number of repaired entries over time as a chart in a new tab.", check_date_recorded),
+    SingleTask("record", "In the tab defects.pred, entry 21 was repaired today: write today's date into its " *
+                         "field repaired_on, and save the tab.", check_date_recorded),
+    SingleTask("chart", "Show the entries of the tab defects.pred that were repaired, by the date of the repair, " *
+                        "as a line chart in a new tab.", check_date_chart),
 ]
 
 """
     run_date_task_rehearsals(seeds; directory, tasks = DATE_TASKS)
 
 [`run_task_rehearsals`](@ref) of the tasks of dates, on the window of S2 with a
-table of records that a file keeps.
+table of records that a file keeps. A task of dates finds the table first, so it
+has 16 rounds and 600 seconds.
 """
-run_date_task_rehearsals(seeds; directory, tasks = DATE_TASKS, kwargs...) =
+run_date_task_rehearsals(seeds; directory, tasks = DATE_TASKS, max_rounds = 16, max_seconds = 600.0, kwargs...) =
     run_task_rehearsals(seeds; directory, tasks, make_editor = make_date_rehearsal_editor,
-                        count_steps = count_window_steps, kwargs...)
+                        count_steps = count_window_steps, max_rounds, max_seconds, kwargs...)
 
 # ── Documentation by name ────────────────────────────────────────────────────
 

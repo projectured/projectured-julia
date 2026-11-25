@@ -337,6 +337,15 @@ function test_code_execution()
         @test load("import Random\nrand(Random.Xoshiro(1), 1:6) in 1:6").value === true
         @test load("using .Dates: Time\nTime(10, 15) isa Time").value === true
 
+        # A name of a library of the list before its `using` gets the line that
+        # says what to write.
+        fresh = ToolSet(; api = Module[NearToy])
+        early = run_julia_code!(fresh, nothing, "Dates.today()")
+        @test early.exception isa UndefVarError
+        @test occursin("`Dates` is a standard library of this window: write `using Dates` first.", early.output)
+        @test occursin("`today` is a name of the standard library Dates of this window: write `using Dates` first.",
+                       run_julia_code!(fresh, nothing, "today()").output)
+
         # The person types into a set that declares no API, where a `using`
         # resolves as it does at the Julia prompt.
         person = ToolSet()
