@@ -358,6 +358,13 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   (5bc6a0a6f), the label cells of a table (f23a0d65f) and the rows of the
   research and the workflow view (78a488df9). A tree takes the same rule when
   its texts are done.
+- **D13 (owner, 2026-11-25). The check of a path takes any form of the same
+  document type.** The owner chose B ("I agree it's B") to the question of O6 in
+  step 7: a path records the cell form of a family (`get_reference_node_type`),
+  and a node in the mutable form of that family holds that type too, by
+  `get_document_family`. So a path stays the same when a document is copied from
+  one form to the other. Rejected (A): a path records the type of the node as it
+  is, the mutable form.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -2352,7 +2359,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     (`test_dataframes` 625 and 1 fail at `DataFrameColumnWidthTest.jl:72`), and
     it is reverted. How the table lights a header, a cell and an edge from a
     path of the view is a question for the owner.
-  - [ ] O6. The throws of the module appearance (61 lines) and of the combined
+  - [x] O6. The throws of the module appearance (61 lines) and of the combined
     simulation widget (87 lines): the path of the content of the tab,
     `….PaneTab.content::ACModuleAppearance`, matches no document after the first
     press. Find the cause and fix it in its general rule.
@@ -2368,6 +2375,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `SelectionMismatchException`, a click of a person too. The fix is in the
     kernel (the type that a path records for the mutable form, or the check that
     takes any form of the family), which is a question for the owner.
+
+    The owner chose B (D13). Work: one rule, `_has_recorded_type`
+    (`ReferenceEvaluation.jl`), for the six places that check a recorded type
+    against a node, in `evaluate_reference`, the walkers that answer a default
+    and `get_valid_reference_prefix`: no type, an instance of it, or a node of
+    the same family. The doc string of `get_reference_node_type` and
+    `reference.md` say the rule; `test_reference_evaluation` has a new test set
+    (a path that records the cell form resolves on the mutable form, and a node of
+    another document type holds no recorded type of it).
   - [x] O7. The walk over the omnet pages against run 1, and the atom tests of
     omnet (the IDE, cosim, the presentation and the legacy slice).
 
