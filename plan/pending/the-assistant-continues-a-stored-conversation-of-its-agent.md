@@ -398,19 +398,22 @@ fakes and do not wait for that land.
    `LlmMessage(:user, …)`. The error of P10 becomes the exception. Update
    [acp.md](../../documentation/package/adapter/acp/acp.md). Test with
    `FakeAcpAgent`.
-7. [ ] **The assistant shows a loaded conversation** (P3, P5, P10). A user
+7. [x] **The assistant shows a loaded conversation** (P3, P5, P10). A user
    message event adds a user turn. The start of the agent loads or resumes by
    the rule of P5. The `.pred` file keeps no turns. The exception puts the text
    back into the input field and shows the note. Update
    [assistant.md](../../documentation/package/platform/assistant/assistant.md).
    Test with `ScriptedAgentConnection`.
-8. [ ] **The Assistants pane shows the stored rows** (P11, P12). Test: the
+8. [x] **The Assistants pane shows the stored rows** (P11, P12). Test: the
    order of the rows, the new columns, a row left out while a tab keeps its id,
    Show opens a tab that loads, Refresh reads again, and a window with no
    `:acp` assistant shows no stored rows. Update
    [assistant.md](../../documentation/package/platform/assistant/assistant.md).
    Step 5: `test_kernel(only = "agent")` gives 4 parts, 140 pass, 0 fail.
    Step 6: `test_acp()` gives 4 parts, 378 pass, 0 fail.
+   Steps 7 and 8: the parts `test_external_agent_turn`, `test_assistant_list`
+   and `test_assistant_work` of `test_platform` give 607 pass, 0 fail, and the
+   other parts of the assistant (`assistant`, `composer`, `draft`) pass too.
 
    What steps 5 to 8 found and decided, 2026-11-25:
    - **No new dependency.** A first version used `Dates` in `ClaudeCodeACP` and
