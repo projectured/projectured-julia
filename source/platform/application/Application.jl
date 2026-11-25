@@ -386,6 +386,11 @@ the editor, and the Projectured application offers those of each domain it loads
 make_editor_api() =
     ApiEntry[collect_marked_api(; exclude = is_domain_placeholder)..., get_registered_assistant_api()...]
 
+# The `using` lines of the standard libraries that the code of a model loads, as
+# the text of a window names them: "`using Dates`, …, or `using Random`".
+const _LOADABLE_LIBRARY_LINES =
+    join(("`using " * String(name) * "`" for name in keys(LOADABLE_STANDARD_LIBRARIES)), ", ", " or ")
+
 """
     EDITOR_SYSTEM
 
@@ -402,8 +407,11 @@ const EDITOR_SYSTEM =
     "- `execute_julia_code` runs Julia in the window. Put the whole source in its " *
     "`code` argument: a call with no code does nothing and costs the round. A " *
     "variable that one call binds at the top level is still bound in the next call. " *
-    "Each name of the index is in scope by itself, so write it without its module; no " *
-    "package name, such as ProjecturedPlatform, is in scope. " *
+    "Base and each name of the index are in scope by themselves, so write a name " *
+    "without its module. No package of the editor, such as ProjecturedPlatform, is in " *
+    "scope. To use a standard library of Julia, write " * _LOADABLE_LIBRARY_LINES *
+    ": these load when you ask. The packages of the window are fixed, so a `using` or " *
+    "an `import` of any other package is refused. " *
     "The variable `editor` is the running editor, and a verb acts on it, so the code " *
     "does not pass it. Code that needs no document of the window, such as a long " *
     "computation, runs with `background` set to true, so the person can go on working.\n" *
@@ -420,7 +428,9 @@ const EDITOR_SYSTEM =
     "`find_pane`.\n\n" *
     "The rules:\n" *
     "- NEVER guess a name or a signature: search for it, then act. When a signature " *
-    "answers the request, call the verb; a keyword that you leave out takes its default.\n" *
+    "answers the request, call the verb; a keyword that you leave out takes its default. " *
+    "`search_api` knows the names of the editor; the names of the standard libraries are " *
+    "those of Julia.\n" *
     "- Find a part with a verb, such as `find_pane`, and do not walk the tree of the " *
     "window. A part acts like its data: index it, iterate it, read a field.\n" *
     "- Change a document only with a verb, such as `replace_referenced_value!`, so the " *

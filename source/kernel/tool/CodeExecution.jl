@@ -547,6 +547,118 @@ function _make_soft_scope(statement)
     Expr(:block, Expr(:softscope, true), statement)
 end
 
+# ── The packages that the code of a model loads ─────────────────────────────
+
+"""
+    PackageLoadRefusedException(packages)
+
+What the code of a model gets for a top-level `using` or `import` of a package
+that its window does not offer. A set that declares its API holds the code of a
+model, and the packages of its window are fixed: a `using` and an `import` run
+for Base and Core, and for each standard library of
+[`LOADABLE_STANDARD_LIBRARIES`](@ref), which loads when the code asks for it. No
+statement of the code runs. `packages` holds each refused package as the code
+writes it, such as `"Plots"`.
+"""
+struct PackageLoadRefusedException <: Exception
+    packages::Vector{String}
+end
+
+function Base.showerror(io::IO, exception::PackageLoadRefusedException)
+    libraries = join((String(name) for name in keys(LOADABLE_STANDARD_LIBRARIES)), ", ", " and ")
+    print(io, "PackageLoadRefusedException: no statement of the code ran, because it loads ",
+          join(exception.packages, ", ", " and "), ". `using` and `import` run in this window ",
+          "only for Base and for the standard libraries ", libraries, ". The packages of ",
+          "the window are fixed. The names of the index are in scope, and `search_api` ",
+          "finds a name of the editor.")
+end
+
+# The `using` and `import` statements of `expression`: at its top level, and in a
+# `begin` block there, where Julia runs them too. A statement in the body of a
+# `module` that the code defines is not read.
+function _collect_load_statements(expression, found::Vector{Expr} = Expr[])
+    expression isa Expr || return found
+    if expression.head in (:using, :import)
+        push!(found, expression)
+    elseif expression.head in (:toplevel, :block)
+        foreach(statement -> _collect_load_statements(statement, found), expression.args)
+    end
+    found
+end
+
+# The path that names the module of one clause of a statement: the clause
+# itself, or the module part of `path: names` and of `path as alias`.
+_get_load_path(clause::Expr) = clause.head in (:(:), :as) ? _get_load_path(clause.args[1]) : clause
+
+# A path as the code writes it, such as `Plots`, `Base.Iterators` or `..Main`.
+function _describe_load_path(path::Expr)
+    dots = something(findfirst(!=(:.), path.args), length(path.args) + 1) - 1
+    "."^dots * join((String(part) for part in path.args[dots+1:end]), ".")
+end
+
+# Whether the window offers the module of `path`: Base, Core, or a standard
+# library of the list, written as it is or relative to the scratch module, which
+# binds the library by its name.
+function _is_offered_load_path(path::Expr)
+    path.head === :. && !isempty(path.args) || return false
+    parts = path.args
+    if first(parts) === :.
+        return length(parts) >= 2 && parts[2] isa Symbol && parts[2] !== :. &&
+               haskey(LOADABLE_STANDARD_LIBRARIES, parts[2])
+    end
+    first(parts) in (:Base, :Core) || haskey(LOADABLE_STANDARD_LIBRARIES, first(parts))
+end
+
+# Bind the standard library `name` in the scratch module `m` by its name, and load
+# it first when no module of the process holds it.
+function _bind_standard_library!(m::Module, name::Symbol)
+    library = load_standard_library!(name)
+    if isdefined(m, name)
+        getfield(m, name) === library && return nothing
+        error("the name ", name, " holds another value in this session, so `using ", name,
+              "` can not bind the standard library ", name)
+    end
+    Core.eval(m, :(const $name = $library))
+    nothing
+end
+
+# One clause with the path of a standard library in its relative form, so that it
+# resolves the binding of the scratch module and not the load path of the process.
+function _rewrite_load_clause!(m::Module, clause::Expr)
+    clause.head in (:(:), :as) &&
+        return Expr(clause.head, _rewrite_load_clause!(m, clause.args[1]), clause.args[2:end]...)
+    parts = clause.args
+    first(parts) in (:Base, :Core) && return clause
+    relative = first(parts) === :.
+    _bind_standard_library!(m, relative ? parts[2] : first(parts))
+    relative ? clause : Expr(:., :., parts...)
+end
+
+function _rewrite_load_statements!(m::Module, expression)
+    expression isa Expr || return expression
+    expression.head in (:using, :import) &&
+        return Expr(expression.head, (_rewrite_load_clause!(m, clause) for clause in expression.args)...)
+    expression.head in (:toplevel, :block) &&
+        return Expr(expression.head, (_rewrite_load_statements!(m, statement) for statement in expression.args)...)
+    expression
+end
+
+# The code of a model, ready to run in the scratch module `m`: each `using` and
+# `import` of a standard library of the list runs in its relative form, after its
+# library is loaded and bound. A load of any other package refuses the whole code
+# before a statement runs.
+function _admit_package_loads!(m::Module, expression)
+    statements = _collect_load_statements(expression)
+    isempty(statements) && return expression
+    refused = String[]
+    for statement in statements, clause in statement.args
+        path = _get_load_path(clause)
+        _is_offered_load_path(path) || push!(refused, _describe_load_path(path))
+    end
+    isempty(refused) || throw(PackageLoadRefusedException(unique(refused)))
+    _rewrite_load_statements!(m, expression)
+end
+
 # An exception of model code is the answer of the call, as at the Julia REPL: an
 # interrupt ends the evaluation and the session goes on, and a stack overflow is an
 # error message. The other exceptions that mean stop, a quit and a heap that ran
@@ -591,6 +703,9 @@ function _run_expression_in_unit(set::ToolSet, target, make_expression::Function
         # always tracks the current target.
         Core.eval(m, :(editor = $(QuoteNode(target))))
         expr = make_expression()
+        # A set that declares its API holds the code of a model, which loads only
+        # the packages that its window offers.
+        isempty(set.api) || (expr = _admit_package_loads!(m, expr))
         # A verb that the code calls with no editor takes `target`, and so does a
         # verb in a task that the code starts. What they print goes to `output`.
         with(_EVALUATION_EDITOR => target, _EVALUATION_OUTPUT => output) do
@@ -611,7 +726,9 @@ function _run_expression_in_unit(set::ToolSet, target, make_expression::Function
         _is_passthrough_for_model_code(e) && rethrow()
         value = nothing
         exception = e
-        sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
+        # A refused load is no fault of a statement, so it has no stack to show.
+        e isa PackageLoadRefusedException ? sprint(showerror, e) :
+            sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     finally
         output.is_open && (printed = _close_evaluation_output!(output))
     end

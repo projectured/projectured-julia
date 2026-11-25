@@ -508,6 +508,28 @@ The tool description follows the declaration too. With a list it names the modul
 and says that anything else is an `UndefVarError`; with none it keeps the wider
 text that sends a model to the guides.
 
+**A set that declares its API loads only the standard libraries of a list.** It
+holds the code of a model, and the packages of the window of a model are fixed.
+Before a statement runs, `execute_julia_code!` reads each top-level `using` and
+`import` of the code, also in a `begin` block there:
+
+- Base and Core run as they are: `import Base: show`.
+- A standard library of `LOADABLE_STANDARD_LIBRARIES` (Dates, Statistics, Printf
+  and Random) loads by its package id with `load_standard_library!`. The scratch
+  module binds it by its name, and the statement runs in its relative form:
+  `using Dates` runs as `using .Dates`. So the load path of the process does not
+  matter. A process whose load path has no `@stdlib` refuses a plain
+  `using Statistics` with "Package Statistics not found in current path", and it
+  runs this one.
+- Any other package refuses the whole code with a `PackageLoadRefusedException`
+  before a statement runs, and its message names the libraries of the list. A
+  module of the editor, such as `PaneModule`, and the module of a registered entry,
+  such as `DataFrames`, are no packages that the code loads: the declaration gives
+  their names.
+
+A set that declares nothing, such as the set of the evaluator of a person, runs a
+`using` as the Julia prompt does.
+
 **This is a focus mechanism and not a security boundary.** `Base` and `Core` stay
 in scope, as in every Julia module, and code that means to reach `Main` can. What
 it buys is that a name outside the list fails in the round that used it, with an

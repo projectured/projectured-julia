@@ -302,5 +302,63 @@ function test_code_execution()
         observe_evaluations!(_ -> throw(InterruptException()), watched)
         @test_throws InterruptException execute_julia_code!(watched, nothing, "1")
     end
+
+    @testset "the code of a model loads only the packages that its window offers" begin
+        model = ToolSet(; api = Module[NearToy])
+        load = code -> run_julia_code!(model, nothing, code)
+
+        # A package that the window does not offer refuses the whole code, and
+        # no statement of it runs.
+        refused = load("x_1 = 1\nusing Plots")
+        @test refused.exception isa PackageLoadRefusedException
+        @test refused.exception.packages == ["Plots"]
+        @test startswith(refused.output, "PackageLoadRefusedException: no statement of the code ran, because it loads Plots.")
+        @test occursin("Dates, Statistics, Printf and Random", refused.output)
+        @test !occursin("Stacktrace", refused.output)
+        @test load("@isdefined(x_1)").value === false
+        @test load("using Dates, Plots").exception.packages == ["Plots"]
+        @test load("begin\n    import Plots: plot\nend").exception isa PackageLoadRefusedException
+        # The packages of the editor are no packages that the code loads, and
+        # neither is a module that the scratch module binds for its names.
+        @test load("using ProjecturedKernel").exception.packages == ["ProjecturedKernel"]
+        @test load("using .NearToy").exception.packages == [".NearToy"]
+        @test load("import ..Main").exception.packages == ["..Main"]
+
+        # Base and Core run as they are.
+        @test load("import Base: show").exception === nothing
+        @test load("using Base.Iterators: partition\ncollect(partition(1:4, 2))").value == [1:2, 3:4]
+
+        # A standard library of the list loads when the code asks for it, and its
+        # name stays bound for the next call.
+        @test load("using Dates\nDates.format(Date(2026, 11, 24) + Day(8), \"yyyy-mm-dd\")").value == "2026-12-02"
+        @test load("today() isa Date").value === true
+        @test load("using Statistics: mean\nmean([1, 2, 6])").value == 3.0
+        @test load("using Printf\n@sprintf(\"%.2f\", 1.5)").value == "1.50"
+        @test load("import Random\nrand(Random.Xoshiro(1), 1:6) in 1:6").value === true
+        @test load("using .Dates: Time\nTime(10, 15) isa Time").value === true
+
+        # The person types into a set that declares no API, where a `using`
+        # resolves as it does at the Julia prompt.
+        person = ToolSet()
+        @test run_julia_code!(person, nothing, "using Dates\nDate(2026, 1, 1)").exception === nothing
+    end
+
+    @testset "a standard library loads with no @stdlib in the load path" begin
+        # A process of its own, so that Statistics is not loaded yet, with the
+        # load path of a window that has no `@stdlib`.
+        code = """
+            using ProjecturedKernel.ToolModule
+            module Declared
+            export noted
+            \"\"\"A name.\"\"\"
+            noted() = 1
+            end
+            set = ToolSet(; api = Module[Declared])
+            print(execute_julia_code!(set, nothing, "using Statistics\\nmean([1, 2, 6])"))
+            """
+        command = addenv(`$(Base.julia_cmd()) --startup-file=no --project=$(Base.active_project()) -e $code`,
+                         "JULIA_LOAD_PATH" => "@")
+        @test strip(read(command, String)) == "3.0"
+    end
 end
 end # test_code_execution

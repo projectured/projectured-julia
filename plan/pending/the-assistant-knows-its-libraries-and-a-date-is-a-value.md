@@ -315,7 +315,7 @@ tests of the steps before it. The work is in a worktree that
   one. The part `test_standard_library` of `test_kernel()` has 16 of 16. Its
   second process loads Statistics with `JULIA_LOAD_PATH=@`, where a plain
   `using Statistics` fails.
-- [ ] **2. The code tool and the text of the window.** Proposed decisions 2
+- [x] **2. The code tool and the text of the window.** Proposed decisions 2
   and 3.
   *Check:* in a process whose `JULIA_LOAD_PATH` is `@`, a test runs
   `using Dates; Dates.format(today(), "yyyy")`, `using Statistics: mean`,
@@ -325,6 +325,17 @@ tests of the steps before it. The work is in a worktree that
   `using ProjecturedKernel` and `using PaneModule` get the refusal. A `using` in
   the evaluator of the person still runs. The tests of the assistant text that
   compare its words change with it.
+
+  Done on 2026-11-25. `_admit_package_loads!` in `CodeExecution.jl` reads the
+  statements before they run, when the set declares its API, and a refused load
+  throws `PackageLoadRefusedException`, whose answer has no stack. The
+  `using` line of `ToolModule.jl` names `DocumentModule` bare, as the layering
+  guard of the kernel wants. `EDITOR_SYSTEM` takes the four `using` lines from
+  `LOADABLE_STANDARD_LIBRARIES`. No test compared the words of the text. The
+  part `test_code_execution` has 110 of 110, with its second process that has
+  `JULIA_LOAD_PATH=@`, and the layering parts of the kernel have 83 of 83. The
+  guide of the agent stack (`documentation/package/kernel/agent.md`) describes
+  the rule.
 - [ ] **3. A `.pred` file keeps a date.** Proposed decision 4.
   *Check:* a `RecordTable` with a `Date`, a `DateTime` and `nothing` goes to a
   file with `write_document_file!`, holds `Dates.Date("…")`, and comes back from

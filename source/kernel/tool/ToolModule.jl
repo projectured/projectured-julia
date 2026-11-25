@@ -77,6 +77,7 @@ module ToolModule
 
 using Base.ScopedValues: ScopedValue, with
 using ..FaultModule
+using ..DocumentModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        RelevanceModel, set_relevance_model!,
@@ -98,6 +99,7 @@ export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
        keep_tool_call_value!, take_tool_call_value!,
        get_last_evaluation_exception, get_evaluation_exception_count,
        MissingEvaluationEditorException, get_evaluation_editor, find_evaluation_editor,
+       PackageLoadRefusedException,
        run_with_evaluation_editor, find_evaluation_starter, run_with_evaluation_starter,
        describe_value_for_person,
        list_guides, read_guide, read_guide_section,
