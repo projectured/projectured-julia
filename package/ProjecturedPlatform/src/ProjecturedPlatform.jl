@@ -27,6 +27,7 @@ end
 
 include("../../../source/platform/collection/CollectionModule.jl")
 include("../../../source/platform/component/ComponentModule.jl")
+include("../../../source/platform/memory/MemoryModule.jl")
 include("../../../source/platform/domain/DomainModule.jl")
 include("../../../source/platform/settings/SettingsModule.jl")
 include("../../../source/platform/focus/FocusModule.jl")

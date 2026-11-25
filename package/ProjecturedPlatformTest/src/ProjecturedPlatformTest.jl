@@ -40,6 +40,7 @@ using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedPlatform.CollectionModule
 using ProjecturedPlatform.PrimitiveModule
 using ProjecturedPlatform.ProjectionAlgebraModule
+using ProjecturedPlatform.MemoryModule
 using ProjecturedPlatform.ProjectionAlgebraModule: FocusingProjection, ReplaceFocusPartOperation
 using ProjecturedPlatform.ProjectionAlgebraModule: ReversingProjection
 using ProjecturedPlatform.ProjectionAlgebraModule: FilteringProjection
@@ -94,6 +95,7 @@ for _src in _SOURCES
 end
 
 # ── the tests of the packages that came out of base ─────────────────────────
+include("../../../test/platform/memory/HeldMemoryTest.jl")
 include("../../../test/platform/document/WidgetNotes.jl")
 include("../../../test/platform/document/CollectionDocumentTest.jl")
 include("../../../test/platform/document/TableInterfaceTest.jl")

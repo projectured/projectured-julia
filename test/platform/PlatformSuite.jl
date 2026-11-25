@@ -32,6 +32,7 @@ slices share one package. A new edge is a change of this table.
 const PLATFORM_SLICE_EDGES = Dict{String, Vector{String}}(
     "collection" => [],
     "component" => [],
+    "memory" => [],
     "serialization" => [],
     "style" => ["collection", "serialization", "settings"],
     "appearance" => ["collection", "domain", "graphics", "layout", "natural", "primitive", "projection",
@@ -492,6 +493,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
     test_undo,
     test_filechange,
     test_display,
+    test_held_memory,
 ])
 
 export test_platform, test_platform_layering, test_platform_examples
@@ -502,6 +504,7 @@ export test_identity
 export test_collection, test_table_interface, test_mouse_target_field, test_mouse_target_chain, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping, test_empty_nesting
 export test_versioning_to_any
+export test_held_memory
 export test_text_file, test_marker_language, test_pred_file, test_file_format
 export _text_leaf_length, _walk_document, collect_position_selections, collect_tree_selections
 export test_point_reference

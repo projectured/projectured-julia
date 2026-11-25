@@ -1,8 +1,9 @@
 # An editor says what holds its memory
 
-**Status:** proposed on 2026-11-25. It waits for the approval of the owner. The owner
-asked for this plan on 2026-11-25 ("yes, write the plan for step 1"). The work goes in
-the worktree `projectured-julia-held-memory`, on the branch `held-memory`.
+**Status:** approved by the owner on 2026-11-25 ("I approve the plan"), in work. The
+owner asked for this plan on 2026-11-25 ("yes, write the plan for step 1"). The work
+goes in the worktree `projectured-julia-held-memory`, on the branch `held-memory`. The
+owner asked that the measurement of step 3 waits until the machine is idle.
 
 The plan lands nothing and pushes nothing. It ends with a request to land.
 
@@ -177,7 +178,8 @@ Each decision counts as approved when the owner approves the plan.
 
 ## Steps
 
-1. **The walk and the report.** Write the slice `source/platform/memory/`:
+1. **Done on 2026-11-25, but the measurement on the editor, which step 3 makes.**
+   **The walk and the report.** Write the slice `source/platform/memory/`:
    `compute_held_memory(root)`, which gives a `HeldMemory` with `total_bytes`,
    `object_count`, `holders` (a list of `MemoryHolder` with `path`, `type`, `bytes`
    and `object_count`), `types` and `unwalked_bytes`. Add the slice to the platform,
@@ -203,6 +205,45 @@ Each decision counts as approved when the owner approves the plan.
    green" in `CLAUDE.md` says, and record the calls of `ProjecturedTest` and
    `ProjecturedPlatformTest` after the land. Then ask the owner to land, with the list
    of the new markers.
+
+## What the work found
+
+Facts and decisions of the work, in the order of the steps.
+
+**Step 1.**
+
+- The slice uses three modules of the kernel, and no other slice: `CellModule`,
+  because a field of a cell gives no step; `AgentModule` and `ToolModule`, for
+  `run_on_editor_task!` and `get_evaluation_editor` of the verb. P9 said "only Base";
+  the kernel is below every slice, so the edge table of the slice stays empty.
+- The walk follows each pointer of an object as `Base.summarysize` does
+  (`Base.datatype_npointers`, `Base.get_nth_pointer`), so it reads every kind of
+  object. So "not walked" (`unwalked_bytes`) holds the bytes of the objects that the
+  walk does not walk into by rule: modules, types, methods and compiled code. Julia
+  gives no size of a module, so a module counts no bytes.
+- A step of the path is the name of the field of each struct, with no rule for one
+  kind of list: an element of a `CellVector` is `.elements[3]`, not `[3]` as a
+  reference names it. The walk reads no document interface, so it can not make a
+  view or read a cell. Also hidden: a step into a `Core.Box` of a captured variable,
+  and into the memory of a list or of a dictionary.
+- The memory of the elements of a list or of a dictionary is a part of its owner.
+  Without that rule, each line named a `Memory{T}` and not the list that owns it.
+- The holder rule "at least 1 MiB or 1 %" lists a holder above the smaller of the
+  two. The test lists by bytes only with `minimum_share = 1`.
+- The cost of the walk on a graph of 5.0 million small objects (cells, structs and
+  lists of 3 trees of depth 9), in one process with no editor: the tables need
+  85.8 bytes for each object at their largest, and the walk allocates 253 bytes for
+  each object in all, because each table doubles as it grows. The walk takes 4.8 s,
+  of which 0.8 s is the collector. The plan bound of 150 bytes for each object holds.
+- `test_held_memory()` passes 40 of 40, and the layering guard and the edge guard of
+  the platform pass with the broken counts of their lists. The static guards
+  `test/suite/documentation.jl` and `test/suite/exports.jl` fail on main too, with 2
+  links to a plan that moved and 1 export order in `GestureModule.jl`; the branch adds
+  no fault to them.
+- The precompile of `ProjecturedPlatform` says that 1626 of its 13543 recorded calls no
+  longer resolve. Runs on the code of main say 1599, so the list of main is stale, and
+  the branch adds 27. The record of the calls after the land must also record the list
+  of `ProjecturedPlatform`.
 
 ## Risks
 
