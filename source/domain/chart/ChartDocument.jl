@@ -68,6 +68,11 @@ the usual padding), a number to pin that end. `grid` is `:none`, `:major` or
 then puts its ticks at the whole numbers that have a name, each with its name, as
 many as fit, and a readout gives the name of the nearest whole number.
 
+A line or scatter series whose `x` holds `Date` or `DateTime` values makes the x
+axis a time axis by itself: the room between two points is the time between them,
+and the ticks fall on whole days, months or years. `min` and `max` of a time axis
+are dates. Give `names` only for places that are no dates.
+
 Use it to set the range, the title and the grid of a numeric axis of a chart, and
 to name the places of a line, such as the files or the runs that its points
 follow.
@@ -80,6 +85,9 @@ follow.
     chart_2 = Chart("Runs", [ChartLineSeries("time", 1:3, [4.0, 3.5, 3.6])];
                     x_axis = ChartAxis(names = ["first", "second", "third"], min = 0.5, max = 3.5))
     open_pane!(chart_2; title = "Runs")
+    using Dates
+    chart_3 = Chart("Repaired", [ChartLineSeries("repaired", [Date(2026, 11, 18), Date(2026, 11, 25)], [1, 3])];
+                    x_axis = ChartAxis(min = Date(2026, 11, 15), max = Date(2026, 12, 1)))
 
 See also `Chart`, which holds it, and `ChartCategoryAxis`.
 
@@ -153,7 +161,8 @@ end
 # ── Series ───────────────────────────────────────────────────────────────
 
 """
-A line series over paired `x`/`y` columns.
+A line series over paired `x`/`y` columns. `x` holds numbers, or `Date` or
+`DateTime` values for a line over time, which puts the series on a time axis.
 
 `sorted` records that `x` ascends, which lets the projection binary-search the
 visible index range instead of scanning the column. `draw_style` is `:none`,
@@ -178,6 +187,10 @@ mean with its interval.
     means = [0.10, 0.17, 0.18, 0.14]
     chart_2 = Chart("Throughput", [ChartLineSeries("pure", [0.1, 0.3, 0.5, 1.0], means;
                                                    lower = means .- 0.01, upper = means .+ 0.01)])
+
+    using Dates
+    days = [Date(2026, 11, 18), Date(2026, 11, 20), Date(2026, 11, 23)]
+    chart_3 = Chart("Repaired", [ChartLineSeries("repaired", days, [1, 2, 3]; symbol = :circle)])
 
 See also `Chart`, which holds it, and `ChartScatterSeries`.
 
@@ -229,6 +242,8 @@ end
 
 """
 A scatter series over paired `x`/`y` columns: markers only, no connecting line.
+`x` holds numbers, or `Date` or `DateTime` values, which put the series on a time
+axis.
 Above the style's `scatter_fold_threshold` visible points the projection folds
 the cloud into a density grid instead of drawing one marker per point.
 

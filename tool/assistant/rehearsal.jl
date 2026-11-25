@@ -846,8 +846,8 @@ end
 const DATE_TASKS = [
     SingleTask("record", "In the tab defects.pred, entry 21 was repaired today: write today's date into its " *
                          "field repaired_on, and save the tab.", check_date_recorded),
-    SingleTask("chart", "Show the entries of the tab defects.pred that were repaired, by the date of the repair, " *
-                        "as a line chart in a new tab.", check_date_chart),
+    SingleTask("chart", "Show in a new tab a line chart of the number of repaired entries over time: 1 on " *
+                        "2026-11-18, 2 on 2026-11-20 and 3 on 2026-11-23.", check_date_chart),
 ]
 
 """

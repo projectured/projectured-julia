@@ -431,7 +431,7 @@ tests of the steps before it. The work is in a worktree that
     `Pkg.resolve()` of `environment/all` with `--with` this branch, and the main
     checkout of omnet-julia needs it after the land, or the load stops with
     "Cannot load module Dates into ProjecturedChart".
-- [ ] **9. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
+- [x] **9. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
   give the model a task: "record that entry 21 was repaired today, and show the
   repaired entries over time". Run seeds 1 to 10.
   *Check:* the code of the model uses `today()` and a `Date`. It holds no
@@ -439,6 +439,35 @@ tests of the steps before it. The work is in a worktree that
   date. The saved table holds `Dates.Date(…)`. The chart has a time axis. If
   the texts of decision 3 give fewer than 9 of 10, change them and run again,
   and write the numbers here.
+
+  Done on 2026-11-25, with `qwen3.8:27b`, in fewer runs than planned: the tool
+  skips a seed when less than 13 GB are free besides the loaded model, and with
+  the jobs of other sessions only 3 runs of each start had room. The numbers:
+
+  | Run | Task | Seeds | Passed | The date in the code of the model |
+  | --- | --- | --- | --- | --- |
+  | 1 | one task: record, save and chart | 1 | 0 | the 8 rounds of the assistant ended before a date |
+  | 2 | record | 1 to 3 | 1 | seed 1 `using Dates` and `Dates.today()`; seeds 2 and 3 `Dates.today()` with no `using`: `UndefVarError` |
+  | 3 | record, after the answer line below | 1 to 3 | 1 | all 3 end with `using Dates` and `today()`; seed 2 after the `UndefVarError` of its first try |
+  | 4 | chart, of the rows of defects.pred | 1 to 2 | 0 | no chart: the rows of the table were not read |
+  | 5 | chart, with its data in the prompt, after the docstrings below | 1 to 3 | 2 | seeds 2 and 3 `using Dates` and a column of `Date`; seed 1 the dates as text |
+
+  No code made a date with `Libc.strftime`. The other failures of the record
+  task are the write of a field of a record: `records[3]["repaired_on"]` and
+  `convert_object_to_document`, in place of `replace_referenced_value!(record,
+  :repaired_on, value)`. That is no question of dates, and this plan leaves it.
+  The rehearsal changed two things, beyond the texts of decision 3:
+  - **The answer of a library name before its `using`.** When the undefined
+    name is a library of the list, or a name that a loaded library of the list
+    exports, the answer of `execute_julia_code` says "write `using Dates` first"
+    (`_suggest_standard_library` in `CodeExecution.jl`). Julia's own hint says
+    "Dates is loaded but not imported in the active module Main".
+  - **The docstrings of the chart.** `ChartLineSeries`, `ChartScatterSeries` and
+    `ChartAxis` say that `x` can hold dates, and give an example with `using
+    Dates`. Before, a model that searched for dates found `ChartCategoryAxis`.
+  - The tool itself: `prepare_window!` set the field `collapse_thinking`, which
+    `Assistant` lost in commit `06e96df1d`, so every rehearsal of `main` failed;
+    `tool/video/record_assistant_window.jl` has the same line.
 - [ ] **10. The check before the land.** All the parts in worker processes, with
   no network, as `CLAUDE.md` says under "Main is green": 0 unmarked `Fail`,
   0 `Error`, and `done` for each part. Then the request to land.
