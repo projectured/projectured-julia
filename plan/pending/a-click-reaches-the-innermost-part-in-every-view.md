@@ -2277,7 +2277,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   `ILegacySimulationConfiguration`); the walk records them, and this plan does
   not fix them. omnet/timeline_strip needs more than 12 GiB, and the walk skips
   it. The steps, one commit for each:
-  - [ ] O1. The views that pass the answer of their widgets on unchanged. 29
+  - [x] O1. The views that pass the answer of their widgets on unchanged. 29
     views of the presentation and 2 of cosim have the reader
     `read_intent(::View, iomap, op) = op isa Operation ? op : nothing`, so a
     path in their output arrives as a path in their input: the caret in the
@@ -2287,19 +2287,52 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     the default reader maps each answer back: a part that the view drew is
     named by the step of the view, and an operation that carries its own
     subject passes.
-  - [ ] O2. The pages of the ten kinds of run task and the comparison of charts.
+
+    Done (omnet 2d45f9f72). The same fault had three more forms, which go too:
+    the catch-all `read_intent(::View, iomap, op) = op`, which passed even a raw
+    gesture on; a compound reader that passed each compound but a move on
+    unchanged, such as the selection and the drag start of an Alt+press in a
+    drawn text; and a path reader that only did what the default does. 29
+    files, 28 one-line readers, 16 compound readers, 16 path readers and 3
+    catch-alls; a reader that does more, such as the one of
+    `ToggleCollapseOperation`, stays. The view tests of the presentation, the
+    legacy slice and cosim pass (39 sets, `test_cosim_presentation` 41118 and
+    its 2 broken); `test_adaptive_search` throws a `DimensionError` (the
+    parameter `mu` carries a unit now), which has no view in its path and is a
+    fault of omnet main.
+  - [x] O2. The pages of the ten kinds of run task and the comparison of charts.
     Their backward map gives the whole page for each point and their forward map
     takes only the whole page (`legacy/run_task` and the other task pages: 20
     to 38 lines each, all `@∅`). The two one-line maps go, so the defaults map
     a part that the page drew by the step of the page.
-  - [ ] O3. The pages of results: the run results, the result file and the view
+
+    Done (omnet 7444bdb19). `test_run_task_document` 19 (a new test set: the
+    group of facts maps back to the step of the page and forward again),
+    `test_fingerprint_task_document` 38, `test_speed_task_document` 26.
+  - [x] O3. The pages of results: the run results, the result file and the view
     of a result file, the result folder, the baseline file view and the plot. A
     part that the page drew is named by the step of the page, where the maps
     give `nothing` or the whole page now; a field of the input that the page
     shows keeps its map.
-  - [ ] O4. The result table picks a row on a plain click only: the reader turns
+
+    Done (omnet 054742d27), with the page of the scalar differences, which had
+    the same maps. The page of a baseline file holds its entry document as the
+    first child of its grid, as it holds the file as the second, so
+    `entry.<rest>` ↔ `children[1].<rest>` now, both ways; it gave `nothing`
+    there. `test_result_file_document` 53, `test_result_folder` 183 (the line
+    of the page of a file maps back to the step of the page and forward again),
+    `test_legacy_store_entry_pages` 22 (it expected `nothing` for a press on the
+    facts of the entry; it expects the entry now, both ways),
+    `test_scalar_differences_document` 36 (the line maps to the step),
+    `test_statistical_task_document` 40, `test_statistical_baseline_document`
+    10, `test_simulation_plot` 10, `test_result_readers` 21.
+  - [x] O4. The result table picks a row on a plain click only: the reader turns
     each selection in a row into a pick now, also a caret of an Alt+click.
     Any other part is named by the step of the view.
+
+    Done (omnet 55b124186): a pick only for a path that ends at the row, and the
+    default backward map. `test_result_frame_click` 7 (an Alt+click in the text
+    of a cell gives the caret by the step of the view, and picks no row).
   - [ ] O5. The data frame view (projectured, `DataFrameViewToWidget`): a move
     on a column header names a path in the widgets of the view,
     `….column_headers[N]…`, and the Alt+double click selects the column
