@@ -89,6 +89,17 @@ function test_selection()
         @test get_selection(root.left) === nothing
     end
 
+    @testset "a path through the native form of a document writes its plain selection" begin
+        native = SelectionNative("abc")
+        root = SelectionPair(left = native)
+        set_selection!(root, Reference(FieldReferenceStep("left"), FieldReferenceStep("text")))
+        @test strip_reference_types(get_selection(root)) ==
+              Reference(FieldReferenceStep("left"), FieldReferenceStep("text"))
+        @test strip_reference_types(native.selection) == Reference(FieldReferenceStep("text"))
+        clear_selection!(root)
+        @test native.selection === nothing
+    end
+
     @testset "a path that does not match throws and writes no cell" begin
         root = SelectionPair(left = SelectionLeaf(text = "a"),
                              right = SelectionLeaf(text = "b"))

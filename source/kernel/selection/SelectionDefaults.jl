@@ -52,9 +52,8 @@ get_stored_selection(document) = _get_stored_path(_get_selection_value(document)
 
 function clear_selection!(document)
     hasfield(typeof(document), :selection) || return
-    sel = getfield(document, :selection)
-    path = _get_stored_path(sel[])
-    sel[] = nothing
+    path = _get_stored_path(_read_selection_field(document))
+    _write_selection_field!(document, nothing)
     path isa ConcreteReference || return
     # Descend into the child this step routes to and clear it too.
     child = _selection_child(document, path)
@@ -112,14 +111,13 @@ end
 # paths stay exactly where they are; only the flag changes.
 function _mark_dormant!(document)
     hasfield(typeof(document), :selection) || return
-    cell = getfield(document, :selection)
-    value = cell[]
+    value = _read_selection_field(document)
     path = _get_stored_path(value)
     path === nothing && return
     if value isa SelectionDocument
         value.live && (value.live = false)
     else
-        cell[] = SelectionDocument(; primary = path, live = false)
+        _write_selection_field!(document, SelectionDocument(; primary = path, live = false))
     end
     path isa ConcreteReference || return
     child = _selection_child(document, path)
@@ -140,7 +138,7 @@ function _restore_selection(document, path)
     end
     has_dormant_selection(node) || return path
     hasfield(typeof(node), :selection) || return path
-    value = getfield(node, :selection)[]
+    value = _read_selection_field(node)
     (value isa SelectionDocument && !value.live) || return path
     dormant = value.primary
     dormant isa ConcreteReference || return path
@@ -188,18 +186,33 @@ function _drop_terminal_cursor(path::ConcreteReference)
     ConcreteReference(path.type, path.head, _drop_terminal_cursor(path.tail))
 end
 
+# The stored selection of `document`, in either form of a document: the value of its
+# selection cell, or the plain value that the field of the native form holds.
+_read_selection_field(document) = unwrap_cell(getfield(document, :selection))
+
+# Store `path` as the selection of `document`: in its selection cell, or in the plain
+# field of the mutable native form. The immutable native form keeps the selection
+# that it was made with.
+function _write_selection_field!(document, path)
+    field = getfield(document, :selection)
+    if field isa AbstractCell
+        field[] = path
+    elseif ismutable(document)
+        setfield!(document, :selection, path)
+    end
+    nothing
+end
+
 function set_selection!(document, path)
     _set_selection_walk!(document, _matched_selection(document, path))
     document
 end
 
 # Internal recursive walker: assumes `path` is already canonical and writes each
-# suffix into the matching child's selection cell, descending one navigation step
-# per level.
+# suffix into the matching child's selection, descending one navigation step per
+# level.
 function _set_selection_walk!(document, path)
-    if hasfield(typeof(document), :selection)
-        getfield(document, :selection)[] = path
-    end
+    hasfield(typeof(document), :selection) && _write_selection_field!(document, path)
     path isa ConcreteReference || return
     # Descend into the routed child and write the remaining tail there.
     child = _selection_child(document, path)
@@ -279,11 +292,10 @@ end
 # own path tail pointing at it (chain sharing).
 function _sync_selection!(document, path, owner = nothing)
     hasfield(typeof(document), :selection) || return path
-    cell = getfield(document, :selection)
-    stored = cell[]
+    stored = _read_selection_field(document)
     old = _get_stored_path(stored)
     # A live write through a node revives it: the wrapper goes, the path stays.
-    stored isa SelectionDocument && (cell[] = old)
+    stored isa SelectionDocument && _write_selection_field!(document, old)
     if old isa Reference && path isa Reference && is_reference_equal(old, path)
         _repair_selection_chain!(document, old)
         return old
@@ -317,7 +329,7 @@ function _sync_selection!(document, path, owner = nothing)
                                                   clear_selection!(oc)
         end
     end
-    cell[] = path
+    _write_selection_field!(document, path)
     if path isa ConcreteReference
         nc = _selection_child(document, path)
         nc === nothing || set_selection!(nc, path.tail)
@@ -336,7 +348,7 @@ function _repair_selection_chain!(document, path)
     child === nothing && return
     tail = path.tail
     if hasfield(typeof(child), :selection)
-        stored = getfield(child, :selection)[]
+        stored = _read_selection_field(child)
         (stored === tail || (stored isa Reference && is_reference_equal(stored, tail))) ||
             return _set_selection_walk!(child, tail)
     end
