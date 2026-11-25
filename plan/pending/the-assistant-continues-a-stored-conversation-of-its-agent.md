@@ -264,7 +264,8 @@ Fact 11 sets the order: `ClaudeCodeACP` lands first, after the approval of the
 owner, so that the live check of step 9 runs the new agent. Steps 5 to 8 use the
 fakes and do not wait for that land.
 
-1. [ ] **Find the facts that only `claude` can give.** In a folder of the
+1. [x] **Find the facts that only `claude` can give.** Done 2026-11-25, see the
+   answers below. In a folder of the
    scratchpad, with short prompts, and with no change of code:
    - which record `claude -p --resume <id>` continues in a file with two
      branches (make the branch with `--resume-session-at` and no
@@ -274,6 +275,43 @@ fakes and do not wait for that land.
    - whether the error of a request in `AgentClientProtocol.jl` carries `data`.
 
    Record the answers in this plan.
+
+   The answers, with `claude` 2.1.309, `--model haiku`, in the folder
+   `resume-probe` of the scratchpad:
+   - **`claude --resume` continues the leaf of the last `last-prompt` record.**
+     A file with the chain ALPHA → BRAVO and the branch ALPHA → CHARLIE (made
+     later with `--resume-session-at`) continued at CHARLIE, which is also the
+     last leaf of the file. A copy of the same file with one more `last-prompt`
+     record whose `leafUuid` names the BRAVO answer continued at BRAVO: the
+     answer listed "ALPHA BRAVO". So the replay starts at the `leafUuid` of the
+     last `last-prompt` record. A file with no such record starts at its last
+     `user` or `assistant` record. A `leafUuid` can name an `attachment`, whose
+     `parentUuid` leads back to the chain.
+   - **A second `claude -p --resume <id>` does not refuse** while another
+     `claude -p` holds `<id>`. It answers with exit code 0 and writes into the
+     same file. So two programs can mix one file, and only the check of P10
+     stops that.
+   - **The record of a program.** A `claude -p` that waits on its input writes
+     `~/.claude/sessions/<pid>.json` with `"kind": "interactive"`,
+     `"entrypoint": "sdk-cli"`, `"status": "idle"` and `procStart`, which is
+     field 22 of `/proc/<pid>/stat` (the start time in clock ticks after the
+     boot). A program that ends normally removes its record; a record stays only
+     after a kill or a crash.
+   - **The entry point comes from the environment.** A `claude` takes
+     `CLAUDE_CODE_ENTRYPOINT` from its parent: a `claude -p` started from a
+     terminal of VS Code writes `claude-vscode`. So the agent finds its own
+     programs by their process ids, never by the entry point (P9). With a clean
+     environment, a `claude -p` writes `sdk-cli`. On this machine, the 44
+     records hold only `claude-vscode` (42) and `sdk-cli` (2), and the first
+     records of the 149 files hold the same two names. A terminal `claude` under
+     `script` wrote no record in 12 s, so its name stays unknown. The name of a
+     program is "VS Code" for `claude-vscode` and "Claude Code" for each other
+     entry point.
+   - **An error answer carries `data`.** `send_request!` of
+     `AgentClientProtocol.jl` throws `ProtocolException(code, message, data)`
+     with the `data` of the answer, and a handler that throws a
+     `ProtocolException` with `data` sends it. `RESOURCE_NOT_FOUND` (-32002)
+     exists.
 2. [ ] **`ClaudeCodeACP` answers `session/list`** (P8, P9). Test with a
    temporary `CLAUDE_CONFIG_DIR`: a folder that exists and one that is gone, the
    three sources of a title, the order, two pages, a record of a process that
