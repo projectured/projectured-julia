@@ -1078,3 +1078,33 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
   each of the first three had a 3-argument wrapper that put the payload in the gesture
   field, so a call with an operation takes the same path on the branch. The table declines
   an operation, as before, and the list gives its gesture to the default reader.
+- **2026-11-25, the rebase over main 28dfc9f93 (projectured), fa9b3b2b6 (omnet) and 86910a9
+  (inet).** Main moved by 203, 41 and 1 commits; step 5 and the omnet change with no model
+  are on origin. The check of the rebase over 8e792dc15 stopped before its end, at the
+  request of the owner, so its results do not count.
+  - projectured: three files conflict, each where main changed a line with a 3-argument
+    call. The table cell and the table route keep the `_find_control_answer` of main around
+    the 4-argument call; the name of a tab keeps the `part` of main. `ClipboardTest.jl` keeps
+    the three `@test_broken` of main for the cut of a range, with the 4-argument call.
+  - The parser then finds fifteen 3-argument calls, all in tests of the new main: the
+    research and the workflow page (two each), `PaneConstructTest.jl` (one),
+    `PaneGestureTest.jl` (two), `WidgetMenuKeysTest.jl` (three), `WidgetPointTest.jl` (one)
+    and `WidgetTabStripTest.jl` (four). They take the 4-argument form (commit a18148823). A
+    scan of the whole worktree then finds no call and no definition with other than four
+    arguments.
+  - Two readers are new on main: the commit range of git calls the default reader with
+    `invoke` and changes only the answer to a double click; the command card of the assistant
+    adds a method of `map_operation_backward`. Both meet step 6.
+  - omnet: one test file conflicts, `LegacySimulationRunnerTest.jl`, where main put three
+    tests in a `try` with a `@test_broken` for a print that throws. The rebase keeps the side
+    of main and gives its calls the 4-argument form.
+  - The scan of step 7 covered only `source` and `test` of omnet-julia and inet-julia. A scan
+    of the whole worktrees finds two more 3-argument identity readers, which step 6 makes
+    dead: the configuration form of the watch demo (omnet `demo/watch/config_form.jl`) and the
+    diagram of a state machine in the catalog example (inet `example/catalog/Machines.jl`,
+    imported in `InetExample.jl`). Each becomes a method of `map_operation_backward`, as the
+    identity readers of step 7 did (omnet 5d6885c2a, inet 861de37).
+  - The test rule of the repositories changed on 2026-11-21: main is green, so an unmarked
+    `Fail` or `Error` on the branch is a fault of the branch, and no run of main goes beside
+    it. The check is the land run of `CLAUDE.md` in each worktree, with no network, through
+    `julia-worktree run`.
