@@ -336,7 +336,7 @@ tests of the steps before it. The work is in a worktree that
   `JULIA_LOAD_PATH=@`, and the layering parts of the kernel have 83 of 83. The
   guide of the agent stack (`documentation/package/kernel/agent.md`) describes
   the rule.
-- [ ] **3. A `.pred` file keeps a date.** Proposed decision 4.
+- [x] **3. A `.pred` file keeps a date.** Proposed decision 4.
   *Check:* a `RecordTable` with a `Date`, a `DateTime` and `nothing` goes to a
   file with `write_document_file!`, holds `Dates.Date("…")`, and comes back from
   `read_document_file` equal. Two saves give the same bytes. A file with
@@ -344,6 +344,15 @@ tests of the steps before it. The work is in a worktree that
   loads nothing. Each file of the examples reads as before. A test edits the
   date of a record through its tab, and through `replace_referenced_value!`,
   and saves it.
+
+  Done on 2026-11-25. `_is_text_value_head`, `_build_text_value` and
+  `_is_text_value` in `FileProject.jl` hold the qualified head and its list
+  `_TEXT_VALUE_TYPES`; `_evaluate_pred` and `_evaluate_splice` call
+  `_build_text_value`, and `_print_text_value` of `PredFile.jl` writes the
+  value. The part `test_pred_file` of `test_platform()` has 106 of 106. The
+  edit of a date through the tab of a record is not tested yet: step 7 checks
+  it with the guide of the record table. The guide of the serialization has a
+  paragraph on dates.
 - [ ] **4. The time axis of the chart.** Proposed decision 5.
   *Check:* tests of the ticks and labels for a span of 6 hours, 2 days,
   3 weeks, 5 months and 3 years. A test of the readout. A test that a zoom and

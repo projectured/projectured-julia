@@ -323,6 +323,52 @@ function parse_marker_text(text::AbstractString)
     _parse_marker_expression(body) === nothing ? nothing : String(body)
 end
 
+# ── The outside values that a file names with their module ─────────────────
+#
+# A value of a type of no package of the editor is written with the name of its
+# module, `Dates.Date("2026-11-24")`, so the text says which package the type comes
+# from. Such a type is built from its text, and only the types of this list are:
+# a file builds a value of no other outside type. The module of each one is a
+# standard library of `LOADABLE_STANDARD_LIBRARIES`, which loads when a file names
+# it, so the platform depends on no package for it.
+
+# The module and the name of each outside type that a file builds from its text.
+const _TEXT_VALUE_TYPES = ((:Dates, :Date), (:Dates, :DateTime))
+
+# Whether `head`, the head of a call, is a name qualified by one module, such as
+# `Dates.Date`.
+_is_text_value_head(::Any) = false
+_is_text_value_head(head::Expr) =
+    head.head === :. && Base.length(head.args) == 2 &&
+    head.args[1] isa Symbol && Base.isidentifier(String(head.args[1])) &&
+    head.args[2] isa QuoteNode && head.args[2].value isa Symbol &&
+    Base.isidentifier(String(head.args[2].value))
+
+# The value that the call `head(arguments...)` writes, such as the date of
+# `Dates.Date("2026-11-24")`: one text, read by the constructor of a type of the
+# list. Its module loads when no module of the process holds it yet.
+function _build_text_value(head::Expr, arguments)
+    module_name = head.args[1]::Symbol
+    type_name = (head.args[2]::QuoteNode).value::Symbol
+    written = string(module_name, ".", type_name)
+    (module_name, type_name) in _TEXT_VALUE_TYPES ||
+        error("a file names ", written, ", and the outside types that a file builds are ",
+              join((string(m, ".", t) for (m, t) in _TEXT_VALUE_TYPES), ", ", " and "))
+    Base.length(arguments) == 1 && arguments[1] isa String ||
+        error("a file builds ", written, " from one text, such as ", written, "(\"…\")")
+    library = load_standard_library!(module_name)
+    getfield(library, type_name)(arguments[1])
+end
+
+# Whether `value` is of an outside type that a file writes as its text: a type of
+# the list, of the standard library of its name.
+function _is_text_value(value)
+    T = typeof(value)
+    names = (nameof(parentmodule(T)), nameof(T))
+    names in _TEXT_VALUE_TYPES &&
+        Base.PkgId(parentmodule(T)) == LOADABLE_STANDARD_LIBRARIES[first(names)]
+end
+
 # A type name, by the convention every `@document` follows: an identifier that
 # starts with a capital. It is the whole difference between `file("a.md")` and
 # `MarkdownFile("a.md")` — one names a vocabulary function, the other a type.
@@ -464,8 +510,10 @@ function _is_marker_call(e::Expr)
     e.head === :call || return false
     isempty(e.args) && return false
     # An identifier, so an operator is not a marker: `1 + 1` parses as a call to
-    # `+` with two literal arguments, and it is arithmetic rather than data.
-    (e.args[1] isa Symbol && Base.isidentifier(String(e.args[1]))) || return false
+    # `+` with two literal arguments, and it is arithmetic rather than data. A
+    # name qualified by one module, `Dates.Date`, names a value of an outside type.
+    (e.args[1] isa Symbol && Base.isidentifier(String(e.args[1])) ||
+     _is_text_value_head(e.args[1])) || return false
     all(_is_marker_argument, @view e.args[2:end])
 end
 

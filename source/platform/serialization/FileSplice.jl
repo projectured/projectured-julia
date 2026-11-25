@@ -332,6 +332,7 @@ function _evaluate_splice(project, index, e::Expr)
         end
         return Tuple(Any[_evaluate_splice(project, index, f) for f in fields])
     end
+    _is_text_value_head(e.args[1]) && return _build_text_value(e.args[1], @view e.args[2:end])
     verb = e.args[1]::Symbol
     positional, keywords = _splice_arguments(project, index, e)
     any(a -> a === nothing, positional) && return nothing

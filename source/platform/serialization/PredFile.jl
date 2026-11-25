@@ -297,6 +297,7 @@ function _evaluate_pred(e::Expr)
         end
         return Tuple(Any[_evaluate_pred(f) for f in fields])
     end
+    _is_text_value_head(e.args[1]) && return _build_text_value(e.args[1], @view e.args[2:end])
     verb = e.args[1]::Symbol
     # A call over the vocabulary rather than a type names a node somewhere else.
     # It is left as a reference: which file it names is settled by the set the
@@ -347,9 +348,10 @@ bytes, so two saves of one document must print the same text.
 
 Throws a [`FileCutException`](@ref) naming the field when a value is outside the
 notation: a string, a number, a character, a bool, a symbol, `nothing`, a vector
-of those, a document, a value of a type that [`is_pred_constructible`](@ref)
+of those, a document, a date, a value of a type that [`is_pred_constructible`](@ref)
 says a file may build, such a type by its bare name, and a reference are all of
-it.
+it. A date is a `Date` or a `DateTime` of the standard library Dates, written
+with the name of its module and its text: `Dates.Date("2026-11-24")`.
 
 For the assistant.
 """
@@ -536,6 +538,7 @@ end
 # A value that is data but not a document, of a type that a file may build, is
 # its call on one line: a size or a margin is one value in a diff, as a number is.
 function _print_pred_value(io::IO, value, where, indent)
+    _is_text_value(value) && return _print_text_value(io, value, where, indent)
     is_pred_constructible(typeof(value)) || _refuse_pred_value(value, where)
     positional, keywords = pred_arguments(value)
     print(io, get_document_schema_name(typeof(value)), "(")
@@ -552,12 +555,21 @@ function _print_pred_value(io::IO, value, where, indent)
     print(io, ")")
 end
 
+# A value of an outside type that a file writes as its text, with the name of its
+# module: `Dates.Date("2026-11-24")`, as Julia prints it.
+function _print_text_value(io::IO, value, where, indent)
+    T = typeof(value)
+    print(io, nameof(parentmodule(T)), ".", nameof(T), "(")
+    _print_pred_value(io, string(value), where, indent)
+    print(io, ")")
+end
+
 function _refuse_pred_value(value, where)
     at = isempty(where) ? "" : " at " * where
     throw(FileCutException(
         "cannot write a " * string(typeof(value)) * at *
         " — the .pred notation holds a string, a number, a character, a bool, " *
         "nothing, a vector of those, a group of them, a mapping of names to " *
-        "them, a document, a value of a type that a file may build, such a type, " *
+        "them, a document, a date, a value of a type that a file may build, such a type, " *
         "a reference, and the text of a format"))
 end

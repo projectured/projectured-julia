@@ -340,5 +340,55 @@ function test_pred_file()
         end
     end
 
+
+    @testset "a date is written with the name of its module, and read back" begin
+        Dates = ProjecturedKernel.DocumentModule.load_standard_library!(:Dates)
+        repaired = Dates.Date(2026, 11, 24)
+        checked = Dates.DateTime(2026, 11, 24, 10, 15)
+        table = ProjecturedPlatform.RosterModule.RecordTable("Defects"; columns = ["number", "repaired_on"],
+            records = [(number = 21, repaired_on = repaired, checked_at = checked),
+                       (number = 23, repaired_on = nothing, checked_at = nothing)])
+        text = print_pred_text(table)
+        @test occursin("repaired_on = Dates.Date(\"2026-11-24\")", text)
+        @test occursin("checked_at = Dates.DateTime(\"2026-11-24T10:15:00\")", text)
+        @test occursin("repaired_on = nothing", text)
+        loaded = parse_pred_text(text)
+        records = collect(loaded.records)
+        @test records[1].repaired_on === repaired
+        @test records[1].checked_at == checked && records[1].checked_at isa Dates.DateTime
+        @test records[2].repaired_on === nothing
+        # The text of a date is one canonical form, so two saves are equal.
+        @test print_pred_text(loaded) == text
+        # A date in a vector of a record.
+        days = parse_pred_text("RecordTable(\"Days\", columns = [\"number\"], " *
+                               "records = [(number = 1, days = [Dates.Date(\"2026-11-24\")])])")
+        @test collect(days.records)[1].days == Any[repaired]
+        # A file writes the date as Julia prints it.
+        @test occursin(repr(repaired), text)
+
+        directory = mktempdir()
+        try
+            path = joinpath(directory, "defects.pred")
+            ProjecturedPlatform.FileFormatModule.write_document_file!(table, path)
+            first_bytes = read(path)
+            again = ProjecturedPlatform.FileFormatModule.read_document_file(path)
+            @test collect(again.records)[1].repaired_on === repaired
+            ProjecturedPlatform.FileFormatModule.write_document_file!(again, path)
+            @test read(path) == first_bytes
+        finally
+            rm(directory; recursive = true, force = true)
+        end
+    end
+
+    @testset "a file builds no value of another outside type" begin
+        @test_throws "the outside types that a file builds are Dates.Date and Dates.DateTime" parse_pred_text("Base.Cmd(\"ls\")")
+        @test_throws "the outside types that a file builds are" parse_pred_text("Foo.Bar(\"x\")")
+        @test_throws "the outside types that a file builds are" parse_pred_text("Dates.Time(\"10:15\")")
+        # A date is built from one text and from nothing else.
+        @test_throws "from one text" parse_pred_text("Dates.Date(2026, 11, 24)")
+        # Two modules deep is no marker at all.
+        @test_throws "is not one" parse_pred_text("Base.Dates.Date(\"2026-11-24\")")
+    end
+
 end
 end
