@@ -116,11 +116,44 @@ function _chart_series(chart::Chart)
     out
 end
 
-# The series that draw: those whose `visible` is set.
-_visible_series(chart::Chart) = filter(((_, s),) -> s.visible, _chart_series(chart))
+# The series that draw: those whose `visible` is set. A line or scatter series draws
+# on a time axis or on a number axis by what its x column holds, and the axis follows
+# the first such series. A series of the other kind does not draw, and its legend
+# entry says why.
+function _visible_series(chart::Chart)
+    shown = filter(((_, s),) -> s.visible, _chart_series(chart))
+    kind = _find_x_kind(shown)
+    kind === nothing ? shown : filter(((_, s),) -> _get_series_x_kind(s) in (nothing, kind), shown)
+end
 
-_series_x_bounds(s::ChartLineSeries) = get_column_bounds(s.x)
-_series_x_bounds(s::ChartScatterSeries) = get_column_bounds(s.x)
+_get_series_x_kind(s::Union{ChartLineSeries,ChartScatterSeries}) = is_date_column(s.x) ? :time : :number
+_get_series_x_kind(::Any) = nothing
+
+# `:time` or `:number`, by the first line or scatter series of `series`, or `nothing`
+# when it holds none.
+function _find_x_kind(series)
+    for (_, s) in series
+        kind = _get_series_x_kind(s)
+        kind === nothing || return kind
+    end
+    nothing
+end
+
+_is_time_chart(chart::Chart) = _find_x_kind(_visible_series(chart)) === :time
+
+# A time axis draws linear.
+_is_log_x_axis(chart::Chart) = _is_log_axis(chart.x_axis) && !_is_time_chart(chart)
+
+# Why the visible series `s` does not draw on an axis of kind `axis_kind`, or `nothing`.
+function _get_series_x_fault(s, axis_kind)
+    kind = _get_series_x_kind(s)
+    (kind === nothing || !s.visible) && return nothing
+    kind === axis_kind ? nothing :
+        kind === :time ? "x holds dates, the axis shows numbers" : "x holds numbers, the axis shows dates"
+end
+
+_series_x_bounds(s::ChartLineSeries) = get_column_bounds(get_series_x(s))
+_series_x_bounds(s::ChartScatterSeries) = get_column_bounds(get_series_x(s))
 # A function series spans its own x range and none otherwise; it samples the window
 # that the other series give.
 _series_x_bounds(s::ChartFunctionSeries) = s.x_range
@@ -237,7 +270,7 @@ function _data_bounds(series, chart::Chart)
     # A function series holds the y range with its samples over the fit of the x
     # bounds; the window of a zoom is sampled by the layout.
     if xb !== nothing
-        lower, upper = _fit_range(xb, chart.x_axis, 0.02)
+        lower, upper = _fit_range(xb, chart.x_axis, 0.02; log = _is_log_x_axis(chart))
         for (_, s) in series
             s isa ChartFunctionSeries || continue
             window = _find_function_window(s, lower, upper)
@@ -327,13 +360,12 @@ function _stacked_bounds(series, n::Integer)
 end
 
 # Fit the data, then let an explicitly pinned axis end override that end only.
-function _fit_range(bounds, axis, fraction::Real)
-    log = axis isa ChartAxis && axis.log
+function _fit_range(bounds, axis, fraction::Real; log::Bool = axis isa ChartAxis && axis.log)
     lo, hi = bounds === nothing ? (0.0, 1.0) : bounds
     lo, hi = pad_range(lo, hi; fraction=fraction, log=log)
     if axis isa ChartAxis
-        axis.min === nothing || (lo = Float64(axis.min))
-        axis.max === nothing || (hi = Float64(axis.max))
+        axis.min === nothing || (lo = get_plot_coordinate(axis.min))
+        axis.max === nothing || (hi = get_plot_coordinate(axis.max))
     end
     hi > lo || (hi = lo + 1.0)
     (lo, hi)
@@ -362,7 +394,7 @@ function _compute_fit_view(plot::ChartPlot)
     # A category axis is already exactly as wide as its slots; padding it would
     # push half a category of empty space in at each end.
     x0, x1 = get_chart_axis_family(chart.x_axis) === :category ?
-        (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02)
+        (xb === nothing ? (0.5, 1.5) : xb) : _fit_range(xb, chart.x_axis, 0.02; log = _is_log_x_axis(chart))
     # The rows of a matrix fill the plot as the slots of a category axis do.
     y0, y1 = _is_matrix_chart(chart, series) && yb !== nothing && yb[2] > yb[1] ? yb :
         _fit_range(yb, chart.y_axis, 0.08)
@@ -419,7 +451,7 @@ end
 # The y bounds of a series inside the x window `lo`..`hi`. A line is ascending in x,
 # so a binary search finds its part; a scatter cloud is read point by point.
 function _compute_shown_series_y_bounds(s::ChartLineSeries, lo::Real, hi::Real)
-    i0, i1 = get_visible_range(s.x, lo, hi)
+    i0, i1 = get_visible_range(get_series_x(s), lo, hi)
     i1 < i0 && return nothing
     shown(column) = column === nothing ? nothing :
                     get_column_bounds(@view column[i0:min(i1, length(column))])
@@ -428,8 +460,9 @@ end
 
 function _compute_shown_series_y_bounds(s::ChartScatterSeries, lo::Real, hi::Real)
     yb = nothing
-    for i in 1:min(length(s.x), length(s.y))
-        lo <= Float64(s.x[i]) <= hi || continue
+    x = get_series_x(s)
+    for i in 1:min(length(x), length(s.y))
+        lo <= x[i] <= hi || continue
         for column in (s.y, s.lower, s.upper)
             (column === nothing || i > length(column)) && continue
             v = Float64(column[i])
@@ -489,7 +522,8 @@ end
 
 # A value on `axis` as a readout says it: the name of the nearest whole number on an
 # axis that has one, else the number.
-function _format_axis_value(axis, value::Real)
+function _format_axis_value(axis, value::Real; time_form::Symbol = :none)
+    time_form === :none || return format_time_value(value, time_form)
     if _has_axis_names(axis) && isfinite(value) && 0.5 <= value < length(axis.names) + 0.5
         return string(axis.names[round(Int, value)])
     end
@@ -500,8 +534,12 @@ end
 # its named whole numbers; a category axis puts one tick per slot and thins the
 # labels to whatever fits, which is what keeps a ten-thousand-category axis from
 # emitting ten thousand text elements.
-function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font, t)
-    if axis isa ChartCategoryAxis
+function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font, t; time::Bool = false)
+    if time && !(axis isa ChartCategoryAxis)
+        ticks, labels = compute_time_ticks(view.x_min, view.x_max, span_px,
+                                           label -> first(compute_text_extent(p.measure, label, font)) + t.padding)
+        (ticks, _axis_shows_labels(axis) ? labels : String[])
+    elseif axis isa ChartCategoryAxis
         cats = axis.categories
         n = length(cats)
         (n == 0 || !axis.show_labels) && return (Float64[], String[])
@@ -568,12 +606,15 @@ inert without the reader knowing about states: zero already reads as "inside the
 legend but on nothing", so such an entry neither toggles nor hovers.
 
 A hidden function series computes no samples, so its entry shows its label with
-no reason after it.
+no reason after it. A line or scatter series whose x holds dates on a chart whose axis
+shows numbers, or numbers on a chart whose axis shows dates, does not draw, and its
+entry gives the reason after the label.
 """
 function _legend_items(chart::Chart, t, samples = Dict{Int,Any}())
     cycle = _get_color_cycle(chart.style, t)
     items = Tuple{Int,String,Any,Bool}[]
     states = Tuple{Int,String,Any,Bool}[]
+    axis_kind = _find_x_kind(_visible_series(chart))
     for (index, s) in _chart_series(chart)
         shown = s.visible
         if s isa ChartStripSeries
@@ -610,7 +651,10 @@ function _legend_items(chart::Chart, t, samples = Dict{Int,Any}())
             label = reason === nothing ? _series_label(s) : _series_label(s) * ": " * reason
             push!(items, (index, label, get_series_color(s.color, index, cycle), shown))
         else
-            push!(items, (index, _series_label(s), get_series_color(s.color, index, cycle), shown))
+            # A line or scatter series that the axis can not show says why after its label.
+            reason = _get_series_x_fault(s, axis_kind)
+            label = reason === nothing ? _series_label(s) : _series_label(s) * ": " * reason
+            push!(items, (index, label, get_series_color(s.color, index, cycle), shown))
         end
     end
     append!(items, states)
@@ -831,7 +875,8 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
         ylabels = _axis_shows_labels(y_axis) ?
             [format_tick(tick, _tick_step(yticks)) for tick in yticks] : String[]
     end
-    xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t)
+    x_time = _find_x_kind(series) === :time
+    xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font, t; time = x_time)
     # A chart of pie series has no axes: no ticks and no labels.
     pie = _is_pie_chart(series)
     if pie
@@ -870,13 +915,14 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     # the y axis or a legend at a side can leave the plot narrower, so they are
     # thinned again for the width that the plot has.
     if !pie && plot_w < prov_w
-        xticks, xlabels = _x_ticks_labels(p, x_axis, view, plot_w, axis_font, t)
+        xticks, xlabels = _x_ticks_labels(p, x_axis, view, plot_w, axis_font, t; time = x_time)
         xsizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in xlabels]
     end
     axis_h = t.tick_length + (isempty(xlabels) ? 0 : label_h + t.label_gap)
     legend = _place_legend(legend, plot_x, plot_y, plot_w, plot_h, w, h, top, bottom, left, right, t, axis_h)
 
-    xlog = x_axis isa ChartAxis && x_axis.log
+    xlog = x_axis isa ChartAxis && x_axis.log && !x_time
+    x_time_form = x_time ? get_time_form(_tick_step(xticks) > 0 ? _tick_step(xticks) : view.x_max - view.x_min) : :none
     ylog = y_axis isa ChartAxis && y_axis.log
     xs = AxisScale(view.x_min, view.x_max, plot_x, plot_x + plot_w; log=xlog)
     ys = AxisScale(view.y_min, view.y_max, plot_y + plot_h, plot_y; log=ylog)
@@ -905,7 +951,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int, 
     matrix_shape = matrix === nothing ? nothing :
         _compute_matrix_shape(p, xs, ys, view, chart, matrix[2], style, axis_font)
 
-    (; w, h, chart, style, theme_values = t, view, series, legend,
+    (; w, h, chart, style, theme_values = t, view, series, legend, x_time_form,
        selected_index, selected_part, whole_selected,
        measure_label, measure_legend_label,
        plot_x, plot_y, plot_w, plot_h, xs, ys,
@@ -1161,7 +1207,7 @@ end
 # Pixel points for a line series over the visible window, already decimated and
 # translated into the viewport's local frame.
 function _line_points(g, s::ChartLineSeries)
-    x, y = s.x, s.y
+    x, y = get_series_x(s), s.y
     (length(x) == 0 || length(y) == 0) && return Tuple{Int,Int}[]
     i0, i1 = get_visible_range(x, g.view.x_min, g.view.x_max; sorted=s.sorted)
     pts = decimate_minmax(x, y; xs=g.xs, ys=g.ys, i0, i1)
@@ -1233,13 +1279,14 @@ end
 function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
     style = g.style
     color = _draw_color(g, index, s.color)
-    n = min(length(s.x), length(s.y))
+    x = get_series_x(s)
+    n = min(length(x), length(s.y))
     n == 0 && return out
     ox, oy = g.plot_x, g.plot_y
 
     if n > style.scatter_fold_threshold
         cell = max(style.bin_fold_px + 1, 3)
-        bands = fold_scatter(s.x, s.y; xs=g.xs, ys=g.ys, cell_px=cell, i0=1, i1=n, levels=_DENSITY_LEVELS)
+        bands = fold_scatter(x, s.y; xs=g.xs, ys=g.ys, cell_px=cell, i0=1, i1=n, levels=_DENSITY_LEVELS)
         for (px, py, bw, bh, level) in bands
             a = 0.15 + 0.85 * level / _DENSITY_LEVELS
             shade = StyleColor(color.red, color.green, color.blue, color.alpha * a)
@@ -1253,7 +1300,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
     shape === :none && return out
     seen = Set{Tuple{Int,Int}}()
     @inbounds for i in 1:n
-        xv = Float64(s.x[i]); yv = Float64(s.y[i])
+        xv = x[i]; yv = Float64(s.y[i])
         (isfinite(xv) && isfinite(yv)) || continue
         px = round(Int, to_pixel(g.xs, xv)) - ox
         py = round(Int, to_pixel(g.ys, yv)) - oy
@@ -1270,9 +1317,10 @@ end
 # with a finite value and finite bounds.
 function _interval_indices(g, s)
     (s.lower === nothing || s.upper === nothing) && return Int[]
-    n = min(length(s.x), length(s.y), length(s.lower), length(s.upper))
+    column = get_series_x(s)
+    n = min(length(column), length(s.y), length(s.lower), length(s.upper))
     Int[i for i in 1:n
-        if (x = Float64(s.x[i]); g.view.x_min <= x <= g.view.x_max) &&
+        if (x = column[i]; g.view.x_min <= x <= g.view.x_max) &&
            isfinite(Float64(s.lower[i])) && isfinite(Float64(s.upper[i]))]
 end
 
@@ -1284,8 +1332,9 @@ function _interval_whiskers!(out, g, s, color)
     (isempty(indices) || length(indices) > g.style.marker_limit) && return out
     ox, oy = g.plot_x, g.plot_y
     cap = max(2, s.symbol_size ÷ 2 + 1)
+    column = get_series_x(s)
     for i in indices
-        px = round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox
+        px = round(Int, to_pixel(g.xs, column[i])) - ox
         top = round(Int, to_pixel(g.ys, Float64(s.upper[i]))) - oy
         bottom = round(Int, to_pixel(g.ys, Float64(s.lower[i]))) - oy
         push!(out, GraphicsLine(px, top, px, bottom; color))
@@ -1300,7 +1349,8 @@ function _interval_band!(out, g, s, color)
     indices = _interval_indices(g, s)
     length(indices) >= 2 || return out
     ox, oy = g.plot_x, g.plot_y
-    pixel(i, bound) = (round(Int, to_pixel(g.xs, Float64(s.x[i]))) - ox,
+    column = get_series_x(s)
+    pixel(i, bound) = (round(Int, to_pixel(g.xs, column[i])) - ox,
                        round(Int, to_pixel(g.ys, Float64(bound[i]))) - oy)
     points = vcat([pixel(i, s.upper) for i in indices], [pixel(i, s.lower) for i in reverse(indices)])
     push!(out, GraphicsPolygon(points; color = StyleColor(color.red, color.green, color.blue, color.alpha * 0.25)))
@@ -1314,7 +1364,8 @@ function _find_interval_at(g, s, px::Integer)
     indices = _interval_indices(g, s)
     isempty(indices) && return nothing
     x = to_data(g.xs, px + g.plot_x)
-    nearest = argmin(i -> abs(Float64(s.x[i]) - x), indices)
+    column = get_series_x(s)
+    nearest = argmin(i -> abs(column[i] - x), indices)
     (Float64(s.lower[nearest]), Float64(s.upper[nearest]))
 end
 
@@ -1868,7 +1919,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         strip = _strip_readout(g, cursor[1], cy + g.plot_y)
         strip === nothing && (strip = _format_matrix_readout(g, cx + g.plot_x, cy + g.plot_y))
         label = strip === nothing ?
-            string(_format_axis_value(g.chart.x_axis, cursor[1]), ", ", _format_axis_value(g.chart.y_axis, cursor[2])) :
+            string(_format_axis_value(g.chart.x_axis, cursor[1]; time_form = g.x_time_form), ", ", _format_axis_value(g.chart.y_axis, cursor[2])) :
             strip
         push!(out, GraphicsText(label, cx + 6, cy - 18; font = g.axis_font, color = text_color))
         return out
@@ -1878,7 +1929,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     color = get_series_color(g.chart.series[index].color, index, _get_color_cycle(g.style, g.theme_values))
     push!(out, GraphicsCircle(px, py, 4; color, border_width=t.border_width, border_color=t.plot_background))
     label = string(_series_label(g.chart.series[index]), "  ",
-                   _format_axis_value(g.chart.x_axis, to_data(g.xs, px + g.plot_x)), ", ",
+                   _format_axis_value(g.chart.x_axis, to_data(g.xs, px + g.plot_x); time_form = g.x_time_form), ", ",
                    _format_axis_value(g.chart.y_axis, to_data(g.ys, py + g.plot_y)))
     # A value with an interval says it beside the value.
     interval = _find_interval_at(g, g.chart.series[index], px)
@@ -2529,7 +2580,7 @@ function _zoom_view(plot::ChartPlot, view::ChartView, kx::Real, ky::Real;
     x = (view.x_min, view.x_max)
     y = (view.y_min, view.y_max)
     kx == 1 || (x = compute_zoomed_window(x, kx; extent = (fit.x_min, fit.x_max), focus = fx,
-                                          log = _is_log_axis(chart.x_axis)))
+                                          log = _is_log_x_axis(chart)))
     ky == 1 || (y = compute_zoomed_window(y, ky; extent = (fit.y_min, fit.y_max), focus = fy,
                                           log = _is_log_axis(chart.y_axis)))
     _set_view(plot, _make_chart_view(fit, x, y))
@@ -2545,7 +2596,7 @@ function _pan_view(plot::ChartPlot, view::ChartView, fraction_x::Real, fraction_
     y = (view.y_min, view.y_max)
     fraction_x == 0 ||
         (x = compute_panned_window(x, fraction_x; extent = (fit.x_min, fit.x_max),
-                                   log = _is_log_axis(chart.x_axis)))
+                                   log = _is_log_x_axis(chart)))
     fraction_y == 0 ||
         (y = compute_panned_window(y, fraction_y; extent = (fit.y_min, fit.y_max),
                                    log = _is_log_axis(chart.y_axis)))
@@ -2557,7 +2608,7 @@ end
 function _limit_view(plot::ChartPlot, x, y)
     chart = plot.chart
     fit = _compute_fit_view(plot)
-    x = compute_limited_window(x; extent = (fit.x_min, fit.x_max), log = _is_log_axis(chart.x_axis))
+    x = compute_limited_window(x; extent = (fit.x_min, fit.x_max), log = _is_log_x_axis(chart))
     y = compute_limited_window(y; extent = (fit.y_min, fit.y_max), log = _is_log_axis(chart.y_axis))
     _set_view(plot, _make_chart_view(fit, x, y))
 end
@@ -2642,7 +2693,7 @@ end
 # The window, the extent and the kind of `axis` of `plot`, as the window
 # arithmetic takes them.
 function _get_chart_axis_window(plot::ChartPlot, view::ChartView, fit::ChartView, axis::Symbol)
-    axis === :x && return ((view.x_min, view.x_max), (fit.x_min, fit.x_max), _is_log_axis(plot.chart.x_axis))
+    axis === :x && return ((view.x_min, view.x_max), (fit.x_min, fit.x_max), _is_log_x_axis(plot.chart))
     ((view.y_min, view.y_max), (fit.y_min, fit.y_max), _is_log_axis(plot.chart.y_axis))
 end
 
@@ -2896,10 +2947,11 @@ function _sample_hit(g, x::Integer, y::Integer)
         get_chart_series_family(s) === get_chart_axis_family(g.chart.x_axis) || continue
         (s isa ChartLineSeries || s isa ChartScatterSeries) || continue
         sorted = s isa ChartLineSeries && s.sorted
-        n = min(length(s.x), length(s.y))
+        column = get_series_x(s)
+        n = min(length(column), length(s.y))
         s isa ChartScatterSeries && n > g.style.scatter_fold_threshold && continue
-        i0, i1 = sorted ? get_visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
-        found = find_nearest_sample(s.x, s.y; xs=g.xs, ys=g.ys, px=x, py=y, i0, i1,
+        i0, i1 = sorted ? get_visible_range(column, g.view.x_min, g.view.x_max) : (1, n)
+        found = find_nearest_sample(column, s.y; xs=g.xs, ys=g.ys, px=x, py=y, i0, i1,
                                     sorted=sorted, tolerance=_HIT_TOLERANCE)
         found === nothing && continue
         found[2] < best_d && (best_d = found[2]; best = (index, found[1]))
@@ -2959,14 +3011,15 @@ _hit_points(g, index::Int, s::ChartScatterSeries) =
 
 function _scatter_points(g, s::ChartScatterSeries)
     out = Tuple{Int,Int}[]
-    n = min(length(s.x), length(s.y))
+    x = get_series_x(s)
+    n = min(length(x), length(s.y))
     # A folded cloud draws no individual markers, so there is nothing to snap
     # to — and scanning a million points on every pointer move would not do.
     n > g.style.scatter_fold_threshold && return out
     ox, oy = g.plot_x, g.plot_y
     seen = Set{Tuple{Int,Int}}()
     @inbounds for i in 1:n
-        xv = Float64(s.x[i]); yv = Float64(s.y[i])
+        xv = x[i]; yv = Float64(s.y[i])
         (isfinite(xv) && isfinite(yv)) || continue
         pt = (round(Int, to_pixel(g.xs, xv)) - ox, round(Int, to_pixel(g.ys, yv)) - oy)
         pt in seen || (push!(seen, pt); push!(out, pt))

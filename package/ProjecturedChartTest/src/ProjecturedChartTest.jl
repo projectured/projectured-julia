@@ -42,6 +42,7 @@ for _src in _SOURCES
 end
 
 include("../../../test/domain/chart/projection/ChartProjectionTest.jl")
+include("../../../test/domain/chart/projection/ChartTimeAxisTest.jl")
 include("../../../test/domain/chart/projection/ChartThemeTest.jl")
 include("../../../test/domain/chart/projection/ChartPieTest.jl")
 include("../../../test/domain/chart/editor/ChartVerbsTest.jl")

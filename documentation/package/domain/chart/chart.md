@@ -13,7 +13,7 @@
 | Document | What it holds |
 | --- | --- |
 | `Chart` | `title`, `series`, `x_axis`, `y_axis`, `legend`, `style`, and the bar settings `bar_placement`, `bar_baseline` and `bar_baseline_color` |
-| `ChartAxis` | a numeric axis: `title`, `min` and `max` (`nothing` fits the data), `log`, `grid`, and two visibility flags |
+| `ChartAxis` | a numeric axis: `title`, `min` and `max` (`nothing` fits the data; numbers or dates), `log` (ignored on a time axis), `grid`, and two visibility flags |
 | `ChartCategoryAxis` | a category axis: `title` and `categories` |
 | `ChartLegend` | `visible`, `position`, `anchor`, `border`, `sort` |
 | `ChartStyle` | the theme colours and fonts, the colour and marker cycles, and three limits: `marker_limit`, `scatter_fold_threshold`, `bin_fold_px` |
@@ -28,6 +28,8 @@
 A line, scatter, strip and matrix series also hold `links`, the link of each sample (see Links).
 
 **An interval** is a whisker with two caps at each value in the window, and no whisker draws past the marker limit, where whiskers would merge into a smear; a band is one polygon under its line. A value whose bounds are `NaN` draws none. The y range holds the bounds, and the readout of the crosshair names the interval of the value it snaps to.
+
+**Dates on the x axis.** The `x` of a line or scatter series, and the `min` and `max` of a `ChartAxis`, may be `Date` or `DateTime` values. `get_plot_coordinate` gives the place of an x value: a number as itself, and a date as the milliseconds of `DateTime(value)`, so two dates 7 days apart are 7 times as far as two dates 1 day apart. Every read of x goes through it, by `get_series_x`, which gives a lazy view of a column of dates, so a chart of a million dates copies nothing. The axis is a time axis when the x column of the first visible line or scatter series holds dates, which the element type of the column says. A series of the other kind does not draw, and its legend entry says why after the label, as the entry of a function series does. The ticks fall on whole calendar units, the smallest step of 1, 2, 5, 10, 15 or 30 seconds or minutes, 1, 3, 6 or 12 hours, 1 or 2 days, 1 week, 1, 3 or 6 months, or 1, 2, 5 or 10 years (then multiples of 10 years) whose labels fit. A label is `yyyy`, `yyyy-mm` or `yyyy-mm-dd` by the step, or `HH:MM` or `HH:MM:SS` below a day, with the date at the first tick of each day. The readout gives the time in the form of the labels. A time axis draws linear and ignores `log`.
 
 The order of `series` is the draw order and the legend order. The legend lists every series, also a hidden one: a series whose `visible` is `false` draws nothing, and its entry stays in its place, faded to the opacity `hidden_alpha` of the theme. So a click on that entry shows the series again, and no entry moves inside the legend when a click hides or shows a series. A chart has two axis families: a `ChartAxis` on x carries line, scatter, histogram and strip series, and a `ChartCategoryAxis` on x carries bar and matrix series. The renderer leaves out a series of the wrong family and still draws the frame. A chart of pie series draws no axis: the first visible pie series fills the plot, from the top, clockwise, a `GraphicsArc` as wide as its radius for each slice of positive value, so the pie stays round at any scale of the display, and the legend lists the slices.
 

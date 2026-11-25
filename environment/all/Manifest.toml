@@ -917,7 +917,7 @@ uuid = "4b4f0ad5-ca0e-4e1f-bd3e-51e22c785921"
 version = "0.1.0"
 
 [[deps.ProjecturedChart]]
-deps = ["ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
+deps = ["Dates", "ProjecturedKernel", "ProjecturedPlatform", "ProjecturedPrecompile"]
 path = "../../package/ProjecturedChart"
 uuid = "015a7010-be44-4818-8ca4-bb4593b6d5fe"
 version = "0.1.0"

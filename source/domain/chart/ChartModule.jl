@@ -27,6 +27,7 @@ module ChartModule
 
 using ..KernelModule
 using ..PlatformModule
+using Dates: Dates
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward,
@@ -56,6 +57,7 @@ export FrameTimeSeriesToChart
 
 include("ChartSampleReferenceStep.jl")
 include("ChartDocument.jl")
+include("ChartTimeAxis.jl")
 include("ChartPlot.jl")
 include("ChartToChartPlot.jl")
 include("ChartTheme.jl")

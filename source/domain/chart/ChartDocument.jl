@@ -763,6 +763,44 @@ get_chart_axis_family(::Any) = :unknown
 get_chart_axis_family(::ChartAxis) = :xy
 get_chart_axis_family(::ChartCategoryAxis) = :category
 
+# ── Plot coordinates ─────────────────────────────────────────────────────
+
+"""
+    get_plot_coordinate(value) -> Float64
+
+The place of an x value on the axis of a plot: a number as itself, and a `Date` or
+a `DateTime` as the milliseconds of `DateTime(value)`, which a `Float64` holds
+exactly. Every read of x in a chart goes through it.
+"""
+get_plot_coordinate(value::Real) = Float64(value)
+get_plot_coordinate(value::Union{Dates.Date,Dates.DateTime}) = Float64(Dates.value(Dates.DateTime(value)))
+
+# Whether the elements of `column` are dates. The element type says it, and for a
+# column whose element type says nothing, such as the `Vector{Any}` that a `.pred`
+# file reads, its first element does: the test walks no other value.
+is_date_column(column) =
+    eltype(column) <: Union{Dates.Date,Dates.DateTime} ||
+    (!isconcretetype(eltype(column)) && !isempty(column) &&
+     first(column) isa Union{Dates.Date,Dates.DateTime})
+
+# The plot coordinates of a column of dates, read from the column at each access:
+# a copy of the column per print would cost memory in proportion to its length.
+struct ChartDateColumn{C} <: AbstractVector{Float64}
+    column::C
+end
+
+Base.size(c::ChartDateColumn) = size(c.column)
+Base.IndexStyle(::Type{<:ChartDateColumn}) = IndexLinear()
+Base.@propagate_inbounds Base.getindex(c::ChartDateColumn, i::Int) = get_plot_coordinate(c.column[i])
+
+"""
+    get_series_x(series) -> AbstractVector
+
+The x column of a line or scatter series as plot coordinates: the column itself
+when it holds numbers, and a lazy view of it when it holds dates.
+"""
+get_series_x(s::Union{ChartLineSeries,ChartScatterSeries}) = is_date_column(s.x) ? ChartDateColumn(s.x) : s.x
+
 # ── Samples ──────────────────────────────────────────────────────────────
 
 """
@@ -778,9 +816,10 @@ tree descends to a value, and this is a sample's.
 get_chart_sample(::Any, ::Integer) = nothing
 
 function get_chart_sample(s::Union{ChartLineSeries, ChartScatterSeries}, index::Integer)
-    n = min(length(s.x), length(s.y))
+    x = get_series_x(s)
+    n = min(length(x), length(s.y))
     (1 <= index <= n) || return nothing
-    (Float64(s.x[index]), Float64(s.y[index]))
+    (Float64(x[index]), Float64(s.y[index]))
 end
 
 function get_chart_sample(s::ChartBarSeries, index::Integer)
