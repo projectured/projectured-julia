@@ -2338,12 +2338,57 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `….column_headers[N]…`, and the Alt+double click selects the column
     `.columns[N]` (`legacy/scalar_differences`, `legacy/result_file` and the
     other result tables). The move names the column. `test_dataframes`.
+
+    Found (2026-11-25), not done: the view keeps its mouse target as a path of
+    its output on purpose, and the table takes its own mouse target from it
+    (`_get_table_mouse_target`), so the table lights the row, the header or the
+    edge of a column under the pointer. A move on a header therefore stays
+    `….column_headers[c]…content`, and `map_operation_backward` gives every
+    operation that is no selection to `_convert_table_writes`, which passes it
+    on. A move that maps back as a selection does, to the column, the row or the
+    cell, or to the step of the view, needs the table to take its mouse target
+    from the forward image of the mouse target of the view; the try that maps
+    the move back alone breaks the light of the edge of a column
+    (`test_dataframes` 625 and 1 fail at `DataFrameColumnWidthTest.jl:72`), and
+    it is reverted. How the table lights a header, a cell and an edge from a
+    path of the view is a question for the owner.
   - [ ] O6. The throws of the module appearance (61 lines) and of the combined
     simulation widget (87 lines): the path of the content of the tab,
     `….PaneTab.content::ACModuleAppearance`, matches no document after the first
     press. Find the cause and fix it in its general rule.
-  - [ ] O7. The walk over the omnet pages against run 1, and the atom tests of
+
+    Found (2026-11-25), not done: the path matches no document from the start.
+    The content of the tab is an `MModuleAppearance`, the mutable form of a
+    document of `@document_preset native_document [M, C]`, and
+    `annotate_reference_types` types a node by `get_document_cell_type`, which
+    gives the cell form of the family, `ACModuleAppearance`
+    (`DocumentMacro.jl:902`). `is_valid_reference` then refuses the path,
+    because the node is no instance of that type, so each selection that goes
+    through a mutable document of such a family throws
+    `SelectionMismatchException`, a click of a person too. The fix is in the
+    kernel (the type that a path records for the mutable form, or the check that
+    takes any form of the family), which is a question for the owner.
+  - [x] O7. The walk over the omnet pages against run 1, and the atom tests of
     omnet (the IDE, cosim, the presentation and the legacy slice).
+
+    Done for O1 to O4 (2026-11-25). The walk (`step7omnet/run2`): 1093 → 952
+    lines, no example changes its status. The throws go from 199 to 76 (the
+    views of O1 throw no more; what is left is the module appearance of O6).
+    `plain:nothing` −155 and `alt:no-caret` −191: the parts of the task pages,
+    the result pages and the result table take the caret and are named by the
+    step of the view. `alt2:not-drawn` +333: an Alt+double click on such a part
+    selects it, and no ring or band shows it, because a part that a view drew
+    draws no mark when it is selected as a whole; that is a limit of 5.4 and
+    not of these views. Three examples have more lines, all of these kinds:
+    legacy-examples/simulation_combined_widget 122 → 136 (87 throws → 0),
+    legacy/fingerprint_task 36 → 38 (36 clicks that did nothing → 38 parts with
+    no ring), legacy/result_file_view 18 → 28 (the forward map of the view maps
+    the entry to the whole page, so the walk takes the entry as the deepest part
+    over the line). `test_presentation_atoms` 837808 and its 53 broken;
+    `test_cosim_presentation` (with the cosim atoms) 41118 and its 2 broken;
+    `test_ide_atoms` and `test_legacy_atoms` give 3 pass and 2 broken each,
+    because their setup throws on omnet main on the changed constructors above,
+    and the test marks that as broken, so their atoms do not run.
 - [ ] 8. **The test in the suites (P6).** Each failure that is left is
   `@test_broken`, with its cause.
 
