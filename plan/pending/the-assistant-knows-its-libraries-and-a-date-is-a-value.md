@@ -412,10 +412,25 @@ tests of the steps before it. The work is in a worktree that
   2 violations and the 179 lines to read that `main` shows; the first text of the
   guides added 5 such lines, with "refuses", "knows" and "asks for", and the text
   of the window had "knows" too, so these sentences name the mechanism now.
-- [ ] **8. The OMNeT++ IDE.** Proposed decision 8, in a worktree of
+- [x] **8. The OMNeT++ IDE.** Proposed decision 8, in a worktree of
   omnet-julia when its text needs a change.
   *Check:* the fast parts of omnet-julia pass against the branch. A test of the
   IDE runs `using Dates; today()` in the namespace of its assistant.
+
+  Done on 2026-11-25, with no change of omnet-julia: `CAMPAIGN_SYSTEM` and
+  `IDE_SYSTEM` hold `EDITOR_SYSTEM`, and `get_assistant_api()` is
+  `make_editor_api()`. A check in a worktree of omnet-julia `main`, with
+  `--with` the worktree of this branch, made a `ToolSet` with
+  `get_assistant_api()`: `using Dates` and a date gave `"2026-12-02"`,
+  `today() isa Date` gave `true`, `using Statistics: mean` gave 3.0, `using Plots`
+  gave the refusal, and both texts name the four `using` lines. It is a check of
+  one run and no test of omnet-julia, which would need a branch there. The fast
+  parts of omnet-julia run in step 10.
+  - The manifests of omnet-julia are no files of its git, and they name
+    `ProjecturedChart` with no `Dates`. A worktree of omnet-julia needs
+    `Pkg.resolve()` of `environment/all` with `--with` this branch, and the main
+    checkout of omnet-julia needs it after the land, or the load stops with
+    "Cannot load module Dates into ProjecturedChart".
 - [ ] **9. The rehearsal with a real model.** With `tool/assistant/rehearsal.jl`,
   give the model a task: "record that entry 21 was repaired today, and show the
   repaired entries over time". Run seeds 1 to 10.

@@ -19,6 +19,10 @@
 # And the requests that a person makes of the explorer:
 #
 #     Rehearsal.run_explorer_task_rehearsals(1:5; directory = "/var/tmp/s2/loop/out/explorer")
+#
+# And the request that a person makes of a table of records with dates:
+#
+#     Rehearsal.run_date_task_rehearsals(1:10; directory = "/var/tmp/s2/loop/out/dates")
 
 module Rehearsal
 
@@ -103,16 +107,18 @@ function prepare_window!(document; closes_explorer::Bool = true)
     nothing
 end
 
-# The editor of a rehearsal: the window of the application over one file,
+# The editor of a rehearsal: the window of the application over people.json and
+# the `files` of `directory`, which the caller wrote there,
 # printed once and started as the application starts, with no loop and no
 # frames. A call of a tool then runs at once on the task that makes it.
 # `prepare` arranges the window before the print, so the readers reach every tab
 # that it adds.
-function make_rehearsal_editor(directory, llm; prepare = prepare_window!)
+function make_rehearsal_editor(directory, llm; prepare = prepare_window!, files = String[])
     path = joinpath(directory, "people.json")
     write(path, PEOPLE)
     assistant = make_application_assistant(:ollama; llm = llm)
-    document, projection = make_application_window([path]; root = directory, assistant = assistant)
+    paths = [path; [joinpath(directory, file) for file in files]]
+    document, projection = make_application_window(paths; root = directory, assistant = assistant)
     prepare(document)
     scene = make_window_scene(document, "ProjecturEd"; width = WIDTH, height = HEIGHT)
     composed = make_window_scene_projection(projection;
@@ -763,6 +769,77 @@ with the Explorer in its tab.
 """
 run_explorer_task_rehearsals(seeds; directory, tasks = EXPLORER_TASKS, kwargs...) =
     run_task_rehearsals(seeds; directory, tasks, make_editor = make_explorer_rehearsal_editor,
+                        count_steps = count_window_steps, kwargs...)
+
+# ── Tasks of dates ──────────────────────────────────────────────────────────
+#
+# The request that a person makes of a table of records with dates, one prompt,
+# on the window of S2 with one more file: defects.pred, a table of records that a
+# file keeps, where entry 21 has no date of its repair yet.
+
+const DEFECTS_FILE = "defects.pred"
+
+const DEFECT_RECORDS = [
+    (number = 19, title = "the window of the receiver is one byte short", repaired_on = Dates.Date(2026, 11, 18)),
+    (number = 20, title = "a timer runs after the close", repaired_on = Dates.Date(2026, 11, 20)),
+    (number = 21, title = "held data waits for ever", repaired_on = nothing),
+    (number = 22, title = "a probe goes out at a window of zero", repaired_on = Dates.Date(2026, 11, 23))]
+
+function make_date_rehearsal_editor(directory, llm)
+    write_document_file!(RecordTable("Defects"; columns = ["number", "title", "repaired_on"], records = DEFECT_RECORDS),
+                         joinpath(directory, DEFECTS_FILE))
+    make_rehearsal_editor(directory, llm; files = [DEFECTS_FILE])
+end
+
+# The code that the model ran, call by call, and the answer of each call.
+function find_model_calls(editor)
+    assistant = only(search_documents(editor.document, node -> node isa Assistant))
+    calls = Tuple{String,String}[]
+    for turn in assistant.conversation.turns, part in turn.parts
+        part.content isa EvaluatorForm || continue
+        code = try String(strip(print_natural_text(part.content.form))) catch; String(part.content.source) end
+        answer = try String(strip(print_natural_text(part.content.result))) catch; "" end
+        push!(calls, (code, answer))
+    end
+    calls
+end
+
+function check_date_recorded(editor, steps_before)
+    table = only(search_documents(editor.document, node -> node isa RecordTable))
+    record = only(r for r in table.records if r.number == 21)
+    record.repaired_on == Dates.today() ||
+        return "entry 21 holds $(repr(record.repaired_on)), and not today as a Date"
+    calls = find_model_calls(editor)
+    codes = [code for (code, _) in calls]
+    any(code -> occursin("Libc.strftime", code), codes) && return "the code made a date with Libc.strftime"
+    any(((_, answer),) -> occursin("PackageLoadRefusedException", answer), calls) &&
+        return "a using of a package outside the list was refused"
+    any(code -> occursin("today()", code) || occursin("Date(", code), codes) ||
+        return "no code wrote today() or a Date"
+    tab = find_pane(DEFECTS_FILE; editor)
+    tab === nothing || !has_unsaved_edits(tab) || return "defects.pred holds edits that are not saved"
+    occursin("Dates.Date(\"$(Dates.today())\")", print_pred_text(table)) ||
+        return "the table does not write the date of entry 21 as Dates.Date"
+    dated = [chart for chart in search_documents(editor.document, node -> node isa Chart)
+             if any(series -> series isa Union{ChartLineSeries,ChartScatterSeries} &&
+                              ProjecturedAll.ChartModule.is_date_column(series.x), chart.series)]
+    isempty(dated) && return "no chart has dates on its x axis"
+    nothing
+end
+
+const DATE_TASKS = [
+    SingleTask("dates", "In defects.pred, record that entry 21 was repaired today, save the file, and show " *
+                        "the number of repaired entries over time as a chart in a new tab.", check_date_recorded),
+]
+
+"""
+    run_date_task_rehearsals(seeds; directory, tasks = DATE_TASKS)
+
+[`run_task_rehearsals`](@ref) of the tasks of dates, on the window of S2 with a
+table of records that a file keeps.
+"""
+run_date_task_rehearsals(seeds; directory, tasks = DATE_TASKS, kwargs...) =
+    run_task_rehearsals(seeds; directory, tasks, make_editor = make_date_rehearsal_editor,
                         count_steps = count_window_steps, kwargs...)
 
 # ── Documentation by name ────────────────────────────────────────────────────
