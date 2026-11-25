@@ -273,6 +273,22 @@ const FORK_AGENT_NOTE =
     "This copy talks to the agent in a new session, because the agent could not copy the session " *
     "of the original. The agent does not have the history above."
 
+# What an assistant says when its external agent can not send the turns of the
+# session that the assistant keeps, and resumes it with no history to show.
+const LOST_HISTORY_AGENT_NOTE =
+    "The agent can not send the earlier turns of this conversation, so they are not shown. " *
+    "The agent still has them."
+
+# What an assistant says when its agent refused a message because another
+# program, such as VS Code, holds the session now.
+_make_held_session_note(program::AbstractString) =
+    program * " holds this conversation now. Close it there, and then send again."
+
+# What an assistant says when its agent refused a message because another
+# program added turns to the session, which the assistant shows now.
+_make_changed_session_note(program::AbstractString) =
+    program * " added turns to this conversation. They show above now. Send again."
+
 # What the duplicate of an assistant whose external agent answered at the copy
 # says under the history that it copied.
 const FORK_DURING_ANSWER_NOTE =
@@ -379,10 +395,12 @@ set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfie
 # rather than a moment of one, and a load starts a fresh, empty conversation.
 #
 # An assistant that keeps a session of an external agent is the exception: the
-# agent holds the history of that conversation. So its file also keeps the
-# conversation, and the id, the folder, the count of turns and the title of the
-# session, and the next turn after a load resumes the session. An id is no
-# command and no credential: the agent still comes from the settings.
+# agent holds the history of that conversation. So its file keeps the id, the
+# folder and the title of the session, and no turn: the agent is the one source
+# of the history, which another program, such as VS Code, can add to. The
+# assistant of a load shows none of the turns of the session, so its tab loads
+# the session from the agent when it opens. An id is no command and no
+# credential: the agent still comes from the settings.
 function pred_arguments(a::Assistant)
     keywords = Pair{Symbol,Any}[
         :backend           => a.backend,
@@ -403,10 +421,8 @@ function pred_arguments(a::Assistant)
     a.max_rounds == DEFAULT_ASSISTANT_ROUNDS || push!(keywords, :max_rounds => a.max_rounds)
     if a.backend === :acp && !isempty(a.agent_session_id)
         append!(keywords, Pair{Symbol,Any}[
-            :conversation             => a.conversation,
             :agent_session_id         => a.agent_session_id,
             :agent_session_directory  => a.agent_session_directory,
-            :agent_session_turn_count => a.agent_session_turn_count,
             :agent_title              => a.agent_title,
         ])
     end

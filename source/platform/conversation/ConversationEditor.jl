@@ -463,6 +463,33 @@ function reset_draft!(d::ConversationDraft)
     d
 end
 
+"""
+    prepend_draft_parts!(draft, parts)
+
+Put `parts` at the start of `draft`, before what the person wrote since: the
+parts of a message that went back to the composer, as when an agent refused it.
+An empty text typein of the draft goes, so a draft that held nothing holds
+`parts` alone, and the last part is a text typein with the caret at its end.
+"""
+function prepend_draft_parts!(d::ConversationDraft, parts::AbstractVector)
+    isempty(parts) && return d
+    foreach(clear_selection!, collect(d.parts))
+    written = [part for part in collect(d.parts)
+               if !(part.content isa PrimitiveString && isempty(strip(_value(part.content))))]
+    combined = vcat(collect(parts), written)
+    _is_editable(last(combined).content) || push!(combined, _new_typein())
+    getfield(d.parts, :elements)[] = Cell[Cell(part) for part in combined]
+    count = length(combined)
+    content = last(combined).content
+    length_of_text = length(_value(content))
+    content.selection = _valpath(length_of_text)
+    getfield(d, :selection)[] =
+        ConcreteReference(FieldReferenceStep("parts"),
+            ConcreteReference(RangeReferenceStep(count - 1, count),
+                ConcreteReference(FieldReferenceStep("content"), _valpath(length_of_text))))
+    d
+end
+
 # Parse source with `f`, guarding empty / invalid input (returns `nothing`).
 function _try_parse(f, src::AbstractString)
     isempty(strip(src)) && return nothing

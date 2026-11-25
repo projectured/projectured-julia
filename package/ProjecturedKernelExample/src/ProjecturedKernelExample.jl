@@ -49,7 +49,7 @@ import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
 import ProjecturedKernel.AgentModule
 import ProjecturedKernel.AgentModule: AgentToolCallUpdate, AgentPermissionOption, AgentPermissionRequest,
     AgentOption, AgentOptionValue, AgentOptionsUpdate, AgentSignInMethod, AgentSignInException,
-    AgentQuestionField, AgentQuestionRequest, AgentEventQueue
+    AgentQuestionField, AgentQuestionRequest, AgentEventQueue, AgentSessionInfo, put_agent_event!
 
 include("../../../example/kernel/Harness.jl")
 include("../../../example/kernel/LlmFake.jl")         # FakeLlm — canned-reply test double (no network)

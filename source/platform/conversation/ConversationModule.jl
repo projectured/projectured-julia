@@ -84,7 +84,7 @@ export EvaluatorFormToVerticalLayout, EvaluatorToplevelToWidgetComposite,
 export make_conversation_row, make_conversation_draft_row
 export ConversationComposerToWidget, make_conversation_composer_projection,
        read_composer_gesture, resolve_composer_host_operation,
-       finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
+       finalize_draft!, make_conversation_draft, reset_draft!, prepend_draft_parts!, sync_draft_selection!,
        make_draft_caret_reference,
        make_submit_operation, make_evaluate_operation,
        ComposerInputOperation,

@@ -37,6 +37,9 @@ The live link of an assistant to its external agent:
                   event of the session, in a prompt and between two prompts, and
                   which the `AgentEventFeed` of the window drains; `nothing`
                   while no session is open, and again when the session closes;
+- `is_history_waiting` — whether `events` holds the history that a load gave,
+                  and so has not joined the feed yet;
+- `is_replaying` — whether the events that apply now are of that history;
 - `prompt_turn` — the state of the turn of the prompt that runs, which the
                   events of the session fill; `nothing` between two prompts;
 - `agent_turn`  — the state of a turn that the agent started by itself between
@@ -71,6 +74,8 @@ mutable struct ExternalAgentSession
     is_stopped::Bool
     start_lock::ReentrantLock
     events::Union{Nothing,AgentEventQueue}
+    is_history_waiting::Bool
+    is_replaying::Bool
     prompt_turn::Any
     agent_turn::Any
     waiting_requests::Vector{Any}
@@ -82,7 +87,7 @@ end
 
 ExternalAgentSession(connection; session_id::AbstractString = "", tool_server = nothing) =
     ExternalAgentSession(connection, String(session_id), tool_server, -1, 0, "", false, false, false,
-                         false, ReentrantLock(), nothing, nothing, nothing, Any[],
+                         false, ReentrantLock(), nothing, false, false, nothing, nothing, Any[],
                          IdDict{Any,Any}(), -Inf, nothing, Dict{String,Any}())
 
 is_walk_opaque(::ExternalAgentSession) = true
@@ -147,19 +152,20 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
             _remove_part!(turn, starting)
             _remove_empty_turn!(a, turn)
         end
-        prompt, turn_count = run_on_editor_task!(editor) do
-            _make_external_agent_prompt(a.conversation, session.sent_turn_count)
-        end
+        queue = session.events
+        queue === nothing && (queue = _make_agent_event_queue!(editor, a, session))
         # A stop that came before the session existed is in the control of the
-        # turn; one that came later is in the session too.
+        # turn; one that came later is in the session too. The prompt reads the
+        # conversation after the events that came before it applied, in the same
+        # call, so a turn that the agent sent before it counts as seen.
+        prompt, turn_count = run_on_editor_task!(editor) do
+            session.is_cancelled || control.is_cancelled ?
+                _read_agent_prompt!(editor, a, session, queue) :
+                _start_agent_prompt_turn!(editor, a, session, state, queue)
+        end
         if session.is_cancelled || control.is_cancelled
             session.sent_turn_count = turn_count
             return nothing
-        end
-        queue = session.events
-        queue === nothing && (queue = _make_agent_event_queue!(editor, a, session))
-        run_on_editor_task!(editor) do
-            _start_agent_prompt_turn!(editor, a, session, state, queue)
         end
         post = event -> _post_agent_event!(editor, a, queue, event)
         reason = Base.invokelatest(send_agent_prompt!, session.connection,
@@ -169,6 +175,10 @@ function _run_external_agent_turn!(editor, a::Assistant; control::AssistantTurnC
         run_on_editor_task!(() -> _keep_agent_session!(a, conversation, session), editor; wait = false)
         reason
     catch exception
+        if exception isa AgentSessionConflictException
+            _refuse_agent_prompt!(editor, a, session, turn, exception)
+            return nothing
+        end
         # A resumed session whose first prompt fails is no session that the
         # agent has, as for a session in which the agent never answered. A
         # sign-in that the prompt needs says nothing about the session.
@@ -229,6 +239,58 @@ function _remove_empty_turn!(a::Assistant, turn::ConversationTurn)
     nothing
 end
 
+# The agent refused the prompt because another program writes the session
+# (`AgentSessionConflictException`). The messages of the prompt go back to the
+# composer, and the turn of the prompt leaves the conversation. A program that
+# holds the session now keeps it, and a note says to close it there. A program
+# that added turns and ended leaves the session to this one: the assistant shows
+# the session as the agent keeps it now, with those turns, and then the note that
+# asks to send again. So the session closes, and it loads again on this task.
+function _refuse_agent_prompt!(editor, a::Assistant, session::ExternalAgentSession,
+                               turn::ConversationTurn, exception::AgentSessionConflictException)
+    conversation = run_on_editor_task!(editor) do
+        # The prompt ended, so an event of the session goes to no turn of it.
+        session.prompt_turn = nothing
+        _remove_empty_turn!(a, turn)
+        _return_unsent_turns!(editor, a, session)
+        if exception.is_open
+            push!(a.conversation.turns, ConversationTurn(:assistant,
+                [ConversationPart(ConversationNote(_make_held_session_note(exception.program)))]))
+        else
+            foreach(_ -> pop!(a.conversation.turns), 1:length(a.conversation.turns))
+            a.agent_session_turn_count = 0
+        end
+        a.conversation
+    end
+    exception.is_open && return nothing
+    _close_external_agent_session!(session)
+    try
+        _start_external_agent_session!(editor, a, session)
+    finally
+        run_on_editor_task!(editor; wait = false) do
+            a.conversation === conversation || return nothing
+            _apply_agent_history!(editor, a, session)
+            push!(a.conversation.turns, ConversationTurn(:assistant,
+                [ConversationPart(ConversationNote(_make_changed_session_note(exception.program)))]))
+        end
+    end
+    nothing
+end
+
+# The user turns that the agent did not see leave the conversation, and their
+# parts go back to the composer, before what the person wrote since.
+function _return_unsent_turns!(editor, a::Assistant, session::ExternalAgentSession)
+    turns = collect(a.conversation.turns)
+    first_unsent = max(session.sent_turn_count, 0) + 1
+    indices = [index for index in first_unsent:length(turns) if turns[index].role === :user]
+    isempty(indices) && return nothing
+    parts = ConversationPart[part for index in indices for part in collect(turns[index].parts)]
+    foreach(index -> deleteat!(a.conversation.turns, index), reverse(indices))
+    prepend_draft_parts!(a.draft, parts)
+    sync_draft_selection!(editor, a.draft)
+    nothing
+end
+
 # The session of the assistant, made at the first turn from `agent_command` and
 # `agent_session_meta`. A session that a test gives is used as it is. The count
 # of the turns that the agent saw starts at the last assistant turn: the greeting
@@ -258,7 +320,11 @@ end
 # The agent started, with the MCP server of the editor when its package is
 # loaded, and a session open that names it. The session that the assistant kept
 # resumes in its folder while the folder exists, so the agent has the history
-# that the transcript shows. A duplicate with no kept session forks the session
+# that the transcript shows. A kept session whose turns the conversation does
+# not show, as after the load of a file or for a stored session of the
+# Assistants pane, loads with its history instead, which waits in the queue of
+# the session for `_apply_agent_history!`; an agent that can not load it resumes
+# it, with a note. A duplicate with no kept session forks the session
 # of `agent_fork` in its folder, with the count of the turns that that session
 # saw, and a fork that the agent can not make opens a new session with a note.
 # The options of the session reach `agent_options`. The session starts in the
@@ -276,16 +342,20 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
     end
     is_kept_session_lost = false
     is_fork_lost = false
+    is_loaded = false
+    is_history_lost = false
     lock(session.start_lock) do
         Base.invokelatest(start_agent_connection!, session.connection)
         if isempty(session.session_id)
             server = _start_agent_tool_server!(editor, a, session)
             servers = server === nothing ? Any[] : Any[Base.invokelatest(get_agent_server_access, server)]
             is_resumable = !isempty(kept_id) && isdir(kept_directory)
+            is_loadable = is_resumable && kept_count == 0
             is_forkable = !is_resumable && fork !== nothing && isdir(fork.directory)
             session.is_resumed = false
             session.has_answered = false
-            queue = _make_agent_event_queue!(editor, a, session)
+            # The queue of a load joins the feed after its history applies.
+            queue = is_loadable ? AgentEventQueue() : _make_agent_event_queue!(editor, a, session)
             opened_options = Ref(AgentOption[])
             instructions = DEFAULT_AGENT_INSTRUCTIONS * "\n\n" * system
             on_event = event -> begin
@@ -297,9 +367,21 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
                                   directory = fork.directory, mcp_servers = servers, instructions, on_event,
                                   events = queue) : nothing
             is_forked = session_id !== nothing
+            if is_loadable
+                session_id = Base.invokelatest(load_agent_session!, session.connection; session_id = kept_id,
+                    directory = kept_directory, mcp_servers = servers, instructions, on_event, events = queue)
+                is_loaded = session_id !== nothing
+                if is_loaded
+                    session.directory = kept_directory
+                    session.events = queue
+                    session.is_history_waiting = true
+                else
+                    queue = _make_agent_event_queue!(editor, a, session)
+                end
+            end
             if is_forked
                 session.directory = fork.directory
-            else
+            elseif !is_loaded
                 session.directory = is_resumable ? kept_directory : pwd()
                 session_id = Base.invokelatest(open_agent_session!, session.connection;
                     directory = session.directory, mcp_servers = servers, instructions,
@@ -313,6 +395,8 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
                 _start_agent_work!(a, session, session_id)
             end
             session.is_resumed = is_resumable && session_id == kept_id
+            # A resume after a load that failed shows none of the history.
+            is_history_lost = is_loadable && !is_loaded && session.is_resumed
             if session.is_resumed
                 session.sent_turn_count = kept_count
             elseif is_forked
@@ -326,6 +410,11 @@ function _start_external_agent_session!(editor, a::Assistant, session::ExternalA
         run_on_editor_task!(() -> _forget_agent_session!(a, conversation), editor; wait = false)
     is_fork_lost &&
         run_on_editor_task!(() -> _forget_agent_session_fork!(a, conversation), editor; wait = false)
+    is_loaded && run_on_editor_task!(() -> _apply_agent_history!(editor, a, session), editor; wait = false)
+    is_history_lost && run_on_editor_task!(editor; wait = false) do
+        a.conversation === conversation || return nothing
+        push!(a.conversation.turns, ConversationTurn(:assistant, [ConversationPart(ConversationNote(LOST_HISTORY_AGENT_NOTE))]))
+    end
     session
 end
 
@@ -737,12 +826,19 @@ end
 release_document!(editor, a::Assistant) = (_release_agent_sign_ins!(editor, a); stop_external_agent!(a))
 
 # The duplicate of an assistant forks the session of its original when its tab
-# opens, so a later answer of the original does not reach its agent. The fork
-# opens as `StartExternalAgentOperation` opens a session, on a task.
+# opens, so a later answer of the original does not reach its agent. An assistant
+# that keeps a session whose turns it does not show loads that session when its
+# tab opens, so the tab shows them. Both open as `StartExternalAgentOperation`
+# opens a session, on a task.
 function acquire_document!(editor, a::Assistant)
-    a.agent_fork === nothing || evaluate_operation(editor, StartExternalAgentOperation(a))
+    (a.agent_fork !== nothing || _needs_agent_history(a)) && evaluate_operation(editor, StartExternalAgentOperation(a))
     nothing
 end
+
+# Whether `a` keeps a session of its external agent and shows none of its turns,
+# as after the load of a file: then its start loads the session with its history.
+_needs_agent_history(a::Assistant) =
+    a.backend === :acp && !isempty(a.agent_session_id) && a.agent_session_turn_count == 0
 
 # What the MCP server of an agent says about itself. The system prompt of the
 # session holds the text of the window, so the server does not send it a second

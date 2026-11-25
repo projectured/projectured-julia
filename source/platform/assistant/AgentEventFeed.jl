@@ -20,8 +20,11 @@ of `editor`.
 
 - The text, the reasoning, the tool calls, the plans and the questions of the
   agent go into the transcript: into the turn of the prompt that runs, else into
-  a turn that the agent started by itself, which ends at the next prompt or at
-  the usage that the agent reports at its end.
+  a turn that the agent started by itself, which ends at the next prompt, at the
+  next message of the person, or at the usage that the agent reports at its end.
+- A message of the person that the agent sends, an `LlmMessage` of the role
+  `:user`, is a user turn that the agent saw: a message that the person wrote in
+  another place, such as on a phone, or one of the history of a load.
 - The options, the usage, the title and the commands of the session go into the
   fields of the assistant that hold them.
 - The work of the agent goes into `agent_work`: a subagent with a transcript of
@@ -57,6 +60,8 @@ function apply_agent_event!(editor, a::Assistant, event)
         _apply_agent_work_update!(editor, a, a.agent_work, event)
     elseif event isa AgentTerminalRequest
         _apply_agent_terminal_request!(editor, a, event)
+    elseif event isa LlmMessage
+        event.role === :user && session isa ExternalAgentSession && _add_agent_user_turn!(a, session, event)
     else
         state = session isa ExternalAgentSession ?
                 _find_session_turn!(a, session, event) : nothing
@@ -82,7 +87,7 @@ function _find_session_turn!(a::Assistant, session::ExternalAgentSession, event)
     state = session.agent_turn
     state === nothing || return state
     _opens_agent_turn(event) || return nothing
-    session.agent_turn = _open_agent_turn!(a.conversation)
+    session.agent_turn = _open_session_agent_turn!(a, session)
 end
 
 # Whether `event` begins a turn when none is open: an event that ends a block, or
@@ -91,12 +96,58 @@ _opens_agent_turn(event) =
     !(event isa Union{LlmTextStop,LlmThinkingStop,LlmThinkingSignature}) &&
     !(event isa AgentPlanUpdate && !_has_plan_part(event))
 
-# A new assistant turn at the end of `conversation`, and the state that its events
-# fill.
+# A new assistant turn at the end of `conversation`, the transcript of a
+# subagent, and the state that its events fill.
 function _open_agent_turn!(conversation::ConversationConversation)
     turn = ConversationTurn(:assistant; start_time = time())
     push!(conversation.turns, turn)
     _make_agent_turn_state(turn)
+end
+
+# A new assistant turn that the agent starts between two prompts, after the turns
+# that it saw, and the state that its events fill. A turn of the history of a
+# load has no times, so the times of the conversation count from the open.
+function _open_session_agent_turn!(a::Assistant, session::ExternalAgentSession)
+    turn = session.is_replaying ? ConversationTurn(:assistant) : ConversationTurn(:assistant; start_time = time())
+    _insert_agent_turn!(a.conversation, session, turn)
+    state = _make_agent_turn_state(turn)
+    state[:is_replayed] = session.is_replaying
+    state
+end
+
+# A turn that comes from the agent between two prompts goes after the turns that
+# the agent saw: before the first user turn that it did not see, a message that
+# waits for the next prompt, else at the end. The agent saw the turn, and each
+# turn before it, so they leave the next prompt. A session that counted no turn
+# yet, as the one of a warm-up, takes the turn at the end.
+function _insert_agent_turn!(conversation::ConversationConversation, session::ExternalAgentSession,
+                             turn::ConversationTurn)
+    if session.sent_turn_count < 0
+        push!(conversation.turns, turn)
+        return nothing
+    end
+    turns = collect(conversation.turns)
+    index = findnext(candidate -> candidate.role === :user, turns, session.sent_turn_count + 1)
+    if index === nothing
+        push!(conversation.turns, turn)
+        index = length(turns) + 1
+    else
+        insert!(conversation.turns, index, turn)
+    end
+    session.sent_turn_count = index
+    nothing
+end
+
+# A message of the person that the agent sends ends the turn that the agent
+# started by itself, and joins the conversation as a user turn that the agent
+# saw, with no times when it is of the history of a load.
+function _add_agent_user_turn!(a::Assistant, session::ExternalAgentSession, message::LlmMessage)
+    parts = ConversationPart[ConversationPart(PrimitiveString(content.text)) for content in message.content
+                             if content isa LlmText && !isempty(content.text)]
+    isempty(parts) && return nothing
+    _end_agent_turn!(a, session)
+    turn = session.is_replaying ? ConversationTurn(:user, parts) : _make_instant_turn(:user, parts)
+    _insert_agent_turn!(a.conversation, session, turn)
 end
 
 # The turn of `state` ends: its open blocks close, and it gets its stop reason and
@@ -122,6 +173,11 @@ function _end_agent_turn!(a::Assistant, session::ExternalAgentSession)
     append!(session.waiting_requests, state[:permission_requests],
             state[:question_requests])
     _end_agent_turn_state!(a, a.conversation, state, :end_turn)
+    # A turn of the history keeps no time of its end either, and an empty turn
+    # that left the conversation is no turn that the agent saw.
+    get(state, :is_replayed, false) === true && (state[:turn].finish_time = 0.0)
+    session.sent_turn_count = min(session.sent_turn_count, length(a.conversation.turns))
+    nothing
 end
 
 # ── A prompt ─────────────────────────────────────────────────────────────────
@@ -139,6 +195,30 @@ function _make_agent_event_queue!(editor, a::Assistant, session::ExternalAgentSe
     queue
 end
 
+# The history that a load of the session gave waits in the queue of the session,
+# which joins the feed of the window only after it. Its events apply here, on the
+# editor task, as turns with no times after the turns that the agent saw; then
+# the conversation shows the turns of the session, which a start again resumes,
+# and the queue joins the feed. The start of the session posts this, and a prompt
+# runs it before it reads the conversation, so the history comes before a message
+# that the person sent while it loaded. A second call does nothing.
+function _apply_agent_history!(editor, a::Assistant, session::ExternalAgentSession)
+    session.is_history_waiting || return nothing
+    session.is_history_waiting = false
+    queue = session.events
+    (queue === nothing || a.agent_session !== session) && return nothing
+    session.is_replaying = true
+    try
+        _drain_agent_event_queue!(editor, a, queue)
+        _end_agent_turn!(a, session)
+    finally
+        session.is_replaying = false
+    end
+    a.agent_session_turn_count = session.sent_turn_count
+    _register_agent_event_queue!(editor, a, session, queue)
+    nothing
+end
+
 # The work of the session `session_id`: the work that the assistant has when it is
 # the work of that session, as after a resume, else an empty one.
 function _start_agent_work!(a::Assistant, session::ExternalAgentSession,
@@ -149,19 +229,29 @@ function _start_agent_work!(a::Assistant, session::ExternalAgentSession,
     nothing
 end
 
-# The prompt begins to take the events of the session: the events that came
-# before it apply first, a turn that the agent started by itself ends, and the
-# turn of the prompt joins the conversation. The questions of the agent between
-# two prompts that still wait end with this prompt.
-function _start_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession,
-                                   state, queue::AgentEventQueue)
+# What the next prompt holds, and the count of the turns then
+# (`_make_external_agent_prompt`), after the history of a load and the events
+# that came before the prompt applied, and after the turn that the agent started
+# by itself ended. So each turn that the agent sent counts as seen.
+function _read_agent_prompt!(editor, a::Assistant, session::ExternalAgentSession, queue::AgentEventQueue)
+    _apply_agent_history!(editor, a, session)
     _drain_agent_event_queue!(editor, a, queue)
     _end_agent_turn!(a, session)
+    _make_external_agent_prompt(a.conversation, session.sent_turn_count)
+end
+
+# The prompt begins to take the events of the session: it reads what it holds
+# (`_read_agent_prompt!`), and the turn of the prompt joins the conversation.
+# The questions of the agent between two prompts that still wait end with this
+# prompt. Answers the prompt and the count of the turns before its turn.
+function _start_agent_prompt_turn!(editor, a::Assistant, session::ExternalAgentSession,
+                                   state, queue::AgentEventQueue)
+    read = _read_agent_prompt!(editor, a, session, queue)
     foreach(request -> _hold_agent_request!(state, request), session.waiting_requests)
     empty!(session.waiting_requests)
     push!(a.conversation.turns, state[:turn])
     session.prompt_turn = state
-    nothing
+    read
 end
 
 # The prompt ends: its events that wait apply, and a question that the person did

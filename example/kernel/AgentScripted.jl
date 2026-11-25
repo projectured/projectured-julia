@@ -7,7 +7,8 @@
 """
     ScriptedAgentConnection(turns; failing_opens = 0, on_start = nothing, options = AgentOption[],
                             can_resume = false, can_fork = false, is_signed_in = true,
-                            sign_in_methods = AgentSignInMethod[], can_sign_out = false, can_steer = false)
+                            sign_in_methods = AgentSignInMethod[], can_sign_out = false, can_steer = false,
+                            histories = Dict{String,Vector{Any}}(), stored_sessions = AgentSessionInfo[])
 
 An external agent that plays `turns`, one for each prompt. A turn is a vector of
 steps. A step that is an event goes to `on_event` as it is, also an event of the
@@ -18,8 +19,8 @@ does.
 
 The connection records what a test asserts: `sessions` holds the `directory`,
 the `mcp_servers`, the `instructions`, the asked `session_id`, the
-`fork_session_id` of a fork and the `events` queue of each session that opened,
-and `prompts` each prompt. A test puts an
+`fork_session_id` of a fork, the `loaded_session_id` of a load and the `events`
+queue of each session that opened, and `prompts` each prompt. A test puts an
 event that the agent sends between two prompts into that queue with
 `put_agent_event!(connection.sessions[k].events, event)`. A connection that
 `can_resume` resumes an asked session and answers its id; another one opens a
@@ -30,6 +31,12 @@ turn then answers `:cancelled`. A turn with no script answers `:end_turn` at
 once. `subagent_cancels` records each `cancel_agent_subagent!` as `session_id =>
 subagent_id`, and `background_task_stops` each `stop_agent_background_task!` as
 `session_id => task_id`, which answers `true`.
+
+`histories` holds the sessions that the agent keeps and can load, each with the
+events of its history: a load of one of them puts those events on its `events`
+and answers its id, and a load of another session answers `nothing`.
+`list_agent_sessions` answers `stored_sessions`, and `session_lists` records the
+`directory` of each call.
 
 The first `failing_opens` sessions fail to open with a plain error. While
 `is_signed_in` is `false`, an open and a prompt throw an `AgentSignInException`
@@ -69,17 +76,24 @@ mutable struct ScriptedAgentConnection
     is_prompting::Bool
     subagent_cancels::Vector{Pair{String,String}}
     background_task_stops::Vector{Pair{String,String}}
+    histories::Dict{String,Vector{Any}}
+    stored_sessions::Vector{AgentSessionInfo}
+    session_lists::Vector{Any}
 end
 
 ScriptedAgentConnection(turns::AbstractVector; failing_opens::Integer = 0, on_start = nothing,
                         options::AbstractVector = AgentOption[], can_resume::Bool = false,
                         can_fork::Bool = false, is_signed_in::Bool = true, sign_in_methods::AbstractVector = AgentSignInMethod[],
-                        can_sign_out::Bool = false, can_steer::Bool = false) =
+                        can_sign_out::Bool = false, can_steer::Bool = false,
+                        histories::AbstractDict = Dict{String,Vector{Any}}(),
+                        stored_sessions::AbstractVector = AgentSessionInfo[]) =
     ScriptedAgentConnection([collect(Any, turn) for turn in turns], 0, false, false,
                             Any[], Vector{Any}[], Function[], Any[], Int(failing_opens), on_start,
                             collect(AgentOption, options), Pair{String,String}[], can_resume, can_fork,
                             is_signed_in, collect(AgentSignInMethod, sign_in_methods), String[], can_sign_out,
-                            can_steer, Vector{Any}[], false, Pair{String,String}[], Pair{String,String}[])
+                            can_steer, Vector{Any}[], false, Pair{String,String}[], Pair{String,String}[],
+                            Dict{String,Vector{Any}}(String(id) => collect(Any, history) for (id, history) in histories),
+                            collect(AgentSessionInfo, stored_sessions), Any[])
 
 # What a scripted agent that is not signed in throws.
 _make_scripted_sign_in_exception(connection::ScriptedAgentConnection) =
@@ -104,7 +118,7 @@ function AgentModule.open_agent_session!(connection::ScriptedAgentConnection;
     end
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
                                 instructions = String(instructions), session_id = String(session_id),
-                                fork_session_id = "", events))
+                                fork_session_id = "", loaded_session_id = "", events))
     on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
     connection.can_resume && !isempty(session_id) && return String(session_id)
     "scripted-session-$(length(connection.sessions))"
@@ -118,9 +132,30 @@ function AgentModule.fork_agent_session!(connection::ScriptedAgentConnection; se
     connection.can_fork || return nothing
     push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
                                 instructions = String(instructions), session_id = "",
-                                fork_session_id = String(session_id), events))
+                                fork_session_id = String(session_id), loaded_session_id = "", events))
     on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
     "scripted-fork-$(length(connection.sessions))"
+end
+
+function AgentModule.load_agent_session!(connection::ScriptedAgentConnection; session_id::AbstractString,
+                                         directory::AbstractString = pwd(),
+                                         mcp_servers::AbstractVector = Any[], instructions::AbstractString = "",
+                                         on_event = nothing, events::Union{Nothing,AgentEventQueue} = nothing)
+    connection.is_signed_in || throw(_make_scripted_sign_in_exception(connection))
+    history = get(connection.histories, String(session_id), nothing)
+    history === nothing && return nothing
+    push!(connection.sessions, (directory = String(directory), mcp_servers = collect(mcp_servers),
+                                instructions = String(instructions), session_id = "", fork_session_id = "",
+                                loaded_session_id = String(session_id), events))
+    on_event === nothing || isempty(connection.options) || on_event(AgentOptionsUpdate(copy(connection.options)))
+    events === nothing || foreach(event -> put_agent_event!(events, event), history)
+    String(session_id)
+end
+
+function AgentModule.list_agent_sessions(connection::ScriptedAgentConnection; directory = nothing)
+    push!(connection.session_lists, directory)
+    AgentSessionInfo[session for session in connection.stored_sessions
+                     if directory === nothing || session.directory == directory]
 end
 
 function AgentModule.set_agent_option!(connection::ScriptedAgentConnection, session_id::AbstractString,

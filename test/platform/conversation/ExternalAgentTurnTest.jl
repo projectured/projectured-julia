@@ -1025,43 +1025,128 @@ function test_external_agent_turn()
             @test !any(pair -> first(pair) === :conversation, last(pred_arguments(Assistant(; backend = :acp))))
         end
 
-        @testset "a save keeps the conversation of a kept session, and the next turn after a load resumes it" begin
-            input = Dict{String,Any}("code" => "1 + 1", "options" => Dict{String,Any}("a-b" => Any[1, 2.5, nothing, true]))
-            connection = ScriptedAgentConnection([
-                Any[LlmThinkingStart(), LlmThinkingDelta("I add."), LlmThinkingStop(),
-                    LlmTextStart(), LlmTextDelta("Let me run it."), LlmTextStop(),
-                    AgentToolCallUpdate("t1"; name = "mcp__projectured__execute_julia_code", title = "Run",
-                                        kind = :execute, status = :pending, input),
-                    AgentPlanUpdate([AgentPlanEntry("Add", :high, :in_progress)]),
-                    make_scripted_permission_step(AgentToolCallUpdate("t2"; title = "mcp__projectured__execute_julia_code"),
-                        [AgentPermissionOption("allow", "Allow", :allow_once),
-                         AgentPermissionOption("reject", "Reject", :reject_once)]),
-                    AgentToolCallUpdate("t1"; status = :completed, output = "2"),
-                    AgentSessionInfoUpdate("Add two numbers"),
-                    LlmTextStart(), LlmTextDelta("It is 2."), LlmTextStop()],
-                Any[LlmTextStart(), LlmTextDelta("Again."), LlmTextStop()]]; can_resume = true)
+        @testset "a save keeps the id, the folder and the title of a kept session and no turn, and the open loads the history" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("It is 2."), LlmTextStop(),
+                                                      AgentSessionInfoUpdate("Add two numbers")]]; can_resume = true)
             a = _make_agent_assistant(connection)
-            _submit_to_agent!(a, "What is 1 + 1?"; wait = false)
-            answer_permission_request!(_wait_for_permission_request(a), "allow")
-            _wait_for_idle(a)
+            _submit_to_agent!(a, "What is 1 + 1?")
             text = print_pred_text(a)
             loaded = parse_pred_text(text)
             @test loaded isa Assistant
             @test print_pred_text(loaded) == text
             @test (loaded.agent_session_id, loaded.agent_session_directory) == ("scripted-session-1", pwd())
-            @test loaded.agent_session_turn_count == a.agent_session_turn_count
             @test get_document_title(loaded) == "Add two numbers"
-            @test loaded.agent_session === nothing
-            @test length(collect(loaded.conversation.turns)) == length(collect(a.conversation.turns))
-            parts = [part.content for part in collect(collect(loaded.conversation.turns)[end].parts)]
-            @test only(part for part in parts if part isa EvaluatorForm).input == input
-            request = only(part for part in parts if part isa ConversationPermissionRequest)
-            @test request.answer == "Allow" && !is_permission_request_open(request)
-            # The next turn resumes the session, and the prompt holds only the new message.
-            loaded.agent_session = ExternalAgentSession(connection)
+            @test isempty(collect(loaded.conversation.turns)) && loaded.agent_session_turn_count == 0
+            @test !occursin("What is 1 + 1?", text)
+            # The open of the tab loads the session from the agent, which sends
+            # its history; the turns of the history have no times.
+            history = Any[LlmMessage(:user, "What is 1 + 1?"), LlmTextStart(), LlmTextDelta("It is 2."), LlmTextStop(),
+                          AgentToolCallUpdate("t1"; name = "Read", title = "Read a.jl", kind = :read, status = :pending),
+                          AgentToolCallUpdate("t1"; status = :completed, output = "1"),
+                          LlmMessage(:user, "And 2 + 2?"), LlmTextStart(), LlmTextDelta("It is 4."), LlmTextStop()]
+            stored = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Again."), LlmTextStop()]];
+                                             can_resume = true, histories = Dict("scripted-session-1" => history))
+            loaded.agent_session = ExternalAgentSession(stored)
+            acquire_document!((document = loaded,), loaded)
+            @test timedwait(() -> length(collect(loaded.conversation.turns)) == 4, 10.0; pollint = 0.01) === :ok
+            turns = collect(loaded.conversation.turns)
+            @test [turn.role for turn in turns] == [:user, :assistant, :user, :assistant]
+            @test all(turn -> turn.start_time == 0.0 && turn.finish_time == 0.0, turns)
+            @test AssistantModule._part_text(only(collect(turns[3].parts))) == "And 2 + 2?"
+            @test any(part -> part.content isa EvaluatorForm, collect(turns[2].parts))
+            @test only(stored.sessions).loaded_session_id == "scripted-session-1"
+            @test loaded.agent_session_turn_count == 4
+            # The next message goes alone, in the same session.
             _submit_to_agent!(loaded, "Again")
-            @test connection.sessions[end].session_id == "scripted-session-1"
-            @test connection.prompts[end] == [LlmText("Again")]
+            @test stored.prompts == [Any[LlmText("Again")]]
+            @test length(stored.sessions) == 1
+            @test [turn.role for turn in collect(loaded.conversation.turns)] ==
+                  [:user, :assistant, :user, :assistant, :user, :assistant]
+        end
+
+        @testset "an agent that can not load the session resumes it, with a note" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("Yes."), LlmTextStop()]];
+                                                 can_resume = true)
+            a = Assistant(; backend = :acp, agent_session_id = "kept-1", agent_session_directory = pwd(),
+                          agent_session = ExternalAgentSession(connection))
+            _submit_to_agent!(a, "Go on")
+            @test only(connection.sessions).session_id == "kept-1"
+            @test connection.prompts == [Any[LlmText("Go on")]]
+            @test any(turn -> any(part -> AssistantModule._part_text(part) == AssistantModule.LOST_HISTORY_AGENT_NOTE,
+                                  collect(turn.parts)), collect(a.conversation.turns))
+        end
+
+        @testset "the history comes before a message that the person sent while it loaded" begin
+            history = Any[LlmMessage(:user, "One"), LlmTextStart(), LlmTextDelta("A."), LlmTextStop()]
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("B."), LlmTextStop()]];
+                                                 histories = Dict("kept-1" => history))
+            a = Assistant(; backend = :acp, agent_session_id = "kept-1", agent_session_directory = pwd(),
+                          agent_session = ExternalAgentSession(connection))
+            _submit_to_agent!(a, "Two")
+            @test connection.prompts == [Any[LlmText("Two")]]
+            turns = collect(a.conversation.turns)
+            @test [AssistantModule._part_text(first(collect(turn.parts))) for turn in turns] == ["One", "A.", "Two", "B."]
+            @test turns[1].start_time == 0.0 && turns[3].start_time > 0.0
+            @test a.agent_session_turn_count == 3
+        end
+
+        @testset "a message of the person that the agent sends between two prompts is a turn that it saw" begin
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            # The person writes on the phone, and the agent answers in a turn of
+            # its own; the queue applies at the next prompt.
+            events = connection.sessions[1].events
+            for event in Any[LlmMessage(:user, "From the phone"), LlmTextStart(), LlmTextDelta("Two."), LlmTextStop()]
+                put_agent_event!(events, event)
+            end
+            _submit_to_agent!(a, "Next")
+            @test connection.prompts[end] == [LlmText("Next")]
+            turns = collect(a.conversation.turns)
+            @test [AssistantModule._part_text(first(collect(turn.parts))) for turn in turns] ==
+                  ["First", "One.", "From the phone", "Two.", "Next", "Three."]
+            @test turns[3].start_time > 0.0
+        end
+
+        @testset "a message that the agent refuses for a program that holds the session goes back, with a note" begin
+            refuse = (connection, on_event) ->
+                throw(AgentSessionConflictException("VS Code", true, "VS Code holds this conversation now."))
+            connection = ScriptedAgentConnection([Any[LlmTextStart(), LlmTextDelta("One."), LlmTextStop()],
+                                                  Any[refuse]])
+            a = _make_agent_assistant(connection)
+            _submit_to_agent!(a, "First")
+            _submit_to_agent!(a, "Second")
+            @test a.status === :idle
+            turns = collect(a.conversation.turns)
+            @test [AssistantModule._part_text(first(collect(turn.parts))) for turn in turns] ==
+                  ["First", "One.", AssistantModule._make_held_session_note("VS Code")]
+            @test AssistantModule._part_text(first(collect(a.draft.parts))) == "Second"
+            @test length(connection.sessions) == 1
+        end
+
+        @testset "a message that the agent refuses for turns of another program loads the session again" begin
+            refuse = (connection, on_event) ->
+                throw(AgentSessionConflictException("VS Code", false, "VS Code added turns to this conversation."))
+            history = Any[LlmMessage(:user, "First"), LlmTextStart(), LlmTextDelta("One."), LlmTextStop()]
+            connection = ScriptedAgentConnection([Any[refuse], Any[LlmTextStart(), LlmTextDelta("Three."), LlmTextStop()]];
+                                                 histories = Dict("kept-1" => history))
+            a = Assistant(; backend = :acp, agent_session_id = "kept-1", agent_session_directory = pwd(),
+                          agent_session = ExternalAgentSession(connection))
+            acquire_document!((document = a,), a)
+            @test timedwait(() -> length(collect(a.conversation.turns)) == 2, 10.0; pollint = 0.01) === :ok
+            # VS Code adds a turn, and the next message of this tab is refused.
+            connection.histories["kept-1"] = vcat(history, Any[LlmMessage(:user, "From VS Code"), LlmTextStart(),
+                                                                LlmTextDelta("Two."), LlmTextStop()])
+            _submit_to_agent!(a, "Third")
+            texts() = [AssistantModule._part_text(first(collect(turn.parts))) for turn in collect(a.conversation.turns)]
+            @test timedwait(() -> length(texts()) == 5, 10.0; pollint = 0.01) === :ok
+            @test texts() == ["First", "One.", "From VS Code", "Two.", AssistantModule._make_changed_session_note("VS Code")]
+            @test AssistantModule._part_text(first(collect(a.draft.parts))) == "Third"
+            @test [session.loaded_session_id for session in connection.sessions] == ["kept-1", "kept-1"]
+            # The message goes when the person sends it again.
+            _submit_to_agent!(a, "Third")
+            @test connection.prompts[end] == [LlmText("Third")]
         end
     end
 end
