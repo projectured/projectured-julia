@@ -2263,6 +2263,54 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   197999 pass and 14 broken, cosim 32189 and 422, presentation 1416927 and
   1174, legacy 768123 and 516; no Fail and no Error. The other omnet views of
   the list of step 4 lose the whole document in maps of their own.
+
+  **The rest of step 7** (the owner, 2026-11-25, "Continue"). The baseline is
+  the walk over the omnet pages (`step7omnet/run1`, the catalogs of the
+  presentation, the IDE, the legacy slice and cosim, and the legacy examples,
+  on omnet main 0d35ce9a6 and projectured main 5bc581626, in the environment
+  `/var/tmp/ic-scratch/env-omnet` over both worktrees): 115 examples, 103 run,
+  1093 lines. Nine atoms of omnet main throw while the catalog makes them,
+  because their constructors changed in the work of another session (the tests
+  of a project and its kinds, folders and cases, the simulation runner, the
+  test runner, the entry of an INI file and the INI files of a project), and
+  legacy/run_entry throws in its build (`_get_configuration` takes no
+  `ILegacySimulationConfiguration`); the walk records them, and this plan does
+  not fix them. omnet/timeline_strip needs more than 12 GiB, and the walk skips
+  it. The steps, one commit for each:
+  - [ ] O1. The views that pass the answer of their widgets on unchanged. 29
+    views of the presentation and 2 of cosim have the reader
+    `read_intent(::View, iomap, op) = op isa Operation ? op : nothing`, so a
+    path in their output arrives as a path in their input: the caret in the
+    title of the card of the accumulator view is `….AccumulatorView.title{5}`,
+    which the document does not have, and the editor throws
+    `SelectionMismatchException` (198 lines in 16 examples). The line goes, so
+    the default reader maps each answer back: a part that the view drew is
+    named by the step of the view, and an operation that carries its own
+    subject passes.
+  - [ ] O2. The pages of the ten kinds of run task and the comparison of charts.
+    Their backward map gives the whole page for each point and their forward map
+    takes only the whole page (`legacy/run_task` and the other task pages: 20
+    to 38 lines each, all `@∅`). The two one-line maps go, so the defaults map
+    a part that the page drew by the step of the page.
+  - [ ] O3. The pages of results: the run results, the result file and the view
+    of a result file, the result folder, the baseline file view and the plot. A
+    part that the page drew is named by the step of the page, where the maps
+    give `nothing` or the whole page now; a field of the input that the page
+    shows keeps its map.
+  - [ ] O4. The result table picks a row on a plain click only: the reader turns
+    each selection in a row into a pick now, also a caret of an Alt+click.
+    Any other part is named by the step of the view.
+  - [ ] O5. The data frame view (projectured, `DataFrameViewToWidget`): a move
+    on a column header names a path in the widgets of the view,
+    `….column_headers[N]…`, and the Alt+double click selects the column
+    `.columns[N]` (`legacy/scalar_differences`, `legacy/result_file` and the
+    other result tables). The move names the column. `test_dataframes`.
+  - [ ] O6. The throws of the module appearance (61 lines) and of the combined
+    simulation widget (87 lines): the path of the content of the tab,
+    `….PaneTab.content::ACModuleAppearance`, matches no document after the first
+    press. Find the cause and fix it in its general rule.
+  - [ ] O7. The walk over the omnet pages against run 1, and the atom tests of
+    omnet (the IDE, cosim, the presentation and the legacy slice).
 - [ ] 8. **The test in the suites (P6).** Each failure that is left is
   `@test_broken`, with its cause.
 
