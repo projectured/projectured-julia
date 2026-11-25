@@ -1157,3 +1157,41 @@ missed. A tool on the same parser made the mechanical changes at the lines that 
       it, so each `mktemp` fails. The first omnet run stopped after 31 parts for this.
     - With a depot that must compile `OmnetPresentationExample`, its precompilation was
       killed at the cap of 8 GB, and at 9 GB. The job of 14 GB compiled it.
+
+**2026-11-25, R6: the owner approves the land of steps 6 and 7.** "yes, land it". Main of
+projectured-julia had moved by two commits that change only plan files, and main of omnet-julia
+by two commits that change no file of the branch and name no removed name. Both branches rebased
+with no conflict, and main of the three repositories moved by a fast-forward: projectured-julia
+cfc64f945, omnet-julia d419fe0ad, inet-julia 861de37. Nothing is pushed.
+
+**2026-11-25, step 8: the lists record again.** Four jobs, one after the other, each with no
+network:
+
+- **projectured, the source lists** (45 min, peak 9.7 GB): the 21 source packages with a
+  workload, each after the packages that it depends on, and then
+  `record_application_calls!("ProjecturedBuild", "projectured")`. `record_repository_calls!`
+  is not used, because each test package has a workload now (compile-ahead.md, Decision 11),
+  so it would record all 60 lists and run each whole suite. The driver keeps the packages that
+  do not end in `Test`.
+- **projectured, the test lists** (21 min, peak 6.3 GB): `tool/record-test-calls.jl --changed
+  b4c60496a`, the 14 test packages whose files the land changed. One commit, f2f9570da, holds
+  the 51 lists of both jobs. No list names the 3-argument `read_intent`, `ClaimedGesture`,
+  `read_drawn_child_event` or the keyword `claimed`.
+- **omnet** (46 min, peak 9.1 GB): the 18 packages with a workload and then the application
+  `omnet_ide`, against projectured with its new lists; 22 lists, de0a35aa7. The trace gives
+  OmnetBuilder no call of `omnet_ide`, so its file of 2 calls of `Artifacts` (2026-11-02)
+  goes.
+- **inet** (12 min, peak 7.7 GB): `InetRunner` and `InetExample`; only the list of
+  `InetExample` changes, 30053d6.
+- **Faults of main that the logs show, none of the branch:**
+  - The workload of `ProjecturedExample` fails for 13 of 142 examples. `filesystem` and
+    `files` have the field errors of the record of 2026-11-16. The 7 chart and the 4 sequence
+    chart examples stop at "under-typed @reference" in `ChartToChartPlot.jl:106` and
+    `SequenceChartToSequenceChartPlot.jl:110`, the lines of 3951f31b3 (2026-11-18), which
+    main had before steps 6 and 7. The list keeps the calls of each example before its failure.
+  - The workload of the application warns 16 times "The agent did not stop", with
+    `MethodError: no method matching stop_agent_connection!(::Nothing)`.
+  - In the recording of `ProjecturedKernelTest`, the time check `KernelFrameGuardTest.jl:147`
+    fails (a ratio of 35.6 against a bound of 3), while the trace compiles each call and a
+    second recording runs beside it. The land run passed it. The suite runs to its end, so
+    the list holds all its calls.
