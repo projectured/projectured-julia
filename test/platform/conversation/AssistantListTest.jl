@@ -169,6 +169,63 @@ function test_assistant_list()
                       work_notes)
         end
 
+        @testset "the stored sessions of the agent are rows below the open assistants" begin
+            now = time()
+            stored = [AgentSessionInfo("s-new", "/work/omnet-julia", "Fix the NED parser", "And the test.", now - 60,
+                                       "VS Code"),
+                      AgentSessionInfo("s-open", "/work/projectured-julia", "Open one", nothing, now - 120, ""),
+                      AgentSessionInfo("s-old", "/work/projectured-julia", nothing, "Last words", now - 3 * 86400, "")]
+            connection = ScriptedAgentConnection(Any[]; stored_sessions = stored)
+            open = Assistant(; backend = :acp, agent_session_id = "s-open",
+                             agent_session_directory = "/work/projectured-julia", agent_session_turn_count = 2)
+            group = PaneGroup([PaneTab("Open", open)])
+            tree = PaneTree(group)
+            list = AssistantList()
+            shown = Assistant[]
+            set_assistant_list_source!(list, () -> collect_pane_tab_contents(tree, Assistant))
+            set_assistant_list_opener!(list, (editor, assistant) -> push!(shown, assistant))
+            set_assistant_list_factory!(list, editor -> Assistant(; backend = :acp))
+            list.connection = connection
+            editor = (document = list,)
+            read_stored_assistant_sessions!(editor, list)
+            @test timedwait(() -> length(list.stored_sessions) == 3, 10.0; pollint = 0.01) === :ok
+            # A stored session that an open assistant keeps shows only as that assistant.
+            @test [session.id for session in find_stored_assistant_sessions(list)] == ["s-new", "s-old"]
+            projection, iomap = _print_assistant_list(list; width = 2000)
+            words = _collect_assistant_list_words(iomap)
+            @test "1 conversation · 0 running · 2 stored" in words
+            @test all(in(words), ("folder", "changed", "Refresh"))
+            @test all(in(words), ("Fix the NED parser", "Last words", "open in VS Code", "stored", "omnet-julia"))
+            @test count(==("projectured-julia"), words) == 2
+            @test count(==("Show"), words) == 3
+            # Show on a stored row opens a new assistant with no turn, which keeps
+            # the session and loads it when its tab opens.
+            open_stored_assistant_session!(editor, list, first(find_stored_assistant_sessions(list)))
+            made = only(shown)
+            @test (made.agent_session_id, made.agent_session_directory, made.agent_title) ==
+                  ("s-new", "/work/omnet-julia", "Fix the NED parser")
+            @test isempty(collect(made.conversation.turns)) && made.agent_session_turn_count == 0
+            @test AssistantModule._needs_agent_history(made)
+            # Its tab takes its row out of the stored rows.
+            evaluate_operation(_AssistantListMockEditor(tree), make_pane_open_tab_operation(tree, group,
+                                                                                            PaneTab("New", made)))
+            @test [session.id for session in find_stored_assistant_sessions(list)] == ["s-old"]
+            # Refresh reads the list of the agent again.
+            connection.stored_sessions = stored[3:3]
+            read_stored_assistant_sessions!(editor, list)
+            @test timedwait(() -> length(list.stored_sessions) == 1, 10.0; pollint = 0.01) === :ok
+            @test length(connection.session_lists) == 2
+            # The unlink stops the agent of the list and forgets its rows.
+            unlink_assistant_list!(list)
+            @test list.connection === nothing && isempty(list.stored_sessions) && list.factory === nothing
+            # A window whose assistant has no external agent reads no stored session.
+            other = AssistantList()
+            set_assistant_list_factory!(other, editor -> Assistant(; backend = :none))
+            read_stored_assistant_sessions!((document = other,), other)
+            @test timedwait(() -> !isempty(other.stored_sessions), 0.5; pollint = 0.01) === :timed_out
+            @test other.connection === nothing
+        end
+
         @testset "the detail of an assistant" begin
             list = AssistantList()
             first_assistant = Assistant(; description = "Fix the table", comment = "Ask about the colors.")

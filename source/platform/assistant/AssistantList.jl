@@ -1,7 +1,8 @@
 # Fragment of `AssistantModule` — the list of the open assistants of the session:
 # one document that the Assistants pane shows, whose rows compute from a source
-# that reads the tabs of a window, and the wrapper of `build_editor` that links
-# the list to the window.
+# that reads the tabs of a window, with the sessions that the external agent of
+# the window keeps below them, and the wrapper of `build_editor` that links the
+# list to the window.
 
 """
     AssistantList()
@@ -14,6 +15,16 @@ a window, so a tab that opens, closes or comes back with an undo changes the
 rows, and an edit inside an assistant does not compute them again. `selected` is the assistant whose detail the pane shows, or `nothing`.
 `opener` is what Show does, `opener(editor, assistant)`, or `nothing` while
 nothing linked the list.
+
+`stored_sessions` are the sessions that the external agent of the window keeps,
+each an `AgentSessionInfo`, the newest first, as the last read of
+[`read_stored_assistant_sessions!`](@ref) gave them; the pane shows each one that
+no open assistant keeps below the open assistants. `factory` makes an assistant
+of the window from the editor, `factory(editor)`, as the toolbar does, or is
+`nothing`: the read takes the agent of such an assistant, and Show on a stored
+session opens a new one that keeps that session. `connection` is the connection
+of the read to the agent, which the list keeps for the next read and the unlink
+stops. The three are live state, as the rows are.
 
 Every list that a person opens in a window of an editor is the list of the
 session of that editor ([`get_session_assistant_list`](@ref)): the toolbar, a
@@ -33,13 +44,17 @@ opener are functions, which are no documents.
     selected::Any
     source::Any
     opener::Any
+    stored_sessions::Any
+    factory::Any
+    connection::Any
 end
 
 # The rows are a `CellVector`, a document, so the selection of the list goes down
 # through a row into the description or the comment of its assistant.
 function AssistantList()
-    list = AssistantList(Cell(CellVector{Assistant}(Assistant[])), Cell(nothing), Cell(nothing),
-                         Cell(nothing), Cell(nothing))
+    # The last cell is the selection of the document.
+    list = AssistantList(Cell(CellVector{Assistant}(Assistant[])), Cell(nothing), Cell(nothing), Cell(nothing),
+                         Cell(AgentSessionInfo[]), Cell(nothing), Cell(nothing), Cell(nothing))
     set_cell_computation!(getfield(list, :assistants), () -> begin
         source = getfield(list, :source)[]
         CellVector{Assistant}(source === nothing ? Assistant[] : collect(Assistant, source()))
@@ -174,6 +189,101 @@ function open_assistant_tab!(editor, list::AssistantList, assistant::Assistant)
 end
 
 """
+    set_assistant_list_factory!(list, factory) -> list
+
+Say how the list makes an assistant of its window: `factory(editor)` answers a
+new one, as the toolbar makes it. The wrapper `assistant_list` gives the factory
+of the `shell` wrapper. `nothing` makes no assistant, so the list reads no
+stored session.
+"""
+function set_assistant_list_factory!(list::AssistantList, factory)
+    list.factory = factory
+    list
+end
+
+"""
+    find_stored_assistant_sessions(list) -> Vector{AgentSessionInfo}
+
+The stored sessions that the pane of `list` shows: each of `stored_sessions`
+whose id no open assistant of the list keeps, so a stored session whose tab
+opened shows only as the open assistant.
+"""
+function find_stored_assistant_sessions(list::AssistantList)
+    kept = Set(a.agent_session_id for a in list.assistants if !isempty(a.agent_session_id))
+    AgentSessionInfo[session for session in list.stored_sessions if !(session.id in kept)]
+end
+
+"""
+    read_stored_assistant_sessions!(editor, list)
+
+Read the sessions that the external agent of the window keeps into
+`stored_sessions` of `list`, on a task of its own. The agent is the one of an
+assistant that the factory of the list makes, with its command and the `_meta`
+of its sessions, through the connection of the list, which the first read makes.
+A list with no factory, or whose factory makes an assistant of a backend that is
+not `:acp`, reads none. A read that fails keeps the rows as they are, and a
+warning says why. The acquire of the list and its button "Refresh" call it.
+"""
+function read_stored_assistant_sessions!(editor, list::AssistantList)
+    list.factory === nothing && return nothing
+    _start_agent_task(editor) do
+        connection = run_on_editor_task!(() -> _get_stored_session_connection!(editor, list), editor)
+        connection === nothing && return nothing
+        sessions = try
+            Base.invokelatest(start_agent_connection!, connection)
+            Base.invokelatest(list_agent_sessions, connection)
+        catch exception
+            is_fault_exception(exception) || rethrow()
+            @warn "The agent did not list the sessions that it keeps." exception
+            return nothing
+        end
+        run_on_editor_task!(() -> (list.stored_sessions = sessions; nothing), editor; wait = false)
+        nothing
+    end
+    nothing
+end
+
+# The connection of the reads of `list`: the one that it keeps, else a new one to
+# the agent of an assistant of its factory, or `nothing` when that assistant has
+# no external agent.
+function _get_stored_session_connection!(editor, list::AssistantList)
+    list.connection === nothing || return list.connection
+    factory = list.factory
+    factory === nothing && return nothing
+    model = factory(editor)
+    (model isa Assistant && model.backend === :acp) || return nothing
+    :acp in Base.invokelatest(get_agent_connection_names) || return nothing
+    list.connection = Base.invokelatest(make_agent_connection, :acp; command = Base.shell_split(model.agent_command),
+                                        directory = pwd(), session_meta = model.agent_session_meta)
+end
+
+"""
+    open_stored_assistant_session!(editor, list, session::AgentSessionInfo)
+
+Show on a stored session: a new assistant with the settings of an assistant of
+the factory of `list` and no turn keeps `session`, and the opener of the list
+puts its tab on the screen. The acquire of the tab loads the session from the
+agent, with its history. The assistant of the factory stays as it is, because a
+factory can answer the same assistant each time. With no factory it does
+nothing.
+"""
+function open_stored_assistant_session!(editor, list::AssistantList, session::AgentSessionInfo)
+    factory = list.factory
+    factory === nothing && return nothing
+    model = factory(editor)
+    model isa Assistant || return nothing
+    a = Assistant(; backend = model.backend, model = model.model, system = model.system, context = model.context,
+                  agent_command = model.agent_command, agent_session_meta = model.agent_session_meta,
+                  agent_mode = model.agent_mode, max_rounds = model.max_rounds,
+                  number = _compute_assistant_number(editor), agent_session_id = session.id,
+                  agent_session_directory = session.directory, agent_title = something(session.title, ""))
+    open_assistant_tab!(editor, list, a)
+end
+
+# The open of the pane of the list reads the stored sessions.
+acquire_document!(editor, list::AssistantList) = read_stored_assistant_sessions!(editor, list)
+
+"""
     select_assistant!(list, assistant) -> list
 
 Show the detail of `assistant` in the pane of `list`; `nothing` shows none.
@@ -214,11 +324,21 @@ end
     unlink_assistant_list!(list) -> list
 
 Undo [`link_assistant_list!`](@ref): the list reads no tabs, its Show does
-nothing, and it shows no detail, so it holds no document of a closed window.
+nothing, it shows no detail and no stored session, and the connection of its
+reads stops, so it holds no document of a closed window and no agent.
 """
 function unlink_assistant_list!(list::AssistantList)
     set_assistant_list_source!(list, nothing)
     set_assistant_list_opener!(list, nothing)
+    set_assistant_list_factory!(list, nothing)
+    connection = list.connection
+    list.connection = nothing
+    list.stored_sessions = AgentSessionInfo[]
+    connection === nothing || errormonitor(@async try
+        Base.invokelatest(stop_agent_connection!, connection)
+    catch exception
+        @warn "The agent of the Assistants pane did not stop." exception
+    end)
     select_assistant!(list, nothing)
 end
 
@@ -228,8 +348,10 @@ end
 The wrapper of `build_editor` that links the Assistants pane to the tabs of the
 window. A start step links every list that a tab of the pane tree holds, which a
 file gave before the editor existed, and the list of the session of the editor
-([`get_session_assistant_list`](@ref)): the first of those lists, or a new one. A
-stop step unlinks them, so no list holds a document of a closed window. While it
+([`get_session_assistant_list`](@ref)): the first of those lists, or a new one.
+Each list gets the factory of assistants of the `shell` wrapper, so it lists
+the sessions that the agent of those assistants keeps. A stop step unlinks them,
+so no list holds a document of a closed window. While it
 is on, the `shell` wrapper puts the button of the pane on the toolbar. It is off
 by default, and the window needs a pane tree: the root that the caller gives, or
 the one that the `tabs` wrapper makes.
@@ -237,7 +359,9 @@ the one that the `tabs` wrapper makes.
 function wrap_editor!(::Val{:assistant_list}, layer::Symbol, argument, parts::EditorParts)
     tree = get_window_tree(parts.document)
     lists = AssistantList[]
-    push!(parts.start_steps, editor -> (append!(lists, _link_session_assistant_lists!(editor, tree));
+    shell = get(parts.arguments, :shell, nothing)
+    factory = shell isa NamedTuple ? get(shell, :assistant, nothing) : nothing
+    push!(parts.start_steps, editor -> (append!(lists, _link_session_assistant_lists!(editor, tree, factory));
                                         nothing))
     push!(parts.stop_steps, _ -> (foreach(unlink_assistant_list!, lists); nothing))
     parts
@@ -246,13 +370,19 @@ end
 get_wrapper_layers(::Val{:assistant_list}) = (:screen => 40,)
 
 # Link every assistant list that a tab of `tree` shows, and the list of the
-# session of `editor`: the first of them, or a new one. Answer the lists, for the
-# unlink.
-function _link_session_assistant_lists!(editor::Editor, tree::PaneTree)
-    lists = collect_pane_tab_contents(tree, AssistantList)
+# session of `editor`: the first of them, or a new one. A list that a tab shows
+# reads its stored sessions now, because it has its factory only from here.
+# Answer the lists, for the unlink.
+function _link_session_assistant_lists!(editor::Editor, tree::PaneTree, factory)
+    shown = collect_pane_tab_contents(tree, AssistantList)
+    lists = copy(shown)
     session = get_session_document!(() -> isempty(lists) ? AssistantList() : first(lists), editor,
                                     AssistantList)
     any(list -> list === session, lists) || push!(lists, session)
-    foreach(list -> link_assistant_list!(list, tree), lists)
+    foreach(lists) do list
+        link_assistant_list!(list, tree)
+        set_assistant_list_factory!(list, factory)
+    end
+    foreach(list -> read_stored_assistant_sessions!(editor, list), shown)
     lists
 end

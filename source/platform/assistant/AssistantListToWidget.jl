@@ -12,10 +12,19 @@ assistant that the person picked with the `›` of its row.
 
 A row has the `›`, a button that shows the tab of the assistant and a button
 that shows the work page of its agent ([`show_assistant_work!`](@ref)), then its
-title, the state of its work, whose turn it is, what its turn does now, how many
-prompts it has, how much of its context it uses, how far the plan of its agent
-is, how many subagents and background tasks of its agent run, when it started
-and how long it runs.
+title, the folder of its session, the state of its work, whose turn it is, what
+its turn does now, how many prompts it has, how much of its context it uses, how
+far the plan of its agent is, how many subagents and background tasks of its
+agent run, when it started, when it changed last, and how long it runs.
+
+Below the open assistants, a row for each session that the external agent of the
+window keeps and no open assistant keeps
+([`find_stored_assistant_sessions`](@ref)), the newest first: a button Show,
+which opens a new assistant tab that loads the session
+([`open_stored_assistant_session!`](@ref)), its title, its folder, what holds it,
+as "open in VS Code", or "stored", and when it changed last. The heading counts
+them, and its button "Refresh" reads them again
+([`read_stored_assistant_sessions!`](@ref)).
 The title fills the width that the other columns leave and stays on one line,
 and a pane narrower than the table scrolls it.
 Each value is a label that reads the cells of the assistant, so a row follows
@@ -42,8 +51,8 @@ AssistantListToWidgetPane(theme::Union{ConversationTheme,ScaledConversationTheme
 
 # The column `tasks` counts the background tasks that run, as the facet
 # `background_tasks` does; the short name keeps the column narrow.
-const _ASSISTANT_LIST_COLUMNS = ("", "title", "work", "turn", "activity", "prompts", "context",
-                                 "plan", "subagents", "tasks", "started", "elapsed")
+const _ASSISTANT_LIST_COLUMNS = ("", "title", "folder", "work", "turn", "activity", "prompts", "context",
+                                 "plan", "subagents", "tasks", "started", "changed", "elapsed")
 
 # The title takes the width that the other columns leave, and never less than its
 # widest title, which stays on one line: a column with a weight and no minimum of
@@ -110,6 +119,31 @@ function _make_assistant_start_note(a::Assistant)
                     text = "The conversation started at " * Libc.strftime("%Y-%m-%d %H:%M:%S", time) * ".")
 end
 
+# The folder of a session as the table writes it: its last name, and the whole
+# path when the pointer rests. Empty for no folder.
+_make_folder_label(folder::Function) =
+    WidgetLabel(() -> (path = folder(); isempty(path) ? "" : basename(rstrip(path, '/')));
+                tooltip = () -> (path = folder(); isempty(path) ? nothing : TooltipNote(; title = "Folder", text = path)))
+
+# What holds a stored session, for its column of activity.
+_describe_stored_session_holder(session::AgentSessionInfo) =
+    isempty(session.holder) ? "stored" : "open in " * session.holder
+
+function _build_stored_session_row(p, list::AssistantList, session::AgentSessionInfo)
+    show = WidgetButton("Show"; tooltip = TooltipNote(; title = "Show",
+                            text = "Open this conversation in a new assistant tab, with its earlier turns."),
+                        action = editor -> open_stored_assistant_session!(editor, list, session))
+    title = something(session.title, session.last_prompt, session.id)
+    Any[HorizontalLayout(Any[show]; vertical_align = :center, gap = p.button_gap),
+        WidgetLabel(title),
+        _make_folder_label(() -> session.directory),
+        WidgetLabel(""), WidgetLabel(""),
+        WidgetLabel(_describe_stored_session_holder(session)),
+        WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel(""), WidgetLabel(""),
+        WidgetLabel(_format_assistant_time(session.updated_at)),
+        WidgetLabel("")]
+end
+
 function _build_assistant_row(p, list::AssistantList, a::Assistant, clock)
     pick = WidgetButton("›"; tooltip = TooltipNote(; title = "Pick", text = "Show this assistant below."),
                         action = _ -> select_assistant!(list, a))
@@ -123,6 +157,7 @@ function _build_assistant_row(p, list::AssistantList, a::Assistant, clock)
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
     Any[HorizontalLayout(Any[pick, show, work_page]; vertical_align = :center, gap = p.button_gap),
         WidgetLabel(() -> compute_assistant_overview_title(a)),
+        _make_folder_label(() -> a.agent_session_directory),
         work,
         turn,
         WidgetLabel(() -> describe_assistant_activity(a)),
@@ -133,6 +168,7 @@ function _build_assistant_row(p, list::AssistantList, a::Assistant, clock)
         WidgetLabel(() -> string(compute_item_facet(a, Val(:background_tasks)))),
         WidgetLabel(() -> _format_assistant_time(find_assistant_start_time(a));
                     tooltip = () -> _make_assistant_start_note(a)),
+        WidgetLabel(() -> _format_assistant_time(find_assistant_last_activity_time(a))),
         WidgetLabel(() -> _format_elapsed_time(a, clock))]
 end
 
@@ -140,9 +176,11 @@ function _build_assistant_table(p, list::AssistantList, clock)
     body = VerticalLayout(Any[]; child_width = Fill)
     set_cell_computation!(getfield(body.children, :elements), () -> begin
         assistants = list.assistants
-        isempty(assistants) && return Cell[Cell(WidgetLabel("No assistant is open in this window.";
-                                                            text_style = p.muted_color))]
-        rows = Any[_build_assistant_row(p, list, a, clock) for a in assistants]
+        stored = find_stored_assistant_sessions(list)
+        isempty(assistants) && isempty(stored) &&
+            return Cell[Cell(WidgetLabel("No assistant is open in this window."; text_style = p.muted_color))]
+        rows = Any[Any[_build_assistant_row(p, list, a, clock) for a in assistants];
+                   Any[_build_stored_session_row(p, list, session) for session in stored]]
         Cell[Cell(WidgetTable(collect(Any, _ASSISTANT_LIST_COLUMNS), rows;
                               columns = _make_assistant_list_columns()))]
     end)
@@ -316,12 +354,17 @@ end
 
 function print_document(p::AssistantListToWidgetPane, recursion, list::AssistantList, ctx)
     clock = ctx === nothing ? nothing : ctx.clock
-    heading = WidgetLabel(() -> begin
+    count_label = WidgetLabel(() -> begin
         assistants = list.assistants
         running = count(is_assistant_turn_running, assistants)
+        stored = length(find_stored_assistant_sessions(list))
         string(length(assistants), length(assistants) == 1 ? " conversation" : " conversations",
-               " · ", running, " running")
+               " · ", running, " running", stored == 0 ? "" : string(" · ", stored, " stored"))
     end)
+    refresh = WidgetButton("Refresh"; tooltip = TooltipNote(; title = "Refresh",
+                               text = "Read again the conversations that the agent keeps."),
+                           action = editor -> read_stored_assistant_sessions!(editor, list))
+    heading = HorizontalLayout(Any[count_label, refresh]; vertical_align = :center, gap = p.button_gap)
     table = LayoutConstraint(WidgetScrollPane(_build_assistant_table(p, list, clock)); width = Fill, height = Fill)
     detail = LayoutConstraint(_build_assistant_detail(p, list, clock); width = Fill, height = Fill)
     split = LayoutConstraint(WidgetSplitPane(:vertical, Any[table, detail]); width = Fill, height = Fill)

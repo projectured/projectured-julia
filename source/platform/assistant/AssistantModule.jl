@@ -119,7 +119,9 @@ export compute_assistant_overview_title, find_first_prompt, find_last_prompt, co
        find_assistant_start_time,
        find_assistant_last_activity_time, compute_assistant_elapsed_time, compute_assistant_busy_time
 export AssistantList, get_session_assistant_list, set_assistant_list_source!,
-       set_assistant_list_opener!, select_assistant!, link_assistant_list!, unlink_assistant_list!
+       set_assistant_list_opener!, set_assistant_list_factory!, find_stored_assistant_sessions,
+       read_stored_assistant_sessions!, open_stored_assistant_session!, select_assistant!,
+       link_assistant_list!, unlink_assistant_list!
 export AssistantListToWidgetPane
 export apply_agent_event!, AgentEventFeed
 export warm_assistant_turn!
