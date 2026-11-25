@@ -338,6 +338,11 @@ roles — so a k-step path has k+1 typed nodes (every boundary plus the terminal
 - `is_valid_reference(document, path)` (the two-argument, document-aware method)
   is `true` iff every node type holds along the whole path.
 
+A recorded type holds on a node that is an instance of it, and on a node in another
+form of the same document type, with the same `get_document_family`. A path records
+the cell layout, so the mutable form of a document, such as one that a view shows in
+a pane, resolves the path too.
+
 A walk that answers for a path that does not fit — `try_evaluate_reference`,
 `get_valid_reference_prefix` and `annotate_reference_types` — asks
 `has_reference_step_child(step, document)` before each step, and a "no" ends the

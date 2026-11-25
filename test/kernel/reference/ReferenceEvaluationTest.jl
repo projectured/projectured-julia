@@ -115,6 +115,19 @@ function test_reference_evaluation()
         @test evaluate_reference(root, strip_reference_types(@reference ::EA.right::EB.value::EC)) == 20
     end
 
+    @testset "a path records the cell form of a document, and resolves on its mutable form too" begin
+        native = MEvaluationLeaf(2)
+        path = annotate_reference_types(native, extend_reference(EmptyReference(), FieldReferenceStep("value")))
+        @test path.type === EvaluationLeaf && !(native isa EvaluationLeaf)
+        @test is_valid_reference(native, path)
+        @test evaluate_reference(native, path) == 2
+        @test try_evaluate_reference(native, path, missing) == 2
+        @test get_valid_reference_prefix(native, path) == path
+        # A node of another document type holds no recorded type of this one.
+        @test !is_valid_reference(MEvaluationList(), path)
+        @test try_evaluate_reference(MEvaluationList(), path, missing) === missing
+    end
+
     @testset "@reference_case destructures paths" begin
         # exact-path match wins
         p = strip_reference_types(@reference ::EA.right::EB.value::EC)

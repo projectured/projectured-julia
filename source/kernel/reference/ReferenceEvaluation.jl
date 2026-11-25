@@ -23,6 +23,14 @@
 
 # ── Reference evaluation ─────────────────────────────────────────────────
 
+# Whether `document` holds `type`, the node type that a path records for it: no
+# type, an instance of it, or another form of the same document type. A path records
+# the cell form of a family (`get_reference_node_type`), and the node can be in its
+# native form, as a mutable document that a view shows in a pane.
+_has_recorded_type(document, type) =
+    type === nothing || document isa type ||
+    (type isa Union{DataType, UnionAll} && get_document_family(document) === get_document_family(type))
+
 """
     evaluate_reference(document, path::Reference)
 
@@ -43,7 +51,7 @@ function evaluate_reference end
 
 function evaluate_reference(document, path::EmptyReference)
     # Folded terminal checkpoint: assert the landed node's recorded type.
-    path.type === nothing || document isa path.type ||
+    _has_recorded_type(document, path.type) ||
         throw(ReferenceTypeMismatchException(path.type, typeof(document)))
     document
 end
@@ -52,7 +60,7 @@ function evaluate_reference(document, path::ConcreteReference)
     step = path.head
     rest = path.tail
     # Folded checkpoint: this node records the type of the document it stands on.
-    path.type === nothing || document isa path.type ||
+    _has_recorded_type(document, path.type) ||
         throw(ReferenceTypeMismatchException(path.type, typeof(document)))
     child = evaluate_reference_step(step, document)
     evaluate_reference(child, rest)
@@ -101,12 +109,12 @@ end
 # `evaluate_reference`, which answers `default` with no throw where a recorded type
 # does not hold or a step does not reach a place.
 function _evaluate_reference_or(document, path::EmptyReference, default)
-    path.type === nothing || document isa path.type || return default
+    _has_recorded_type(document, path.type) || return default
     document
 end
 
 function _evaluate_reference_or(document, path::ConcreteReference, default)
-    path.type === nothing || document isa path.type || return default
+    _has_recorded_type(document, path.type) || return default
     has_reference_step_child(path.head, document) || return default
     _evaluate_reference_or(evaluate_reference_step(path.head, document), path.tail, default)
 end
@@ -137,13 +145,13 @@ the discarded suffix is the part made invalid by a structural change to
 """
 function get_valid_reference_prefix(document, path::EmptyReference)
     # Folded terminal checkpoint: drop the recorded type if it no longer holds.
-    (path.type === nothing || document isa path.type) ? path : EmptyReference()
+    _has_recorded_type(document, path.type) ? path : EmptyReference()
 end
 
 function get_valid_reference_prefix(document, path::ConcreteReference)
     # Folded node checkpoint: truncate here if this node's recorded type no longer
     # matches the document reached.
-    path.type === nothing || document isa path.type || return EmptyReference()
+    _has_recorded_type(document, path.type) || return EmptyReference()
     step = path.head
     rest = path.tail
     # Descend one level. A step that does not reach a place truncates, and so does
@@ -203,9 +211,9 @@ The family would be the obvious token and is the wrong one: it is a *supertype* 
 the cell layout, so `AJsonString <: JsonString` is false and every `::T`
 pattern arm would stop matching.
 
-Validation is `document isa path.type`, so a **native** document does not validate
-against this token — it is not `isa` its cell layout. A caller validates against
-the shadow, the cell-backed twin, instead.
+Validation takes any form of the family of the recorded type, so a **native**
+document validates against this token too, although it is not `isa` its cell
+layout: a path through a mutable document that a view shows resolves on it.
 
 Generic reference-mapping code that constructs a typed reference against a
 runtime document (rather than a statically named type) reads the type from
