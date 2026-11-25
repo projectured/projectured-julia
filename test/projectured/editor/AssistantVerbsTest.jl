@@ -536,6 +536,12 @@ document takes a part of that document too.
 
 # The verbs of main whose documentation lacks a "Use it to" line, a "See also" line
 # or an example that parses, on main 2026-11-20, not studied yet.
+# Whether a model writes `name` after the `using` of a standard library of the
+# list, as it writes `Date` after `using Dates`.
+_is_assistant_library_name(name::AbstractString) =
+    any(id -> Base.root_module_exists(id) && Base.isexported(Base.root_module(id), Symbol(name)),
+        values(ProjecturedKernel.DocumentModule.LOADABLE_STANDARD_LIBRARIES))
+
 const _VERB_FORM_KNOWN_INCOMPLETE = Set{String}([
     "ReferenceModule.get_range_direction", "ReferenceModule.get_range_ends",
     "ReferenceModule.make_range_reference_step",
@@ -625,6 +631,7 @@ end
                 @test_broken called in writable || isdefined(Base, Symbol(called)) || !is_binding
             else
                 @test called in writable || isdefined(Base, Symbol(called)) || !is_binding ||
+                      _is_assistant_library_name(called) ||
                       error(string(nameof(entry.module_), ".", name, " calls `", called,
                                    "` in its example, which no model can write"))
             end
@@ -651,6 +658,9 @@ end
         head = match(r"^(@?[A-Za-z_][A-Za-z0-9_]*!?)(\(.*\))?$", found.captures[1])
         head === nothing && continue
         name = String(head.captures[1])
+        # The keywords `using` and `import`, which the text names for the standard
+        # libraries, are no names of the editor.
+        name in ("using", "import") && continue
         @test name in words || error("the system text names `" * name * "`, which no model can write")
     end
     # The guide that the text names. A name that no declared module defines, such as
