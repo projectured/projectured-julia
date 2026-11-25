@@ -386,12 +386,12 @@ fakes and do not wait for that land.
      files of the person.
    - **`Dates`** is a new dependency of `ClaudeCodeACP`, for the time of a row
      in ISO 8601. It is a standard library.
-5. [ ] **The kernel gets the verbs** (P2). `AgentSessionInfo`,
+5. [x] **The kernel gets the verbs** (P2). `AgentSessionInfo`,
    `list_agent_sessions`, `load_agent_session!` and
    `AgentSessionConflictException` in `source/kernel/agent/`, with their
    defaults. Update [agent.md](../../documentation/package/kernel/agent.md).
    Test: `test_kernel(only = "agent")`.
-6. [ ] **`ProjecturedACP` lists, loads and refuses** (P2, P3, P10). The list
+6. [x] **`ProjecturedACP` lists, loads and refuses** (P2, P3, P10). The list
    reads every page. The load sends `session/load` when the agent advertises
    `loadSession`, and the replay goes to `events` as the updates of an open do
    now. A `user_message_chunk` outside a prompt of the client becomes
@@ -409,6 +409,51 @@ fakes and do not wait for that land.
    Show opens a tab that loads, Refresh reads again, and a window with no
    `:acp` assistant shows no stored rows. Update
    [assistant.md](../../documentation/package/platform/assistant/assistant.md).
+   Step 5: `test_kernel(only = "agent")` gives 4 parts, 140 pass, 0 fail.
+   Step 6: `test_acp()` gives 4 parts, 378 pass, 0 fail.
+
+   What steps 5 to 8 found and decided, 2026-11-25:
+   - **No new dependency.** A first version used `Dates` in `ClaudeCodeACP` and
+     `ProjecturedACP` for the time of a row. The checked-in
+     `environment/all/Manifest.toml` lists the dependencies of `ClaudeCodeACP`,
+     so the land of `ClaudeCodeACP` with `Dates` would break the load of main
+     until a new resolve. Both packages compute the date in the Gregorian
+     calendar instead (`format_utc_time`, `_read_iso_time`).
+   - **The compat of `ProjecturedACP` changes at step 9.** Its `[sources]` path
+     names the main checkout of `ClaudeCodeACP`, which is 0.1.11 until the land,
+     so the compat 0.1.12 comes after that land. The fakes of steps 5 to 8 need
+     no new agent.
+   - **A replayed prompt is one `user_message_chunk`** with its blocks of text
+     joined, so the editor, which makes one `LlmMessage` of each chunk, makes one
+     user turn of it.
+   - **The history waits in a queue of its own.** The load gives its events into
+     a queue that joins the feed of the window only after
+     `_apply_agent_history!` applied them on the editor task. The start posts
+     that call, and the next prompt runs it first, so the history comes before a
+     message that the person sent while it loaded.
+   - **A turn that comes from the agent between two prompts goes after the
+     turns that it saw**, before the first user turn that it did not see
+     (`_insert_agent_turn!`), and counts as seen. This holds for the history, a
+     message from the phone and a turn that the agent starts by itself.
+   - **The prompt reads the conversation in the same call** on the editor task
+     in which the events before it apply (`_start_agent_prompt_turn!` calls
+     `_read_agent_prompt!`). Before, the prompt read the conversation in one
+     call and applied the waiting events in the next, so a turn of the agent
+     that came between them shifted the count of the seen turns.
+   - **After the history, `agent_session_turn_count` holds the turns that the
+     session saw**, so a start again resumes and does not load a second time.
+   - **The refused message goes back as its parts**, with the new
+     `prepend_draft_parts!` of `ConversationModule`, before what the person
+     wrote since.
+   - **Show on a stored row makes a new assistant with the settings of an
+     assistant of the factory**, because a factory of the omnet IDE
+     (`_make_assistant_factory(assistant)`) answers the same assistant at each
+     call. A stored row that no program holds says "stored" in the column of the
+     activity.
+   - **A list that a tab shows at the start of the window reads its stored
+     sessions in the start step** of the wrapper, because it gets its factory
+     only there.
+
 9. [ ] **The live check in the omnet IDE**, with the real agent and the real
    conversations of this machine:
    - the pane lists them, and their titles and folders are right;
