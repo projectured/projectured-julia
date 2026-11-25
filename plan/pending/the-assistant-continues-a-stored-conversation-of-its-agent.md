@@ -470,6 +470,28 @@ fakes and do not wait for that land.
 
    Then ask the owner to check by hand that VS Code shows the turns that the IDE
    added (D1), because no tool here drives VS Code.
+
+   **A check before the land, 2026-11-25.** `julia-worktree` mounts only the
+   worktrees of projectured-julia and omnet-julia, so the IDE gets the new agent
+   only after its land. Before it, `ProjecturedACP` ran the new agent as a child
+   process (`command = julia --project=<the agent worktree> -e "serve_agent()"`)
+   in a job of 2 cores and no network, with the real files of this machine, in
+   the cache of the system, and sent no prompt to Claude:
+   - the start of the agent took 28.84 s, its compilation included;
+   - the list gave 123 conversations in 1.28 s (the first list of the process),
+     and in 0.15 s the second time; 9 are held, among them this session by
+     VS Code and the probe of step 1 by its waiting `claude -p`;
+   - the load of a conversation of 10.7 MB took 3.91 s, the first load of the
+     process, its compilation included, and gave 1426 events (842 tool call
+     updates, 7 prompts); the editor process held them in 1.2 MiB
+     (`Base.summarysize` of the events), its live heap grew by 2.5 MiB;
+   - the load of the largest conversation (110.5 MB) took 0.88 s and gave 19549
+     events (10774 tool call updates, 207 prompts), held in 17.3 MiB; the live
+     heap of the editor process grew by 27.9 MiB, and its peak resident memory
+     was 0.53 GiB; this measures no drawing of the turns;
+   - a prompt in the probe conversation, which a waiting `claude -p` held, was
+     refused before the agent started `claude`: `AgentSessionConflictException`
+     with the program "Claude Code" and `is_open`.
 10. [ ] **The land.** Run all parts as "Main is green" in `CLAUDE.md` says, and
     the fast parts of omnet-julia against the branch. Report, and ask the owner
     to approve the land. After the land, record the test calls again, remove the
