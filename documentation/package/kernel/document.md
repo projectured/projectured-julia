@@ -25,8 +25,10 @@ DocumentModule.jl   (DocumentModule)  — the aggregator: imports the cell and s
     ├─ SelectionDocument.jl  — SelectionDocument, the value a selection cell holds, and
     │                          unwrap_selection
     ├─ DocumentWalk.jl       — walk_document: the one reflection walk, along a DocumentWalk
-    └─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
-                               @adapt_map_protocol: give a wrapper another type's protocol
+    ├─ ForwardProtocol.jl    — @forward_protocol / @forward_vector_protocol /
+    │                          @adapt_map_protocol: give a wrapper another type's protocol
+    └─ StandardLibrary.jl    — LOADABLE_STANDARD_LIBRARIES and load_standard_library!: the
+                               standard libraries of Julia that the editor loads by name
 ```
 
 `DocumentInterface.jl` is the layer's contract file: an abstract type plus
@@ -281,6 +283,22 @@ another type's method protocol without a hand-written method per function:
   sequence of entry records into an ordered map. Not delegation: the backing field
   is integer-indexed, so the keyed methods translate between a key and its matching
   entry.
+
+## The standard libraries that the editor loads by name
+
+A document can hold a value of a standard library of Julia, such as the `Date`
+of a record, and the code of an assistant uses those libraries too.
+[StandardLibrary.jl](../../../source/kernel/document/StandardLibrary.jl) holds
+`LOADABLE_STANDARD_LIBRARIES`, the package ids of Dates, Statistics, Printf and
+Random, and `load_standard_library!(name)`, which answers the module of one of
+them and loads it first when the process holds it not yet. It answers `nothing`
+for each other name. The load goes by the package id with `Base.require`, so it
+does not depend on the load path: in a process whose load path has no
+`@stdlib`, a plain `using Statistics` fails, and this load works. The code tool of the
+kernel ([agent.md](agent.md#what-a-model-may-write)) and the reader of a `.pred`
+file ([serialization.md](../platform/serialization/serialization.md)) load a
+library only through it, so the list is the whole of what they load. The kernel
+takes no dependency for it: Julia ships the four libraries.
 
 ## Debug rendering
 

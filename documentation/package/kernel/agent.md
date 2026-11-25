@@ -518,11 +518,12 @@ Before a statement runs, `execute_julia_code!` reads each top-level `using` and
   and Random) loads by its package id with `load_standard_library!`. The scratch
   module binds it by its name, and the statement runs in its relative form:
   `using Dates` runs as `using .Dates`. So the load path of the process does not
-  matter. A process whose load path has no `@stdlib` refuses a plain
-  `using Statistics` with "Package Statistics not found in current path", and it
-  runs this one.
-- Any other package refuses the whole code with a `PackageLoadRefusedException`
-  before a statement runs, and its message names the libraries of the list. A
+  matter. In a process whose load path has no `@stdlib`, a plain
+  `using Statistics` fails with "Package Statistics not found in current path",
+  and this one runs.
+- A load of any other package stops the whole code with a
+  `PackageLoadRefusedException` before a statement runs, and its message names
+  the libraries of the list. A
   module of the editor, such as `PaneModule`, and the module of a registered entry,
   such as `DataFrames`, are no packages that the code loads: the declaration gives
   their names.

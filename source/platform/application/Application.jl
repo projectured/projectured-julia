@@ -429,7 +429,7 @@ const EDITOR_SYSTEM =
     "The rules:\n" *
     "- NEVER guess a name or a signature: search for it, then act. When a signature " *
     "answers the request, call the verb; a keyword that you leave out takes its default. " *
-    "`search_api` knows the names of the editor; the names of the standard libraries are " *
+    "`search_api` finds the names of the editor; the names of the standard libraries are " *
     "those of Julia.\n" *
     "- Find a part with a verb, such as `find_pane`, and do not walk the tree of the " *
     "window. A part acts like its data: index it, iterate it, read a field.\n" *

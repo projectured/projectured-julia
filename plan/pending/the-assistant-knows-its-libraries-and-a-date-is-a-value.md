@@ -180,8 +180,9 @@ The session proposes them. They are approved with the plan.
    > of any other package is refused.
 
    The rule "NEVER guess a name or a signature: search for it" gets a second
-   sentence: "`search_api` knows the names of the editor; the names of the
-   standard libraries are those of Julia." The rehearsal of step 9 can change
+   sentence: "`search_api` finds the names of the editor; the names of the
+   standard libraries are those of Julia." *Changed in step 7:* the first text
+   said "knows", which makes the tool a person. The rehearsal of step 9 can change
    these texts.
 4. **A `.pred` file names the package of a value of an outside type.**
    - The syntax: a call can have a qualified head of one module and one type,
@@ -398,11 +399,19 @@ tests of the steps before it. The work is in a worktree that
   broken marker of `main`; it needs more than the default limit of 1536 MiB of a
   part, so the request gave it 6 GB. No binary was built: a build takes long and
   much memory, and a library in `[deps]` is in the image.
-- [ ] **7. The guides.** The guide of the assistant says what is in scope and
+- [x] **7. The guides.** The guide of the assistant says what is in scope and
   which `using` runs. The guide of the serialization describes the qualified
   name and its list. The guide of the chart describes the time axis and updates
   its section "Limits". The guide of the builder names the libraries that a
   binary keeps. The guides name no private project.
+
+  Done on 2026-11-25. The guides of the agent stack, the document layer, the
+  architecture of the kernel, the assistant, the serialization, the chart and
+  the builder describe the change, and `SEALING.md` lists
+  `document/StandardLibrary.jl` as not sealed. The documentation guard shows the
+  2 violations and the 179 lines to read that `main` shows; the first text of the
+  guides added 5 such lines, with "refuses", "knows" and "asks for", and the text
+  of the window had "knows" too, so these sentences name the mechanism now.
 - [ ] **8. The OMNeT++ IDE.** Proposed decision 8, in a worktree of
   omnet-julia when its text needs a change.
   *Check:* the fast parts of omnet-julia pass against the branch. A test of the
