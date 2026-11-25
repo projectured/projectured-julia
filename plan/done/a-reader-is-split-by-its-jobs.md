@@ -262,7 +262,8 @@ Each step runs its suites against a baseline of main, in a worktree with a priva
   fast-forward. 86 of the 89 readers only map, so they become
   methods of `map_operation_backward`. Test: the suites of step 1, `Pkg.precompile()` with no
   warning.
-- [ ] **8. The compile-ahead lists** of the three repositories record again, as in
+- [x] **8. The compile-ahead lists** (recorded 2026-11-25, §7; projectured-julia 937909bbc and f2a6f957e,
+  omnet-julia 5d6ccad0f, inet-julia 30053d6) of the three repositories record again, as in
   [a-file-format-is-declared-once.md](../done/a-file-format-is-declared-once.md). Test: a
   precompile with no warning of a stale list.
 
@@ -1174,11 +1175,11 @@ network:
   so it would record all 60 lists and run each whole suite. The driver keeps the packages that
   do not end in `Test`.
 - **projectured, the test lists** (21 min, peak 6.3 GB): `tool/record-test-calls.jl --changed
-  b4c60496a`, the 14 test packages whose files the land changed. One commit, f2f9570da, holds
+  b4c60496a`, the 14 test packages whose files the land changed. One commit, 937909bbc, holds
   the 51 lists of both jobs. No list names the 3-argument `read_intent`, `ClaimedGesture`,
   `read_drawn_child_event` or the keyword `claimed`.
 - **omnet** (46 min, peak 9.1 GB): the 18 packages with a workload and then the application
-  `omnet_ide`, against projectured with its new lists; 22 lists, de0a35aa7. The trace gives
+  `omnet_ide`, against projectured with its new lists; 22 lists, 5d6ccad0f. The trace gives
   OmnetBuilder no call of `omnet_ide`, so its file of 2 calls of `Artifacts` (2026-11-02)
   goes.
 - **inet** (12 min, peak 7.7 GB): `InetRunner` and `InetExample`; only the list of
@@ -1195,3 +1196,23 @@ network:
     fails (a ratio of 35.6 against a bound of 3), while the trace compiles each call and a
     second recording runs beside it. The land run passed it. The suite runs to its end, so
     the list holds all its calls.
+- **Main moved during step 8.** Another session landed 13 commits on main (595d81e4b): the
+  time axis of a chart, a dependency of `ProjecturedChart` on `Dates`, and new parts of
+  `ProjecturedKernelTest` and `ProjecturedChartTest`. Then it landed the lists of
+  `ProjecturedBuilderTest` and `ProjecturedPivotTest` (306018039), and pushed main with the
+  approval of the owner, so steps 6 and 7 of projectured-julia are on origin. The branch
+  rebased twice with no conflict. The lists of `ProjecturedChart`, `ProjecturedKernelTest` and
+  `ProjecturedChartTest` recorded again over 595d81e4b (17 min, peak 7.3 GB, no workload
+  failed), f2a6f957e. The worktrees of omnet-julia and inet-julia took the manifests that the
+  other session resolved in the main checkouts.
+- **The test of step 8.** `Pkg.precompile()` of `environment/all` in each repository, with no
+  network, after the last recording: projectured (18 min, peak 9.0 GB), omnet (20 min, peak
+  13.5 GB) and inet (10 min, peak 12.3 GB). None warns that a recorded call no longer
+  resolves.
+- **The land of step 8, 2026-11-26.** "Yes land it", to the land of step 8 and the push of the
+  three main branches. Main had moved again: projectured-julia by 42 commits of other plans,
+  pushed (0b3175fe3), and omnet-julia by 2, pushed with d419fe0ad (11b9281ac). The one file
+  that both sides changed is the list of `ProjecturedKernelTest`, which main recorded in
+  34dbdf4fe on newer code that holds steps 6 and 7. The rebase keeps the list of main, so the
+  branch changes 50 lists of projectured-julia and not 51. omnet-julia rebased with no conflict
+  (5d6ccad0f), and inet-julia moved by a fast-forward (30053d6).
