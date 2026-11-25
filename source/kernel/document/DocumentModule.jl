@@ -26,6 +26,7 @@ its own definition:
 | [`SelectionDocument.jl`](SelectionDocument.jl) | `SelectionDocument` — the value a `selection` cell holds, and `unwrap_selection` |
 | [`DocumentWalk.jl`](DocumentWalk.jl) | `walk_document` — the one reflection walk, along a `DocumentWalk` that says which nodes it enters and in what order |
 | [`ForwardProtocol.jl`](ForwardProtocol.jl) | `@forward_protocol` / `@forward_vector_protocol` / `@adapt_map_protocol` — give a wrapper another type's protocol |
+| [`StandardLibrary.jl`](StandardLibrary.jl) | `LOADABLE_STANDARD_LIBRARIES` and `load_standard_library!` — the standard libraries of Julia that the editor loads by name, for the values that a document holds |
 """
 module DocumentModule
 
@@ -58,6 +59,7 @@ export DocumentWalk, is_field_entered, walk_document, make_string_predicate, is_
        DocumentMatches, WalkLimits, is_search_complete
 # how deep `show` descends before it elides
 export DOCUMENT_SHOW_MAX_DEPTH
+export LOADABLE_STANDARD_LIBRARIES, load_standard_library!
 
 include("DocumentInterface.jl")
 include("DocumentDefaults.jl")
@@ -68,5 +70,6 @@ include("DocumentMacro.jl")
 include("SelectionDocument.jl")
 include("DocumentWalk.jl")
 include("ForwardProtocol.jl")
+include("StandardLibrary.jl")
 
 end # module

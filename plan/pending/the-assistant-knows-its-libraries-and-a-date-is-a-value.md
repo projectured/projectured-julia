@@ -142,8 +142,10 @@ The session proposes them. They are approved with the plan.
      `using .Dates`, and `using Dates: Time` as `using .Dates: Time`. So the
      load path does not matter.
    - **The module of an entry that `register_assistant_api!` holds,** such as
-     `DataFrames` when its adapter is loaded: the scratch module binds it
-     already, and the statement runs in its relative form.
+     `DataFrames`, gets the refusal. *Changed in step 2:* the plan let it run,
+     but the code tool is in the kernel, and there an entry of an outside
+     package and an entry of a module of the editor are both an `ApiEntry`. The
+     registered names, such as `DataFrame`, are in scope with no `using`.
    - **Each other package:** no statement of the code runs. The tool answers
      with the names of the list:
 
@@ -289,6 +291,12 @@ The session proposes them. They are approved with the plan.
   `Statistics`, `Printf`, `Unicode`, `UUIDs`, `Base64` or `Serialization`.
 - `Dates.format` and `Random.seed!` are not exported, so the assistant writes
   them with the module name, which `using Dates` binds.
+- Each process that loads the kernel loads Dates: the kernel depends on
+  Preferences, Preferences on TOML, and TOML on Dates (found in step 3). So no
+  editor process lacks Dates, and the check "a file loads in a process that has
+  not loaded Dates" of step 3 can not run. `load_standard_library!` answers the
+  loaded module there.
+- The package id of Printf is `de0858da-6303-5e67-8744-51eddeeeb8d7`.
 
 ## Steps
 
@@ -296,11 +304,17 @@ Each step ends with a commit. Each step runs the tests that it names, and the
 tests of the steps before it. The work is in a worktree that
 `workspace/bin/julia-worktree` makes, with its test session.
 
-- [ ] **1. The list of the standard libraries.** Proposed decision 1, in
+- [x] **1. The list of the standard libraries.** Proposed decision 1, in
   `source/kernel/document/StandardLibrary.jl`.
   *Check:* a test loads each library of the list with `load_standard_library!`
   in a process whose `JULIA_LOAD_PATH` is `@`, and gets `nothing` for
   `:Plots` and for `:Pkg`. `test_kernel_layering()` passes.
+
+  Done on 2026-11-25. `LOADABLE_STANDARD_LIBRARIES` is a named tuple of
+  `Base.PkgId`s, and `load_standard_library!(name)` calls `Base.require` with
+  one. The part `test_standard_library` of `test_kernel()` has 16 of 16. Its
+  second process loads Statistics with `JULIA_LOAD_PATH=@`, where a plain
+  `using Statistics` fails.
 - [ ] **2. The code tool and the text of the window.** Proposed decisions 2
   and 3.
   *Check:* in a process whose `JULIA_LOAD_PATH` is `@`, a test runs
@@ -315,7 +329,6 @@ tests of the steps before it. The work is in a worktree that
   *Check:* a `RecordTable` with a `Date`, a `DateTime` and `nothing` goes to a
   file with `write_document_file!`, holds `Dates.Date("…")`, and comes back from
   `read_document_file` equal. Two saves give the same bytes. A file with
-  `Dates.Date("…")` loads in a process that has not loaded `Dates`. A file with
   `Base.Cmd(…)` or `Foo.Bar(…)` gives the error that names the package, and
   loads nothing. Each file of the examples reads as before. A test edits the
   date of a record through its tab, and through `replace_referenced_value!`,
