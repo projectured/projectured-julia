@@ -81,6 +81,36 @@ Throws an [`AgentSignInException`](@ref) when the agent needs a sign-in.
 function fork_agent_session! end
 
 """
+    list_agent_sessions(connection; directory = nothing) -> Vector{AgentSessionInfo}
+
+The sessions that the agent keeps, which [`load_agent_session!`](@ref) can
+open, the one with the newest change first. They include sessions that other
+programs made with the same agent, such as an editor of another vendor.
+`directory`, when given, keeps only the sessions of that folder. A connection
+whose agent keeps no list answers an empty vector. The connection must be
+started.
+"""
+function list_agent_sessions end
+
+"""
+    load_agent_session!(connection; session_id, directory, mcp_servers = [], instructions = "",
+                        on_event = nothing, events = nothing) -> Union{String,Nothing}
+
+Open the session `session_id` that the agent keeps, and put its history on
+`events` before the call answers: each message of the person as an
+`LlmMessage` of the role `:user`, and each answer as the events that a prompt
+gives, in the order of the session. Answers the id of the session. `directory`
+must be the folder of the session, as its [`AgentSessionInfo`](@ref) names it.
+The other keywords are those of [`open_agent_session!`](@ref), and the events
+after the call go where they say.
+
+Answers `nothing` when the agent can not load that session: it can not load a
+session at all, or it does not keep that one. The caller then resumes it with
+`open_agent_session!`, and has none of the history.
+"""
+function load_agent_session! end
+
+"""
     set_agent_option!(connection, session_id, option_id, value; on_event = nothing)
 
 Set the option `option_id` of the session to `value`, the `value` of one of the
@@ -103,7 +133,9 @@ It is called on a task that is not the editor's.
 
 Answers why the turn ended: `:end_turn`, `:max_tokens`, `:max_turn_requests`,
 `:refusal` or `:cancelled`. Throws an [`AgentSignInException`](@ref) when the
-agent needs a sign-in, as after [`sign_out_agent!`](@ref).
+agent needs a sign-in, as after [`sign_out_agent!`](@ref). Throws an
+[`AgentSessionConflictException`](@ref) when the agent refuses the prompt
+because another program writes the session.
 """
 function send_agent_prompt! end
 

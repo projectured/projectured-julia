@@ -16,6 +16,11 @@ end
 # A connection that does not say how to fork a session can not.
 fork_agent_session!(connection; kwargs...) = nothing
 
+# A connection that does not say how to list or load the sessions of its agent
+# keeps none.
+list_agent_sessions(connection; directory = nothing) = AgentSessionInfo[]
+load_agent_session!(connection; kwargs...) = nothing
+
 # A connection that does not say how to take a prompt into a turn that runs can not.
 has_agent_steering(connection) = false
 steer_agent_prompt!(connection, session_id, prompt) = false

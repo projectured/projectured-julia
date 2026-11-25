@@ -483,6 +483,43 @@ end
 Base.showerror(io::IO, exception::AgentSignInException) = print(io, exception.message)
 
 """
+    AgentSessionInfo(id, directory, title, last_prompt, updated_at, holder)
+
+A session that an external agent keeps, as [`list_agent_sessions`](@ref)
+answers it: its `id`, the folder in which it works, its `title`, the text of its
+last prompt, the time of its last change in seconds after 1970, and `holder`,
+the name of the program that holds the session now, such as "VS Code". Each of
+`title`, `last_prompt` and `updated_at` is `nothing` when the agent does not
+say it, and `holder` is empty when no program holds the session.
+"""
+struct AgentSessionInfo
+    id::String
+    directory::String
+    title::Union{Nothing,String}
+    last_prompt::Union{Nothing,String}
+    updated_at::Union{Nothing,Float64}
+    holder::String
+end
+
+"""
+    AgentSessionConflictException(program, is_open, message)
+
+Thrown when an external agent refuses a prompt because another program writes
+the session too: `program` names it, such as "VS Code". With `is_open`, the
+program holds the session now, and the prompt can go after the program closes
+it. Without, the program added turns that the caller did not see: the caller
+loads the session again to show them, and then the prompt can go. `message`
+says it in words for a person.
+"""
+struct AgentSessionConflictException <: Exception
+    program::String
+    is_open::Bool
+    message::String
+end
+
+Base.showerror(io::IO, exception::AgentSessionConflictException) = print(io, exception.message)
+
+"""
     AgentEventQueue()
 
 The events of a stream in the order in which they came: the events of a session

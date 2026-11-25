@@ -77,6 +77,19 @@ function test_agent_defaults()
         @test stop_agent_background_task!(make_agent_connection(:toy), "s", "task") === false
     end
 
+    @testset "a connection that does not say how to list or load sessions keeps none" begin
+        @test list_agent_sessions(make_agent_connection(:toy)) == AgentSessionInfo[]
+        @test list_agent_sessions(make_agent_connection(:toy); directory = "/work") == AgentSessionInfo[]
+        @test load_agent_session!(make_agent_connection(:toy); session_id = "s", directory = "/work") === nothing
+    end
+
+    @testset "a conflict of a session shows its message" begin
+        exception = AgentSessionConflictException("VS Code", true, "VS Code holds this conversation now.")
+        @test sprint(showerror, exception) == "VS Code holds this conversation now."
+        info = AgentSessionInfo("s", "/work", "Fix it", nothing, 1.0, "VS Code")
+        @test info.holder == "VS Code" && info.last_prompt === nothing && info.updated_at == 1.0
+    end
+
     @testset "a sign-in exception shows its message" begin
         method = AgentSignInMethod("login", "Log in", "Run the login.", `agent --login`)
         exception = AgentSignInException("Toy Agent", [method], "Toy Agent needs a sign-in.")

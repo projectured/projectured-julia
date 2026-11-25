@@ -23,7 +23,8 @@ Eight fragments share this namespace:
   start in time, and how long that wait is by default.
 - [`AgentConnectionInterface.jl`](AgentConnectionInterface.jl) — the
   external-agent contract: `make_agent_connection`, `start_agent_connection!`,
-  `open_agent_session!`, `fork_agent_session!`, `set_agent_option!`,
+  `open_agent_session!`, `fork_agent_session!`, `list_agent_sessions`,
+  `load_agent_session!`, `set_agent_option!`,
   `send_agent_prompt!`, `cancel_agent_prompt!`, `cancel_agent_subagent!`,
   `stop_agent_background_task!`, `close_agent_session!`,
   `stop_agent_connection!`, `sign_in_agent!`, `has_agent_sign_out`,
@@ -38,7 +39,9 @@ Eight fragments share this namespace:
   `AgentSessionInfoUpdate`, `AgentCommandsUpdate`, and the work of the agent:
   `AgentSubagentUpdate`, `AgentBackgroundTaskUpdate`, `AgentNoticeUpdate` and
   `AgentCompactionUpdate`; the sign-in that an agent asks for:
-  `AgentSignInException` with its `AgentSignInMethod`s; and the
+  `AgentSignInException` with its `AgentSignInMethod`s; the sessions that an
+  agent keeps, `AgentSessionInfo`, and the refusal of a prompt in a session
+  that another program writes, `AgentSessionConflictException`; and the
   `AgentEventQueue` that holds the events of a session between two prompts.
 
 **What the loop owns, and what it does not.** It owns the *control flow* of an agent
@@ -74,7 +77,7 @@ export make_agent_server, start_agent_server!, stop_agent_server!, stop_agent_se
        EditorCallTimeoutException, EDITOR_CALL_TIMEOUT_SECONDS
 export get_agent_server_names, get_agent_server_access
 export make_agent_connection, start_agent_connection!, open_agent_session!, fork_agent_session!,
-       set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, cancel_agent_subagent!,
+       list_agent_sessions, load_agent_session!, set_agent_option!, send_agent_prompt!, cancel_agent_prompt!, cancel_agent_subagent!,
        stop_agent_background_task!, close_agent_session!,
        stop_agent_connection!, get_agent_connection_names, sign_in_agent!, has_agent_sign_out,
        sign_out_agent!, has_agent_steering, steer_agent_prompt!
@@ -84,7 +87,7 @@ export AgentToolCallUpdate, AgentPlanEntry, AgentPlanUpdate,
        AgentOptionValue, AgentOption, AgentOptionsUpdate, AgentUsageUpdate,
        AgentSessionInfoUpdate, AgentCommand, AgentCommandsUpdate,
        AgentSubagentUpdate, AgentBackgroundTaskUpdate, AgentNoticeUpdate, AgentCompactionUpdate,
-       AgentSignInMethod, AgentSignInException,
+       AgentSignInMethod, AgentSignInException, AgentSessionInfo, AgentSessionConflictException,
        AgentEventQueue, put_agent_event!, take_agent_events!
 
 include("AgentInterface.jl")
