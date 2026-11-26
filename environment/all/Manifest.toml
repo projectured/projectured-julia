@@ -2,7 +2,7 @@
 
 julia_version = "1.13.1"
 manifest_format = "2.1"
-project_hash = "da17faf04f46ed359a5b41a4fa778679617f8de0"
+project_hash = "bf6308f9b5b765e66137bc28735d9b5d14c85fa5"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -13,7 +13,7 @@ version = "0.5.4"
 
 [[deps.AgentClientProtocol]]
 deps = ["JSON"]
-path = "../../../../../workspace/AgentClientProtocol.jl"
+path = "../../../AgentClientProtocol.jl"
 uuid = "9897b34e-e318-42ec-8700-51bd28135f60"
 version = "0.1.0"
 
@@ -27,7 +27,7 @@ version = "1.11.0"
 
 [[deps.AutoIntegration]]
 deps = ["TOML"]
-path = "../../../../../workspace/AutoIntegration.jl"
+path = "../../../AutoIntegration.jl"
 uuid = "40fd747d-4b08-4b8c-98c4-74a2b6295b1b"
 version = "0.1.1"
 
@@ -65,7 +65,7 @@ version = "1.18.7"
 
 [[deps.ClaudeCodeACP]]
 deps = ["AgentClientProtocol", "HTTP", "JSON", "Random", "Sockets", "UUIDs"]
-path = "../../../../../workspace/ClaudeCodeACP.jl"
+path = "../../../ClaudeCodeACP.jl"
 uuid = "397ce549-bc36-418a-97e7-6295a63dbdc4"
 version = "0.1.11"
 
@@ -668,7 +668,7 @@ version = "1.11.0"
 
 [[deps.ModelContextProtocol]]
 deps = ["Base64", "DataStructures", "Dates", "HTTP", "JSON3", "JWTs", "Logging", "MacroTools", "OrderedCollections", "PrecompileTools", "Random", "SHA", "Sockets", "StructTypes", "URIs", "UUIDs"]
-path = "../../../../../workspace/ModelContextProtocol.jl"
+path = "../../../ModelContextProtocol.jl"
 uuid = "318f8e74-e016-4659-bb5b-d8af92946dd5"
 version = "0.7.1"
 
