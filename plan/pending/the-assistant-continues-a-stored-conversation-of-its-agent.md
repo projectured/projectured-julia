@@ -492,6 +492,79 @@ fakes and do not wait for that land.
    - a prompt in the probe conversation, which a waiting `claude -p` held, was
      refused before the agent started `claude`: `AgentSessionConflictException`
      with the program "Claude Code" and `is_open`.
+
+   **The land of `ClaudeCodeACP`, 2026-11-26.** The owner approved it ("Yes,
+   and push"). Its `main` went from `0e5d933` to `f660b8c` by a fast-forward.
+   The push waits: that `main` also holds `0e5d933` (Remote Control, landed by
+   the plan of the catch-up assistant on 2026-11-19 and never pushed), which
+   the approval did not name. The branch `continue-stored-conversation` went
+   onto main `6aca93193` by a rebase with no conflict, and its commit `202722a6d`
+   sets the compat of `ClaudeCodeACP` in `ProjecturedACP` to 0.1.12 and the
+   version in `environment/all/Manifest.toml`. The CI checks out
+   `ClaudeCodeACP.jl` from GitHub, so a push of this branch needs the push of
+   `ClaudeCodeACP` first.
+
+   **The live check, 2026-11-26.** The IDE ran from the worktree in a job of
+   `bounded-run` with 6 cores and the network (`julia-worktree run --net`), as
+   `run_omnet_ide(<a copy of the sample fifo>; llm = :acp)` with
+   `SDL_VIDEODRIVER=offscreen`, driven by command files. Its load and compile
+   took 549 s, and the window opened in 11.5 s. The built program of the IDE
+   loads `ProjecturedACP`; the command loaded it only after the start, so the
+   first open of the pane read no stored session, and its "Refresh" read them.
+   The numbers below are of that one IDE process, with the tabs of the
+   conversations before it still open:
+   - [x] **The list.** The first Refresh gave 124 rows in 3.75 s, the next one
+     in 0.32 s. 8 are held, and their column says "open in VS Code" or "open in
+     Claude Code". The folders are right. **Found:** when a conversation has
+     no title, the agent gives its first prompt as the title, on one line; one
+     has 4305 characters. The column of the titles is as wide as its widest
+     title, so the other columns went out of the pane. The fix cuts a title of a
+     row at 80 characters with "…", as the conversation tree cuts the label of a
+     node, and shows the whole title in a tooltip. A tab already cuts its title
+     at its width.
+   - [x] **A small VS Code conversation** (`26df2cd3`, 0.44 MB, "help") opened
+     with Show: its tab came after 0.66 s, its history after 0.73 s, and the
+     editor task answered after 1.42 s, the frame of the history drawn. The
+     live heap grew by 8.2 MiB. The tab shows the prompt and the answer.
+   - [x] **The middle conversation** (`49ff5ca8`, 10.69 MB): history after
+     2.15 s, the editor task after 2.79 s, 14 turns, live heap +57.8 MiB.
+   - [x] **The largest conversation** (`94a972ad`, 110.5 MB): history after
+     8.89 s, the editor task after 9.42 s, 412 turns, live heap +827.8 MiB;
+     the peak resident memory of the IDE process went to 3.69 GiB. After that,
+     a call to the editor task took 3 to 4 ms. "Live heap" is
+     `Base.gc_live_bytes` after a full collection, before and after the open.
+     As the limits of this plan say, the memory of a long transcript goes to a
+     plan of its own.
+   - [x] **Found in both: a tool call that ran at the same time as others
+     ended as failed, and showed as an empty card "tool · tool" at the end of
+     the conversation.** Claude Code writes each call of one answer as its own
+     record, in a line, and the result of each call is a child of the record
+     of its call. The chain from the leaf went through the result of the last
+     call only. On the 150 files of this machine, 5275 of 85742 tool calls got
+     no result. And the replay sent "failed" for them at the end of the whole
+     conversation, where the editor finds no card with that id in the last turn
+     and makes a new one. The fix in `ClaudeCodeACP`, branch
+     `replay-parallel-results`, commit `05f1044`: the chain also takes a
+     `user` record off the chain whose parent is on the chain and which holds
+     the result of a call of the chain with no result on the chain; and a call
+     with no result ends as failed at the end of its own turn. After it, no
+     tool call of the 150 files is without a result; 492 tests pass.
+   - [x] **A send** in the conversation `b6a0eab0`, which `claude -p` made in
+     the scratchpad: the answer "BRAVO" showed after 4.1 s, and the file got
+     the prompt and the answer (16 lines).
+   - [x] **The note of D5.** A second `claude -p --resume` that waits for input
+     held the conversation (its entry point is `claude-vscode`, because the
+     shell runs in the VS Code extension). A send was refused: no line came to
+     the file, the text went back into the input field, and the note says "VS
+     Code holds this conversation now. Close it there, and then send again."
+     The first refusal took 10.8 s, the first call of that code in the
+     process; the second took 1.27 s from the press to the note, and the
+     search of the holders in the agent takes 5 ms. After the holder ended,
+     the next send answered after 2.0 s.
+   - [ ] After the land of `05f1044`: open the middle and the largest
+     conversation again in a new IDE, and see the list with the cut titles.
+   - [ ] The owner checks by hand that VS Code shows the turns that the IDE
+     added (D1).
 10. [ ] **The land.** Run all parts as "Main is green" in `CLAUDE.md` says, and
     the fast parts of omnet-julia against the branch. Report, and ask the owner
     to approve the land. After the land, record the test calls again, remove the
