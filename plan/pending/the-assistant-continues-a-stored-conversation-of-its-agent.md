@@ -625,5 +625,6 @@ fakes and do not wait for that land.
     passed in the records of the other branches. The branch changes nothing of
     the language server; a run in fresh workers found no room in the memory
     budget. Step 10 runs it again.
-- The land of `ClaudeCodeACP` waits for the approval of the owner, and step 9
-  waits for that land.
+- 2026-11-26: the owner approved the land and the push of `ClaudeCodeACP`;
+  both are done, with the fix of the replay (`05f1044` on GitHub). Step 9 is
+  done but for the check by hand in VS Code (D1). Step 10 runs.
