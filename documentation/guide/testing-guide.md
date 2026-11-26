@@ -787,6 +787,30 @@ runs cost no walk of every task. It starts 20,000 processes in about 25 s, so
 `test_platform` does not call it. Run it after a change of the task slice, of
 the walk of the part under the pointer, or of a lazy table.
 
+## Memory: does an editor stay flat over a cycle of gestures?
+
+`test_editor_memory_cycle()` (`ProjecturedTest`, a slow part with a limit of 30
+minutes) runs one cycle of gestures 60 times in one window of `run_application`,
+on a headless backend, with an undo capacity of 10. A cycle inserts and deletes an
+element of a list in a tab, opens a new file as the page of the explorer, clicks a
+value of it, types a key and saves, waits until the page shows a change on disk,
+opens and closes a file in a tab of its own, and opens another page and goes Back.
+
+After cycle 20, 40 and 60 the test takes a report of what holds the memory of the
+editor (`compute_held_memory`, [memory.md](../package/platform/memory/memory.md)). A
+holder grows when it keeps more than 64 KiB more in each half, about 3.3 KB in
+each cycle, and the gain repeats: neither half gains more than four times the
+other. It takes only the gain
+that the growing holders below it do not explain, so the root takes the growth
+that no listed holder explains. The live memory of the process that the editor does
+not reach is a line of its own, `(unreached)`, with a margin of 4 MiB, four times
+the noise of two reports in a row. Each store that grows on main is an entry of
+`_MC_KNOWN_GROWTH`, a part of the path of its holder with its reason. A
+growth that an entry names counts as broken, and a growth that no entry names fails,
+and so does an entry that names no growth. So a fix of a store removes its entry.
+
+Run it after a change of what a view, a page, a file document or a history keeps.
+
 ## Reactivity: does the output follow the input?
 
 `test_reactivity()` sweeps every registered example and asserts the property no

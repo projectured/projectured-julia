@@ -178,7 +178,7 @@ Each decision counts as approved when the owner approves the plan.
 
 ## Steps
 
-1. **Done on 2026-11-25, but the measurement on the editor, which step 3 makes.**
+1. **Done on 2026-11-25, and the measurement on the editor on 2026-11-26: 121 bytes for each object.**
    **The walk and the report.** Write the slice `source/platform/memory/`:
    `compute_held_memory(root)`, which gives a `HeldMemory` with `total_bytes`,
    `object_count`, `holders` (a list of `MemoryHolder` with `path`, `type`, `bytes`
@@ -191,13 +191,14 @@ Each decision counts as approved when the owner approves the plan.
    are more than 150 bytes, stop and ask (risk 1).
 2. **Done on 2026-11-26.** **The verb of the assistant.** Write `describe_held_memory()` with its mark, and
    add a case to `test_assistant_verbs`.
-3. **The test of the cycle.** Write `test_editor_memory_cycle` in
+3. **Done on 2026-11-26, with 60 cycles in place of 230 (see "What the work found").**
+   **The test of the cycle.** Write `test_editor_memory_cycle` in
    `test/projectured/performance/EditorMemoryCycleTest.jl`, with the cycle of P5 and
    the measurement of P6, and list it in `ProjecturedSuite.jl` as a slow part with a
    time limit of 30 minutes. Run it on the branch, and write each holder that grows
    into the list of P7, with its reason. Record here which stores of the reading grow,
    by how much in each cycle, and which do not.
-4. **The documentation.** Write the design document of the slice. Add the section
+4. **Done on 2026-11-26.** **The documentation.** Write the design document of the slice. Add the section
    "What holds the memory of an editor" to `documentation/guide/debugging-guide.md`,
    and the test of the cycle to `documentation/guide/testing-guide.md`. Add the slice
    to the index of the package documents.
@@ -261,7 +262,7 @@ Facts and decisions of the work, in the order of the steps.
   (`.enclosing.enclosing… FaultCatchingIoMap`). So a view that a print makes keeps
   that print. It also shows the dispatch table of a projection, 9.2 MiB and 24 463
   objects, five times, each under a holder of its own.
-- `test_held_memory()` passes 40 of 40, and the layering guard and the edge guard of
+- `test_held_memory()` passes 40 of 40 (44 of 44 after the checks of step 3), and the layering guard and the edge guard of
   the platform pass with the broken counts of their lists. The static guards
   `test/suite/documentation.jl` and `test/suite/exports.jl` fail on main too, with 2
   links to a plan that moved and 1 export order in `GestureModule.jl`; the branch adds

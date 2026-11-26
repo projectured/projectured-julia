@@ -29,6 +29,7 @@ One package, `ProjecturedPlatform`, holds every slice below every domain. [packa
 | `settings` | [settings.md](platform/settings/settings.md) | what a person chooses about how an editor works: the settings groups, their descriptions, and the operation that writes a setting and applies it |
 | `settingsmanaging` | [settingsmanaging.md](platform/settingsmanaging/settingsmanaging.md) | the settings of an editor in its view: the root document that holds them, the wrapper that turns an edit of a setting into an applied setting, and the start step |
 | `component` | [component.md](platform/component/component.md) | the master-detail component document |
+| `memory` | [memory.md](platform/memory/memory.md) | what holds the memory of an editor: the walk of the objects that a root reaches, the holder of each, and the report as a verb of the assistant |
 | `projection` | [projection.md](platform/projection/projection.md), with [generic-projections.md](platform/projection/generic-projections.md) and [higher-order-projections.md](platform/projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `dragging` | [dragging.md](platform/dragging/dragging.md) | reorder by drag and drop |
 | `focus` | [focus.md](platform/focus/focus.md) | the focus walk and the whole selection by Alt+double click |

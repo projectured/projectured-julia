@@ -70,6 +70,7 @@ In the order of the chain. The kind is the one in the document's header.
 | [package/README.md](package/README.md) | reference | The design document of each package, one folder per slice. |
 | [autointegration.md](package/autointegration/autointegration.md) | design | How does AutoIntegration load an installed package, and why is each integration its own package? |
 | [essentials.md](package/platform/essentials/essentials.md) | design | Which few names does the umbrella give, and why does a program that needs more write `ProjecturedPlatform`? |
+| [memory.md](package/platform/memory/memory.md) | design | What holds the memory of an editor, and how does the report find the holder of each object? |
 | [orientation.md](guide/orientation.md) | reference | Where do I look first, and what do I search for? |
 | [setup-guide.md](guide/setup-guide.md) | procedure | How do I install it and open a session? |
 | [assistant-guide.md](guide/assistant-guide.md) | procedure | How do I run the assistant, with Ollama or with Claude? |

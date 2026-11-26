@@ -427,6 +427,41 @@ The walker used by the test suite (`_walk!` in
 [kernel/test/editor/PrinterTest.jl](../../test/kernel/editor/PrinterTest.jl)) is a
 good template if you need to dump every reachable cell of a tree.
 
+## What holds the memory of an editor
+
+When the memory of an editor grows, ask which store keeps it.
+`compute_held_memory(editor)` walks the objects that the editor reaches through
+strong references, and names the holders that keep the most bytes, each with its
+path from the editor ([memory.md](../package/platform/memory/memory.md)):
+
+```julia
+julia> report = compute_held_memory(editor);
+
+julia> report.total_bytes, report.object_count     # the window of the memory test after 60 cycles
+(526584242, 10991510)
+
+julia> report.holders[2].path, report.holders[2].bytes
+(".session_documents[DocumentHolders].counts[#66508d FileView].key.content.content.elements.kept", 449778004)
+```
+
+The second line is the view of the list of a tab, which keeps the view of each
+element that it showed. The first holder is the root itself.
+
+`show(stdout, MIME"text/plain"(), report)` prints the report as text, and
+`describe_held_memory()` gives that text for the editor of an evaluation, so the
+assistant of the IDE runs it when you ask. A holder keeps an object when every
+path from the editor to the object goes through the holder, so the bytes of two
+lines that are not on one path never overlap.
+
+To find a store that grows, take a report, repeat a gesture many times, and take a
+second report. A path whose bytes grow in both is the store. Lower
+`minimum_bytes` to see a small store: `compute_held_memory(editor; minimum_bytes =
+16 << 10, minimum_share = 1, limit = 2000)` lists each holder of 16 KiB or more.
+
+Do not run it on a large editor without room: the walk holds the process for its
+time, and it needs about 100 bytes for each object that the editor reaches.
+`report.walk_bytes` says how many it needed.
+
 ## Generating all screenshots
 
 To regenerate every example screenshot in `image/` and re-inject the image
