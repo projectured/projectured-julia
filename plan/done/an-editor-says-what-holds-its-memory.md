@@ -1,6 +1,7 @@
 # An editor says what holds its memory
 
-**Status:** approved by the owner on 2026-11-25 ("I approve the plan"), in work. The
+**Status:** done on 2026-11-26, and landed on main as `392cc9f16`. Approved by the
+owner on 2026-11-25 ("I approve the plan"). The
 owner asked for this plan on 2026-11-25 ("yes, write the plan for step 1"). The work
 goes in the worktree `projectured-julia-held-memory`, on the branch `held-memory`. The
 owner asked that the measurement of step 3 waits until the machine is idle.
@@ -202,8 +203,10 @@ Each decision counts as approved when the owner approves the plan.
    "What holds the memory of an editor" to `documentation/guide/debugging-guide.md`,
    and the test of the cycle to `documentation/guide/testing-guide.md`. Add the slice
    to the index of the package documents.
-5. **The check is done on 2026-11-26 (see "What the work found"); the land and the
-   record of the calls wait for the word of the owner.**
+5. **Done on 2026-11-26.** The owner approved the land and the push ("Yes"), and
+   `main` moved from `306018039` to `392cc9f16`. `ProjecturedTest` and
+   `ProjecturedPlatformTest` have no list of calls, so the record after the land had
+   nothing to record.
    **The check before the land.** Run all the parts in the worktree, as "Main is
    green" in `CLAUDE.md` says, and record the calls of `ProjecturedTest` and
    `ProjecturedPlatformTest` after the land. Then ask the owner to land, with the list
