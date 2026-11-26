@@ -99,6 +99,15 @@ function test_held_memory()
         @test !haskey(paths, ".value[3].value")
     end
 
+    @testset "a long list and a long dictionary" begin
+        items = Any[_HeldBox(index) for index in 1:100]
+        items[77] = _HeldBox(zeros(UInt8, 100_000))
+        @test only(compute_held_memory(_HeldBox(items); minimum_bytes = 1000).holders).path == ".value[77].value"
+        table = Dict{Any, Any}(index => index for index in 1:100)
+        table[55] = zeros(UInt8, 100_000)
+        @test only(compute_held_memory(_HeldBox(table); minimum_bytes = 1000).holders).path == ".value[55]"
+    end
+
     @testset "elements that a list holds in place" begin
         root = _HeldBox(Tuple{Int, Any}[(1, zeros(UInt8, 10)), (2, zeros(UInt8, 100_000))])
         @test only(compute_held_memory(root; minimum_bytes = 1000).holders).path == ".value[2][2]"
@@ -108,11 +117,20 @@ function test_held_memory()
         root = _HeldBox(Dict{Any, Any}("big" => zeros(UInt8, 100_000), "small" => zeros(UInt8, 10)))
         holder = only(compute_held_memory(root; minimum_bytes = 1000).holders)
         @test holder.path == ".value[\"big\"]"
+        # A key that is an object: its type and a mark of its identity, which stays
+        # while the key lives, also when the table grows.
         key = _HeldBox(1)
-        root = _HeldBox(IdDict{Any, Any}(key => zeros(UInt8, 100_000)))
-        @test only(compute_held_memory(root; minimum_bytes = 1000).holders).path == ".value[#1 _HeldBox]"
+        table = IdDict{Any, Any}(key => zeros(UInt8, 100_000))
+        path = only(compute_held_memory(_HeldBox(table); minimum_bytes = 1000).holders).path
+        @test occursin(r"^\.value\[#[0-9a-f]{6} _HeldBox\]$", path)
+        foreach(index -> table[_HeldBox(index)] = index, 1:100)
+        @test only(compute_held_memory(_HeldBox(table); minimum_bytes = 1000).holders).path == path
         root = _HeldBox(IdDict{Any, Any}(_HeldBox(zeros(UInt8, 100_000)) => 1))
-        @test only(compute_held_memory(root; minimum_bytes = 1000).holders).path == ".value[#1 _HeldBox].key.value"
+        path = only(compute_held_memory(root; minimum_bytes = 1000).holders).path
+        @test occursin(r"^\.value\[#[0-9a-f]{6} _HeldBox\]\.key\.value$", path)
+        # A key that is a type shows the type.
+        root = _HeldBox(Dict{Any, Any}(Vector{Int} => zeros(UInt8, 100_000)))
+        @test only(compute_held_memory(root; minimum_bytes = 1000).holders).path == ".value[Array{Int64, 1}]"
     end
 
     @testset "a cell gives no step" begin

@@ -189,7 +189,7 @@ Each decision counts as approved when the owner approves the plan.
    structs that hold references. Measure the time and the memory of a walk on the
    editor of step 3 after 30 cycles: the bytes of the walk for each object. If they
    are more than 150 bytes, stop and ask (risk 1).
-2. **The verb of the assistant.** Write `describe_held_memory()` with its mark, and
+2. **Done on 2026-11-26.** **The verb of the assistant.** Write `describe_held_memory()` with its mark, and
    add a case to `test_assistant_verbs`.
 3. **The test of the cycle.** Write `test_editor_memory_cycle` in
    `test/projectured/performance/EditorMemoryCycleTest.jl`, with the cycle of P5 and
@@ -228,6 +228,16 @@ Facts and decisions of the work, in the order of the steps.
   and into the memory of a list or of a dictionary.
 - The memory of the elements of a list or of a dictionary is a part of its owner.
   Without that rule, each line named a `Memory{T}` and not the list that owns it.
+- P3 changed: an entry of a dictionary whose key is an object gives the type of the
+  key with a mark of the identity of the key, `[#3fa91c FileView]`, and not the place
+  of the entry. The first run of three cycles showed the path
+  `.session_documents[#15 DataType].counts[#18 FileView]…`: the place of an entry
+  changes when the table grows, so a holder below it gets a new path in each report,
+  and the test could not compare the reports. A key that is a type shows the type.
+- A path reuses the path of the object before it, and a memory of more than 32
+  elements gets a table of the places of its elements once. Without that, the
+  report of an editor of 1.9 million objects took 35 s and allocated 1362 bytes for
+  each object, because each of 2000 paths searched large lists again from the root.
 - The holder rule "at least 1 MiB or 1 %" lists a holder above the smaller of the
   two. The test lists by bytes only with `minimum_share = 1`.
 - The cost of the walk on a graph of 5.0 million small objects (cells, structs and
@@ -235,6 +245,22 @@ Facts and decisions of the work, in the order of the steps.
   85.8 bytes for each object at their largest, and the walk allocates 253 bytes for
   each object in all, because each table doubles as it grows. The walk takes 4.8 s,
   of which 0.8 s is the collector. The plan bound of 150 bytes for each object holds.
+- The cost on the editor of the cycle after 3 cycles (1.93 million objects, 10.7
+  million edges, 130 MiB that the editor reaches), measured on 2026-11-26 with one
+  other job on the machine: a second report takes 4.9 s, of which the walk takes
+  2.0 s and the dominators 0.9 s. The tables need 120.6 bytes for each object at
+  their largest, under the bound of 150; the report allocates 371.6 bytes for each
+  object in all. The first report of a process takes 29.8 s, of which 23.8 s
+  compiles the code of the walk, because no image holds it yet.
+- The first report of the cycle names a store that the reading did not find: each
+  view of an element of `list.json` keeps 16.2 MiB, about 400 000 objects. The path
+  goes from the view of the element (`….elements.kept[#… JsonObject].view`) through
+  the cell of its list of entries (`.entries.viewed`) to the fault scope of the
+  computation of that cell (`.scope`, a `_FaultScopedComputation`), and from there
+  to the IO map of the print in which the view was made
+  (`.enclosing.enclosing… FaultCatchingIoMap`). So a view that a print makes keeps
+  that print. It also shows the dispatch table of a projection, 9.2 MiB and 24 463
+  objects, five times, each under a holder of its own.
 - `test_held_memory()` passes 40 of 40, and the layering guard and the edge guard of
   the platform pass with the broken counts of their lists. The static guards
   `test/suite/documentation.jl` and `test/suite/exports.jl` fail on main too, with 2
@@ -244,6 +270,74 @@ Facts and decisions of the work, in the order of the steps.
   longer resolve. Runs on the code of main say 1599, so the list of main is stale, and
   the branch adds 27. The record of the calls after the land must also record the list
   of `ProjecturedPlatform`.
+
+**Step 3.**
+
+- The folder of the test holds the files of all the cycles from the start, so the
+  folder that the explorer lists does not grow in the cycle.
+- The folder reads its entries only when a part shows them, as when a person opens
+  its row. The test opens the page of the folder once, and waits until it lists all
+  the files.
+- Back is a press and a release of the side button of the mouse on the page, which
+  the navigator binds (`MouseClickPattern(:back)`). A test that also sends the click
+  goes back two visits, because the window makes a click of the press and the
+  release. The click waits for a second click, so the page shows in a later frame.
+- **P5 and P6 changed, and the owner must confirm it: the cycle runs 60 times, and
+  the reports are after cycle 20, 40 and 60.** The first run of 230 cycles stopped at
+  its cap of 12 GB after the second report. The editor reached 630 MB in 13.5
+  million objects after cycle 30, and 2.46 GB in 56.3 million objects after cycle
+  130: about 18 MB more in each cycle. At cycle 230 it would reach about 4.3 GB, and
+  the walk would need about 9 GB of tables, more than a part of the suite has. A half
+  of 20 cycles with the margin of 4 KiB still finds a store that keeps 205 bytes or
+  more in each cycle; a document, a view or a visit is larger. When the fixes make
+  the cycle flat, the count can grow again.
+- The report after cycle 130 took 120 s for 56.3 million objects, with 91.8 bytes of
+  tables for each object.
+- The message log of the process keeps its last 1000 lines, and each frame that
+  evaluates an operation logs a line, so the log was full only after about 50 cycles
+  and grew in both halves. The test sets its capacity to 100 for its time, as it
+  sets the undo capacity, and puts the old capacity back.
+- **P6 changed: the repeat rule is exact, and the check of the total that the
+  editor reaches is the line of the root.** A holder grows when the gain that the
+  growing holders below it do not explain is more than the margin in each half, and
+  neither half gains more than four times the other. Without the second part, the
+  window undo (7 KB, then 576 KB) and three old views of elements (6.4 MB, then
+  6 KB) counted as stores. The root takes the growth of the reached bytes that no
+  listed holder explains, so a separate bound on the reached total says nothing
+  more; its noise between two reports in a row is 45 bytes. The live memory of the
+  process that the editor does not reach is the line `(unreached)`, with a margin of
+  4 MiB: four times its noise of 0.8 MB between two reports in a row.
+- **The margin of a holder is 64 KiB in each half, about 3.3 KB in each cycle, not
+  4 KiB.** The list of the files of the folder of the explorer gains 20 KB to 90 KB
+  in a half, about twice as much in the first half as in the second, and its line
+  moves between `….counts[#… FileSystemDirectory].key.elements.elements` and
+  `….counts[#… WorkspaceFolder].key.directory` from run to run; one run of four
+  showed neither. With 4 KiB the test showed it only at some times, and a check that
+  fails only at some times gets no marker. With 64 KiB its growth stays in the line
+  of the root in each run.
+- The lines of the runs of 60 cycles on main, the same in four runs:
+
+  | Line | Gain in the first half | Gain in the second half | In each cycle |
+  |---|---|---|---|
+  | `….counts[#… FileView].key.content.content.elements.kept`, store 1 | 127.5 MB | 149.9 MB | about 7.5 MB |
+  | `(unreached)` | 32.1 to 32.3 MB | 32.3 MB | about 1.6 MB |
+  | `(the root)` | 0.86 to 1.02 MB | 1.08 to 1.16 MB | about 50 KB |
+
+  With the margin of 64 KiB the root also takes the folder: 1.27 MB, then 1.75 MB.
+  The test then passes with 3 broken, one for each line.
+- `test_assistant_verbs()` passes 128 of 128 with the case of the report.
+
+  The editor reaches 224 MB after cycle 20, 375 MB after cycle 40 and 527 MB after
+  cycle 60; the live memory of the process is 594 MB, 778 MB and 962 MB. In the
+  second half the objects that gain the most bytes are `Cell` (44 MB),
+  `Memory{_Dependency}` (32 MB), `Memory{WeakRef}` (22 MB), `Vector{WeakRef}`
+  (10 MB) and `WeakRef` (6 MB): the cells of the prints that the kept views hold.
+- Store 2, the Back list, shows no line of its own, and store 3 shows only as the
+  small line of the folder above. The probable reason, not checked: a page that both
+  the Back list and a file of the folder keep belongs to neither of them, but to the
+  nearest object above both, because a removal of one of the two frees nothing. So
+  these stores are a part of the line of the root. A report of the navigator alone,
+  `compute_held_memory(navigator)`, can check it.
 
 ## Risks
 

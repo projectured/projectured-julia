@@ -13,9 +13,9 @@ the object goes through the holder.
 - `path` is the shortest path from the root to the holder. A step is the name of
   a field, `.back`, or an index of a list, `[3]`. A field of a cell gives no step.
   An entry of a `Dict` or an `IdDict` gives the step of its key when the key is a
-  string, a symbol or a number, `["name"]`, and otherwise the place of the entry
-  with the type of its key, `[#5 JsonObject]`; its key adds `.key`. The empty path
-  is the root.
+  string, a symbol, a number or a type, `["name"]`, and otherwise the type of its
+  key with a mark of the identity of the key, `[#3fa91c JsonObject]`, which stays
+  while the key lives; its key adds `.key`. The empty path is the root.
 - `type` is the type of the holder.
 - `bytes` are the bytes of the holder and of the objects that it keeps.
 - `object_count` is the count of those objects, with the holder.
@@ -113,7 +113,8 @@ function compute_held_memory(@nospecialize(root); minimum_bytes::Integer = 1 << 
                  !_is_held_storage(graph, number, holders[number])]
     sort!(listed; by = number -> -kept_bytes[number])
     length(listed) > limit && resize!(listed, limit)
-    holder_list = MemoryHolder[MemoryHolder(_describe_object_path(graph, number),
+    cache = _PathCache()
+    holder_list = MemoryHolder[MemoryHolder(_describe_object_path(graph, number, cache),
                                             graph.types[graph.kinds[number]],
                                             kept_bytes[number], kept_counts[number])
                                for number in listed]
@@ -166,30 +167,42 @@ end
 
 # ── The path of a holder ─────────────────────────────────────────────────────
 
+# What the paths of one report have found: the path of each object on the way to a
+# holder, by its number, and the place of each element of a large memory. So a path
+# goes on from the path of the object before it, and a memory is searched once.
+struct _PathCache
+    paths::Dict{Int32, String}
+    places::IdDict{Any, IdDict{Any, Int}}
+end
+
+_PathCache() = _PathCache(Dict{Int32, String}(Int32(1) => ""), IdDict{Any, IdDict{Any, Int}}())
+
 # The path from the root to the object `number`, along the objects that the walk
 # reached each object from first.
-function _describe_object_path(graph::_MemoryGraph, number::Integer)
+function _describe_object_path(graph::_MemoryGraph, number::Integer, cache::_PathCache)
     chain = Int32[]
-    while number != 0
+    while !haskey(cache.paths, number)
         push!(chain, number)
         number = graph.parents[number]
     end
-    reverse!(chain)
-    path = IOBuffer()
-    for place in 2:length(chain)
-        above = place > 2 ? graph.objects[chain[place - 2]] : nothing
-        print(path, _describe_step(graph.objects[chain[place - 1]], graph.objects[chain[place]], above))
+    path = cache.paths[number]
+    for child in Iterators.reverse(chain)
+        parent = graph.parents[child]
+        above = graph.parents[parent]
+        path *= _describe_step(graph.objects[parent], graph.objects[child],
+                               above == 0 ? nothing : graph.objects[above], cache)
+        cache.paths[child] = path
     end
-    String(take!(path))
+    path
 end
 
 # The step from `parent` to `child`; `above` is the object that the walk reached
 # `parent` from, or `nothing`. A cell, a box of a captured variable, a list, a
 # dictionary and the memory that holds their elements give one step together.
-function _describe_step(@nospecialize(parent), @nospecialize(child), @nospecialize(above))
+function _describe_step(@nospecialize(parent), @nospecialize(child), @nospecialize(above), cache::_PathCache)
     (parent isa AbstractCell || parent isa Core.Box || parent isa Array || parent isa Dict ||
      parent isa IdDict) && return ""
-    parent isa GenericMemory && return _describe_memory_step(parent, child, above)
+    parent isa GenericMemory && return _describe_memory_step(parent, child, above, cache)
     if parent isa Task
         for field in (:code, :result, :storage)
             isdefined(parent, field) && getfield(parent, field) === child && return "." * String(field)
@@ -207,20 +220,24 @@ function _find_field_step(@nospecialize(x), @nospecialize(child))
         isdefined(x, field) || continue
         declared = fieldtype(type, field)
         name = fieldname(type, field)
-        step = name isa Symbol ? "." * String(name) : "[" * string(name) * "]"
         if !Base.allocatedinline(declared)
-            getfield(x, field) === child && return step
+            getfield(x, field) === child && return _describe_field_name(name)
         elseif declared isa DataType && !Base.datatype_pointerfree(declared)
             inner = _find_field_step(getfield(x, field), child)
-            inner === nothing || return step * inner
+            inner === nothing || return _describe_field_name(name) * inner
         end
     end
     nothing
 end
 
-function _describe_memory_step(@nospecialize(memory::GenericMemory), @nospecialize(child), @nospecialize(above))
-    (index, inner) = _find_memory_place(memory, child)
+_describe_field_name(name::Symbol) = "." * String(name)
+_describe_field_name(name::Integer) = "[" * string(name) * "]"
+
+function _describe_memory_step(@nospecialize(memory::GenericMemory), @nospecialize(child), @nospecialize(above),
+                               cache::_PathCache)
+    index = _find_memory_place(memory, child, cache)
     index == 0 && return "[?]"
+    inner = Base.allocatedinline(eltype(memory)) ? something(_find_field_step(memory[index], child), "") : ""
     if above isa Array && above.ref.mem === memory
         return "[" * string(index - Base.memoryrefoffset(above.ref) + 1) * "]" * inner
     elseif above isa Dict && memory === above.vals
@@ -234,51 +251,84 @@ function _describe_memory_step(@nospecialize(memory::GenericMemory), @nospeciali
     "[" * string(index) * "]" * inner
 end
 
-# The index of the element of `memory` that is `child` or points to it, and the
-# fields from that element to `child`; `(0, "")` when no element does.
-function _find_memory_place(@nospecialize(memory::GenericMemory), @nospecialize(child))
-    inline = Base.allocatedinline(eltype(memory))
+# The index of the element of `memory` that is `child` or points to it, or 0 when
+# no element does. A small memory is searched; a large one gets a table of the
+# places of what its elements point to, once.
+function _find_memory_place(@nospecialize(memory::GenericMemory), @nospecialize(child), cache::_PathCache)
+    if length(memory) <= 32
+        for index in 1:length(memory)
+            isassigned(memory, index) && _is_pointed_by(memory[index], child, memory) && return index
+        end
+        return 0
+    end
+    places = get!(() -> _make_memory_places(memory), cache.places, memory)
+    get(places, child, 0)
+end
+
+# Whether `element`, an element of `memory`, is `child` or holds a pointer to it.
+function _is_pointed_by(@nospecialize(element), @nospecialize(child), @nospecialize(memory::GenericMemory))
+    Base.allocatedinline(eltype(memory)) || return element === child
+    _find_field_step(element, child) !== nothing
+end
+
+# The index of the first element of `memory` that is each object, or that points
+# to it.
+function _make_memory_places(@nospecialize(memory::GenericMemory))
+    places = IdDict{Any, Int}()
+    element_type = eltype(memory)
+    inline = Base.allocatedinline(element_type)
+    count = inline && element_type isa DataType ? Base.datatype_npointers(element_type) : 0
     for index in 1:length(memory)
         isassigned(memory, index) || continue
         element = memory[index]
         if !inline
-            element === child && return (index, "")
+            haskey(places, element) || (places[element] = index)
         else
-            inner = _find_field_step(element, child)
-            inner === nothing || return (index, inner)
+            for place in 1:count
+                Base.nth_pointer_isdefined(element, place) || continue
+                pointed = Base.get_nth_pointer(element, place)
+                haskey(places, pointed) || (places[pointed] = index)
+            end
         end
     end
-    (0, "")
+    places
 end
 
 # The words of the entry of `dict` at the place `index` of its table.
-function _describe_dict_entry(dict::Dict, index::Integer)
-    key = dict.keys[index]
-    _is_plain_key(key) && return _format_plain_key(key)
-    place = count(slot -> Base.isslotfilled(dict, slot), 1:index)
-    "#" * string(place) * " " * _get_type_name(typeof(key))
-end
+_describe_dict_entry(dict::Dict, index::Integer) = _describe_entry_key(dict.keys[index])
 
 # The words of the entry of an `IdDict` whose key is at `index` of its table.
-function _describe_id_dict_entry(@nospecialize(table::GenericMemory), index::Integer)
-    key = table[index]
+_describe_id_dict_entry(@nospecialize(table::GenericMemory), index::Integer) = _describe_entry_key(table[index])
+
+# The words of the key of an entry: the key itself when it is plain, and otherwise
+# the type of the key with a mark of its identity, which stays while the key lives.
+# The place of the entry would change when the table grows, and so would the path
+# of each holder below it.
+function _describe_entry_key(@nospecialize(key))
     _is_plain_key(key) && return _format_plain_key(key)
-    place = count(slot -> isassigned(table, slot), 1:2:index)
-    "#" * string(place) * " " * _get_type_name(typeof(key))
+    "#" * string(objectid(key) % 0x1000000; base = 16, pad = 6) * " " * _get_short_type_name(typeof(key))
 end
 
-_is_plain_key(@nospecialize(key)) = key isa Union{AbstractString, Symbol, Number, Char}
+# A key that the step shows as it is: a string, a symbol, a number, a character or
+# a type.
+_is_plain_key(@nospecialize(key)) = key isa Union{AbstractString, Symbol, Number, Char, Type}
 
 function _format_plain_key(@nospecialize(key))
-    text = repr(key)
+    text = key isa Type ? _get_type_name(key) : repr(key)
     length(text) > 40 ? first(text, 39) * "…" : text
 end
 
-# The name of `type` with the names of its parameters, without their modules.
+# The name of `type` without its parameters and its module.
+_get_short_type_name(@nospecialize(type)) = type isa DataType ? string(nameof(type)) : string(type)
+
+# The name of `type` with the names of its parameters, without their modules. A
+# type of more than three parameters, such as a document with a cell for each
+# field, shows `{…}`.
 function _get_type_name(@nospecialize(type))
     type isa DataType || return string(type)
     name = string(nameof(type))
     isempty(type.parameters) && return name
+    length(type.parameters) > 3 && return name * "{…}"
     words = [parameter isa DataType ? string(nameof(parameter)) : string(parameter)
              for parameter in type.parameters]
     name * "{" * join(words, ", ") * "}"

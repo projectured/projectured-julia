@@ -133,6 +133,16 @@ function test_assistant_verbs()
         @test occursin(":json", _run_assistant_code(editor, "describe_natural_formats()"))
     end
 
+    @testset "read: what holds the memory of the window" begin
+        report = compute_held_memory(editor)
+        @test report.total_bytes > 0 && !isempty(report.holders)
+        # Each holder keeps a part of the total, and the largest comes first.
+        @test all(holder -> holder.bytes <= report.total_bytes, report.holders)
+        @test issorted(report.holders; by = holder -> -holder.bytes)
+        text = _run_assistant_code(editor, "describe_held_memory()")
+        @test occursin(" reaches ", text) && occursin("The holders that keep the most", text)
+    end
+
     @testset "control: a part is selected to show it to the person" begin
         cleo = people[1]
         @test select_part!(cleo; editor) === cleo
