@@ -527,3 +527,19 @@ fakes and do not wait for that land.
 ## 9. Progress
 
 - 2026-11-25: the owner answered D1 to D5, and approved the plan.
+- 2026-11-26: steps 1 to 8 done. The fast parts that the changes since main
+  reach (`--changed main --level fast ProjecturedTest test_all`, 686 parts) gave
+  79782 pass, 8 fail, 1 error, 633 broken, in four parts:
+  - `test_exports` (2 fail: `GestureModule.jl` names out of the order of
+    `MouseGesture.jl`), `test_documentation` (3 fail: `dragtracking.md` and
+    `pane.md` link to a plan that moved to `plan/done/`) and `test_scroll_work`
+    (1 fail: the Files pane makes 13 guards in a notch, the bound is 12) fail on
+    main too: the branch changes none of their files, and the stored records
+    of two other branches of 2026-11-25 hold the same counts.
+  - `test_semantic_tokens` (2 fail, 1 error: a `clangd` that the test ends
+    with SIGTERM still runs after 10 s) failed twice in the test session, and
+    passed in the records of the other branches. The branch changes nothing of
+    the language server; a run in fresh workers found no room in the memory
+    budget. Step 10 runs it again.
+- The land of `ClaudeCodeACP` waits for the approval of the owner, and step 9
+  waits for that land.
