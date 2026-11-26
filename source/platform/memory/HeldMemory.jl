@@ -377,14 +377,16 @@ reaches, the holders that keep the most of them with the path of each from the
 editor, and the types with the most bytes. It is the report of
 [`compute_held_memory`](@ref) for the editor.
 
-Use it when the person asks why the editor needs so much memory, or what keeps
-it. Run it only when the person asks: the walk holds the window for its time,
-some seconds for a large editor, and it needs about 100 bytes of memory for each
-object that the editor reaches, so a few GB for a large editor.
+Use it to answer why the editor needs so much memory, or what keeps it. Run it
+only when the person asks: the walk holds the window for its time, some seconds
+for a large editor, and it needs about 100 bytes of memory for each object that
+the editor reaches, so a few GB for a large editor.
 
 # Example
 
     println(describe_held_memory())
+
+See also `describe_undo_history`, the changes that the history of the window keeps.
 
 For the assistant.
 """
