@@ -561,8 +561,19 @@ fakes and do not wait for that land.
      process; the second took 1.27 s from the press to the note, and the
      search of the holders in the agent takes 5 ms. After the holder ended,
      the next send answered after 2.0 s.
-   - [ ] After the land of `05f1044`: open the middle and the largest
-     conversation again in a new IDE, and see the list with the cut titles.
+   - [x] **The re-check after the land of `05f1044`**, 2026-11-26. The owner
+     approved the land of the fix and the push of the `main` of
+     `ClaudeCodeACP.jl` with `0e5d933` in it ("Yes"). `main` went from
+     `f660b8c` to `05f1044` by a fast-forward, and the push moved GitHub from
+     `5dd9b74` to `05f1044`. In a new IDE, with `ProjecturedACP` loaded before
+     the start as the built program does, the pane read its 124 rows at its
+     open, with the titles cut. The middle conversation has 421 tool cards and
+     the largest 5387; no card is unnamed, and the 7 and the 115 cards that show
+     an error are tool calls whose result is an error (the file of the middle
+     one holds 10 results with `"is_error":true`). The middle conversation ends
+     with its last turns, and no empty card follows them. The times of this run
+     (history after 18.7 s and 22.6 s) do not compare with the first check: the
+     load average of the machine was 65, under a build of another session.
    - [ ] The owner checks by hand that VS Code shows the turns that the IDE
      added (D1).
 10. [ ] **The land.** Run all parts as "Main is green" in `CLAUDE.md` says, and
