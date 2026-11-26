@@ -457,7 +457,7 @@ fakes and do not wait for that land.
      sessions in the start step** of the wrapper, because it gets its factory
      only there.
 
-9. [ ] **The live check in the omnet IDE**, with the real agent and the real
+9. [x] **The live check in the omnet IDE**, with the real agent and the real
    conversations of this machine:
    - the pane lists them, and their titles and folders are right;
    - a small VS Code conversation opens and shows its turns; no message is sent
@@ -574,9 +574,10 @@ fakes and do not wait for that land.
      with its last turns, and no empty card follows them. The times of this run
      (history after 18.7 s and 22.6 s) do not compare with the first check: the
      load average of the machine was 65, under a build of another session.
-   - [ ] The owner checks by hand that VS Code shows the turns that the IDE
-     added (D1).
-10. [ ] **The land.** Run all parts as "Main is green" in `CLAUDE.md` says, and
+   - [x] The check by hand that VS Code shows the turns that the IDE added
+     (D1) went to the owner on 2026-11-26, for the next build of the IDE,
+     because no tool here drives VS Code.
+10. [x] **The land.** Run all parts as "Main is green" in `CLAUDE.md` says, and
     the fast parts of omnet-julia against the branch. Report, and ask the owner
     to approve the land. After the land, record the test calls again, remove the
     worktrees, their depots and their branches, and move this plan to
@@ -606,6 +607,18 @@ fakes and do not wait for that land.
       26 pass, with the fix of main; `test_assistant_list` 79,
       `test_external_agent_turn` 395, `test_assistant_work` 134,
       `test_agent_defaults` 26, and the ACP suite 378 pass; 0 fail, 0 error.
+      `test_semantic_tokens`, which failed twice in the test session of step 8,
+      passed in the run of all parts.
+    - **The land, 2026-11-26.** The owner approved the land and the push of
+      the branch, and the registration of `ClaudeCodeACP` 0.1.12 ("Both").
+      `main` had moved to `2d072d378`, a plan of another session that is not
+      pushed; the branch went onto it by a rebase with no conflict, and `main`
+      went from `2d072d378` to `20f938754` by a fast-forward. The push of
+      `main` waits, because it would also send `2d072d378`, which the approval
+      did not name. `LocalRegistry` registered the tree `178cf489` of
+      `05f1044` as `ClaudeCodeACP` 0.1.12: ProjecturedRegistry commit
+      `ca88a7a`, pushed `42a565e..ca88a7a`. The record of the test calls after
+      the land covers `ProjecturedACPTest` and `ProjecturedKernelTest`.
 
 ## 7. The limits
 
@@ -653,3 +666,6 @@ fakes and do not wait for that land.
 - 2026-11-26: the owner approved the land and the push of `ClaudeCodeACP`;
   both are done, with the fix of the replay (`05f1044` on GitHub). Step 9 is
   done but for the check by hand in VS Code (D1). Step 10 runs.
+- 2026-11-26: the branch landed on `main` (`20f938754`), not pushed;
+  `ClaudeCodeACP` 0.1.12 is registered. The plan is done; the check by hand in
+  VS Code (D1) is the owner's.
