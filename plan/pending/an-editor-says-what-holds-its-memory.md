@@ -202,7 +202,9 @@ Each decision counts as approved when the owner approves the plan.
    "What holds the memory of an editor" to `documentation/guide/debugging-guide.md`,
    and the test of the cycle to `documentation/guide/testing-guide.md`. Add the slice
    to the index of the package documents.
-5. **The check before the land.** Run all the parts in the worktree, as "Main is
+5. **The check is done on 2026-11-26 (see "What the work found"); the land and the
+   record of the calls wait for the word of the owner.**
+   **The check before the land.** Run all the parts in the worktree, as "Main is
    green" in `CLAUDE.md` says, and record the calls of `ProjecturedTest` and
    `ProjecturedPlatformTest` after the land. Then ask the owner to land, with the list
    of the new markers.
@@ -354,6 +356,37 @@ Facts and decisions of the work, in the order of the steps.
   nearest object above both, because a removal of one of the two frees nothing. So
   these stores are a part of the line of the root. A report of the navigator alone,
   `compute_held_memory(navigator)`, can check it.
+
+**Step 5.**
+
+- The first run of all parts gave 1 error of the branch: `test_assistant_documentation`
+  needs the lines "Use it to" and "See also" in the docstring of each verb of the
+  assistant. The docstring of `describe_held_memory` has them now.
+- The second run, at `760b801ef`: 772 parts, each done; 3 520 651 pass, 8 fail,
+  0 error, 3604 broken; 1 h 00 min, a peak of 22.6 GB for the job. One fail is of
+  the branch: `test_editor_memory_cycle` on the line of the folder (step 3). After
+  the fix in `0228d5a1a` the part passes in two runs, each with 1 pass and 3 broken,
+  and the guard of the documents gives the same 3 fails as before.
+- The other 7 fails are in files that the branch does not change, and the land run
+  of the branch `reader-split` showed the same:
+  - `test_exports`, 2 fails: the order of an export line in `GestureModule.jl:37`.
+  - `test_documentation`, 3 fails: `dragtracking.md:94` and `pane.md:291` link to
+    `plan/pending/a-tab-moves-along-its-strip-and-between-windows.md`, which moved,
+    and the check that sums the two.
+  - `test_scroll_work`, 1 fail: the work of the Files pane, `work[3]` 13 to 14,
+    more than 12.
+  - `test_application`, 1 fail: after an Alt and double click in the Files pane,
+    `selected_file()` gives `nothing`.
+- The fast parts of omnet-julia against the branch, in a worktree of its main at
+  `d419fe0ad`: 265 parts, each done; 42 835 pass, 1 fail, 0 error, 266 broken. The
+  first try found no room, and the second had 3 kills by the memory limit at 9 GB
+  in the precompile of `OmnetPresentationExample`, because each package above
+  `ProjecturedPlatform` compiles again. The third ran with 16 GB, with a peak of
+  11.8 GB. The fail is a check of time in `test_simulator`,
+  `OmnetSimulatorTest/runtests.jl:2308`: 160 000 appends took 13.7 ms, more than 64
+  times the 0.11 ms of 10 000. The simulator loads only `ProjecturedKernel` and
+  `ProjecturedKernelTest`, which the branch does not change, and a run of the suite
+  alone passes 6967 of 6967. So the check fails only at some times under load.
 
 ## Risks
 
