@@ -1,10 +1,9 @@
 # A computation holds the place of its print weakly
 
-**Status:** proposed on 2026-11-26, and it waits for the approval of the owner. The
-owner asked for this plan on 2026-11-26 ("Yes", to the question: a plan for the weak
-link first, on its own). The plan changes the sealed file
-`source/kernel/cell/CellFaultScope.jl`, so the approval must also give the permission
-for that file. The work goes in the worktree `projectured-julia-weak-fault-scope`, on
+**Status:** approved by the owner on 2026-11-26 ("Yes", to the question that asked
+for the approval and for the permission to change the sealed file
+`source/kernel/cell/CellFaultScope.jl`), in work. The owner asked for this plan on
+2026-11-26 ("Yes", to the question: a plan for the weak link first, on its own). The work goes in the worktree `projectured-julia-weak-fault-scope`, on
 the branch `weak-fault-scope`.
 
 The plan lands nothing and pushes nothing. It ends with a request to land.
