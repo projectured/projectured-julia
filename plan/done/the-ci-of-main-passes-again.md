@@ -1,6 +1,6 @@
 # The CI of main passes again
 
-> **Status:** landed on `main` and pushed (`8ffaa313c`); two failures of other work remain in the CI. Approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
+> **Status:** done, 2026-11-26: the CI of `main` passes at `39c2b7ee4`. Approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
 > CI?"). The session that pushed `306018039` fixes the red CI of `main`, as `CLAUDE.md`
 > ("Main is green") says.
 
@@ -77,7 +77,9 @@ The CI run 45710705577 of `306018039` fails in five jobs, the same five as the r
     content, 306 records and 52 guards, which the probe did not measure again.
   - Check: `integration/test_scroll_work` 26 pass, 0 fail; `integration/test_application` 425
     pass, 0 fail, 3 broken (the 3 markers of `main`); the six guards pass.
-- [ ] 6. The land, the push and the CI run of the push.
+- [x] 6. The land, the push and the CI run of the push. The branch rebased over `main`
+  `68fcf14a3` with no conflict and landed as `39c2b7ee4`; the push (the owner: "yes"); the CI
+  run 45828341615 of `39c2b7ee4`: all 41 jobs pass.
 
 ## 3. Found during the work
 
