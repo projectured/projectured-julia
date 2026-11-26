@@ -12,14 +12,14 @@ Tuple{Base.var"##mapfoldl#271", Base._InitialValue, typeof(Base.mapfoldl), Funct
 Tuple{Base.var"##mapreduce#275", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, typeof(Base.mapreduce), Function, Function, Base.Generator{Base.OneTo{Int64}, JSON3.var"#defaultminimum##0#defaultminimum##1"{Array{Base.Dict{String, V} where V, 1}}}}
 Tuple{Base.var"##sprint#429", Nothing, Int64, typeof(Base.sprint), typeof(Base.showerror), ProjecturedKernel.AgentModule.AgentSignInException}
 Tuple{Base.var"##sum#278", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, typeof(Base.sum), Function, Base.Generator{Base.OneTo{Int64}, JSON3.var"#defaultminimum##0#defaultminimum##1"{Array{Base.Dict{String, V} where V, 1}}}}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##115#test_acp_connection##116"{Task}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##134#test_acp_connection##135"{Task}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##168#test_acp_connection##169"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##205#test_acp_connection##206"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##211#test_acp_connection##212"{ProjecturedACPTest.FakeAcpAgent}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##56#test_acp_connection##57"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
-Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##62#test_acp_connection##63"{String, ProjecturedACP.AcpModule.AcpConnection}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##145#test_acp_connection##146"{Task}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##164#test_acp_connection##165"{Task}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##198#test_acp_connection##199"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##214#test_acp_connection##215"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##235#test_acp_connection##236"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##241#test_acp_connection##242"{ProjecturedACPTest.FakeAcpAgent}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##86#test_acp_connection##87"{Array{Any, 1}, ProjecturedKernel.AgentModule.AgentEventQueue}, Float64}
+Tuple{Base.var"##timedwait#649", Float64, typeof(Base.timedwait), ProjecturedACPTest.var"#test_acp_connection##92#test_acp_connection##93"{String, ProjecturedACP.AcpModule.AcpConnection}, Float64}
 Tuple{Base.var"#show##7#show##8"{String}, Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}}
 Tuple{ClaudeCodeACP.var"##ClientFeatures#37", Bool, Bool, Bool, Bool, Bool, Type{ClaudeCodeACP.ClientFeatures}}
 Tuple{JSON.WriteClosure{JSON.WriteOptions{JSON.JSONWriteStyle}, false, Base.Dict{String, Any}, Nothing}, String, Array{Any, 1}}
@@ -31,19 +31,19 @@ Tuple{JSON.WriteClosure{JSON.WriteOptions{JSON.JSONWriteStyle}, true, Array{Any,
 Tuple{JSON.WriteClosure{JSON.WriteOptions{JSON.JSONWriteStyle}, true, Array{Any, 1}, Nothing}, String, String}
 Tuple{JSON.var"##parse#54", Type{Base.Dict{String, Any}}, Nothing, StructUtils.DefaultStyle, Symbol, Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, typeof(JSON.parse), String, Type{Any}}
 Tuple{JSON3.var"##write#83", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, typeof(JSON3.write), StructTypes.DictType, Array{UInt8, 1}, Int64, Int64, Base.Dict{String, Base.Dict{String, V} where V}}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, ArgumentError}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, Bool}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:exit_code, :signal), Tuple{Int64, Nothing}}}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:output, :truncated, :exit_code, :signal), Tuple{String, Bool, Int64, Nothing}}}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, Nothing}
-Tuple{ProjecturedACP.AcpModule.var"#117#118"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, String}
-Tuple{ProjecturedACP.AcpModule.var"#74#75"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}, Nothing}
-Tuple{ProjecturedACP.AcpModule.var"#74#75"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}, String}
-Tuple{ProjecturedACP.AcpModule.var"#76#77"{ProjecturedACP.AcpModule.var"#74#75"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}}}
-Tuple{ProjecturedACP.AcpModule.var"#93#94"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Nothing}
-Tuple{ProjecturedACP.AcpModule.var"#97#98"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Base.Dict{String, Any}}
-Tuple{ProjecturedACP.AcpModule.var"#97#98"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Nothing}
+Tuple{ProjecturedACP.AcpModule.var"#103#104"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Base.Dict{String, Any}}
+Tuple{ProjecturedACP.AcpModule.var"#103#104"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Nothing}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, ArgumentError}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, Bool}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:exit_code, :signal), Tuple{Int64, Nothing}}}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, NamedTuple{(:output, :truncated, :exit_code, :signal), Tuple{String, Bool, Int64, Nothing}}}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, Nothing}
+Tuple{ProjecturedACP.AcpModule.var"#123#124"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}, String}
+Tuple{ProjecturedACP.AcpModule.var"#80#81"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}, Nothing}
+Tuple{ProjecturedACP.AcpModule.var"#80#81"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}, String}
+Tuple{ProjecturedACP.AcpModule.var"#82#83"{ProjecturedACP.AcpModule.var"#80#81"{Base.Threads.Atomic{Bool}, Base.Channel{Union{Nothing, String}}}}}
+Tuple{ProjecturedACP.AcpModule.var"#99#100"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Nothing}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##0#_find_session_turn!##1"{ProjecturedACP.AcpModule.AcpConnection, String}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##0#_find_session_turn!##1"{ProjecturedACP.AcpModule.AcpConnection, String}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##0#_find_session_turn!##1"{ProjecturedACP.AcpModule.AcpConnection, String}, ProjecturedKernel.LlmModule.LlmMessage}
@@ -57,6 +57,7 @@ Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentUsageUpdate}
+Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmMessage}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextDelta}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextStart}
 Tuple{ProjecturedACP.AcpModule.var"#_find_session_turn!##4#_find_session_turn!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextStop}
@@ -68,8 +69,12 @@ Tuple{ProjecturedACP.AcpModule.var"#_open_builtin_agent##0#_open_builtin_agent##
 Tuple{ProjecturedACP.AcpModule.var"#_read_plan_entry##0#_read_plan_entry##1", Int64}
 Tuple{ProjecturedACP.AcpModule.var"#_read_plan_entry##0#_read_plan_entry##1", String}
 Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentCommandsUpdate}
+Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
+Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
+Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmMessage}
 Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextDelta}
 Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextStart}
+Tuple{ProjecturedACP.AcpModule.var"#_register_session!##2#_register_session!##3"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextStop}
 Tuple{ProjecturedACP.AcpModule.var"#_register_session!##4#_register_session!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextDelta}
 Tuple{ProjecturedACP.AcpModule.var"#_register_session!##4#_register_session!##5"{ProjecturedKernel.AgentModule.AgentEventQueue}, ProjecturedKernel.LlmModule.LlmTextStop}
 Tuple{ProjecturedACP.AcpModule.var"#_start_turn_delivery!##0#_start_turn_delivery!##1"{ProjecturedACP.AcpModule.AcpTurn}}
@@ -87,112 +92,124 @@ Tuple{ProjecturedACPTest.var"#make_fake_handlers##0#make_fake_handlers##1", Proj
 Tuple{ProjecturedACPTest.var"#make_fake_handlers##2#make_fake_handlers##3", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#make_fake_handlers##4#make_fake_handlers##5", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#make_fake_handlers##6#make_fake_handlers##7", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#permission#test_acp_connection##239", String}
-Tuple{ProjecturedACPTest.var"#send_task#test_acp_connection##200", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#permission#test_acp_connection##269", String}
+Tuple{ProjecturedACPTest.var"#send_task#test_acp_connection##230", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##0#test_acp_connection##1", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##101#test_acp_connection##102"{Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##103#test_acp_connection##104"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##105#test_acp_connection##106"{ProjecturedKernel.AgentModule.AgentPermissionRequest}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##109#test_acp_connection##110"{Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##111#test_acp_connection##112"{Base.Event, String, ProjecturedACP.AcpModule.AcpConnection}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##113#test_acp_connection##114"{Base.Event}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##117#test_acp_connection##118"{Array{Any, 1}, Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##101#test_acp_connection##102", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##103#test_acp_connection##104", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##105#test_acp_connection##106", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##109#test_acp_connection##110"{Array{Base.Dict{String, V} where V, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##111#test_acp_connection##112", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##113#test_acp_connection##114"{Base.RefValue{Bool}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##119#test_acp_connection##120", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##12#test_acp_connection##13", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##120#test_acp_connection##121"{Base.Dict{String, Any}, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##120#test_acp_connection##121"{Nothing, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##122#test_acp_connection##123"{ProjecturedKernel.AgentModule.AgentQuestionRequest, Base.Dict{String, Any}}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##122#test_acp_connection##123"{ProjecturedKernel.AgentModule.AgentQuestionRequest, Nothing}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##130#test_acp_connection##131"{Base.Event, String, ProjecturedACP.AcpModule.AcpConnection}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##132#test_acp_connection##133"{Base.Event}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##136#test_acp_connection##137", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##138#test_acp_connection##139"{Array{Any, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##121#test_acp_connection##122", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##123#test_acp_connection##124", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##125#test_acp_connection##126", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##127#test_acp_connection##128", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentUsageUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextDelta}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStart}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingDelta}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingStart}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##131#test_acp_connection##132"{Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##133#test_acp_connection##134"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##135#test_acp_connection##136"{ProjecturedKernel.AgentModule.AgentPermissionRequest}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##139#test_acp_connection##140"{Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##14#test_acp_connection##15", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##140#test_acp_connection##141"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}, Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##142#test_acp_connection##143"{ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##146#test_acp_connection##147"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##148#test_acp_connection##149"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##150#test_acp_connection##151"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##152#test_acp_connection##153"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentTerminalRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##152#test_acp_connection##153"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##154#test_acp_connection##155"{ProjecturedKernel.AgentModule.AgentTerminalRequest, ArgumentError}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##154#test_acp_connection##155"{ProjecturedKernel.AgentModule.AgentTerminalRequest, Bool}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##154#test_acp_connection##155"{ProjecturedKernel.AgentModule.AgentTerminalRequest, NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##154#test_acp_connection##155"{ProjecturedKernel.AgentModule.AgentTerminalRequest, NamedTuple{(:output, :truncated, :exit_code, :signal), Tuple{String, Bool, Int64, Nothing}}}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##154#test_acp_connection##155"{ProjecturedKernel.AgentModule.AgentTerminalRequest, String}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##141#test_acp_connection##142"{Base.Event, String, ProjecturedACP.AcpModule.AcpConnection}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##143#test_acp_connection##144"{Base.Event}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##147#test_acp_connection##148"{Array{Any, 1}, Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##150#test_acp_connection##151"{Base.Dict{String, Any}, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##150#test_acp_connection##151"{Nothing, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##152#test_acp_connection##153"{ProjecturedKernel.AgentModule.AgentQuestionRequest, Base.Dict{String, Any}}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##152#test_acp_connection##153"{ProjecturedKernel.AgentModule.AgentQuestionRequest, Nothing}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##16#test_acp_connection##17"{Base.Dict{String, Base.Dict{String, Base.Dict{String, Base.Dict{Any, Any}}}}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##162#test_acp_connection##163"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##164#test_acp_connection##165"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentTerminalRequest}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##166#test_acp_connection##167"{ProjecturedACPTest.var"#test_acp_connection##164#test_acp_connection##165"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, String, ProjecturedACP.AcpModule.AcpConnection}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##170#test_acp_connection##171", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##172#test_acp_connection##173", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##174#test_acp_connection##175", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextDelta}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStart}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##160#test_acp_connection##161"{Base.Event, String, ProjecturedACP.AcpModule.AcpConnection}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##162#test_acp_connection##163"{Base.Event}, ProjecturedKernel.AgentModule.AgentQuestionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##166#test_acp_connection##167", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##168#test_acp_connection##169"{Array{Any, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##170#test_acp_connection##171"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}, Base.RefValue{Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##172#test_acp_connection##173"{ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}, ProjecturedKernel.AgentModule.AgentPermissionRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##178#test_acp_connection##179"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##18#test_acp_connection##19", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##188#test_acp_connection##189", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193", Pair{Symbol, String}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##194#test_acp_connection##195"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentPlanUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##180#test_acp_connection##181"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentTerminalRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{ProjecturedKernel.AgentModule.AgentTerminalRequest, ArgumentError}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{ProjecturedKernel.AgentModule.AgentTerminalRequest, Bool}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{ProjecturedKernel.AgentModule.AgentTerminalRequest, NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{ProjecturedKernel.AgentModule.AgentTerminalRequest, NamedTuple{(:output, :truncated, :exit_code, :signal), Tuple{String, Bool, Int64, Nothing}}}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##184#test_acp_connection##185"{ProjecturedKernel.AgentModule.AgentTerminalRequest, String}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##194#test_acp_connection##195"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, ProjecturedKernel.AgentModule.AgentTerminalRequest}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##196#test_acp_connection##197"{ProjecturedACPTest.var"#test_acp_connection##194#test_acp_connection##195"{Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}, String, ProjecturedACP.AcpModule.AcpConnection}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##2#test_acp_connection##3"{Base.Dict{String, Base.Dict{String, Base.Dict{String, Base.Dict{Any, Any}}}}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##201#test_acp_connection##202"{ProjecturedACPTest.var"#send_task#test_acp_connection##200"}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##203#test_acp_connection##204"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##207#test_acp_connection##208", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##213#test_acp_connection##214", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##215#test_acp_connection##216", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##217#test_acp_connection##218"{Int64}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##219#test_acp_connection##220"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##200#test_acp_connection##201", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##202#test_acp_connection##203", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##204#test_acp_connection##205", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##206#test_acp_connection##207"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##206#test_acp_connection##207"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextDelta}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##206#test_acp_connection##207"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStart}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##206#test_acp_connection##207"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##218#test_acp_connection##219", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##22#test_acp_connection##23"{Base.Dict{String, Base.Dict{String, Base.Dict{String, Base.Dict{Any, Any}}}}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##223#test_acp_connection##224", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##225#test_acp_connection##226"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##227#test_acp_connection##228", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##229#test_acp_connection##230"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223", Pair{Symbol, String}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##224#test_acp_connection##225"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentPlanUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##231#test_acp_connection##232"{ProjecturedACPTest.var"#send_task#test_acp_connection##230"}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##233#test_acp_connection##234"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##237#test_acp_connection##238", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##24#test_acp_connection##25", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##240#test_acp_connection##241"{ProjecturedACPTest.var"#permission#test_acp_connection##239", Array{Any, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##242#test_acp_connection##243"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##244#test_acp_connection##245"{ProjecturedKernel.AgentModule.AgentPermissionRequest}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##246#test_acp_connection##247"{ProjecturedKernel.AgentModule.AgentQuestionRequest}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##248#test_acp_connection##249", Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentPermissionRequest}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##248#test_acp_connection##249", Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentQuestionRequest}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##250#test_acp_connection##251"{ProjecturedACPTest.var"#permission#test_acp_connection##239", ProjecturedACPTest.FakeAcpAgent}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##252#test_acp_connection##253"{ProjecturedACPTest.var"#permission#test_acp_connection##239", ProjecturedACPTest.FakeAcpAgent}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##255#test_acp_connection##256"{ProjecturedACPTest.var"#chunk#test_acp_connection##254"}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##257#test_acp_connection##258"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentCompactionUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##259#test_acp_connection##260", ProjecturedKernel.AgentModule.AgentCompactionUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##243#test_acp_connection##244", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##245#test_acp_connection##246", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##247#test_acp_connection##248"{Int64}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##249#test_acp_connection##250"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##253#test_acp_connection##254", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##255#test_acp_connection##256"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##257#test_acp_connection##258", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##259#test_acp_connection##260"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##26#test_acp_connection##27"{Base.Dict{String, Base.Dict{String, Base.Dict{String, Base.Dict{Any, Any}}}}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##261#test_acp_connection##262", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##263#test_acp_connection##264"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##270#test_acp_connection##271"{ProjecturedACPTest.var"#permission#test_acp_connection##269", Array{Any, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##272#test_acp_connection##273"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##274#test_acp_connection##275"{ProjecturedKernel.AgentModule.AgentPermissionRequest}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##276#test_acp_connection##277"{ProjecturedKernel.AgentModule.AgentQuestionRequest}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##278#test_acp_connection##279", Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentPermissionRequest}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##278#test_acp_connection##279", Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentQuestionRequest}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##28#test_acp_connection##29", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##30#test_acp_connection##31", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##34#test_acp_connection##35", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##280#test_acp_connection##281"{ProjecturedACPTest.var"#permission#test_acp_connection##269", ProjecturedACPTest.FakeAcpAgent}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##282#test_acp_connection##283"{ProjecturedACPTest.var"#permission#test_acp_connection##269", ProjecturedACPTest.FakeAcpAgent}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##285#test_acp_connection##286"{ProjecturedACPTest.var"#chunk#test_acp_connection##284"}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##287#test_acp_connection##288"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentCompactionUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##289#test_acp_connection##290", ProjecturedKernel.AgentModule.AgentCompactionUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##291#test_acp_connection##292", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##293#test_acp_connection##294"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##31#test_acp_connection##32"{ProjecturedACPTest.var"#user_chunk#test_acp_connection##30"}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##37#test_acp_connection##38", ProjecturedKernel.LlmModule.LlmMessage}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##39#test_acp_connection##40", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##4#test_acp_connection##5", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##44#test_acp_connection##45"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentOptionsUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##48#test_acp_connection##49", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##50#test_acp_connection##51"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##50#test_acp_connection##51"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentUsageUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##41#test_acp_connection##42"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##43#test_acp_connection##44", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##45#test_acp_connection##46"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextDelta}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##45#test_acp_connection##46"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStart}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##45#test_acp_connection##46"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##47#test_acp_connection##48"{Array{Base.Dict{String, V} where V, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##53#test_acp_connection##54"{Base.Dict{String, Any}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##56#test_acp_connection##57"{ProjecturedACPTest.var"#conflict#test_acp_connection##55", Bool}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##58#test_acp_connection##59", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##6#test_acp_connection##7"{Base.Dict{String, Base.Dict{String, Base.Dict{String, Base.Dict{Any, Any}}}}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##67#test_acp_connection##68", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##69#test_acp_connection##70", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##71#test_acp_connection##72", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##73#test_acp_connection##74", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##75#test_acp_connection##76", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##79#test_acp_connection##80"{Array{Base.Dict{String, V} where V, 1}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##60#test_acp_connection##61", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##64#test_acp_connection##65", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##74#test_acp_connection##75"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentOptionsUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##78#test_acp_connection##79", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##8#test_acp_connection##9", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##81#test_acp_connection##82", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##83#test_acp_connection##84"{Base.RefValue{Bool}}, ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##89#test_acp_connection##90", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##91#test_acp_connection##92", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##93#test_acp_connection##94", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##95#test_acp_connection##96", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##80#test_acp_connection##81"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##80#test_acp_connection##81"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentUsageUpdate}
 Tuple{ProjecturedACPTest.var"#test_acp_connection##97#test_acp_connection##98", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentToolCallUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.AgentModule.AgentUsageUpdate}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextDelta}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStart}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmTextStop}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingDelta}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingStart}
-Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}, ProjecturedKernel.LlmModule.LlmThinkingStop}
+Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100", ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}
 Tuple{ProjecturedKernelTest.var"#descend#5"{Bool, String, Base.Dict{String, Array{Pair{Symbol, Array{Symbol, 1}}, 1}}, Base.Dict{String, Symbol}, Array{Tuple{String, Symbol, Array{Symbol, 1}, Array{Pair{Symbol, Array{Symbol, 1}}, 1}, Array{Symbol, 1}}, 1}, Array{String, 1}}, String, Nothing}
 Tuple{ProjecturedKernelTest.var"#descend#5"{Bool, String, Base.Dict{String, Array{Pair{Symbol, Array{Symbol, 1}}, 1}}, Base.Dict{String, Symbol}, Array{Tuple{String, Symbol, Array{Symbol, 1}, Array{Pair{Symbol, Array{Symbol, 1}}, 1}, Array{Symbol, 1}}, 1}, Array{String, 1}}, String, Symbol}
 Tuple{Type{AgentClientProtocol.AgentMessageChunk}, Base.Dict{String, Any}}
@@ -209,6 +226,7 @@ Tuple{Type{AgentClientProtocol.OtherAuthMethod}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.PlanRemoved}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.PlanUpdate}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.Plan}, Base.Dict{String, Any}}
+Tuple{Type{AgentClientProtocol.ProtocolException}, Int64, String, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.ProtocolException}, Int64, String, Nothing}
 Tuple{Type{AgentClientProtocol.ProtocolException}, Int64, String}
 Tuple{Type{AgentClientProtocol.RequestContext}, AgentClientProtocol.Connection, Int64, String, Bool, Array{Any, 1}}
@@ -216,6 +234,7 @@ Tuple{Type{AgentClientProtocol.SessionInfoUpdate}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.SessionMessageChunk}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.SessionMessage}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.SubagentUpdate}, Base.Dict{String, Any}}
+Tuple{Type{AgentClientProtocol.ToolCallUpdate}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.ToolCall}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.UsageUpdate}, Base.Dict{String, Any}}
 Tuple{Type{AgentClientProtocol.UserMessageChunk}, Base.Dict{String, Any}}
@@ -241,11 +260,11 @@ Tuple{Type{Base.Dict{K, V} where V where K}, Tuple{Pair{String, String}, Pair{St
 Tuple{Type{Base.Dict{K, V} where V where K}, Tuple{Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, Array{Base.Dict{String, String}, 1}}}}
 Tuple{Type{Base.Dict{K, V} where V where K}, Tuple{Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, Array{Base.Dict{String, String}, 1}}}}
 Tuple{Type{Base.Dict{K, V} where V where K}, Tuple{Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, String}, Pair{String, Int64}, Pair{String, Bool}, Pair{String, String}}}
-Tuple{Type{Base.Dict{String, Any}}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#107#108"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}, ProjecturedACP.AcpModule.var"#105#106"}}
+Tuple{Type{Base.Dict{String, Any}}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#113#114"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}, ProjecturedACP.AcpModule.var"#111#112"}}
 Tuple{Type{Base.Dict{String, Array{String, 1}}}, Tuple{Pair{String, Array{String, 1}}}}
 Tuple{Type{Base.Dict{String, String}}, Base.Generator{Base.Dict{String, Any}, ProjecturedACP.AcpModule.var"#_make_sign_in_method##1#_make_sign_in_method##2"}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#105#106", Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#107#108"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#70#71", Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#72#73", Array{Any, 1}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#111#112", Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#113#114"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#76#77", Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#78#79", Array{Any, 1}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#_make_sign_in_method##1#_make_sign_in_method##2", Base.Dict{String, Any}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACP.AcpModule.var"#_read_question_options##0#_read_question_options##1", Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#_read_question_options##2#_read_question_options##3", Array{Any, 1}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#18#19", Base.Pairs{Symbol, String, Nothing, NamedTuple{(:compactionId, :status), Tuple{String, String}}}}
@@ -255,25 +274,25 @@ Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#18#19"
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#18#19", Base.Pairs{Symbol, String, Nothing, NamedTuple{(:title,), Tuple{String}}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#18#19", Base.Pairs{Symbol, Union{Nothing, String}, Nothing, NamedTuple{(:compactionId, :status, :summary), Tuple{String, String, Nothing}}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#18#19", Base.Pairs{Symbol, Union{Nothing, String}, Nothing, NamedTuple{(:sessionId, :title, :description, :state), Tuple{String, Nothing, Nothing, Nothing}}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##180#test_acp_connection##181", Array{Tuple{Array{String, 1}, Any}, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183", Array{Tuple{Array{String, 1}, Any}, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193", Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##221#test_acp_connection##222", Base.UnitRange{Int64}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##233#test_acp_connection##234", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##235#test_acp_connection##236", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##38#test_acp_connection##39", Array{ProjecturedKernel.AgentModule.AgentOption, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##40#test_acp_connection##41", Array{ProjecturedKernel.AgentModule.AgentOptionValue, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##58#test_acp_connection##59", Array{ProjecturedKernel.AgentModule.AgentCommand, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##85#test_acp_connection##86", Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##115#test_acp_connection##116", Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##210#test_acp_connection##211", Array{Tuple{Array{String, 1}, Any}, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##212#test_acp_connection##213", Array{Tuple{Array{String, 1}, Any}, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223", Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##251#test_acp_connection##252", Base.UnitRange{Int64}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##263#test_acp_connection##264", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##265#test_acp_connection##266", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##68#test_acp_connection##69", Array{ProjecturedKernel.AgentModule.AgentOption, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##70#test_acp_connection##71", Array{ProjecturedKernel.AgentModule.AgentOptionValue, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedACPTest.var"#test_acp_connection##88#test_acp_connection##89", Array{ProjecturedKernel.AgentModule.AgentCommand, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{Nothing, ProjecturedACP.AcpModule.AcpTurn}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{ProjecturedACP.AcpModule.AcpTurn, Nothing}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedACPTest.var"#test_acp_connection##32#test_acp_connection##33"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}}
-Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#107#108"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}
-Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#72#73", Array{Any, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedACPTest.var"#test_acp_connection##62#test_acp_connection##63"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#113#114"{Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}, Base.Dict{String, Any}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#78#79", Array{Any, 1}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#_read_question_options##2#_read_question_options##3", Array{Any, 1}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{Nothing, ProjecturedACP.AcpModule.AcpTurn}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{ProjecturedACP.AcpModule.AcpTurn, Nothing}}
-Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACPTest.var"#test_acp_connection##32#test_acp_connection##33"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedACPTest.var"#test_acp_connection##62#test_acp_connection##63"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{Pair{String, String}, 1}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{ProjecturedKernel.AgentModule.AgentOptionValue, 1}}
 Tuple{Type{Base.LinearIndices{N, R} where R<:Tuple{Vararg{Base.AbstractUnitRange{Int64}, N}} where N}, Array{ProjecturedKernel.AgentModule.AgentQuestionField, 1}}
@@ -324,6 +343,9 @@ Tuple{Type{Pair{A, B} where B where A}, String, Base.Dict{String, String}}
 Tuple{Type{Pair{A, B} where B where A}, String, Float64}
 Tuple{Type{Pair{A, B} where B where A}, String, Function}
 Tuple{Type{Pair{A, B} where B where A}, String, Nothing}
+Tuple{Type{ProjecturedKernel.AgentModule.AgentSessionInfo}, String, String, Nothing, Nothing, Float64, String}
+Tuple{Type{ProjecturedKernel.AgentModule.AgentSessionInfo}, String, String, Nothing, Nothing, Nothing, String}
+Tuple{Type{ProjecturedKernel.AgentModule.AgentSessionInfo}, String, String, String, String, Float64, String}
 Tuple{Type{ProjecturedKernel.AgentModule.AgentUsageUpdate}, Int64, Int64, Float64, String}
 Tuple{Type{ProjecturedKernel.AgentModule.AgentUsageUpdate}, Int64, Int64, Nothing, String}
 Tuple{Type{ProjecturedKernel.LlmModule.LlmThinkingDelta}, String}
@@ -400,6 +422,8 @@ Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.Fo
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.InitializeRequest}, Base.Dict{String, Any}}
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.InitializeResponse}, Base.Dict{String, Any}}
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.KillTerminalRequest}, Base.Dict{String, Any}}
+Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.ListSessionsResponse}, Base.Dict{String, Any}}
+Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.LoadSessionResponse}, Base.Dict{String, Any}}
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.LogoutResponse}, Base.Dict{String, Any}}
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.NewSessionResponse}, Base.Dict{String, Any}}
 Tuple{typeof(AgentClientProtocol.convert_from_json), Type{AgentClientProtocol.PromptResponse}, Base.Dict{String, Any}}
@@ -449,10 +473,12 @@ Tuple{typeof(Base.:(var"==")), Array{Tuple{String, Int64, Any, Bool}, 1}, Array{
 Tuple{typeof(Base.:(var"==")), Array{Tuple{String, String, String}, 1}, Array{Tuple{String, String, String}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Tuple{String, Symbol, Any}, 1}, Array{Tuple{String, Symbol, Any}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Tuple{String, Symbol}, 1}, Array{Tuple{String, Symbol}, 1}}
+Tuple{typeof(Base.:(var"==")), Array{Tuple{Symbol, ProjecturedKernel.LlmModule.LlmText}, 1}, Array{Tuple{Symbol, ProjecturedKernel.LlmModule.LlmText}, 1}}
 Tuple{typeof(Base.:(var"==")), Base.Dict{String, Any}, Base.Dict{String, Any}}
 Tuple{typeof(Base.:(var"==")), Base.Dict{String, Array{String, 1}}, Base.Dict{String, Array{String, 1}}}
 Tuple{typeof(Base.:(var"==")), Base.Dict{String, Union{Nothing, ProjecturedKernel.AgentModule.AgentEventQueue}}, Base.Dict{String, Union{Nothing, ProjecturedKernel.AgentModule.AgentEventQueue}}}
 Tuple{typeof(Base.:(var"==")), JSON.JSONTypes.T, JSON.JSONTypes.T}
+Tuple{typeof(Base.:(var"==")), ProjecturedKernel.AgentModule.AgentSessionInfo, ProjecturedKernel.AgentModule.AgentSessionInfo}
 Tuple{typeof(Base.:(var"==")), ProjecturedKernel.AgentModule.AgentUsageUpdate, ProjecturedKernel.AgentModule.AgentUsageUpdate}
 Tuple{typeof(Base.:(var"==")), ProjecturedKernel.LlmModule.LlmTextStart, ProjecturedKernel.LlmModule.LlmTextStart}
 Tuple{typeof(Base.:(var"==")), ProjecturedKernel.LlmModule.LlmTextStop, ProjecturedKernel.LlmModule.LlmTextStop}
@@ -483,7 +509,7 @@ Tuple{typeof(Base.Broadcast.materialize), Base.Broadcast.Broadcasted{Base.Broadc
 Tuple{typeof(Base.Filesystem.contractuser), String}
 Tuple{typeof(Base.Filesystem.joinpath), NTuple{9, String}}
 Tuple{typeof(Base.Filesystem.temp_cleanup_atexit)}
-Tuple{typeof(Base.Iterators._only), Base.Generator{Base.Iterators.Filter{ProjecturedACPTest.var"#test_acp_connection##32#test_acp_connection##33"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}, typeof(Base.identity)}, typeof(Base.iterate)}
+Tuple{typeof(Base.Iterators._only), Base.Generator{Base.Iterators.Filter{ProjecturedACPTest.var"#test_acp_connection##62#test_acp_connection##63"{Base.Dict{String, Any}}, Array{Base.Dict{String, Any}, 1}}, typeof(Base.identity)}, typeof(Base.iterate)}
 Tuple{typeof(Base.Iterators._pairs_elt), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:compactionId, :status), Tuple{String, String}}}, Symbol}
 Tuple{typeof(Base.Iterators._pairs_elt), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:planId,), Tuple{String}}}, Symbol}
 Tuple{typeof(Base.Iterators._pairs_elt), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title), Tuple{String, String}}}, Symbol}
@@ -497,14 +523,15 @@ Tuple{typeof(Base.Iterators.only), Array{ProjecturedKernel.AgentModule.AgentComm
 Tuple{typeof(Base.Iterators.only), Array{ProjecturedKernel.AgentModule.AgentPlanEntry, 1}}
 Tuple{typeof(Base.Iterators.only), Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}}
 Tuple{typeof(Base.Iterators.only), Array{ProjecturedKernel.LlmModule.LlmContent, 1}}
-Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##158#test_acp_connection##159", Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}, Base.Colon}
-Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##237#test_acp_connection##238", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, Base.Colon}
-Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##87#test_acp_connection##88", Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}, Base.Colon}
+Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##117#test_acp_connection##118", Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}, Base.Colon}
+Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##188#test_acp_connection##189", Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}, Base.Colon}
+Tuple{typeof(Base._all), ProjecturedACPTest.var"#test_acp_connection##267#test_acp_connection##268", Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, Base.Colon}
 Tuple{typeof(Base._array_for), Type{Pair{String, String}}, Array{AgentClientProtocol.EnvVariable, 1}, Base.HasShape{1}}
 Tuple{typeof(Base._array_for), Type{ProjecturedKernel.AgentModule.AgentOptionValue}, Array{Any, 1}, Base.HasShape{1}}
 Tuple{typeof(Base._array_for), Type{ProjecturedKernel.AgentModule.AgentQuestionField}, Array{String, 1}, Base.HasShape{1}}
 Tuple{typeof(Base._array_for_inner), Type{Array{String, 1}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{Base.Dict{String, Any}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base._array_for_inner), Type{Nothing}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{ProjecturedKernel.AgentModule.AgentSubagentUpdate}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{String}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
@@ -512,41 +539,49 @@ Tuple{typeof(Base._array_for_inner), Type{Tuple{Array{String, 1}, ProjecturedKer
 Tuple{typeof(Base._array_for_inner), Type{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{Tuple{String, Int64, Nothing, Bool}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._array_for_inner), Type{Tuple{String, Symbol, Nothing}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
+Tuple{typeof(Base._array_for_inner), Type{Tuple{Symbol, ProjecturedKernel.LlmModule.LlmText}}, Base.HasShape{1}, Tuple{Base.OneTo{Int64}}}
 Tuple{typeof(Base._foldl_impl), Base.MappingRF{JSON3.var"#defaultminimum##0#defaultminimum##1"{Array{Base.Dict{String, V} where V, 1}}, Base.MappingRF{typeof(JSON3.defaultminimum), Base.BottomRF{typeof(Base.add_sum)}}}, Base._InitialValue, Base.OneTo{Int64}}
-Tuple{typeof(Base._similar_shape), Base.Generator{Base.UnitRange{Int64}, ProjecturedACPTest.var"#test_acp_connection##221#test_acp_connection##222"}, Base.HasShape{1}}
+Tuple{typeof(Base._similar_shape), Base.Generator{Base.UnitRange{Int64}, ProjecturedACPTest.var"#test_acp_connection##251#test_acp_connection##252"}, Base.HasShape{1}}
 Tuple{typeof(Base.add_sum), Int64, Int64}
 Tuple{typeof(Base.all), Function, Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}}
 Tuple{typeof(Base.all), Function, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}
 Tuple{typeof(Base.all), Function, Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}}
-Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentCommand, 1}, ProjecturedACPTest.var"#test_acp_connection##58#test_acp_connection##59"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentOption, 1}, ProjecturedACPTest.var"#test_acp_connection##38#test_acp_connection##39"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentOptionValue, 1}, ProjecturedACPTest.var"#test_acp_connection##40#test_acp_connection##41"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}, ProjecturedACPTest.var"#test_acp_connection##85#test_acp_connection##86"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##180#test_acp_connection##181"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##233#test_acp_connection##234"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##235#test_acp_connection##236"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentCommand, 1}, ProjecturedACPTest.var"#test_acp_connection##88#test_acp_connection##89"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentOption, 1}, ProjecturedACPTest.var"#test_acp_connection##68#test_acp_connection##69"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentOptionValue, 1}, ProjecturedACPTest.var"#test_acp_connection##70#test_acp_connection##71"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.AgentModule.AgentSignInMethod, 1}, ProjecturedACPTest.var"#test_acp_connection##115#test_acp_connection##116"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##210#test_acp_connection##211"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##212#test_acp_connection##213"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##263#test_acp_connection##264"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##265#test_acp_connection##266"}}
 Tuple{typeof(Base.collect), Base.KeySet{String, Base.Dict{String, Any}}}
 Tuple{typeof(Base.collect), Type{ProjecturedACP.AcpModule.AcpTurn}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{Nothing, ProjecturedACP.AcpModule.AcpTurn}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Type{ProjecturedACP.AcpModule.AcpTurn}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#cancel_agent_prompt!##2#cancel_agent_prompt!##3", Tuple{ProjecturedACP.AcpModule.AcpTurn, Nothing}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Type{ProjecturedKernel.AgentModule.AgentOptionValue}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#_read_question_options##2#_read_question_options##3", Array{Any, 1}}, ProjecturedACP.AcpModule.var"#_read_question_options##0#_read_question_options##1"}}
-Tuple{typeof(Base.collect), Type{ProjecturedKernel.AgentModule.AgentPermissionOption}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#72#73", Array{Any, 1}}, ProjecturedACP.AcpModule.var"#70#71"}}
-Tuple{typeof(Base.collect_to!), Array{Any, 1}, Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"}, Int64, Int64}
-Tuple{typeof(Base.collect_to!), Array{Tuple{Array{String, 1}, Any}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##178#test_acp_connection##179"}, Int64, Int64}
-Tuple{typeof(Base.collect_to!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmEvent}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##186#test_acp_connection##187"}, Int64, Int64}
-Tuple{typeof(Base.collect_to!), Array{Tuple{String, Symbol, Any}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##259#test_acp_connection##260"}, Int64, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Array{String, 1}, 1}, Array{String, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##248#test_acp_connection##249"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Base.Dict{String, Any}, 1}, Base.Dict{String, Any}, Base.Generator{Array{Base.Dict{String, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##209#test_acp_connection##210"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernel.AgentModule.AgentSubagentUpdate, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate, Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##235#test_acp_connection##236"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##178#test_acp_connection##179"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##231#test_acp_connection##232"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##186#test_acp_connection##187"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{String, Int64, Nothing, Bool}, 1}, Tuple{String, Int64, Nothing, Bool}, Base.Generator{Array{ProjecturedKernel.AgentModule.AgentPlanUpdate, 1}, ProjecturedACPTest.var"#test_acp_connection##198#test_acp_connection##199"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{String, Symbol, Nothing}, 1}, Tuple{String, Symbol, Nothing}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##259#test_acp_connection##260"}, Int64}
+Tuple{typeof(Base.collect), Type{ProjecturedKernel.AgentModule.AgentPermissionOption}, Base.Generator{Base.Iterators.Filter{ProjecturedACP.AcpModule.var"#78#79", Array{Any, 1}}, ProjecturedACP.AcpModule.var"#76#77"}}
+Tuple{typeof(Base.collect_to!), Array{Any, 1}, Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##212#test_acp_connection##213"}, Int64, Int64}
+Tuple{typeof(Base.collect_to!), Array{Tuple{Array{String, 1}, Any}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##208#test_acp_connection##209"}, Int64, Int64}
+Tuple{typeof(Base.collect_to!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmEvent}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##216#test_acp_connection##217"}, Int64, Int64}
+Tuple{typeof(Base.collect_to!), Array{Tuple{String, Symbol, Any}, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##289#test_acp_connection##290"}, Int64, Int64}
+Tuple{typeof(Base.collect_to!), Array{Union{Nothing, String}, 1}, Base.Generator{Array{Base.Dict{String, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##51#test_acp_connection##52"}, Int64, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Array{String, 1}, 1}, Array{String, 1}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##278#test_acp_connection##279"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Base.Dict{String, Any}, 1}, Base.Dict{String, Any}, Base.Generator{Array{Base.Dict{String, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##239#test_acp_connection##240"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Nothing, 1}, Nothing, Base.Generator{Array{Base.Dict{String, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##51#test_acp_connection##52"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernel.AgentModule.AgentSubagentUpdate, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate, Base.Generator{Array{Tuple{Array{String, 1}, Any}, 1}, ProjecturedACPTest.var"#test_acp_connection##212#test_acp_connection##213"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, ProjecturedACPTest.var"#test_acp_connection##265#test_acp_connection##266"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##208#test_acp_connection##209"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##261#test_acp_connection##262"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##216#test_acp_connection##217"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{String, Int64, Nothing, Bool}, 1}, Tuple{String, Int64, Nothing, Bool}, Base.Generator{Array{ProjecturedKernel.AgentModule.AgentPlanUpdate, 1}, ProjecturedACPTest.var"#test_acp_connection##228#test_acp_connection##229"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{String, Symbol, Nothing}, 1}, Tuple{String, Symbol, Nothing}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##289#test_acp_connection##290"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Symbol, ProjecturedKernel.LlmModule.LlmText}, 1}, Tuple{Symbol, ProjecturedKernel.LlmModule.LlmText}, Base.Generator{Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##37#test_acp_connection##38"}, Int64}
 Tuple{typeof(Base.deepcopy_internal), Array{Base.Dict{String, String}, 1}, Base.IdDict{Any, Any}}
+Tuple{typeof(Base.deepcopy_internal), Array{String, 1}, Base.IdDict{Any, Any}}
+Tuple{typeof(Base.deepcopy_internal), Base.Dict{String, Base.Dict{Any, Any}}, Base.IdDict{Any, Any}}
+Tuple{typeof(Base.deepcopy_internal), Base.Dict{String, Bool}, Base.IdDict{Any, Any}}
 Tuple{typeof(Base.deepcopy_internal), Base.Dict{String, String}, Base.IdDict{Any, Any}}
 Tuple{typeof(Base.delete!), Base.Dict{Any, Any}, Int64}
+Tuple{typeof(Base.delete!), Base.Dict{String, Base.Dict{Any, Any}}, String}
 Tuple{typeof(Base.div), UInt128, Int64}
 Tuple{typeof(Base.empty), Base.Dict{String, String}, Type{String}, Type{Any}}
 Tuple{typeof(Base.filter), Base.ComposedFunction{typeof(Base.:(!)), typeof(Base.isempty)}, Array{String, 1}}
@@ -584,13 +619,13 @@ Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothin
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:planId,), Tuple{String}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title), Tuple{String, String}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title, :description), Tuple{String, String, String}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:title,), Tuple{String}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, Union{Nothing, String}, Nothing, NamedTuple{(:compactionId, :status, :summary), Tuple{String, String, Nothing}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, Union{Nothing, String}, Nothing, NamedTuple{(:sessionId, :title, :description, :state), Tuple{String, Nothing, Nothing, Nothing}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, ProjecturedACPTest.var"#18#19"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, ProjecturedACPTest.var"#test_acp_connection##221#test_acp_connection##222"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, ProjecturedACPTest.var"#test_acp_connection##251#test_acp_connection##252"}, Symbol}
 Tuple{typeof(Base.getproperty), NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}, Symbol}
 Tuple{typeof(Base.getproperty), NamedTuple{(:output, :truncated, :exit_code, :signal), Tuple{String, Bool, Int64, Nothing}}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, Bool}, Symbol}
@@ -598,30 +633,35 @@ Tuple{typeof(Base.getproperty), Pair{String, Int64}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, Nothing}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#make_fake_handlers##0#make_fake_handlers##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##0#test_acp_connection##1"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##103#test_acp_connection##104"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##119#test_acp_connection##120"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##12#test_acp_connection##13"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##136#test_acp_connection##137"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##123#test_acp_connection##124"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##127#test_acp_connection##128"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##14#test_acp_connection##15"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##170#test_acp_connection##171"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##172#test_acp_connection##173"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##174#test_acp_connection##175"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##188#test_acp_connection##189"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##201#test_acp_connection##202"{ProjecturedACPTest.var"#send_task#test_acp_connection##200"}}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##207#test_acp_connection##208"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##213#test_acp_connection##214"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##215#test_acp_connection##216"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##217#test_acp_connection##218"{Int64}}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##223#test_acp_connection##224"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##227#test_acp_connection##228"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##255#test_acp_connection##256"{ProjecturedACPTest.var"#chunk#test_acp_connection##254"}}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##261#test_acp_connection##262"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##48#test_acp_connection##49"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##67#test_acp_connection##68"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##69#test_acp_connection##70"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##73#test_acp_connection##74"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##166#test_acp_connection##167"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##200#test_acp_connection##201"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##202#test_acp_connection##203"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##204#test_acp_connection##205"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##218#test_acp_connection##219"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##231#test_acp_connection##232"{ProjecturedACPTest.var"#send_task#test_acp_connection##230"}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##237#test_acp_connection##238"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##243#test_acp_connection##244"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##245#test_acp_connection##246"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##247#test_acp_connection##248"{Int64}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##253#test_acp_connection##254"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##257#test_acp_connection##258"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##285#test_acp_connection##286"{ProjecturedACPTest.var"#chunk#test_acp_connection##284"}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##291#test_acp_connection##292"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##31#test_acp_connection##32"{ProjecturedACPTest.var"#user_chunk#test_acp_connection##30"}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##39#test_acp_connection##40"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##43#test_acp_connection##44"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##56#test_acp_connection##57"{ProjecturedACPTest.var"#conflict#test_acp_connection##55", Bool}}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##58#test_acp_connection##59"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##78#test_acp_connection##79"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##8#test_acp_connection##9"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##89#test_acp_connection##90"}, Symbol}
-Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##93#test_acp_connection##94"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##97#test_acp_connection##98"}, Symbol}
+Tuple{typeof(Base.getproperty), Pair{String, ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"}, Symbol}
 Tuple{typeof(Base.getproperty), Pair{String, String}, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.AgentModule.AgentCommand, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.AgentModule.AgentCommandsUpdate, Symbol}
@@ -633,12 +673,13 @@ Tuple{typeof(Base.getproperty), ProjecturedKernel.AgentModule.AgentSignInExcepti
 Tuple{typeof(Base.getproperty), ProjecturedKernel.AgentModule.AgentSignInMethod, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.LlmModule.LlmMessage, Symbol}
 Tuple{typeof(Base.getproperty), StructUtils.EarlyReturn{Tuple{}}, Symbol}
-Tuple{typeof(Base.grow_to!), Base.Dict{String, Any}, Base.Generator{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:taskId, :activeForm, :description, :blockedBy), Tuple{String, String, String, Array{String, 1}}}}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"}, Int64}
+Tuple{typeof(Base.grow_to!), Base.Dict{String, Any}, Base.Generator{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:taskId, :activeForm, :description, :blockedBy), Tuple{String, String, String, Array{String, 1}}}}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223"}, Int64}
 Tuple{typeof(Base.grow_to!), Base.Dict{String, Any}, Tuple{Pair{String, String}, Pair{String, String}, Pair{String, Array{String, 1}}, Pair{String, String}, Pair{String, Array{Base.Dict{String, String}, 1}}, Pair{String, Int64}}, Int64}
 Tuple{typeof(Base.haskey), Base.Dict{String, String}, String}
 Tuple{typeof(Base.haskey), Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:child_id, :parent_id, :maxlog), Tuple{String, String, Int64}}}, Symbol}
 Tuple{typeof(Base.in), String, Array{Any, 1}}
 Tuple{typeof(Base.in), String, Array{String, 1}}
+Tuple{typeof(Base.in), String, Base.Set{String}}
 Tuple{typeof(Base.in), String, Tuple{String, String, String}}
 Tuple{typeof(Base.in), String, Tuple{String, String}}
 Tuple{typeof(Base.indexed_iterate), Pair{String, Array{Base.Dict{String, Any}, 1}}, Int64, Int64}
@@ -673,6 +714,7 @@ Tuple{typeof(Base.isempty), Array{ProjecturedKernel.AgentModule.AgentPlanEntry, 
 Tuple{typeof(Base.isempty), Base.Dict{String, Any}}
 Tuple{typeof(Base.isempty), Base.Dict{String, ProjecturedACP.AcpModule.AcpTurn}}
 Tuple{typeof(Base.isempty), Base.Dict{String, String}}
+Tuple{typeof(Base.isempty), Base.Dict{String, Union{Nothing, ProjecturedKernel.AgentModule.AgentEventQueue}}}
 Tuple{typeof(Base.isempty), Base.Dict{Tuple{String, String}, String}}
 Tuple{typeof(Base.isempty), Base.Set{String}}
 Tuple{typeof(Base.isfinite), Float64}
@@ -690,8 +732,8 @@ Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, N
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title), Tuple{String, String}}}, ProjecturedACPTest.var"#18#19"}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title, :description), Tuple{String, String, String}}}, ProjecturedACPTest.var"#18#19"}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:severity, :title, :description), Tuple{String, String, String}}}, ProjecturedACPTest.var"#18#19"}}
-Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"}, Int64}
-Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##192#test_acp_connection##193"}}
+Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223"}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:taskId,), Tuple{String}}}, ProjecturedACPTest.var"#test_acp_connection##222#test_acp_connection##223"}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:title,), Tuple{String}}}, ProjecturedACPTest.var"#18#19"}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, String, Nothing, NamedTuple{(:title,), Tuple{String}}}, ProjecturedACPTest.var"#18#19"}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Pairs{Symbol, Union{Nothing, String}, Nothing, NamedTuple{(:compactionId, :status, :summary), Tuple{String, String, Nothing}}}, ProjecturedACPTest.var"#18#19"}, Int64}
@@ -720,9 +762,9 @@ Tuple{typeof(Base.iterate), Pair{String, String}}
 Tuple{typeof(Base.keys), Base.Dict{String, Any}}
 Tuple{typeof(Base.last), Pair{String, String}}
 Tuple{typeof(Base.lock), AgentClientProtocol.var"#_dispatch_message!##4#_dispatch_message!##5"{AgentClientProtocol.Connection, Int64}, Base.ReentrantLock}
-Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#46#47"{Base.Dict{String, Any}, String, ProjecturedACP.AcpModule.AcpConnection}, Base.ReentrantLock}
-Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#49#50"{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate, ProjecturedACP.AcpModule.AcpConnection, String}, Base.ReentrantLock}
-Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#99#100"{ProjecturedKernel.AgentModule.AgentQuestionRequest, ProjecturedACP.AcpModule.var"#93#94"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Base.Channel{Any}, String, ProjecturedACP.AcpModule.AcpConnection}, Base.ReentrantLock}
+Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#105#106"{ProjecturedKernel.AgentModule.AgentQuestionRequest, ProjecturedACP.AcpModule.var"#99#100"{ProjecturedACP.AcpModule.var"#deliver#deliver##0"{Base.Threads.Atomic{Bool}, Base.Channel{Any}}}, Base.Channel{Any}, String, ProjecturedACP.AcpModule.AcpConnection}, Base.ReentrantLock}
+Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#52#53"{Base.Dict{String, Any}, String, ProjecturedACP.AcpModule.AcpConnection}, Base.ReentrantLock}
+Tuple{typeof(Base.lock), ProjecturedACP.AcpModule.var"#55#56"{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate, ProjecturedACP.AcpModule.AcpConnection, String}, Base.ReentrantLock}
 Tuple{typeof(Base.lock), ProjecturedACPTest.var"#_read_fake_messages##0#_read_fake_messages##1"{ProjecturedACPTest.FakeAcpAgent, Base.Dict{String, Any}}, Base.ReentrantLock}
 Tuple{typeof(Base.mapfoldl), Function, Function, Base.Generator{Base.OneTo{Int64}, JSON3.var"#defaultminimum##0#defaultminimum##1"{Array{Base.Dict{String, V} where V, 1}}}}
 Tuple{typeof(Base.mapfoldl_impl), typeof(Base.identity), Base.var"#foreach##0#foreach##1"{ProjecturedACP.AcpModule.var"#_find_session_turn!##0#_find_session_turn!##1"{ProjecturedACP.AcpModule.AcpConnection, String}}, Nothing, Tuple{ProjecturedKernel.AgentModule.AgentSubagentUpdate}}
@@ -744,6 +786,7 @@ Tuple{typeof(Base.pairs), NamedTuple{(:severity, :title, :description), Tuple{St
 Tuple{typeof(Base.pairs), NamedTuple{(:taskId,), Tuple{String}}}
 Tuple{typeof(Base.pairs), NamedTuple{(:title,), Tuple{String}}}
 Tuple{typeof(Base.print), Base.GenericIOBuffer{Memory{UInt8}}, JSON.Error}
+Tuple{typeof(Base.push!), Base.Set{String}, String}
 Tuple{typeof(Base.put!), Base.Channel{Any}, ProjecturedKernel.AgentModule.AgentCompactionUpdate}
 Tuple{typeof(Base.put!), Base.Channel{Any}, ProjecturedKernel.AgentModule.AgentOptionsUpdate}
 Tuple{typeof(Base.put!), Base.Channel{Any}, ProjecturedKernel.AgentModule.AgentPlanUpdate}
@@ -769,6 +812,7 @@ Tuple{typeof(Base.setindex!), Array{UInt8, 1}, UInt8, Int64}
 Tuple{typeof(Base.setindex!), Base.Dict{Any, Any}, Any, Int64}
 Tuple{typeof(Base.setindex!), Base.Dict{Any, Int64}, Int64, Symbol}
 Tuple{typeof(Base.setindex!), Base.Dict{String, Tuple{String, String}}, Tuple{String, String}, String}
+Tuple{typeof(Base.setindex_widen_up_to), Array{Nothing, 1}, String, Int64}
 Tuple{typeof(Base.setindex_widen_up_to), Array{ProjecturedKernel.AgentModule.AgentSubagentUpdate, 1}, ProjecturedKernel.LlmModule.LlmMessage, Int64}
 Tuple{typeof(Base.setindex_widen_up_to), Array{Tuple{Array{String, 1}, ProjecturedKernel.AgentModule.AgentSubagentUpdate}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmMessage}, Int64}
 Tuple{typeof(Base.setindex_widen_up_to), Array{Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextStart}, 1}, Tuple{Array{String, 1}, ProjecturedKernel.LlmModule.LlmTextDelta}, Int64}
@@ -786,6 +830,10 @@ Tuple{typeof(Base.vect), Base.Dict{String, String}, Vararg{Base.Dict{String, Str
 Tuple{typeof(Base.write), Base.BufferStream, String, Char}
 Tuple{typeof(Base.write), Base.PipeEndpoint, String, Char}
 Tuple{typeof(Core.kwcall), NamedTuple{(:command, :arguments, :directory, :environment, :output_byte_limit), Tuple{String, Array{String, 1}, String, Array{Pair{String, String}, 1}, Int64}}, typeof(ProjecturedACP.AcpModule._ask_terminal_request), ProjecturedACP.AcpModule.AcpConnection, String, Symbol, String, AgentClientProtocol.RequestContext}
+Tuple{typeof(Core.kwcall), NamedTuple{(:cwd, :cursor), Tuple{Nothing, Nothing}}, Type{AgentClientProtocol.ListSessionsRequest}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:cwd, :cursor), Tuple{Nothing, String}}, Type{AgentClientProtocol.ListSessionsRequest}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:cwd, :cursor), Tuple{String, Nothing}}, Type{AgentClientProtocol.ListSessionsRequest}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:cwd, :cursor), Tuple{String, String}}, Type{AgentClientProtocol.ListSessionsRequest}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:exit_code, :signal), Tuple{Int64, Nothing}}, Type{AgentClientProtocol.TerminalExitStatus}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:exit_code, :signal), Tuple{Nothing, String}}, Type{AgentClientProtocol.WaitForTerminalExitResponse}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:id, :description, :active_title, :blocked_by), Tuple{String, String, String, Array{String, 1}}}, Type{ProjecturedKernel.AgentModule.AgentPlanEntry}, String, Symbol, Symbol}
@@ -802,31 +850,33 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:name, :extra_aliases), Tuple{String, Bas
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), NTuple{9, Nothing}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, Nothing, Nothing, Symbol, Nothing, String, Nothing, Nothing, Array{String, 1}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, Nothing, Nothing, Symbol, Nothing, String, String, String, Array{String, 1}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
+Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, Nothing, Nothing, Symbol, Vararg{Nothing, 5}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, String, Symbol, Symbol, Nothing, String, Nothing, Nothing, Array{String, 1}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, String, Symbol, Symbol, Vararg{Nothing, 5}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, String, Symbol, Vararg{Nothing, 6}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{Nothing, String, Vararg{Nothing, 7}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:name, :title, :kind, :status, :input, :output, :output_mime_type, :output_uri, :terminal_ids), Tuple{String, String, Symbol, Symbol, Base.Dict{String, Any}, Vararg{Nothing, 4}}}, Type{ProjecturedKernel.AgentModule.AgentToolCallUpdate}, String}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##103#test_acp_connection##104"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##120#test_acp_connection##121"{Base.Dict{String, Any}, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##120#test_acp_connection##121"{Nothing, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##146#test_acp_connection##147"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##152#test_acp_connection##153"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##194#test_acp_connection##195"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##203#test_acp_connection##204"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##219#test_acp_connection##220"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##225#test_acp_connection##226"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##229#test_acp_connection##230"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##242#test_acp_connection##243"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##257#test_acp_connection##258"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##263#test_acp_connection##264"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##42#test_acp_connection##43"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.set_agent_option!), ProjecturedACP.AcpModule.AcpConnection, String, String, String}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##44#test_acp_connection##45"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##50#test_acp_connection##51"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##60#test_acp_connection##61"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##64#test_acp_connection##65"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##99#test_acp_connection##100"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##129#test_acp_connection##130"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##133#test_acp_connection##134"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##150#test_acp_connection##151"{Base.Dict{String, Any}, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##150#test_acp_connection##151"{Nothing, Array{ProjecturedKernel.AgentModule.AgentQuestionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##176#test_acp_connection##177"{Array{ProjecturedKernel.AgentModule.AgentPermissionRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##182#test_acp_connection##183"{Array{ProjecturedKernel.AgentModule.AgentToolCallUpdate, 1}, Array{ProjecturedKernel.AgentModule.AgentTerminalRequest, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##206#test_acp_connection##207"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##224#test_acp_connection##225"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##233#test_acp_connection##234"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##249#test_acp_connection##250"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##255#test_acp_connection##256"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##259#test_acp_connection##260"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##272#test_acp_connection##273"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##287#test_acp_connection##288"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##293#test_acp_connection##294"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##45#test_acp_connection##46"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##72#test_acp_connection##73"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.set_agent_option!), ProjecturedACP.AcpModule.AcpConnection, String, String, String}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##74#test_acp_connection##75"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##80#test_acp_connection##81"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##90#test_acp_connection##91"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{ProjecturedACPTest.var"#test_acp_connection##94#test_acp_connection##95"{Array{Any, 1}}}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{typeof(Base.identity)}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmContent, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{typeof(Base.identity)}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmImage, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:on_event,), Tuple{typeof(Base.identity)}}, typeof(ProjecturedKernel.AgentModule.send_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
@@ -889,6 +939,7 @@ Tuple{typeof(ProjecturedACP.AcpModule._append_option_values!), Array{Projectured
 Tuple{typeof(ProjecturedACP.AcpModule._ask_terminal_request), ProjecturedACP.AcpModule.AcpConnection, String, Symbol, String, AgentClientProtocol.RequestContext}
 Tuple{typeof(ProjecturedACP.AcpModule._find_content_resource), Array{Any, 1}}
 Tuple{typeof(ProjecturedACP.AcpModule._find_count), Float64}
+Tuple{typeof(ProjecturedACP.AcpModule._find_session_conflict), AgentClientProtocol.ProtocolException}
 Tuple{typeof(ProjecturedACP.AcpModule._has_steering_meta), Base.Dict{String, Any}}
 Tuple{typeof(ProjecturedACP.AcpModule._make_sign_in_method), ProjecturedACP.AcpModule.AcpConnection, AgentClientProtocol.AuthMethodAgent}
 Tuple{typeof(ProjecturedACP.AcpModule._make_sign_in_method), ProjecturedACP.AcpModule.AcpConnection, AgentClientProtocol.AuthMethodTerminal}
@@ -898,6 +949,7 @@ Tuple{typeof(ProjecturedACP.AcpModule._read_content_text), Base.Dict{String, Any
 Tuple{typeof(ProjecturedACP.AcpModule._read_count), Int64}
 Tuple{typeof(ProjecturedACP.AcpModule._read_id), Nothing}
 Tuple{typeof(ProjecturedACP.AcpModule._read_id), String}
+Tuple{typeof(ProjecturedACP.AcpModule._read_iso_time), String}
 Tuple{typeof(ProjecturedACP.AcpModule._read_plan_update), Base.Dict{String, Any}}
 Tuple{typeof(ProjecturedACP.AcpModule._read_question_field), String, Base.Dict{String, Any}, Bool}
 Tuple{typeof(ProjecturedACP.AcpModule._read_question_fields), Base.Dict{String, Any}}
@@ -908,8 +960,9 @@ Tuple{typeof(ProjecturedACP.AcpModule._send_turn_events!), ProjecturedACP.AcpMod
 Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, Nothing}
 Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##10#test_acp_connection##11"{Array{Any, 1}}}
 Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##20#test_acp_connection##21"{Array{Any, 1}}}
-Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##36#test_acp_connection##37"{Array{Any, 1}}}
-Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##42#test_acp_connection##43"{Array{Any, 1}}}
+Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##33#test_acp_connection##34"{Array{Any, 1}}}
+Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##66#test_acp_connection##67"{Array{Any, 1}}}
+Tuple{typeof(ProjecturedACP.AcpModule._store_session_options!), ProjecturedACP.AcpModule.AcpConnection, String, Array{Any, 1}, ProjecturedACPTest.var"#test_acp_connection##72#test_acp_connection##73"{Array{Any, 1}}}
 Tuple{typeof(ProjecturedACPTest._is_process_alive), Int64}
 Tuple{typeof(ProjecturedACPTest._make_fake_plain), Bool}
 Tuple{typeof(ProjecturedACPTest._make_fake_plain), Int64}
@@ -934,7 +987,7 @@ Tuple{typeof(ProjecturedKernel.AgentModule.has_agent_steering), ProjecturedACP.A
 Tuple{typeof(ProjecturedKernel.AgentModule.sign_out_agent!), ProjecturedACP.AcpModule.AcpConnection}
 Tuple{typeof(ProjecturedKernel.AgentModule.steer_agent_prompt!), ProjecturedACP.AcpModule.AcpConnection, String, Array{ProjecturedKernel.LlmModule.LlmText, 1}}
 Tuple{typeof(ProjecturedKernel.AgentModule.stop_agent_background_task!), ProjecturedACP.AcpModule.AcpConnection, String, String}
-Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, Base.SubString{String}}, Nothing}
+Tuple{typeof(ProjecturedKernelTest._run_entries), ProjecturedKernelTest.TestSuite, String, Array{ProjecturedKernelTest.PartRecord, 1}, Tuple{String, String}, Nothing}
 Tuple{typeof(ProjecturedKernelTest.collect_edges), Expr}
 Tuple{typeof(ProjecturedKernelTest.imported_symbols), Expr}
 Tuple{typeof(StructUtils.lower), JSON.JSONWriteStyle, Base.Dict{String, Any}}
