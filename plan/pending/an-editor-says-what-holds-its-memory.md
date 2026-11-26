@@ -309,13 +309,28 @@ Facts and decisions of the work, in the order of the steps.
   process that the editor does not reach is the line `(unreached)`, with a margin of
   4 MiB: four times its noise of 0.8 MB between two reports in a row.
 - **The margin of a holder is 64 KiB in each half, about 3.3 KB in each cycle, not
-  4 KiB.** The list of the files of the folder of the explorer gains 20 KB to 90 KB
-  in a half, about twice as much in the first half as in the second, and its line
-  moves between `….counts[#… FileSystemDirectory].key.elements.elements` and
-  `….counts[#… WorkspaceFolder].key.directory` from run to run; one run of four
-  showed neither. With 4 KiB the test showed it only at some times, and a check that
-  fails only at some times gets no marker. With 64 KiB its growth stays in the line
-  of the root in each run.
+  4 KiB.** With 4 KiB small lines grow in some runs and not in others, and a check
+  that fails only at some times gets no marker. Two kinds showed:
+  - The list of the files of the folder of the explorer (store 3) gains 20 KB to
+    131 KB in a half. Its line moves between
+    `….counts[#… FileSystemDirectory].key.elements.elements` and
+    `….counts[#… WorkspaceFolder].key.directory` from run to run; one run of four
+    showed neither.
+  - Each of the four sides of the margin of a window projection,
+    `….opened_window_projections[2].second.margin.computation.value.top` and the
+    three others, gains 37 KB in the first half and 15 KB in the second.
+- **The known growth of the root also names the lines of the folder (step 5).** The
+  first run of all parts failed on the line of the folder: 84 KB, then 131 KB,
+  above the margin of 64 KiB. A probe after 3 and 6 cycles showed why the line
+  moves. Each `FileSystemFile` of the folder keeps 40 bytes alone, and the root
+  keeps its cells, about 1 KB to 2 KB for each file that a cycle opened, because a
+  second path reaches them. In some runs the folder keeps a part of them alone. So
+  store 3 moves between the root and the line of the folder, and the entry of the
+  root is a pattern of the three lines. The entry is in use in each run, because the
+  root gains 0.86 MB to 1.9 MB in each half. *Rejected:* a larger margin, because
+  the gain of the folder is not bounded by a number that the runs show; and an
+  entry of its own for store 3, because it names no growth in the runs where the
+  root keeps the cells, so it fails only at some times.
 - The lines of the runs of 60 cycles on main, the same in four runs:
 
   | Line | Gain in the first half | Gain in the second half | In each cycle |

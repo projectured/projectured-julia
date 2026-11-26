@@ -802,10 +802,12 @@ holder grows when it keeps more than 64 KiB more in each half, about 3.3 KB in
 each cycle, and the gain repeats: neither half gains more than four times the
 other. It takes only the gain
 that the growing holders below it do not explain, so the root takes the growth
-that no listed holder explains. The live memory of the process that the editor does
+that no growing holder below it explains. The live memory of the process that the editor does
 not reach is a line of its own, `(unreached)`, with a margin of 4 MiB, four times
 the noise of two reports in a row. Each store that grows on main is an entry of
-`_MC_KNOWN_GROWTH`, a part of the path of its holder with its reason. A
+`_MC_KNOWN_GROWTH`: a part of the path of its holder, or a pattern of the paths of
+the store, with its reason. A store whose objects another holder also reaches can
+move between its own line and the root from run to run, so one entry names both. A
 growth that an entry names counts as broken, and a growth that no entry names fails,
 and so does an entry that names no growth. So a fix of a store removes its entry.
 

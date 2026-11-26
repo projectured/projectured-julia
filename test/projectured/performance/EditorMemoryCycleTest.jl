@@ -22,10 +22,14 @@ const _MC_KNOWN_GROWTH = Pair{Union{String, Regex}, String}[
         "(`CellVectorView.kept`), and each view of an element keeps the print in which it " *
         "was made, through the fault scope of the computation of its cell `entries.viewed`: " *
         "about 7.5 MB in each cycle",
-    "(the root)" =>
-        "about 50 KB more in each cycle that no listed holder explains: holders that gain " *
-        "less than the margin each, such as the list of the files of the folder of the " *
-        "explorer, and the objects that two holders keep, which belong to the root",
+    # Store 3, and the objects that two holders reach.
+    r"^\(the root\)$|FileSystemDirectory\]\.key\.elements\.elements$|WorkspaceFolder\]\.key\.directory$" =>
+        "about 50 KB more in each cycle that no growing holder below the root explains: " *
+        "the holders that gain less than the margin, and each object that two holders " *
+        "reach, such as the cells of a file of the folder of the explorer that a cycle " *
+        "opened. In some runs the list of the files of the folder keeps a part of them " *
+        "alone, so this growth moves between the root and the line of the folder from " *
+        "run to run",
     "(unreached)" =>
         "the process keeps about 1.6 MB more in each cycle that the editor does not reach; " *
         "the walk does not walk into a module, so a store of a module is not seen",
@@ -34,9 +38,10 @@ const _MC_KNOWN_GROWTH = Pair{Union{String, Regex}, String}[
 const _MC_CYCLE_COUNT = 60
 const _MC_REPORT_CYCLES = (20, 40, 60)
 # A holder grows when it keeps more than this in each half: about 3.3 KB in each
-# cycle of a half of 20 cycles. The list of the files of the folder gains 20 KB to
-# 90 KB in a half on main, and its line moves between two holders from run to run,
-# so with a smaller margin a run shows it only at some times.
+# cycle of a half of 20 cycles. Smaller lines grow in some runs and not in others,
+# such as each of the four sides of the margin of a window projection, which gain
+# about 37 KB in the first half and 15 KB in the second on main. Their gain stays
+# in the line of the root.
 const _MC_GROWTH_MARGIN = 64 << 10
 # A growth repeats when the gain of one half is at most this many times the gain of
 # the other. A step that happens once, such as a table that doubles, does not.
