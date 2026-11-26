@@ -6,6 +6,10 @@
 # keeps the relation from the moment the computation is made: code makes its cells
 # inside `run_in_cell_fault_scope`, each computation made there keeps the scope, and the
 # computation that throws hands its fault to that scope.
+#
+# A computation holds a scope that is a mutable object weakly, so a computation that a
+# view keeps for later does not keep the code that made it, such as an old print. When
+# nothing else holds the scope, the computation runs with no scope.
 
 # The scope that `run_in_cell_fault_scope` set, the computing stack of that moment and its
 # depth. A computation made deeper in that stack was made by a computation that runs
@@ -25,6 +29,10 @@ it calls [`record_cell_fault!`](@ref) with the scope, so the fault goes to
 the owner that made the cell, whatever read reaches the cell. A computation made
 later, inside the run of a computation that has a scope, takes that scope. A scope
 inside a scope takes the place of the outer one until its `body` returns.
+
+A computation holds a scope that is a mutable object weakly. When nothing else holds
+the scope, the computation runs with no scope, and its fault goes on to the code that
+reads the cell. A scope that is not mutable, such as a symbol, stays.
 
 # Example
 
@@ -73,16 +81,24 @@ function Base.showerror(io::IO, recorded::RecordedCellFaultException)
 end
 
 # A computation and the scope that it belongs to. The cell keeps this in place of
-# the function, so a run of it hands a fault to the scope.
+# the function, so a run of it hands a fault to the scope. `scope` holds a `WeakRef`
+# of a scope that is a mutable object, and any other scope as it is.
 struct _FaultScopedComputation <: Function
     computation::Function
     scope::Any
 end
 
+# The scope of `scoped`, or `nothing` when nothing else holds it any more.
+_get_held_scope(scoped::_FaultScopedComputation) =
+    scoped.scope isa WeakRef ? scoped.scope.value : scoped.scope
+
 # A `MethodError` in a task whose world is older than the newest method is no
 # fault: a reactive cell runs the computation again in the newest world
-# (`_run_computation`), and only a `MethodError` there is one.
+# (`_run_computation`), and only a `MethodError` there is one. The run holds the
+# scope, so the scope stays while the computation runs.
 function (scoped::_FaultScopedComputation)()
+    scope = _get_held_scope(scoped)
+    scope === nothing && return scoped.computation()
     try
         return scoped.computation()
     catch exception
@@ -90,9 +106,9 @@ function (scoped::_FaultScopedComputation)()
             rethrow()
         exception isa MethodError && Base.tls_world_age() < Base.get_world_counter() &&
             rethrow()
-        record_cell_fault!(scoped.scope, scoped.computation, exception;
+        record_cell_fault!(scope, scoped.computation, exception;
                                   traceback = catch_backtrace()) || rethrow()
-        throw(RecordedCellFaultException(exception, scoped.scope))
+        throw(RecordedCellFaultException(exception, scope))
     end
 end
 
@@ -100,7 +116,8 @@ end
     get_cell_fault_scope(cell) -> scope or nothing
 
 The scope that the computation of `cell` belongs to, or `nothing` when the cell holds
-a value, or when its computation was made outside every scope.
+a value, when its computation was made outside every scope, or when its scope is a
+mutable object that nothing else holds any more.
 
 Use it to find the owner of the computation that a cell holds.
 
@@ -113,7 +130,8 @@ See also [`find_cell_fault_scope`](@ref), the scope that a computation made now 
 get_cell_fault_scope(cell::AbstractCell) =
     _get_computation_fault_scope(get_cell_computation(cell))
 
-_get_computation_fault_scope(computation::_FaultScopedComputation) = computation.scope
+_get_computation_fault_scope(computation::_FaultScopedComputation) =
+    _get_held_scope(computation)
 _get_computation_fault_scope(::Union{Function, Nothing}) = nothing
 
 """
@@ -146,5 +164,6 @@ end
 function _capture_fault_scope(computation::Function)
     computation isa _FaultScopedComputation && return computation
     scope = find_cell_fault_scope()
-    scope === nothing ? computation : _FaultScopedComputation(computation, scope)
+    scope === nothing && return computation
+    _FaultScopedComputation(computation, ismutable(scope) ? WeakRef(scope) : scope)
 end

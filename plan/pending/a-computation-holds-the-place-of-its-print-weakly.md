@@ -110,7 +110,7 @@ Each decision counts as approved when the owner approves the plan.
 
 ## Steps
 
-1. **The weak link.** In `CellFaultScope.jl`, `_capture_fault_scope` keeps a mutable
+1. **Done on 2026-11-26.** **The weak link.** In `CellFaultScope.jl`, `_capture_fault_scope` keeps a mutable
    scope through a `WeakRef` (D1). The call of `_FaultScopedComputation` runs the
    computation with no scope when the scope is gone (D2), and
    `_get_computation_fault_scope` answers `nothing` then (D3). Add cases to
@@ -141,6 +141,18 @@ Each decision counts as approved when the owner approves the plan.
    in `CLAUDE.md` says, and the fast parts of omnet-julia against the branch. Record
    the calls of each test package whose files the land changes, after the land. Then
    ask the owner to land, with the list of the markers that the branch removes.
+
+## What the work found
+
+**Step 1.**
+
+- `_FaultScopedComputation` keeps its two fields. `_get_held_scope` reads the scope
+  through the `WeakRef` or as it is. A run reads the scope once at its start, so the
+  scope stays while the computation runs.
+- `test_cell_fault_scope` passes 52 of 52, five times in one process, so the
+  collection in the new cases is stable. `test_cell_example` passes 2 of 2,
+  `test_cell` 334 of 334, `test_fault_example` 2 of 2, `test_editor_fault_barriers`
+  34 of 34, `test_fault_catching` 53 of 53 and `test_fault_part` 26 of 26.
 
 ## Risks
 

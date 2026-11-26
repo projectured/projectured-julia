@@ -1,7 +1,7 @@
 """
 The fault scope of a computation: a computation made inside `run_in_cell_fault_scope`
-keeps the scope, and when it throws it hands the fault to that scope. The tests
-need only the cell layer.
+keeps the scope, a mutable scope weakly, and when it throws it hands the fault to
+that scope. The tests need only the cell layer.
 """
 
 using Test
@@ -20,6 +20,23 @@ function CellModule.record_cell_fault!(scope::FaultScopeProbe, computation,
     push!(scope.faults, (computation, exception))
     scope.takes
 end
+
+# A scope that is a value, not a mutable object.
+struct FaultScopeValue
+    faults::Vector{Any}
+end
+
+# A cell whose computation throws, made in a mutable scope that nothing holds after
+# the return, and a weak reference of that scope.
+@noinline function _make_cell_of_dropped_fault_scope()
+    scope = FaultScopeProbe(:dropped)
+    cell = run_in_cell_fault_scope(() -> Cell(@computation error("broken")), scope)
+    (cell, WeakRef(scope))
+end
+
+# A cell made in a scope that is a value, which nothing holds after the return.
+@noinline _make_cell_of_value_fault_scope() =
+    run_in_cell_fault_scope(() -> Cell(@computation 1), FaultScopeValue(Any[]))
 
 function test_cell_fault_scope()
 @testset "the fault scope of a computation" begin
@@ -168,6 +185,45 @@ function test_cell_fault_scope()
         @test_throws RecordedCellFaultException cell[]
         is_broken[] = false
         @test cell[] == 7
+    end
+
+    @testset "a mutable scope that something holds stays, and takes the fault" begin
+        scope = FaultScopeProbe(:held)
+        cell = run_in_cell_fault_scope(() -> Cell(@computation error("broken")), scope)
+        GC.gc(true)
+        @test get_cell_fault_scope(cell) === scope
+        @test_throws RecordedCellFaultException cell[]
+        @test length(scope.faults) == 1
+    end
+
+    @testset "a mutable scope that nothing holds goes; the fault goes to the reader" begin
+        (cell, seen) = _make_cell_of_dropped_fault_scope()
+        GC.gc(true)
+        GC.gc(true)
+        @test seen.value === nothing
+        @test get_cell_fault_scope(cell) === nothing
+        # The computation runs with no scope, so its fault goes on as it is.
+        @test_throws ErrorException cell[]
+        reader_scope = FaultScopeProbe(:reader)
+        reader = run_in_cell_fault_scope(reader_scope) do
+            Cell(@computation cell[] + 1)
+        end
+        thrown = try
+            reader[]
+            nothing
+        catch exception
+            exception
+        end
+        @test thrown isa RecordedCellFaultException
+        @test thrown.scope === reader_scope
+        @test length(reader_scope.faults) == 1
+    end
+
+    @testset "a scope that is not mutable stays" begin
+        cell = _make_cell_of_value_fault_scope()
+        GC.gc(true)
+        @test get_cell_fault_scope(cell) isa FaultScopeValue
+        @test cell[] == 1
     end
 
     @testset "find_cell_fault_scope answers the scope of a computation made now" begin
