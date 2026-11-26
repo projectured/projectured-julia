@@ -139,7 +139,9 @@ Each decision counts as approved when the owner approves the plan.
    file, and report each check. Checks 3 and 4 run at the last file of the layer,
    `cell/CellDefaults.jl`; the report says whether the change makes the example or the
    guide of the layer wrong. The owner decides on the new seal.
-5. **The check before the land.** Run all the parts in the worktree, as "Main is green"
+5. **The check is done on 2026-11-26 (see "What the work found"); the land, the
+   record of the calls and the new seal wait for the word of the owner.**
+   **The check before the land.** Run all the parts in the worktree, as "Main is green"
    in `CLAUDE.md` says, and the fast parts of omnet-julia against the branch. Record
    the calls of each test package whose files the land changes, after the land. Then
    ask the owner to land, with the list of the markers that the branch removes.
@@ -223,6 +225,28 @@ Each decision counts as approved when the owner approves the plan.
     are concepts of higher layers. The paragraph is gone.
 - Check 2 found a case of D2 with no test: a computation whose scope is gone makes its
   cells with no scope. The test is added.
+
+**Step 5.**
+
+- The first run of all parts stopped after 6 minutes, because the fixes of the
+  audit changed the sealed file while it ran. The second run, at `4475c0663`: 772
+  parts, each done; 3 520 664 pass, 4 fail, 1 error, 3604 broken; 1 h 10 min, a peak
+  of 20.9 GB for the job. No fail or error belongs to the branch:
+  - `test_application`, 1 fail, and `test_scroll_work`, 1 fail: an Alt and double
+    click in the Files pane, and the work of the Files pane. The land of the plan "an
+    editor says what holds its memory" showed the same two on `main`.
+  - `test_semantic_tokens`, 2 fail and 1 error: a `clangd` that the test stops did
+    not end within the wait of 10 s, under the load of the run, and the two checks
+    after it failed for that reason. The test alone passes 25 of 25, three times, and
+    the code of the language server uses no cell.
+- `test_exports` and `test_documentation` pass: the branch holds the 4 commits of
+  the plan "the CI of main passes again" of another session, which fix them.
+- The fast parts of omnet-julia against the branch, in a worktree of its main: 265
+  parts, each done; 42 883 pass, 1 fail, 0 error, 266 broken; a peak of 12.4 GB. The
+  fail is the check of time in `test_simulator` (`OmnetSimulatorTest/runtests.jl:2308`)
+  that also failed in the last land: 160 000 appends took 13.6 ms, more than 64 times
+  the 0.11 ms of 10 000. A run of the suite alone against the branch passes 6967 of
+  6967, so the check fails only at some times under load.
 
 ## Risks
 
