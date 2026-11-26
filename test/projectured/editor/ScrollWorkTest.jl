@@ -190,9 +190,12 @@ function test_scroll_work()
         @test all(f -> f.same, frames)
         @test all(f -> f.copies == 1, frames)
         @test all(f -> 5 * f.drawn <= 3 * f.whole, frames)
-        # 14 to 20 records and 5 or 6 guards in a notch, where a record of the moved
-        # content wrote 306 and made 52.
-        @test all(f -> f.work[2] <= 30 && f.work[3] <= 12, frames)
+        # 18 to 26 records and 10 to 14 guards in a notch, where a record of the moved
+        # content wrote 306 and made 52. Each row that comes into view has two
+        # canvases for the marks of its label, the band behind it and the caret on
+        # top, and each makes its record and its guard: with no such canvases, a notch
+        # makes 14 to 20 records and 6 to 8 guards.
+        @test all(f -> f.work[2] <= 40 && f.work[3] <= 20, frames)
         @test isempty(unlaid)
         tall_backend = HeadlessBackend()
         tall_frames, _ = _sw_scroll(_sw_make_files_editor(tall_backend; height = 2 * _SW_HEIGHT), tall_backend,

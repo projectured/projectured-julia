@@ -51,6 +51,33 @@ The CI run 45710705577 of `306018039` fails in five jobs, the same five as the r
     on a row of the Files pane selects no file (`nothing == ".../a.json"`).
   - `ProjecturedTest (integration 3 of 3)`: `ScrollWorkTest.jl:195`, one frame of a scroll
     of the Files pane makes 13 guards, against the bound 12.
+- [x] 5. The two checks of the Files pane follow the rules of the tree (the owner, 2026-11-26,
+  "yes, fix them"). Each check changes only where a probe shows that the view does what the
+  plan of the click work decided, and the probe gives the numbers.
+
+  Facts, from a probe in the worktree at `main` `5fe9fe8fa`:
+  - The tree rule of the click plan (`cd006aa96`, landed as `0309f7d80`) says that on the
+    label of a node "an Alt+click gives the caret at the character, an Alt+double click the
+    label as a whole". On the row of `a.json`, an Alt+double click on the label selects
+    `directory.elements[2]`, then the step of `FileSystemToWidgetTree` that ends in `.label`;
+    on the icon, on the chevron column or beside the label it selects the file
+    `directory.elements[2]`. The ring is off in each case. So `ApplicationTest.jl:2006`
+    pressed where the rule now gives the label. The check now tests both: the label (the
+    last step is the step of the view, and the path before it is the file `a.json`) and a
+    press beside the label (the file).
+  - Each row of a tree that shows a part of its input has two canvases for the marks of its
+    label, the bands behind the label and the caret on top (`make_label_marks`). The window
+    of the scroll draws 1530 canvases, and 528 when `_find_wtree_label_part` gives
+    `nothing`: two for each of its 501 rows. A notch makes 18 to 26 records and 10 to 14
+    guards, and 14 to 20 records and 6 to 8 guards with no label canvases, by a Revise edit
+    in the same process. So each row that comes into view costs two records and two guards
+    more, the cost of a label that reads the selection in a cell of its own, as a band does.
+    The bound of `ScrollWorkTest.jl:195` goes from 30 records and 12 guards to 40 and 20,
+    with the numbers in its comment. The comment keeps the cost of a record of the moved
+    content, 306 records and 52 guards, which the probe did not measure again.
+  - Check: `integration/test_scroll_work` 26 pass, 0 fail; `integration/test_application` 425
+    pass, 0 fail, 3 broken (the 3 markers of `main`); the six guards pass.
+- [ ] 6. The land, the push and the CI run of the push.
 
 ## 3. Found during the work
 

@@ -1999,9 +1999,20 @@ function test_application()
                 opened = _app_fire(composed, editor.iomap, KeyPress('\n'; time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
-                # An Alt+double click on the row selects the file of the row as a whole, the
-                # innermost part under the pointer, so the ring is off.
+                # An Alt+double click on the label of the row selects the label as a whole,
+                # as on the text of a control: the path of the file, then the step of the
+                # view. The selection is inside the Files pane, so the ring is off.
                 @test press!(MouseClick(:left, x + 3, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
+                      ReplaceSelectionOperation
+                steps = collect(get_reference_steps(strip_reference_types(get_selection(scene))))
+                @test last(steps) isa ProjectionReferenceStep
+                file = try_evaluate_reference(scene, extend_reference(EmptyReference(), steps[1:(end - 1)]...),
+                                              nothing)
+                @test file isa FileSystemDocument && file.pathname == joinpath(dir, "a.json")
+                @test isempty(ring())
+                # An Alt+double click on the row beside its label selects the file of the row
+                # as a whole, the innermost part under the pointer there.
+                @test press!(MouseClick(:left, x + 150, y + 3, 2, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test selected_file() == joinpath(dir, "a.json")
                 @test isempty(ring())
