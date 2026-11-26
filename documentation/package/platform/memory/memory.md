@@ -49,4 +49,4 @@ The source is `source/platform/memory/`: `MemoryModule.jl`, the walk in `MemoryG
 
 - `test_held_memory()` of `ProjecturedPlatformTest`: the walk on small graphs whose bytes are known: a chain, a diamond, a weak reference, a cycle, closures, lists, dictionaries, a cell, a task, a type and a module.
 - The case "read: what holds the memory of the window" of `test_assistant_verbs()`: the report of a window, and the verb through the code of the assistant.
-- `test_editor_memory_cycle()` of `ProjecturedTest`, a slow part: one cycle of gestures runs 60 times in one window, and no holder grows in each cycle, but the known growths (testing guide).
+- `test_editor_memory_cycle()` of `ProjecturedTest`, a slow part: one cycle of gestures runs 230 times in one window, and no holder grows in each cycle, but the known growths (testing guide).

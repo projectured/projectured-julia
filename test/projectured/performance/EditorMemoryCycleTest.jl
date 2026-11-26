@@ -1,47 +1,45 @@
-# The memory of an editor stays flat. One cycle of gestures runs 60 times in one
+# The memory of an editor stays flat. One cycle of gestures runs 230 times in one
 # window, on a headless backend, as `run_application` builds it. After a warm-up of
-# 20 cycles, the test takes a report of what holds the memory of the editor after
-# cycle 20, 40 and 60 (`compute_held_memory`). On main the editor keeps about 18 MB
-# more in each cycle, so a longer run needs more memory than a part of the suite
-# has: the walk needs about 100 bytes for each object that the editor reaches. A holder that keeps more in both
-# halves is a store that keeps something in each cycle. Each such store that main
-# has is a known growth with its reason, so a fix of a store removes its entry.
+# 30 cycles, the test takes a report of what holds the memory of the editor after
+# cycle 30, 130 and 230 (`compute_held_memory`). The walk needs about 165 bytes for
+# each object that the editor reaches. A holder that keeps more in both halves is a
+# store that keeps something in each cycle. Each such store that main has is a known
+# growth with its reason, so a fix of a store removes its entry.
 
 using Test
 
 # The stores that keep something in each cycle on main, each as a part of the path
 # of its holder, or a pattern of the paths of one store, with its reason. The root
 # is "(the root)", and the memory of the process that the editor does not reach is
-# "(unreached)". A growth
-# that an entry names counts as broken; a growth that no entry names fails, and so
-# does an entry that names no growth.
+# "(unreached)". A growth that an entry names counts as broken; a growth that no
+# entry names fails, and so does an entry that names no growth.
 const _MC_KNOWN_GROWTH = Pair{Union{String, Regex}, String}[
     # Store 1 of the plan "an editor says what holds its memory".
     "elements.kept" =>
         "the view of the list of a tab keeps the view of each element that it showed " *
-        "(`CellVectorView.kept`), and each view of an element keeps the print in which it " *
-        "was made, through the fault scope of the computation of its cell `entries.viewed`: " *
-        "about 7.5 MB in each cycle",
+        "(`CellVectorView.kept`), also of an element that the cycle deleted: about " *
+        "3.5 KB in each cycle",
+    # Store 2 of the plan "an editor says what holds its memory".
+    "back.elements" =>
+        "the Back list of the navigator keeps one visit for each page that a cycle " *
+        "opened, with no limit (`Navigator.back`): about 8 KB in each cycle",
     # Store 3, and the objects that two holders reach.
     r"^\(the root\)$|FileSystemDirectory\]\.key\.elements\.elements$|WorkspaceFolder\]\.key\.directory$" =>
-        "about 50 KB more in each cycle that no growing holder below the root explains: " *
-        "the holders that gain less than the margin, and each object that two holders " *
-        "reach, such as the cells of a file of the folder of the explorer that a cycle " *
-        "opened. In some runs the list of the files of the folder keeps a part of them " *
-        "alone, so this growth moves between the root and the line of the folder from " *
-        "run to run",
-    "(unreached)" =>
-        "the process keeps about 1.6 MB more in each cycle that the editor does not reach; " *
-        "the walk does not walk into a module, so a store of a module is not seen",
+        "about 3 KB to 5 KB more in each cycle that no growing holder below the root " *
+        "explains: the holders that gain less than the margin, and each object that two " *
+        "holders reach, such as the cells of a file of the folder of the explorer that a " *
+        "cycle opened. In some runs the list of the files of the folder keeps a part of " *
+        "them alone, so this growth moves between the root and the line of the folder " *
+        "from run to run",
 ]
 
-const _MC_CYCLE_COUNT = 60
-const _MC_REPORT_CYCLES = (20, 40, 60)
-# A holder grows when it keeps more than this in each half: about 3.3 KB in each
-# cycle of a half of 20 cycles. Smaller lines grow in some runs and not in others,
-# such as each of the four sides of the margin of a window projection, which gain
-# about 37 KB in the first half and 15 KB in the second on main. Their gain stays
-# in the line of the root.
+const _MC_CYCLE_COUNT = 230
+const _MC_REPORT_CYCLES = (30, 130, 230)
+# A holder grows when it keeps more than this in each half: about 655 bytes in each
+# cycle of a half of 100 cycles. A line that grows less in a half does not grow in
+# each run, such as each of the four sides of the margin of a window projection,
+# which gained about 37 KB and 15 KB in halves of 20 cycles. Its gain stays in the
+# line of the root.
 const _MC_GROWTH_MARGIN = 64 << 10
 # A growth repeats when the gain of one half is at most this many times the gain of
 # the other. A step that happens once, such as a table that doubles, does not.
@@ -169,6 +167,9 @@ end
 # One cycle of gestures, number `k`.
 function _mc_run_cycle!(cycle::_MemoryCycle, k)
     editor = cycle.editor
+    # The headless backend keeps each document that it paints. That log belongs to
+    # the test, not to the editor, and the cycle reads the drawn text from the IO map.
+    empty!(rendered_output(cycle.backend))
     # An element goes in at the start of the list of the tab, and out again.
     _mc_show_tab!(cycle, "list.json")
     list = get_edited_document(find_pane("list.json"; editor))

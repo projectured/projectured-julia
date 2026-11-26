@@ -125,7 +125,8 @@ Each decision counts as approved when the owner approves the plan.
 
    Run the tests of the fault scope and of the barriers that "Facts of the code"
    names, and `test_cell()`.
-2. **The memory test and the cost.** Run `test_editor_memory_cycle` on the branch.
+2. **Done on 2026-11-26, with 230 cycles in place of 60 (see "What the work found").**
+   **The memory test and the cost.** Run `test_editor_memory_cycle` on the branch.
    Remove each entry of `_MC_KNOWN_GROWTH` that names no growth, and record here the
    lines that grow and by how much. Record the time of the 60 cycles and the time of
    the collector in them, beside the probe numbers above. If a cycle takes more than
@@ -153,6 +154,52 @@ Each decision counts as approved when the owner approves the plan.
   collection in the new cases is stable. `test_cell_example` passes 2 of 2,
   `test_cell` 334 of 334, `test_fault_example` 2 of 2, `test_editor_fault_barriers`
   34 of 34, `test_fault_catching` 53 of 53 and `test_fault_part` 26 of 26.
+
+**Step 2.**
+
+- **The test runs 230 cycles again, with the reports after cycle 30, 130 and 230,**
+  as P5 and P6 of the plan "an editor says what holds its memory" first said. With
+  60 cycles, the kept views gained 74 KB and 67 KB in halves of 20 cycles, 2 % over
+  the margin of 64 KiB, so their line would grow only in some runs. The editor now
+  stays small, so the longer run has room: the report after cycle 230 walks 767 721
+  objects in 2.7 s, with 165 bytes of tables for each object.
+- The lines in three runs of 230 cycles, each the same within a few percent:
+
+  | Line | First half (100 cycles) | Second half | In each cycle |
+  |---|---|---|---|
+  | `….counts[#… FileView].key.content.content.elements.kept`, store 1 | 352 KB | 358 KB | about 3.5 KB |
+  | `….counts[#… Navigator].key.back.elements`, store 2 | 797 KB | 797 KB | about 8 KB |
+  | `(the root)` | 298 KB to 483 KB | 253 KB to 480 KB | about 3 KB to 5 KB |
+  | `(unreached)` | 1.12 MB to 1.24 MB | 1.13 MB to 1.29 MB | under its margin of 4 MiB |
+
+- So the entry `"(unreached)"` goes. The entry `"elements.kept"` stays with a new
+  reason, against D4: a list view still keeps a view of each element that it
+  showed, also of a deleted element, but a kept view no longer keeps its print.
+  Store 2 gets an entry of its own, `"back.elements"`: before, the old prints hid it
+  in the line of the root. The test passes with 1 pass and 3 broken, in 238.5 s, of
+  which the collector took 12.4 s.
+- The editor reaches 82.6 MB after cycle 30, 84.0 MB after cycle 130 and 85.7 MB
+  after cycle 230. On `main` it reached 224 MB, 375 MB and 527 MB after cycle 20, 40
+  and 60.
+- The headless backend keeps each document that it paints (`rendered_output`): 1.5
+  MB in 100 cycles, which the report lists only after some cycles. The log belongs to
+  the test, not to the editor, so the cycle empties it at its start.
+- **The cost.** Cycles 21 to 40 of the cycle of the test, with a folder of 122 files
+  on both sides:
+
+  | | Median cycle | Mean cycle | Collector, mean of a cycle | The process holds after cycle 40 |
+  |---|---|---|---|---|
+  | The branch | 0.242 s | 0.260 s | 0.017 s | 372 MiB |
+  | `main` | 0.271 s | 0.298 s | 0.028 s | 721 MiB |
+
+  The first runs gave 0.40 s on the branch and 0.26 s on `main`, because the test of
+  the branch makes a folder of 462 files. `main` with the weak link put in at run
+  time gave 0.259 s, and the branch with the strong link put back gave 0.434 s with
+  the larger folder. So the size of the folder made the difference, not the weak
+  link.
+- A folder of 462 files makes a cycle about 50 % slower than a folder of 122 files,
+  though a cycle opens only 2 of its files. This plan does not change it.
+- `test_documentation` passes with 1 pass and 10 broken.
 
 ## Risks
 

@@ -562,7 +562,7 @@ const test_integration = TestSuite("integration", [
     test_assistant_mvp,
     test_assistant_stream,
     TestPart(test_window_frame_guards; level = :slow),
-    # A cycle of gestures runs 60 times in one window, and no holder of the memory
+    # A cycle of gestures runs 230 times in one window, and no holder of the memory
     # of the editor grows in each cycle, but the known growths.
     TestPart(test_editor_memory_cycle; level = :slow, limit = 1800),
     test_assistant_duplicate,
