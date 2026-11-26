@@ -174,7 +174,8 @@ function test_assistant_list()
             stored = [AgentSessionInfo("s-new", "/work/omnet-julia", "Fix the NED parser", "And the test.", now - 60,
                                        "VS Code"),
                       AgentSessionInfo("s-open", "/work/projectured-julia", "Open one", nothing, now - 120, ""),
-                      AgentSessionInfo("s-old", "/work/projectured-julia", nothing, "Last words", now - 3 * 86400, "")]
+                      AgentSessionInfo("s-old", "/work/projectured-julia", nothing, "Last words " * repeat("and more ", 12),
+                                       now - 3 * 86400, "")]
             connection = ScriptedAgentConnection(Any[]; stored_sessions = stored)
             open = Assistant(; backend = :acp, agent_session_id = "s-open",
                              agent_session_directory = "/work/projectured-julia", agent_session_turn_count = 2)
@@ -195,7 +196,10 @@ function test_assistant_list()
             words = _collect_assistant_list_words(iomap)
             @test "1 conversation · 0 running · 2 stored" in words
             @test all(in(words), ("folder", "changed", "Refresh"))
-            @test all(in(words), ("Fix the NED parser", "Last words", "open in VS Code", "stored", "omnet-julia"))
+            @test all(in(words), ("Fix the NED parser", "open in VS Code", "stored", "omnet-julia"))
+            # A title of more than 80 characters is cut, so the other columns stay in the pane.
+            cut = only(filter(startswith("Last words"), words))
+            @test length(cut) == 80 && endswith(cut, "…")
             @test count(==("projectured-julia"), words) == 2
             @test count(==("Show"), words) == 3
             # Show on a stored row opens a new assistant with no turn, which keeps

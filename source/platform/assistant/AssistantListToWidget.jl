@@ -26,7 +26,9 @@ as "open in VS Code", or "stored", and when it changed last. The heading counts
 them, and its button "Refresh" reads them again
 ([`read_stored_assistant_sessions!`](@ref)).
 The title fills the width that the other columns leave and stays on one line,
-and a pane narrower than the table scrolls it.
+and a pane narrower than the table scrolls it. A title of more than 80
+characters is cut with "…", and the whole title shows when the pointer rests on
+it.
 Each value is a label that reads the cells of the assistant, so a row follows
 its assistant while a turn streams. The elapsed time of a turn that runs reads
 the clock of the editor, so it moves while the turn runs. Between turns no label
@@ -125,6 +127,22 @@ _make_folder_label(folder::Function) =
     WidgetLabel(() -> (path = folder(); isempty(path) ? "" : basename(rstrip(path, '/')));
                 tooltip = () -> (path = folder(); isempty(path) ? nothing : TooltipNote(; title = "Folder", text = path)))
 
+# The count of characters of the title of a row, with its "…", as of the label of
+# a node of the conversation tree. The column of the titles is as wide as its
+# widest title, so a title that an agent makes of a long prompt would push the
+# other columns out of the pane.
+const _ASSISTANT_TITLE_LENGTH = 80
+
+_cut_assistant_title(title::AbstractString) =
+    length(title) <= _ASSISTANT_TITLE_LENGTH ? String(title) : first(title, _ASSISTANT_TITLE_LENGTH - 1) * "…"
+
+# The title of a row, cut, and the whole title when the pointer rests on a title
+# that is cut.
+_make_title_label(title::Function) =
+    WidgetLabel(() -> _cut_assistant_title(title());
+                tooltip = () -> (text = title();
+                                 length(text) <= _ASSISTANT_TITLE_LENGTH ? nothing : TooltipNote(; title = "Title", text = text)))
+
 # What holds a stored session, for its column of activity.
 _describe_stored_session_holder(session::AgentSessionInfo) =
     isempty(session.holder) ? "stored" : "open in " * session.holder
@@ -135,7 +153,7 @@ function _build_stored_session_row(p, list::AssistantList, session::AgentSession
                         action = editor -> open_stored_assistant_session!(editor, list, session))
     title = something(session.title, session.last_prompt, session.id)
     Any[HorizontalLayout(Any[show]; vertical_align = :center, gap = p.button_gap),
-        WidgetLabel(title),
+        _make_title_label(() -> title),
         _make_folder_label(() -> session.directory),
         WidgetLabel(""), WidgetLabel(""),
         WidgetLabel(_describe_stored_session_holder(session)),
@@ -156,7 +174,7 @@ function _build_assistant_row(p, list::AssistantList, a::Assistant, clock)
     turn = WidgetBadge(() -> compute_assistant_turn_side(a) === :assistant ? "assistant" : "you")
     set_cell_computation!(getfield(turn, :role), () -> compute_assistant_turn_side(a) === :assistant ? :accent : nothing)
     Any[HorizontalLayout(Any[pick, show, work_page]; vertical_align = :center, gap = p.button_gap),
-        WidgetLabel(() -> compute_assistant_overview_title(a)),
+        _make_title_label(() -> compute_assistant_overview_title(a)),
         _make_folder_label(() -> a.agent_session_directory),
         work,
         turn,
