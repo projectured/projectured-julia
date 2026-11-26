@@ -219,6 +219,13 @@ the scope that encloses it. A computation made outside every scope keeps a bare
 function, so a cell outside every barrier runs with no scope. The barrier and its
 scope are in [fault.md](../platform/fault/fault.md).
 
+A computation holds a scope that is a mutable object, such as a barrier, through a
+`WeakRef`. So a view that keeps its computations for later does not keep the print
+that made them. When nothing else holds the scope, `get_cell_fault_scope` answers
+`nothing`, and the computation runs with no scope, so its fault goes on to the code
+that reads the cell. A scope that is not mutable, such as a symbol or a struct of
+values, has no identity for a weak reference, so the computation keeps it as it is.
+
 ```julia
 struct PartScope; faults::Vector{Any}; end
 CellModule.record_cell_fault!(scope::PartScope, computation, exception; traceback) =

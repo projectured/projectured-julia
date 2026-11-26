@@ -197,7 +197,7 @@ fault/FaultModule.jl   (FaultModule): the module, its exports and its include or
 
 ## Where the layer is used
 
-- The cell layer keeps the fault scope of a computation, in `CellFaultScope.jl`. So a fault in a cell goes to the barrier of the part that built the cell.
+- The cell layer keeps the fault scope of a computation, in `CellFaultScope.jl`. So a fault in a cell goes to the barrier of the part that built the cell. A computation holds a barrier only weakly, so a view that keeps the computation does not keep the old print of the barrier. When that print is gone, the fault goes to the code that reads the cell.
 - The operation layer answers `is_fault_exception` for `QuitEditorException`.
 - The editor layer puts a barrier around each stage of a frame, in `EditorLoop.jl`, `ReadEvaluatePrint.jl` and `Feeds.jl`. `FaultBarriers.jl` holds the limits, `record_paint_fault!`, and `report_frame_faults!`, which drains the store once per frame. The constructor of `Editor` attaches the wake of the editor, and `Editor` answers `get_fault_store`.
 - The safe mode of the editor, in `SafeMode.jl`, declares the seam `make_safe_mode_projection`. While the safe mode lasts, the editor attaches the projection of the safe mode to the store as a target.

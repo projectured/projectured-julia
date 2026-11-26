@@ -131,7 +131,7 @@ Each decision counts as approved when the owner approves the plan.
    lines that grow and by how much. Record the time of the 60 cycles and the time of
    the collector in them, beside the probe numbers above. If a cycle takes more than
    10 % longer than in the probe on `main`, stop and ask (risk 1).
-3. **The documentation.** Say in `cell.md` and in `fault.md` that a computation holds
+3. **Done on 2026-11-26.** **The documentation.** Say in `cell.md` and in `fault.md` that a computation holds
    a mutable scope weakly, and where a fault goes when the scope is gone. Give the
    example of the report in `debugging-guide.md` the output of the branch.
 4. **The audit of `CellFaultScope.jl`.** Run the audit of `SEALING.md` on the changed
@@ -200,6 +200,12 @@ Each decision counts as approved when the owner approves the plan.
 - A folder of 462 files makes a cycle about 50 % slower than a folder of 122 files,
   though a cycle opens only 2 of its files. This plan does not change it.
 - `test_documentation` passes with 1 pass and 10 broken.
+
+**Step 3.**
+
+- The example of `debugging-guide.md` shows the total after 230 cycles, and two
+  reports, after cycle 130 and 230, that find the Back list: 1 027 639 bytes, then
+  1 824 291 bytes.
 
 ## Risks
 
