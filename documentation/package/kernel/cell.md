@@ -223,8 +223,10 @@ A computation holds a scope that is a mutable object, such as a barrier, through
 `WeakRef`. So a view that keeps its computations for later does not keep the print
 that made them. When nothing else holds the scope, `get_cell_fault_scope` answers
 `nothing`, and the computation runs with no scope, so its fault goes on to the code
-that reads the cell. A scope that is not mutable, such as a symbol or a struct of
-values, has no identity for a weak reference, so the computation keeps it as it is.
+that reads the cell. A scope that is not mutable, such as a struct of values, has
+no identity for a weak reference, so the computation keeps it as it is. Julia counts
+a symbol and a string as mutable, so a computation holds them weakly too; a symbol
+stays, because Julia never frees one.
 
 ```julia
 struct PartScope; faults::Vector{Any}; end

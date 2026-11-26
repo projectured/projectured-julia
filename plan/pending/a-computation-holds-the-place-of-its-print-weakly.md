@@ -63,8 +63,9 @@ Each decision counts as approved when the owner approves the plan.
 
 - **D1. A scope that is a mutable object is held through a `WeakRef`, and any other
   scope is held as now.** A weak reference to a value that is not mutable, such as a
-  symbol or a struct of values, can lose the value at once, because the value has no
-  identity. Such a scope holds no print. The struct `_FaultScopedComputation` keeps
+  struct of values, can lose the value at once, because the value has no identity.
+  Julia counts a symbol and a string as mutable, so they are held weakly; a symbol
+  stays, because Julia never frees one (step 4). Such a scope holds no print. The struct `_FaultScopedComputation` keeps
   its name, and its field `scope` holds the `WeakRef` or the scope. *Rejected:* one
   `WeakRef` for each scope, kept in the barrier. It needs a field of
   `FaultCatchingIoMap` and a method for each kind of scope. Step 2 measures whether
@@ -134,7 +135,7 @@ Each decision counts as approved when the owner approves the plan.
 3. **Done on 2026-11-26.** **The documentation.** Say in `cell.md` and in `fault.md` that a computation holds
    a mutable scope weakly, and where a fault goes when the scope is gone. Give the
    example of the report in `debugging-guide.md` the output of the branch.
-4. **The audit of `CellFaultScope.jl`.** Run the audit of `SEALING.md` on the changed
+4. **Done on 2026-11-26; the owner decides on the new seal.** **The audit of `CellFaultScope.jl`.** Run the audit of `SEALING.md` on the changed
    file, and report each check. Checks 3 and 4 run at the last file of the layer,
    `cell/CellDefaults.jl`; the report says whether the change makes the example or the
    guide of the layer wrong. The owner decides on the new seal.
@@ -206,6 +207,22 @@ Each decision counts as approved when the owner approves the plan.
 - The example of `debugging-guide.md` shows the total after 230 cycles, and two
   reports, after cycle 130 and 230, that find the Back list: 1 027 639 bytes, then
   1 824 291 bytes.
+
+**Step 4.**
+
+- The seal audit agent ran the audit of `SEALING.md` on the file at `2c782c692`. It
+  found no fault in what the code does. Check 2 passes: `tool/survey-interface.jl
+  CellModule` reads 33 exports and finds none that no test names, and each promise of
+  each docstring has a test. Checks 3 and 4 find the walkthrough of the layer right.
+- Check 1 failed on two points of wording, both fixed:
+  - The docstring and `cell.md` said that a symbol is a scope that is not mutable. On
+    Julia 1.13.1, `ismutable(:part)` and `ismutable("abc")` are `true`, so the code
+    holds a symbol and a string weakly. That agrees with D1, so the words changed and
+    the code did not.
+  - The head of the file repeated the docstring and named a view and a print, which
+    are concepts of higher layers. The paragraph is gone.
+- Check 2 found a case of D2 with no test: a computation whose scope is gone makes its
+  cells with no scope. The test is added.
 
 ## Risks
 

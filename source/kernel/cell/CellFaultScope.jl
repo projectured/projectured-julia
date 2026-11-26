@@ -6,10 +6,6 @@
 # keeps the relation from the moment the computation is made: code makes its cells
 # inside `run_in_cell_fault_scope`, each computation made there keeps the scope, and the
 # computation that throws hands its fault to that scope.
-#
-# A computation holds a scope that is a mutable object weakly, so a computation that a
-# view keeps for later does not keep the code that made it, such as an old print. When
-# nothing else holds the scope, the computation runs with no scope.
 
 # The scope that `run_in_cell_fault_scope` set, the computing stack of that moment and its
 # depth. A computation made deeper in that stack was made by a computation that runs
@@ -32,7 +28,7 @@ inside a scope takes the place of the outer one until its `body` returns.
 
 A computation holds a scope that is a mutable object weakly. When nothing else holds
 the scope, the computation runs with no scope, and its fault goes on to the code that
-reads the cell. A scope that is not mutable, such as a symbol, stays.
+reads the cell. A scope that is not mutable, such as a struct of values, stays.
 
 # Example
 

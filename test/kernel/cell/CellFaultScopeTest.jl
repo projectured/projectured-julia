@@ -34,6 +34,14 @@ end
     (cell, WeakRef(scope))
 end
 
+# A cell whose computation makes a cell, made in a mutable scope that nothing holds
+# after the return, and a weak reference of that scope.
+@noinline function _make_maker_of_dropped_fault_scope()
+    scope = FaultScopeProbe(:dropped)
+    maker = run_in_cell_fault_scope(() -> Cell(@computation Cell(@computation 10)), scope)
+    (maker, WeakRef(scope))
+end
+
 # A cell made in a scope that is a value, which nothing holds after the return.
 @noinline _make_cell_of_value_fault_scope() =
     run_in_cell_fault_scope(() -> Cell(@computation 1), FaultScopeValue(Any[]))
@@ -217,6 +225,18 @@ function test_cell_fault_scope()
         @test thrown isa RecordedCellFaultException
         @test thrown.scope === reader_scope
         @test length(reader_scope.faults) == 1
+    end
+
+    @testset "a computation whose scope is gone makes its cells with no scope" begin
+        (maker, seen) = _make_maker_of_dropped_fault_scope()
+        GC.gc(true)
+        GC.gc(true)
+        @test seen.value === nothing
+        outer = FaultScopeProbe(:outer)
+        made = run_in_cell_fault_scope(() -> maker[], outer)
+        @test made[] == 10
+        # As for a computation made outside every scope: not the scope of the reader.
+        @test get_cell_fault_scope(made) === nothing
     end
 
     @testset "a scope that is not mutable stays" begin
