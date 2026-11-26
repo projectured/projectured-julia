@@ -2768,6 +2768,51 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     plot draws no ring that the walk takes, such as the legend (an outline of
     four lines), a series, a band, a lane or the arrows; and a move names a
     sample or a row, `arrowsrow(6)`, where the whole part cuts the row away.
+
+  **The rest of step 8** (the owner, 2026-11-26, "Continue"; O5 of step 7 still
+  waits for the owner, so the marks keep the lines of the data frame tables).
+  - The branches are rebased first, so the marks follow the code that lands:
+    projectured on main 2b326cc4b (105 commits, with the plan "a reader is split
+    by its jobs"), with no conflict; omnet on main 5d6ccad0f (11 commits). Main
+    renamed each reader that passes the answer of its widgets on to the same
+    one-liner on `map_operation_backward` (`op isa Operation ? op : nothing`, the
+    compound form and the path form), so O1 conflicts in 29 files: the branch
+    removes the one-liner, as before, and the default `map_operation_backward`
+    maps a selection back by `map_reference_backward`, as the default reader did.
+    The reader of the collapse of the result card is a method of
+    `map_operation_backward` now, the module graph view gives each other answer to
+    `invoke(map_operation_backward, Tuple{Projection, Any, Any}, …)`, and the new
+    Alt+click check of the result table reads through the 4-argument
+    `read_intent`. `test_kernel` 5409 and its 5 broken on the rebased branch.
+  - The design, proposed by the assistant:
+    - The click test names the kind of each line:
+      `classify_part_click_failure(line)` gives a symbol by the gesture and what it
+      answered (`:plain_does_nothing`, `:alt_no_caret`, `:double_not_drawn`,
+      `:move_differs`, `:throws` and the others). The lines of a caret say which
+      click made the caret ("the caret of the plain click", "the caret of the
+      Alt+click"), so the two kinds differ.
+    - A mark is a list of pairs `signature => names`, and
+      `find_part_click_mark(marks, name)` makes the predicate that
+      `test_part_click` takes: a signature is a kind, or a text of the line, such
+      as the message of an exception; a name is a whole name, or a start that
+      ends with `/`. Each pair has a comment `@click-broken` with its cause.
+    - `test_part_click` gives a line `throws` when the document or the editor of
+      an example does not build, so a mark can name it, and it asks for a pressed
+      point only when the walk gave no line.
+    - projectured: `test_catalog_clicks(; only, skip)` (the catalog, `:natural`,
+      as the fifth tester through `test_catalog_examples`) and `test_part_clicks(;
+      only, skip)` (the `examples`, in `ExampleSweeps.jl`), each in parts of the
+      umbrella suite over groups of names, so each part ends in its limit.
+    - omnet: `test_presentation_atom_clicks`, `test_cosim_atom_clicks` (in the
+      part of the cosim presentation), `test_ide_atom_clicks`,
+      `test_legacy_atom_clicks` and `test_legacy_example_clicks` (the examples of
+      `OmnetLegacyExample`, the pages of a run, a result and a project), each in
+      the suite of the package that owns the atoms or the examples. The IDE and the
+      legacy parts keep the catch of their atom tests: the catalog of their atoms
+      throws on omnet main.
+    Rejected: a helper in `ProjecturedPlatformTest` that builds the catalog of the
+    atoms for each caller, because that package does not depend on
+    `ProjecturedExample`.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
