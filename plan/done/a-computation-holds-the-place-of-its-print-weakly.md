@@ -1,6 +1,8 @@
 # A computation holds the place of its print weakly
 
-**Status:** approved by the owner on 2026-11-26 ("Yes", to the question that asked
+**Status:** done on 2026-11-26, and landed on main as `2d40cefab` ("yes I approve the
+landing"); the push waits for the word of the owner. Approved by the owner on
+2026-11-26 ("Yes", to the question that asked
 for the approval and for the permission to change the sealed file
 `source/kernel/cell/CellFaultScope.jl`), in work. The owner asked for this plan on
 2026-11-26 ("Yes", to the question: a plan for the weak link first, on its own). The work goes in the worktree `projectured-julia-weak-fault-scope`, on
@@ -139,8 +141,10 @@ Each decision counts as approved when the owner approves the plan.
    file, and report each check. Checks 3 and 4 run at the last file of the layer,
    `cell/CellDefaults.jl`; the report says whether the change makes the example or the
    guide of the layer wrong. The owner decides on the new seal.
-5. **The check is done on 2026-11-26 (see "What the work found"); the land, the
-   record of the calls and the new seal wait for the word of the owner.**
+5. **Done on 2026-11-26.** `main` moved from `5fe9fe8fa` to `2d40cefab`. The record
+   after the land: `ProjecturedKernelTest` recorded 4702 calls, and its suite passed
+   5396 checks with 5 broken while it recorded. `SEALING.md` keeps the mark 🔒 of
+   `CellFaultScope.jl`.
    **The check before the land.** Run all the parts in the worktree, as "Main is green"
    in `CLAUDE.md` says, and the fast parts of omnet-julia against the branch. Record
    the calls of each test package whose files the land changes, after the land. Then

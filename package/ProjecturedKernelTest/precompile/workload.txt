@@ -43,11 +43,13 @@ Tuple{Base.var"#647#648"{ProjecturedKernel.EditorModule.var"#15#16"{Float64, Pro
 Tuple{Base.var"#647#648"{ProjecturedKernel.ToolModule.var"#wait_in_code_unit##0#wait_in_code_unit##1"{Base.RefValue{Bool}, Base.GenericCondition{Base.ReentrantLock}}, Base.Timer}}
 Tuple{Base.var"#647#648"{SupervisorTests.var"#146#147"{Base.Channel{Tuple{Int64, Array{String, 1}}}}, Base.Timer}}
 Tuple{Base.var"#647#648"{SupervisorTests.var"#32#33"{Base.Channel{Tuple{Int64, Array{String, 1}}}}, Base.Timer}}
+Tuple{Base.var"#694#695", Pair{String, String}}
 Tuple{Base.var"#Generator##0#Generator##1"{Base.var"#@kwdef##0#@kwdef##1"}, Tuple{Symbol, Expr}}
 Tuple{Base.var"#__cat_offset1!##2#__cat_offset1!##3"{Tuple{Bool}, Tuple{Int64}, ProjecturedKernel.EditorModule.InboxFeed}, Int64}
 Tuple{Base.var"#_replace_init##0#_replace_init##1", Pair{String, String}}
 Tuple{Base.var"#iterate##9#iterate##10"{Base.AsyncCollector}, Int64, Tuple{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}}}
 Tuple{Base.var"#start_worker_task!##0#start_worker_task!##1"{Base.var"#iterate##9#iterate##10"{Base.AsyncCollector}, Base.Channel{Any}, Nothing}}
+Tuple{Dates.var"##34#35", Vararg{Any, 5}}
 Tuple{ProjecturedKernel.AgentModule.var"##AgentBackgroundTaskUpdate#32", Nothing, Nothing, Nothing, Nothing, String, Nothing, Nothing, Nothing, Nothing, Nothing, Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String}
 Tuple{ProjecturedKernel.AgentModule.var"##AgentBackgroundTaskUpdate#32", Nothing, Nothing, Symbol, Nothing, Nothing, Nothing, Nothing, Nothing, Float64, Bool, Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String}
 Tuple{ProjecturedKernel.AgentModule.var"##AgentBackgroundTaskUpdate#32", Nothing, Nothing, Symbol, Nothing, Nothing, String, String, Nothing, Float64, Bool, Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String}
@@ -107,12 +109,12 @@ Tuple{ProjecturedKernel.EditorModule.var"#67#68"{ProjecturedKernelTest.var"#test
 Tuple{ProjecturedKernel.EditorModule.var"#67#68"{ProjecturedKernelTest.var"#test_editor_held_frames##48#test_editor_held_frames##49"{Base.Channel{Nothing}, Base.Channel{Any}, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.ToolModule.CodeUnit}}
 Tuple{ProjecturedKernel.EditorModule.var"#67#68"{ProjecturedKernelTest.var"#test_editor_held_frames##72#test_editor_held_frames##73", ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.ToolModule.CodeUnit}}
 Tuple{ProjecturedKernel.EditorModule.var"#67#68"{ProjecturedKernelTest.var"#test_editor_held_frames##8#test_editor_held_frames##9", ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{ProjecturedKernel.EditorModule.var"#79#80"{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.EditorModule._BackgroundCellState}}
-Tuple{ProjecturedKernel.EditorModule.var"#79#80"{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.EditorModule._BackgroundCellState}}
+Tuple{ProjecturedKernel.EditorModule.var"#82#83"{Int64, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.EditorModule._BackgroundCellState}}
+Tuple{ProjecturedKernel.EditorModule.var"#82#83"{Nothing, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.EditorModule._BackgroundCellState}}
 Tuple{ProjecturedKernel.EditorModule.var"#_end_editor_loop!##4#_end_editor_loop!##5"{ProjecturedKernelTest.var"#wrap_editor!##10#wrap_editor!##11", ProjecturedKernel.EditorModule.Editor}}
 Tuple{ProjecturedKernel.EditorModule.var"#_read_through_computation##0#_read_through_computation##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
-Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernel.EditorModule.var"#138#139"{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:backend, :devices, :tabs, :appearance, :settings, :focus_cycling), Tuple{ProjecturedKernelTest.BuildProbeBackend, Array{ProjecturedKernel.DeviceModule.Device, 1}, Vararg{Bool, 4}}}}, ProjecturedKernelTest.BuildProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.BuildProbeProjection}, Bool, Base.Channel{Any}}}
-Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernel.EditorModule.var"#138#139"{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:backend, :devices, :tabs, :appearance, :settings, :focus_cycling, :build_probe_stop), Tuple{ProjecturedKernelTest.BuildProbeBackend, Array{ProjecturedKernel.DeviceModule.Device, 1}, Vararg{Bool, 5}}}}, ProjecturedKernelTest.BuildProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.BuildProbeProjection}, Bool, Base.Channel{Any}}}
+Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernel.EditorModule.var"#141#142"{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:backend, :devices, :tabs, :appearance, :settings, :focus_cycling), Tuple{ProjecturedKernelTest.BuildProbeBackend, Array{ProjecturedKernel.DeviceModule.Device, 1}, Vararg{Bool, 4}}}}, ProjecturedKernelTest.BuildProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.BuildProbeProjection}, Bool, Base.Channel{Any}}}
+Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernel.EditorModule.var"#141#142"{Base.Pairs{Symbol, Any, Nothing, NamedTuple{(:backend, :devices, :tabs, :appearance, :settings, :focus_cycling, :build_probe_stop), Tuple{ProjecturedKernelTest.BuildProbeBackend, Array{ProjecturedKernel.DeviceModule.Device, 1}, Vararg{Bool, 5}}}}, ProjecturedKernelTest.BuildProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.BuildProbeProjection}, Bool, Base.Channel{Any}}}
 Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernelTest.var"#test_build_editor##13#test_build_editor##14"{Base.RefValue{Any}}, Bool, Base.Channel{Any}}}
 Tuple{ProjecturedKernel.EditorModule.var"#run_loop#_start_editor_task##0"{ProjecturedKernelTest.var"#test_build_editor##15#test_build_editor##16", Bool, Base.Channel{Any}}}
 Tuple{ProjecturedKernel.EventModule.var"##KeyPress#5", Float64, Type{ProjecturedKernel.EventModule.KeyPress}, Char}
@@ -137,8 +139,8 @@ Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKer
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernelTest.FrameWorkProbeFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernelTest.ProbeFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernelTest.SlowFrameProbeFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#119#120"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#134#135"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#122#123"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#137#138"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_read_from_devices_guarded##0#_read_from_devices_guarded##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##14#_run_frame_stages!##15"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelExample.HeadlessBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#compute_wait_timeout##0#compute_wait_timeout##1"{ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.EditorModule.InboxFeed}, ProjecturedKernel.FaultModule.FaultStore}
@@ -173,7 +175,7 @@ Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKer
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BarrierProbeBackend, Symbol, Symbol, Type, Nothing, ProjecturedKernel.EditorModule._BarrierFailed, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_evaluate_operation_guarded!##0#_evaluate_operation_guarded!##1"{ProjecturedKernel.EditorModule.Editor, ProjecturedKernelTest.UninvertibleBarrierOperation}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BuildProbeBackend, Symbol, Symbol, Type, Nothing, Float64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##2#run_measured_frame!##3"{ProjecturedKernel.EditorModule.Editor, Float64}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BuildProbeBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernel.EditorModule.InboxFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BuildProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#134#135"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BuildProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#137#138"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.BuildProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_print_stage!##0#run_print_stage!##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.DevicePartProbeBackend, Symbol, Symbol, Symbol, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##2#_run_frame_stages!##3"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.DevicePartProbeBackend, Symbol, Symbol, Symbol, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##4#run_measured_frame!##5"{ProjecturedKernel.EditorModule.Editor, UInt64}, ProjecturedKernel.FaultModule.FaultStore}
@@ -188,13 +190,13 @@ Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKer
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Symbol, Nothing, ProjecturedKernel.EditorModule._BarrierFailed, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##6#_run_frame_stages!##7"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Float64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##2#run_measured_frame!##3"{ProjecturedKernel.EditorModule.Editor, Float64}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernel.EditorModule.InboxFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#119#120"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#122#123"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_read_from_devices_guarded##0#_read_from_devices_guarded##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##14#_run_frame_stages!##15"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.HeldFrameProbeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_print_stage!##0#run_print_stage!##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.InboxQuitBackend, Symbol, Symbol, Type, Nothing, Float64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##2#run_measured_frame!##3"{ProjecturedKernel.EditorModule.Editor, Float64}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.InboxQuitBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernel.EditorModule.InboxFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.InboxQuitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#119#120"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.InboxQuitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#122#123"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.InboxQuitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_print_stage!##0#run_print_stage!##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.PbRecordingBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_read_from_devices_guarded##0#_read_from_devices_guarded##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Symbol, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##2#_run_frame_stages!##3"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
@@ -203,8 +205,8 @@ Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKer
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Float64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##2#run_measured_frame!##3"{ProjecturedKernel.EditorModule.Editor, Float64}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernel.EditorModule.InboxFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernelTest.AlwaysWakingFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#119#120"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#134#135"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#122#123"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#137#138"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_read_from_devices_guarded##0#_read_from_devices_guarded##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##14#_run_frame_stages!##15"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeLifeBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_print_stage!##0#run_print_stage!##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
@@ -213,7 +215,7 @@ Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKer
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Symbol, Nothing, ProjecturedKernel.EditorModule._BarrierFailed, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##6#_run_frame_stages!##7"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Float64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#run_measured_frame!##2#run_measured_frame!##3"{ProjecturedKernel.EditorModule.Editor, Float64}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Int64, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#drain_feeds!##4#drain_feeds!##5"{ProjecturedKernel.EditorModule.InboxFeed, ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
-Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#119#120"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
+Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#122#123"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_read_from_devices_guarded##0#_read_from_devices_guarded##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##14#_run_frame_stages!##15"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.FaultModule.FaultStore}
 Tuple{ProjecturedKernel.FaultModule.var"##run_fault_barrier!#15", ProjecturedKernel.FaultModule.FaultPolicy, ProjecturedKernelTest.ProbeWaitBackend, Symbol, Symbol, Type, Nothing, Nothing, typeof(ProjecturedKernel.FaultModule.run_fault_barrier!), ProjecturedKernel.EditorModule.var"#compute_wait_timeout##0#compute_wait_timeout##1"{ProjecturedKernel.EditorModule.Editor, ProjecturedKernel.EditorModule.InboxFeed}, ProjecturedKernel.FaultModule.FaultStore}
@@ -264,14 +266,14 @@ Tuple{ProjecturedKernel.ReferenceModule.var"#_gen_build_path##2#_gen_build_path#
 Tuple{ProjecturedKernel.ReferenceModule.var"#_parse_value##0#_parse_value##1", ProjecturedKernel.ReferenceModule.PatValueBind}
 Tuple{ProjecturedKernel.ReferenceModule.var"#_parse_value##0#_parse_value##1", ProjecturedKernel.ReferenceModule.PatValueLiteral}
 Tuple{ProjecturedKernel.ToolModule.var"##Resource#2", String, Function, String, Type{ProjecturedKernel.ToolModule.Resource}, String, String}
-Tuple{ProjecturedKernel.ToolModule.var"##_excerpt#128", Int64, typeof(ProjecturedKernel.ToolModule._excerpt), String, Array{ProjecturedKernel.ToolModule.SearchTerm, 1}, typeof(Base.Unicode.lowercase)}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{String}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, NamedTuple{(:name,), Tuple{String}}}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{Symbol}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, NamedTuple{(:name,), Tuple{Symbol}}}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Nothing}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Nothing}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Symbol}}, Nothing}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Symbol}
-Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Symbol}
+Tuple{ProjecturedKernel.ToolModule.var"##_excerpt#135", Int64, typeof(ProjecturedKernel.ToolModule._excerpt), String, Array{ProjecturedKernel.ToolModule.SearchTerm, 1}, typeof(Base.Unicode.lowercase)}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{String}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, NamedTuple{(:name,), Tuple{String}}}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{Symbol}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, NamedTuple{(:name,), Tuple{Symbol}}}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Nothing}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Nothing}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Symbol}}, Nothing}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Symbol}
+Tuple{ProjecturedKernel.ToolModule.var"##run_in_code_unit#18", Array{String, 1}, typeof(ProjecturedKernel.ToolModule.run_in_code_unit), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Symbol}
 Tuple{ProjecturedKernel.ToolModule.var"#25#26"{ProjecturedKernel.ToolModule.var"#run_work#22"{NamedTuple{(:name,), Tuple{Symbol}}, Nothing, ProjecturedKernel.ToolModule.var"#_register_code_tool!##2#_register_code_tool!##3"{NamedTuple{(:name,), Tuple{Symbol}}, String, ProjecturedKernel.ToolModule.ToolSet}, ProjecturedKernel.ToolModule.BackgroundWork}}}
 Tuple{ProjecturedKernel.ToolModule.var"#25#26"{ProjecturedKernel.ToolModule.var"#run_work#22"{Nothing, Nothing, ProjecturedKernel.ToolModule.var"#_register_code_tool!##2#_register_code_tool!##3"{Nothing, String, ProjecturedKernel.ToolModule.ToolSet}, ProjecturedKernel.ToolModule.BackgroundWork}}}
 Tuple{ProjecturedKernel.ToolModule.var"#25#26"{ProjecturedKernel.ToolModule.var"#run_work#22"{Nothing, Nothing, ProjecturedKernelTest.var"#test_agent_loop##32#test_agent_loop##33"{Array{Any, 1}, ProjecturedKernelExample.ScriptedLlm, ProjecturedKernel.ToolModule.ToolSet}, ProjecturedKernel.ToolModule.BackgroundWork}}}
@@ -288,6 +290,12 @@ Tuple{ProjecturedKernel.ToolModule.var"#25#26"{ProjecturedKernel.ToolModule.var"
 Tuple{ProjecturedKernel.ToolModule.var"#35#36"{Ptr{UInt8}, UInt64}, Base.GenericIOBuffer{Memory{UInt8}}}
 Tuple{ProjecturedKernel.ToolModule.var"#38#39"{UInt8}, Base.GenericIOBuffer{Memory{UInt8}}}
 Tuple{ProjecturedKernel.ToolModule.var"#_choose_relevance_candidates##2#_choose_relevance_candidates##3"{ProjecturedKernel.ToolModule._DescriptionQuery, String, ProjecturedKernel.ToolModule.RelevanceModel}, Array{ProjecturedKernel.ToolModule._ApiEntry, 1}}
+Tuple{ProjecturedKernel.ToolModule.var"#_collect_load_statements##0#_collect_load_statements##1"{Array{Expr, 1}}, Expr}
+Tuple{ProjecturedKernel.ToolModule.var"#_collect_load_statements##0#_collect_load_statements##1"{Array{Expr, 1}}, LineNumberNode}
+Tuple{ProjecturedKernel.ToolModule.var"#_collect_load_statements##0#_collect_load_statements##1"{Array{Expr, 1}}, QuoteNode}
+Tuple{ProjecturedKernel.ToolModule.var"#_collect_load_statements##0#_collect_load_statements##1"{Array{Expr, 1}}, String}
+Tuple{ProjecturedKernel.ToolModule.var"#_collect_load_statements##0#_collect_load_statements##1"{Array{Expr, 1}}, Symbol}
+Tuple{ProjecturedKernel.ToolModule.var"#_describe_load_path##0#_describe_load_path##1", Symbol}
 Tuple{ProjecturedKernel.ToolModule.var"#_find_marked_name##0#_find_marked_name##1", Base.Docs.DocStr}
 Tuple{ProjecturedKernel.ToolModule.var"#_group_api_bindings##2#_group_api_bindings##3"{Symbol}, Tuple{Symbol, Symbol}}
 Tuple{ProjecturedKernel.ToolModule.var"#_queue_meaning_texts!##2#_queue_meaning_texts!##3"{ProjecturedKernel.ToolModule._MeaningStore, ProjecturedKernel.ToolModule.MeaningModel}}
@@ -305,66 +313,70 @@ Tuple{ProjecturedKernel.ToolModule.var"#_register_search_tools!##0#_register_sea
 Tuple{ProjecturedKernel.ToolModule.var"#_register_search_tools!##2#_register_search_tools!##3"{ProjecturedKernel.ToolModule.ToolSet}, Nothing, Base.Dict{String, Any}}
 Tuple{ProjecturedKernel.ToolModule.var"#_register_search_tools!##2#_register_search_tools!##3"{ProjecturedKernel.ToolModule.ToolSet}, Nothing, Base.Dict{String, Nothing}}
 Tuple{ProjecturedKernel.ToolModule.var"#_register_search_tools!##2#_register_search_tools!##3"{ProjecturedKernel.ToolModule.ToolSet}, Nothing, Base.Dict{String, String}}
+Tuple{ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##2#_rewrite_load_statements!##3"{Module}, Expr}
+Tuple{ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##2#_rewrite_load_statements!##3"{Module}, LineNumberNode}
 Tuple{ProjecturedKernel.ToolModule.var"#_run_stop_steps##0#_run_stop_steps##1"{Array{ProjecturedKernel.ToolModule.var"#wait_in_code_unit##4#wait_in_code_unit##5"{Base.GenericCondition{Base.ReentrantLock}}, 1}}}
 Tuple{ProjecturedKernel.ToolModule.var"#_run_stop_steps##0#_run_stop_steps##1"{Array{ProjecturedKernelTest.var"#test_editor_held_frames##66#test_editor_held_frames##67"{Base.Threads.Atomic{Bool}}, 1}}}
 Tuple{ProjecturedKernel.ToolModule.var"#_start_meaning_vectors!##0#_start_meaning_vectors!##1"{Array{ProjecturedKernel.ToolModule.ApiEntry, 1}, ProjecturedKernel.ToolModule.MeaningModel}}
 Tuple{ProjecturedKernel.ToolModule.var"#wait_in_code_unit##4#wait_in_code_unit##5"{Base.GenericCondition{Base.ReentrantLock}}}
 Tuple{ProjecturedKernelExample.var"##FakeLlm#9", Int64, Float64, String, String, Type{ProjecturedKernelExample.FakeLlm}, String}
-Tuple{ProjecturedKernelTest.var"##ICDmRuleY#773", Int64, Int64, String, Bool, Nothing, Nothing, Type{ProjecturedKernelTest.DmRuleY{ProjecturedKernel.CellModule.ImmutableCell{Int64}, ProjecturedKernel.CellModule.ImmutableCell{Int64}, ProjecturedKernel.CellModule.ImmutableCell{String}, ProjecturedKernel.CellModule.ImmutableCell{Bool}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference, ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference}}}}}
-Tuple{ProjecturedKernelTest.var"##IGestureProbeImmutable#1044", Int64, Nothing, Type{ProjecturedKernelTest.IGestureProbeImmutable}}
-Tuple{ProjecturedKernelTest.var"#1010#1011", ProjecturedKernelTest.CommandProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}
-Tuple{ProjecturedKernelTest.var"#1010#1011", ProjecturedKernelTest.CommandProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
-Tuple{ProjecturedKernelTest.var"#1016#1017", ProjecturedKernel.EventModule.KeyPress}
-Tuple{ProjecturedKernelTest.var"#1088#1089", ProjecturedKernelTest.MarkOperation}
-Tuple{ProjecturedKernelTest.var"#1090#1091", ProjecturedKernelTest.ClaimProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.MarkOperation}
-Tuple{ProjecturedKernelTest.var"#1101#1102", ProjecturedKernelTest.DeclineProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
-Tuple{ProjecturedKernelTest.var"#1522#1523"{ProjecturedKernelTest.KernelFrameGuardProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
-Tuple{ProjecturedKernelTest.var"#1528#1529"{Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, Int64}
-Tuple{ProjecturedKernelTest.var"#1530#1531"{ProjecturedKernelTest.var"#1538#1539", Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
-Tuple{ProjecturedKernelTest.var"#1530#1531"{typeof(ProjecturedKernelTest._call_kernel_frame_guard_editor), Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
-Tuple{ProjecturedKernelTest.var"#1530#1531"{typeof(ProjecturedKernelTest._post_kernel_frame_guard_operations), Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
-Tuple{ProjecturedKernelTest.var"#1532#1533"{Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor}
-Tuple{ProjecturedKernelTest.var"#1541#1542", Int64}
-Tuple{ProjecturedKernelTest.var"#1546#1547", Int64}
-Tuple{ProjecturedKernelTest.var"#1550#1551", ProjecturedKernel.EditorModule.Editor, Int64}
-Tuple{ProjecturedKernelTest.var"#1580#1581"{Base.Channel{Bool}, Array{Array{Any, 1}, 1}, Base.ReentrantLock}, Array{Any, 1}}
-Tuple{ProjecturedKernelTest.var"#1580#1581"{Nothing, Array{Array{Any, 1}, 1}, Base.ReentrantLock}, Array{Any, 1}}
-Tuple{ProjecturedKernelTest.var"#635#636", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
-Tuple{ProjecturedKernelTest.var"#637#638", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
-Tuple{ProjecturedKernelTest.var"#637#638", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
-Tuple{ProjecturedKernelTest.var"#646#647", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
-Tuple{ProjecturedKernelTest.var"#648#649", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernelTest.JobProbeOperation}
-Tuple{ProjecturedKernelTest.var"#650#651", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
-Tuple{ProjecturedKernelTest.var"#652#653", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
-Tuple{ProjecturedKernelTest.var"#655#656", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
-Tuple{ProjecturedKernelTest.var"#661#662", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseClick, Nothing}
-Tuple{ProjecturedKernelTest.var"#663#664", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
-Tuple{ProjecturedKernelTest.var"#734#735"{String}, ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
-Tuple{ProjecturedKernelTest.var"#736#737", ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
-Tuple{ProjecturedKernelTest.var"#738#739", ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
-Tuple{ProjecturedKernelTest.var"#930#931", ProjecturedKernel.EventModule.WindowInput{ProjecturedKernel.GestureModule.MouseClick}}
-Tuple{ProjecturedKernelTest.var"#952#953", ProjecturedKernelTest.GestureProbeArray{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
-Tuple{ProjecturedKernelTest.var"#952#953", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}
-Tuple{ProjecturedKernelTest.var"#952#953", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
-Tuple{ProjecturedKernelTest.var"#958#959", ProjecturedKernel.EventModule.KeyPress}
-Tuple{ProjecturedKernelTest.var"#960#961", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
+Tuple{ProjecturedKernelTest.var"##ICDmRuleY#785", Int64, Int64, String, Bool, Nothing, Nothing, Type{ProjecturedKernelTest.DmRuleY{ProjecturedKernel.CellModule.ImmutableCell{Int64}, ProjecturedKernel.CellModule.ImmutableCell{Int64}, ProjecturedKernel.CellModule.ImmutableCell{String}, ProjecturedKernel.CellModule.ImmutableCell{Bool}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference, ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference}}}}}
+Tuple{ProjecturedKernelTest.var"##IGestureProbeImmutable#1056", Int64, Nothing, Type{ProjecturedKernelTest.IGestureProbeImmutable}}
+Tuple{ProjecturedKernelTest.var"#1022#1023", ProjecturedKernelTest.CommandProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}
+Tuple{ProjecturedKernelTest.var"#1022#1023", ProjecturedKernelTest.CommandProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{ProjecturedKernelTest.var"#1028#1029", ProjecturedKernel.EventModule.KeyPress}
+Tuple{ProjecturedKernelTest.var"#1100#1101", ProjecturedKernelTest.MarkOperation}
+Tuple{ProjecturedKernelTest.var"#1102#1103", ProjecturedKernelTest.ClaimProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.MarkOperation}
+Tuple{ProjecturedKernelTest.var"#1113#1114", ProjecturedKernelTest.DeclineProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
+Tuple{ProjecturedKernelTest.var"#1535#1536"{ProjecturedKernelTest.KernelFrameGuardProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
+Tuple{ProjecturedKernelTest.var"#1541#1542"{Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, Int64}
+Tuple{ProjecturedKernelTest.var"#1543#1544"{ProjecturedKernelTest.var"#1551#1552", Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
+Tuple{ProjecturedKernelTest.var"#1543#1544"{typeof(ProjecturedKernelTest._call_kernel_frame_guard_editor), Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
+Tuple{ProjecturedKernelTest.var"#1543#1544"{typeof(ProjecturedKernelTest._post_kernel_frame_guard_operations), Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor, Int64}
+Tuple{ProjecturedKernelTest.var"#1545#1546"{Base.RefValue{Int64}, Base.Threads.Atomic{Int64}}, ProjecturedKernel.EditorModule.Editor}
+Tuple{ProjecturedKernelTest.var"#1554#1555", Int64}
+Tuple{ProjecturedKernelTest.var"#1559#1560", Int64}
+Tuple{ProjecturedKernelTest.var"#1563#1564", ProjecturedKernel.EditorModule.Editor, Int64}
+Tuple{ProjecturedKernelTest.var"#1593#1594"{Base.Channel{Bool}, Array{Array{Any, 1}, 1}, Base.ReentrantLock}, Array{Any, 1}}
+Tuple{ProjecturedKernelTest.var"#1593#1594"{Nothing, Array{Array{Any, 1}, 1}, Base.ReentrantLock}, Array{Any, 1}}
+Tuple{ProjecturedKernelTest.var"#647#648", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
+Tuple{ProjecturedKernelTest.var"#649#650", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
+Tuple{ProjecturedKernelTest.var"#649#650", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
+Tuple{ProjecturedKernelTest.var"#658#659", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
+Tuple{ProjecturedKernelTest.var"#660#661", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernelTest.JobProbeOperation}
+Tuple{ProjecturedKernelTest.var"#662#663", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
+Tuple{ProjecturedKernelTest.var"#664#665", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
+Tuple{ProjecturedKernelTest.var"#667#668", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
+Tuple{ProjecturedKernelTest.var"#673#674", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseClick, Nothing}
+Tuple{ProjecturedKernelTest.var"#675#676", ProjecturedKernelTest.JobProbeTabled{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
+Tuple{ProjecturedKernelTest.var"#746#747"{String}, ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernelTest.var"#748#749", ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernelTest.var"#750#751", ProjecturedKernelTest.ContractEntry{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernelTest.var"#942#943", ProjecturedKernel.EventModule.WindowInput{ProjecturedKernel.GestureModule.MouseClick}}
+Tuple{ProjecturedKernelTest.var"#964#965", ProjecturedKernelTest.GestureProbeArray{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{ProjecturedKernelTest.var"#964#965", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Nothing}
+Tuple{ProjecturedKernelTest.var"#964#965", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
+Tuple{ProjecturedKernelTest.var"#970#971", ProjecturedKernel.EventModule.KeyPress}
+Tuple{ProjecturedKernelTest.var"#972#973", ProjecturedKernelTest.GestureProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
 Tuple{ProjecturedKernelTest.var"#_bare##0#_bare##1", Expr}
 Tuple{ProjecturedKernelTest.var"#_call_kernel_frame_guard_editor##0#_call_kernel_frame_guard_editor##1"{ProjecturedKernel.EditorModule.Editor, Int64, Base.Threads.Atomic{Int64}}}
 Tuple{ProjecturedKernelTest.var"#_job_nest_rule##0#_job_nest_rule##1", ProjecturedKernelTest.JobProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
 Tuple{ProjecturedKernelTest.var"#_job_nest_rule##0#_job_nest_rule##1", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, Nothing}
 Tuple{ProjecturedKernelTest.var"#_job_nest_rule##0#_job_nest_rule##1", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeText}
 Tuple{ProjecturedKernelTest.var"#_job_select##0#_job_select##1", ProjecturedKernelTest.JobProbeMid{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseClick, Nothing}
+Tuple{ProjecturedKernelTest.var"#_make_cell_of_dropped_fault_scope##2#_make_cell_of_dropped_fault_scope##3"}
 Tuple{ProjecturedKernelTest.var"#_make_discarded_readers##2#_make_discarded_readers##3"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#_make_frame_guard_burst##0#_make_frame_guard_burst##1"{ProjecturedKernelTest.var"#test_frame_guard##0#test_frame_guard##1"}, Int64}
 Tuple{ProjecturedKernelTest.var"#_make_frame_guard_burst##0#_make_frame_guard_burst##1"{ProjecturedKernelTest.var"#test_frame_guard##2#test_frame_guard##3"}, Int64}
 Tuple{ProjecturedKernelTest.var"#_make_frame_guard_burst##2#_make_frame_guard_burst##3", ProjecturedKernel.EditorModule.Editor, Int64}
-Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##0#_make_frame_guard_scene##1"{ProjecturedKernelTest.var"#562#563"}, Int64}
-Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##0#_make_frame_guard_scene##1"{ProjecturedKernelTest.var"#566#567"}, Int64}
+Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##0#_make_frame_guard_scene##1"{ProjecturedKernelTest.var"#574#575"}, Int64}
+Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##0#_make_frame_guard_scene##1"{ProjecturedKernelTest.var"#578#579"}, Int64}
 Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##0#_make_frame_guard_scene##1"{typeof(ProjecturedKernelTest._frame_guard_work)}, Int64}
-Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##2#_make_frame_guard_scene##3"{Int64, ProjecturedKernelTest.var"#562#563"}}
-Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##2#_make_frame_guard_scene##3"{Int64, ProjecturedKernelTest.var"#566#567"}}
+Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##2#_make_frame_guard_scene##3"{Int64, ProjecturedKernelTest.var"#574#575"}}
+Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##2#_make_frame_guard_scene##3"{Int64, ProjecturedKernelTest.var"#578#579"}}
 Tuple{ProjecturedKernelTest.var"#_make_frame_guard_scene##2#_make_frame_guard_scene##3"{Int64, typeof(ProjecturedKernelTest._frame_guard_work)}}
 Tuple{ProjecturedKernelTest.var"#_make_headless_lazy_link##0#_make_headless_lazy_link##1"{Base.RefValue{Int64}, Int64}}
+Tuple{ProjecturedKernelTest.var"#_make_maker_of_dropped_fault_scope##2#_make_maker_of_dropped_fault_scope##3"}
 Tuple{ProjecturedKernelTest.var"#_make_read_cell##0#_make_read_cell##1"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#_measure_detach_seconds##4#_measure_detach_seconds##5"{Int64, Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#_out_probe_bindings##0#_out_probe_bindings##1"{String}, ProjecturedKernelTest.OutProbeBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.GestureModule.MouseDwell, Nothing}
@@ -538,6 +550,7 @@ Tuple{ProjecturedKernelTest.var"#test_cell##92#test_cell##93"{ProjecturedKernel.
 Tuple{ProjecturedKernelTest.var"#test_cell##94#test_cell##95"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#test_cell##96#test_cell##97"{ProjecturedKernel.CellModule.ReactiveCell{Any}, Base.RefValue{Int64}}}
 Tuple{ProjecturedKernelTest.var"#test_cell##98#test_cell##99"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##102#test_cell_fault_scope##103"}
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##14#test_cell_fault_scope##15"}
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##20#test_cell_fault_scope##21"{ProjecturedKernelTest.FaultScopeProbe}}
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##28#test_cell_fault_scope##29"}
@@ -553,7 +566,8 @@ Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##76#test_cell_fault_scope
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##78#test_cell_fault_scope##79"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##82#test_cell_fault_scope##83"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
 Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##86#test_cell_fault_scope##87"}
-Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##92#test_cell_fault_scope##93"}
+Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##90#test_cell_fault_scope##91"{ProjecturedKernel.CellModule.ReactiveCell{Any}}}
+Tuple{ProjecturedKernelTest.var"#test_cell_fault_scope##96#test_cell_fault_scope##97"}
 Tuple{ProjecturedKernelTest.var"#test_cell_struct##0#test_cell_struct##1"{ProjecturedKernelTest.CsPlain}}
 Tuple{ProjecturedKernelTest.var"#test_cell_struct##2#test_cell_struct##3"{ProjecturedKernelTest.CsMutable}}
 Tuple{ProjecturedKernelTest.var"#test_cell_struct##6#test_cell_struct##7"{ProjecturedKernelTest.CsCounter}}
@@ -661,7 +675,7 @@ Tuple{ProjecturedKernelTest.var"#test_fault_store##37#test_fault_store##38"}
 Tuple{ProjecturedKernelTest.var"#test_frame_guard##4#test_frame_guard##5"{ProjecturedKernelTest.FrameGuardQueueFeed}, Int64}
 Tuple{ProjecturedKernelTest.var"#test_frame_guard##6#test_frame_guard##7"{ProjecturedKernelTest.FrameGuardQueueFeed}, ProjecturedKernel.EditorModule.Editor, Int64}
 Tuple{ProjecturedKernelTest.var"#test_gesture_module##1#test_gesture_module##2", ProjecturedKernel.EventModule.KeyPress}
-Tuple{ProjecturedKernelTest.var"#test_gesture_recognition##12#test_gesture_recognition##13"{ProjecturedKernelTest.var"#move#936#test_gesture_recognition##14"}, Int64, Float64}
+Tuple{ProjecturedKernelTest.var"#test_gesture_recognition##12#test_gesture_recognition##13"{ProjecturedKernelTest.var"#move#948#test_gesture_recognition##14"}, Int64, Float64}
 Tuple{ProjecturedKernelTest.var"#test_gesture_recognition##15#test_gesture_recognition##16", Float64}
 Tuple{ProjecturedKernelTest.var"#test_gesture_recognition##3#test_gesture_recognition##4", ProjecturedKernel.EventModule.WindowInput{ProjecturedKernel.EventModule.KeyDown}}
 Tuple{ProjecturedKernelTest.var"#test_headless_backend##2#test_headless_backend##3"{Base.RefValue{Int64}, Int64}}
@@ -768,13 +782,14 @@ Tuple{Type{Base.Fix{1, F, T} where T where F}, typeof(Base.ScopedValues.getdefau
 Tuple{Type{Base.Fix{1, F, T} where T where F}, typeof(Base.ScopedValues.getdefault), Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.PerformanceModule._PerformanceCounterStore}}}
 Tuple{Type{Base.Fix{1, F, T} where T where F}, typeof(Base.ScopedValues.getdefault), Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}}
 Tuple{Type{Base.Fix{2, F, T} where T where F}, typeof(Base.in), Tuple{String, String}}
+Tuple{Type{Base.Generator{I, F} where F where I}, Base.var"#694#695", Tuple{Pair{String, String}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ReferenceModule.var"#@reference_rules##0#@reference_rules##1", Base.Iterators.Filter{ProjecturedKernel.ReferenceModule.var"#@reference_rules##2#@reference_rules##3", Array{Any, 1}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ToolModule.var"#100#101", Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#102#103", Tuple{Base.UnitRange{Int64}, Nothing}}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ToolModule.var"#180#181", Array{ProjecturedKernel.ToolModule._ApiEntry, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#515#516"{Int64, Int64, Int64, Int64, ProjecturedKernelTest.FrameScene}, Array{Int64, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#736#737", Array{Any, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#738#739", Array{Any, 1}}
-Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#910#911"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.UnitRange{Int64}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ToolModule.var"#107#108", Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#109#110", Tuple{Base.UnitRange{Int64}, Nothing}}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernel.ToolModule.var"#187#188", Array{ProjecturedKernel.ToolModule._ApiEntry, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#527#528"{Int64, Int64, Int64, Int64, ProjecturedKernelTest.FrameScene}, Array{Int64, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#748#749", Array{Any, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#750#751", Array{Any, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#922#923"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.UnitRange{Int64}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#_build_probe_steps##0#_build_probe_steps##1", Base.Iterators.Filter{ProjecturedKernelTest.var"#_build_probe_steps##2#_build_probe_steps##3", Array{Tuple{Symbol, Symbol, Any}, 1}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#_collect_frame_rows##2#_collect_frame_rows##3"{NTuple{12, Symbol}, NamedTuple{(:frames, :end_times, :columns), Tuple{Array{Int64, 1}, Array{Float64, 1}, Array{NamedTuple{(:name, :unit, :values), Tuple{Symbol, Symbol, Array{Float64, 1}}}, 1}}}}, Array{Int64, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1", Tuple{Symbol, Symbol, Symbol}}
@@ -802,6 +817,7 @@ Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#tes
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_gesture_binding##32#test_gesture_binding##33"{ProjecturedKernelTest.MarkOperation}, Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_gesture_binding##4#test_gesture_binding##5", Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_gesture_recognition##1#test_gesture_recognition##2", Array{ProjecturedKernel.EventModule.KeyDown, 1}}
+Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_projection_defaults##0#test_projection_defaults##1", Array{ProjecturedKernel.IntentModule.Intent, 1}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_reference_rules##47#test_reference_rules##48", Base.ValueIterator{Base.Dict{Array{Symbol, 1}, Symbol}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_referenced_document##0#test_referenced_document##1", ProjecturedKernel.ReferenceModule.ReferencedDocument{Array{Any, 1}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, ProjecturedKernelTest.var"#test_referenced_document##2#test_referenced_document##3", Array{ProjecturedKernel.ReferenceModule.ReferencedDocument{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, 1}}
@@ -828,6 +844,7 @@ Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.It
 Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#toward_arm#test_reference_evaluation##19"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.identity), Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#within_arm#test_reference_evaluation##17"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}}
 Tuple{Type{Base.Generator{I, F} where F where I}, typeof(Base.string), Array{Any, 1}}
+Tuple{Type{Base.HashArrayMappedTries.HashState{K} where K}, Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}}, Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}
 Tuple{Type{Base.IOContext{IO_t} where IO_t<:IO}, Base.GenericIOBuffer{Memory{UInt8}}, Base.GenericIOBuffer{Memory{UInt8}}}
 Tuple{Type{Base.IOContext{IO_t} where IO_t<:IO}, Base.GenericIOBuffer{Memory{UInt8}}, Base.PipeEndpoint}
 Tuple{Type{Base.IOContext{IO_t} where IO_t<:IO}, ProjecturedKernel.ToolModule._EvaluationStream, Pair{Symbol, Bool}}
@@ -837,7 +854,7 @@ Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.Gestu
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.GestureModule.var"#_get_positional_event_fields##0#_get_positional_event_fields##1", NTuple{4, Symbol}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.GestureModule.var"#_get_positional_event_fields##0#_get_positional_event_fields##1", Tuple{Symbol, Symbol, Symbol}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.ReferenceModule.var"#@reference_rules##2#@reference_rules##3", Array{Any, 1}}
-Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.ToolModule.var"#102#103", Tuple{Base.UnitRange{Int64}, Nothing}}
+Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.ToolModule.var"#109#110", Tuple{Base.UnitRange{Int64}, Nothing}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernel.ToolModule.var"#_collect_loaded_modules##0#_collect_loaded_modules##1", Base.ValueIterator{Base.Dict{Base.PkgId, Module}}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernelTest.var"#114#115"{String, Nothing}, Tuple{String, String, String}}
 Tuple{Type{Base.Iterators.Filter{F, I} where I where F}, ProjecturedKernelTest.var"#_build_probe_steps##2#_build_probe_steps##3", Array{Tuple{Symbol, Symbol, Any}, 1}}
@@ -874,6 +891,8 @@ Tuple{Type{Base.Set{T} where T}, Array{Union{Nothing, String}, 1}}
 Tuple{Type{Base.Set{T} where T}, Base.KeySet{Symbol, Base.Dict{Symbol, Int64}}}
 Tuple{Type{Base.SplitIterator{S, F} where F where S<:AbstractString}, String, Base.Fix{2, typeof(Base.isequal), Char}, Int64, Bool}
 Tuple{Type{CsAddedScope.Added}, Int64, Int64}
+Tuple{Type{Dates.Day}, Int64}
+Tuple{Type{Dates.Time}, Int64, Int64}
 Tuple{Type{Int64}, Char}
 Tuple{Type{NamedTuple{(:a, :b), T} where T<:Tuple}, Tuple{Int64, Int64}}
 Tuple{Type{NamedTuple{(:a, :b), T} where T<:Tuple}, Tuple{Int64, String}}
@@ -1018,6 +1037,7 @@ Tuple{Type{NamedTuple{(:process_id,), T} where T<:Tuple}, Tuple{Int64}}
 Tuple{Type{NamedTuple{(:raw, :paths), T} where T<:Tuple}, Tuple{Bool, Bool}}
 Tuple{Type{NamedTuple{(:raw, :walk), T} where T<:Tuple}, Tuple{Bool, ProjecturedKernel.DocumentModule.DocumentWalk}}
 Tuple{Type{NamedTuple{(:raw,), T} where T<:Tuple}, Tuple{Bool}}
+Tuple{Type{NamedTuple{(:read, :write, :append, :truncate), T} where T<:Tuple}, Tuple{Bool, Bool, Nothing, Nothing}}
 Tuple{Type{NamedTuple{(:rev, :alg), T} where T<:Tuple}, Tuple{Bool, Base.Sort.MergeSortAlg}}
 Tuple{Type{NamedTuple{(:scope,), T} where T<:Tuple}, Tuple{Module}}
 Tuple{Type{NamedTuple{(:shift, :meta), T} where T<:Tuple}, Tuple{Bool, Bool}}
@@ -1085,8 +1105,11 @@ Tuple{Type{Pair{A, B} where B where A}, String, Symbol}
 Tuple{Type{Pair{A, B} where B where A}, Symbol, Float64}
 Tuple{Type{Pair{A, B} where B where A}, Symbol, NamedTuple{(:level,), Tuple{Int64}}}
 Tuple{Type{Pair{A, B} where B where A}, Symbol, Tuple{Int64, Int64}}
+Tuple{Type{Pair{A, B} where B where A}, Symbol, Tuple{String, Int64}}
 Tuple{Type{Pair{A, B} where B where A}, Tuple{Base.SubString{String}, Base.SubString{String}}, Float64}
 Tuple{Type{Pair{A, B} where B where A}, Type, String}
+Tuple{Type{Printf.Format{S, T} where T where S}, Base.CodeUnits{UInt8, String}, Array{Base.UnitRange{Int64}, 1}, Tuple{Printf.Spec{Base.Val{Char(0x66000000)}}}, Int64}
+Tuple{Type{Printf.Format{S, T} where T where S}, String}
 Tuple{Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String, Nothing, Nothing, Symbol, Nothing, Nothing, Nothing, Nothing, Nothing, Float64, Bool}
 Tuple{Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String, Nothing, Nothing, Symbol, Nothing, Nothing, String, String, Nothing, Float64, Bool}
 Tuple{Type{ProjecturedKernel.AgentModule.AgentBackgroundTaskUpdate}, String, Nothing, String, Symbol, Nothing, Nothing, Nothing, Nothing, Nothing, Nothing, Bool}
@@ -1166,6 +1189,9 @@ Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Nothing, Nothing, String, Str
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Nothing, ProjecturedKernel.OperationModule.DoNothingOperation, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Nothing, ProjecturedKernelTest.JobProbeOperation, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Nothing, ProjecturedKernelTest.JobProbeOperation}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyDown, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyDown, Nothing, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyDown}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyPress, Nothing, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyPress, Nothing, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyPress, ProjecturedKernelTest.JobProbeOperation, String, String}
@@ -1175,14 +1201,26 @@ Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.EventModule.KeyPress}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseClick, Nothing, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernel.OperationModule.ReplaceSelectionOperation, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernelTest.JobProbeOperation, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseClick, ProjecturedKernelTest.JobProbeOperation, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseClick}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseDwell, Nothing, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseDwell, Nothing, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseDwell, ProjecturedKernelTest.JobProbeLayers, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseDwell, ProjecturedKernelTest.JobProbeOperation, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.GestureModule.MouseDwell}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.IntentModule.CollectIntents, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.IntentModule.CollectIntents, Nothing, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.IntentModule.CollectIntents, ProjecturedKernel.IntentModule.CollectedIntentsOperation, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.OperationModule.DoNothingOperation, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.OperationModule.DoNothingOperation, ProjecturedKernel.OperationModule.DoNothingOperation, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernel.OperationModule.QuitEditorOperation, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernelTest.DefaultsStuckOperation, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernelTest.DefaultsStuckOperation, Nothing, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernelTest.JobProbeOperation, Nothing, String, String, Nothing}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, ProjecturedKernelTest.JobProbeOperation}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, String, Nothing, String, String}
+Tuple{Type{ProjecturedKernel.IntentModule.Intent}, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Symbol, Nothing, String, String, Nothing}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Symbol, Nothing, String, String}
 Tuple{Type{ProjecturedKernel.IntentModule.Intent}, Symbol, Nothing}
@@ -1232,11 +1270,14 @@ Tuple{Type{ProjecturedKernel.ReferenceModule.Reference}, ProjecturedKernel.Refer
 Tuple{Type{ProjecturedKernel.ReferenceModule.Reference}}
 Tuple{Type{ProjecturedKernel.ReferenceModule.TypeReferenceStep{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, Type}
 Tuple{Type{ProjecturedKernel.ToolModule.ApiEntry}, Module, Nothing}
+Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Array{Base.UnitRange{Int64}, 1}, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Array{Int64, 1}, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Base.Docs.Text{String}, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Base.PipeEndpoint, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Base.RefValue{Int64}, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Bool, Nothing}
+Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Dates.Date, Nothing}
+Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Float64, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Function, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Int64, Nothing}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, NTuple{1000, Int64}, Nothing}
@@ -1244,6 +1285,7 @@ Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, Base
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, ErrorException}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, InterruptException}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, ProjecturedKernel.ToolModule.MissingEvaluationEditorException}
+Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, ProjecturedKernel.ToolModule.PackageLoadRefusedException}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, StackOverflowError}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, Nothing, UndefVarError}
 Tuple{Type{ProjecturedKernel.ToolModule.EvaluationResult}, String, ProjecturedKernelTest.PictureToy.ToyPicture, Nothing}
@@ -1322,6 +1364,7 @@ Tuple{Type{ProjecturedKernelTest.ToyWrapperOperation}, ProjecturedKernel.Operati
 Tuple{Type{ProjecturedKernelTest.UcSample}, Int64, String}
 Tuple{Type{ProjecturedKernelTest._RepositoryPackage}, String, Array{Base.SubString{String}, 1}, String}
 Tuple{Type{ProjecturedKernelTest._RepositoryPackage}, String, Array{Union{Nothing, Base.SubString{String}}, 1}, String}
+Tuple{Type{Random.Xoshiro}, Int64}
 Tuple{Type{Test.Broken}, Symbol, Any}
 Tuple{Type{Test.Returned}, Any, Any, LineNumberNode}
 Tuple{Type{ToolScratch.Point}, Int64}
@@ -1362,6 +1405,7 @@ Tuple{typeof(Base.:(*)), Int64, UInt64}
 Tuple{typeof(Base.:(*)), String, String, String, String, String, String, Vararg{String}}
 Tuple{typeof(Base.:(*)), Vararg{String, 4}}
 Tuple{typeof(Base.:(+)), Bool, Int64}
+Tuple{typeof(Base.:(+)), Dates.Date, Dates.Day}
 Tuple{typeof(Base.:(+)), Vararg{Int64, 5}}
 Tuple{typeof(Base.:(-)), Int64, Float64}
 Tuple{typeof(Base.:(//)), Int64, Int64}
@@ -1386,6 +1430,7 @@ Tuple{typeof(Base.:(var"==")), Array{Array{String, 1}, 1}, Array{Array{String, 1
 Tuple{typeof(Base.:(var"==")), Array{Array{Union{Base.Regex, String}, 1}, 1}, Array{Array{String, 1}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Base.RefValue{Symbol}, 1}, Array{Base.RefValue{Symbol}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Base.SubString{String}, 1}, Array{String, 1}}
+Tuple{typeof(Base.:(var"==")), Array{Base.UnitRange{Int64}, 1}, Array{Base.UnitRange{Int64}, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Bool, 1}, Array{Bool, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Expr, 1}, Array{Expr, 1}}
 Tuple{typeof(Base.:(var"==")), Array{Float64, 1}, Array{Float64, 1}}
@@ -1573,6 +1618,7 @@ Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedKernelTest.var"#test_fa
 Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedKernelTest.var"#test_fault_store##27#test_fault_store##28"{ProjecturedKernel.FaultModule.FaultStore}, Base.CoreLogging.LogState}
 Tuple{typeof(Base.CoreLogging.with_logstate), ProjecturedKernelTest.var"#test_window_quit##0#test_window_quit##1"{ProjecturedKernel.EditorModule.Editor}, Base.CoreLogging.LogState}
 Tuple{typeof(Base.Filesystem.joinpath), NTuple{8, String}}
+Tuple{typeof(Base.HashArrayMappedTries.next), Base.HashArrayMappedTries.HashState{Base.ScopedValues.ScopedValue{Base.CoreLogging.LogState}}}
 Tuple{typeof(Base.Iterators._only), Array{Array{Float32, 1}, 1}, typeof(Base.iterate)}
 Tuple{typeof(Base.Iterators._only), Array{Base.SubString{String}, 1}, typeof(Base.iterate)}
 Tuple{typeof(Base.Iterators._only), Array{ProjecturedKernelTest.ContractOwnCopy{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, typeof(Base.iterate)}
@@ -1588,6 +1634,8 @@ Tuple{typeof(Base.Iterators.enumerate), Tuple{Symbol, Symbol}}
 Tuple{typeof(Base.Iterators.only), Array{Any, 1}}
 Tuple{typeof(Base.Iterators.only), Array{ProjecturedKernel.FaultModule.FaultRecord, 1}}
 Tuple{typeof(Base.Iterators.only), Array{String, 1}}
+Tuple{typeof(Base.Iterators.partition), Base.UnitRange{Int64}, Int64}
+Tuple{typeof(Base.Iterators.rest), Base.UnitRange{Int64}}
 Tuple{typeof(Base.Iterators.zip), NTuple{15, Symbol}, Vararg{Any}}
 Tuple{typeof(Base.Iterators.zip), Tuple{Base.CoreLogging.LogLevel, String}, Vararg{Any}}
 Tuple{typeof(Base.Iterators.zip), Tuple{Tuple{Symbol, String}}, Vararg{Any}}
@@ -1617,17 +1665,12 @@ Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.DocumentModule.var"#110#
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.DocumentModule.var"#110#111"{Bool, Int64, Bool, Bool, typeof(ProjecturedKernel.DocumentModule._count_as_no_match), Bool, ProjecturedKernel.DocumentModule.DocumentWalk, ProjecturedKernelTest.ReferencedBag{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.var"#_find_referenced_value##0#_find_referenced_value##1"{Array{Any, 1}}, ProjecturedKernel.DocumentModule._WalkCounts, Array{Any, 1}}, Pair{Base.ScopedValues.ScopedValue{Bool}, Bool}}
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.DocumentModule.var"#110#111"{Bool, Int64, Bool, Bool, typeof(ProjecturedKernel.DocumentModule._count_as_no_match), Bool, ProjecturedKernel.DocumentModule.DocumentWalk, ProjecturedKernelTest.ReferencedHolder{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.var"#is_leaf#test_referenced_document##13", ProjecturedKernel.DocumentModule._WalkCounts, Array{Any, 1}}, Pair{Base.ScopedValues.ScopedValue{Bool}, Bool}}
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.EditorModule.var"#drain_operations!##4#drain_operations!##5"{ProjecturedKernel.EditorModule.Editor, Array{ProjecturedKernel.OperationModule.Operation, 1}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{String}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Symbol}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#65#66"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#_run_expression_in_unit##0#_run_expression_in_unit##1"{Expr, Module}, Pair{Base.ScopedValues.ScopedValue{Any}, NamedTuple{(:name,), Tuple{String}}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}, ProjecturedKernel.ToolModule._EvaluationOutput}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#_run_expression_in_unit##0#_run_expression_in_unit##1"{Expr, Module}, Pair{Base.ScopedValues.ScopedValue{Any}, NamedTuple{(:name,), Tuple{Symbol}}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}, ProjecturedKernel.ToolModule._EvaluationOutput}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#_run_expression_in_unit##0#_run_expression_in_unit##1"{Expr, Module}, Pair{Base.ScopedValues.ScopedValue{Any}, Nothing}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}, ProjecturedKernel.ToolModule._EvaluationOutput}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#_run_expression_in_unit##0#_run_expression_in_unit##1"{Expr, Module}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.EditorModule.Editor}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}, ProjecturedKernel.ToolModule._EvaluationOutput}}
-Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#_run_expression_in_unit##0#_run_expression_in_unit##1"{Expr, Module}, Pair{Base.ScopedValues.ScopedValue{Any}, Symbol}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule._EvaluationOutput}}, ProjecturedKernel.ToolModule._EvaluationOutput}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, NamedTuple{(:name,), Tuple{String}}, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Nothing, ProjecturedKernel.ToolModule.var"#58#59"{Symbol}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#53#54"{String}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
+Tuple{typeof(Base.ScopedValues.with), ProjecturedKernel.ToolModule.var"#72#73"{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Task, ProjecturedKernel.ToolModule.ToolSet, Symbol, ProjecturedKernel.ToolModule.var"#58#59"{Expr}}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernelTest.var"#_call_kernel_frame_guard_editor##2#_call_kernel_frame_guard_editor##3"{Base.Threads.Atomic{Int64}}, Pair{Base.ScopedValues.ScopedValue{Any}, Nothing}}
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernelTest.var"#test_background_work##10#test_background_work##11", Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
 Tuple{typeof(Base.ScopedValues.with), ProjecturedKernelTest.var"#test_background_work##17#test_background_work##18"{ProjecturedKernelTest.var"#arguments#test_background_work##16", ProjecturedKernel.ToolModule.ToolSet}, Pair{Base.ScopedValues.ScopedValue{Union{Nothing, ProjecturedKernel.ToolModule.CodeUnit}}, ProjecturedKernel.ToolModule.CodeUnit}, Pair{Base.ScopedValues.ScopedValue{Any}, ProjecturedKernel.ToolModule.CodeUnit}}
@@ -1676,8 +1719,8 @@ Tuple{typeof(Base._all), Base.Fix{2, typeof(Base.:(var"==")), Int64}, Array{Int6
 Tuple{typeof(Base._all), ProjecturedKernel.ReferenceModule.var"#_fields_equal##0#_fields_equal##1"{ProjecturedKernel.ReferenceModule.PatStepAny, ProjecturedKernel.ReferenceModule.PatStepAny}, Base.UnitRange{Int64}, Base.Colon}
 Tuple{typeof(Base._all), ProjecturedKernel.ReferenceModule.var"#_fields_equal##0#_fields_equal##1"{ProjecturedKernel.ReferenceModule.PatStepField, ProjecturedKernel.ReferenceModule.PatStepField}, Base.UnitRange{Int64}, Base.Colon}
 Tuple{typeof(Base._all), ProjecturedKernel.ReferenceModule.var"#_fields_equal##0#_fields_equal##1"{ProjecturedKernel.ReferenceModule.PatValueWildcard, ProjecturedKernel.ReferenceModule.PatValueWildcard}, Base.UnitRange{Int64}, Base.Colon}
-Tuple{typeof(Base._all), ProjecturedKernelTest.var"#547#548", Array{ProjecturedKernelTest.FrameWork, 1}, Base.Colon}
-Tuple{typeof(Base._all), ProjecturedKernelTest.var"#549#550", Array{Test.Pass, 1}, Base.Colon}
+Tuple{typeof(Base._all), ProjecturedKernelTest.var"#559#560", Array{ProjecturedKernelTest.FrameWork, 1}, Base.Colon}
+Tuple{typeof(Base._all), ProjecturedKernelTest.var"#561#562", Array{Test.Pass, 1}, Base.Colon}
 Tuple{typeof(Base._all), ProjecturedKernelTest.var"#test_cell##122#test_cell##123", Tuple{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Base.Colon}
 Tuple{typeof(Base._all), ProjecturedKernelTest.var"#test_cell_struct##8#test_cell_struct##9", Base.MethodList, Base.Colon}
 Tuple{typeof(Base._all), ProjecturedKernelTest.var"#test_editor_held_frames##6#test_editor_held_frames##7", Array{ProjecturedKernel.BackendModule.HeldFrameState, 1}, Base.Colon}
@@ -1711,7 +1754,7 @@ Tuple{typeof(Base._any), ProjecturedKernelExample.var"#_paint_headless!##0#_pain
 Tuple{typeof(Base._any), ProjecturedKernelExample.var"#_paint_headless!##0#_paint_headless!##1"{Type{ProjecturedKernelTest.RootedEditRoot{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, NTuple{6, Symbol}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedKernelExample.var"#_paint_headless!##0#_paint_headless!##1"{Type{ProjecturedKernelTest.WaitProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, NTuple{6, Symbol}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedKernelExample.var"#_paint_headless!##0#_paint_headless!##1"{Type{ProjecturedKernelTest._HeadlessPaintCanvas}}, NTuple{6, Symbol}, Base.Colon}
-Tuple{typeof(Base._any), ProjecturedKernelTest.var"#734#735"{String}, Array{Any, 1}, Base.Colon}
+Tuple{typeof(Base._any), ProjecturedKernelTest.var"#746#747"{String}, Array{Any, 1}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedKernelTest.var"#test_agent_loop##46#test_agent_loop##47", Array{Any, 1}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedKernelTest.var"#test_cell_writer_check##12#test_cell_writer_check##13"{Task}, Array{ProjecturedKernel.CellModule.ForeignCellWriteException, 1}, Base.Colon}
 Tuple{typeof(Base._any), ProjecturedKernelTest.var"#test_declared_api##22#test_declared_api##23", Array{String, 1}, Base.Colon}
@@ -1824,12 +1867,14 @@ Tuple{typeof(Base.axes), Base.Broadcast.Broadcasted{Nothing, Tuple{Base.OneTo{In
 Tuple{typeof(Base.between), UInt8, UInt8, UInt8}
 Tuple{typeof(Base.cat_similar), Array{Int64, 1}, Type{Int64}, Tuple{Int64}}
 Tuple{typeof(Base.cat_size_shape), Tuple{Bool}, Array{Int64, 1}, Int64}
+Tuple{typeof(Base.cconvert), Type{Ptr{UInt8}}, Base.CodeUnits{UInt8, String}}
 Tuple{typeof(Base.checkbounds), Base.Broadcast.Broadcasted{Nothing, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.Broadcast.Extruded{Base.UnitRange{Int64}, Tuple{Bool}, Tuple{Int64}}}}, Int64}
 Tuple{typeof(Base.checkbounds), String, Base.UnitRange{Int64}}
 Tuple{typeof(Base.close), Base.Channel{Any}}
 Tuple{typeof(Base.cmd_gen), NTuple{4, Tuple{Base.SubString{String}}}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#736#737"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#738#739"}}
+Tuple{typeof(Base.cmd_gen), Tuple{Tuple{Base.Cmd}, Tuple{Base.SubString{String}}, Tuple{Base.SubString{String}, String}, Tuple{Base.SubString{String}}, Tuple{String}}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#748#749"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#750#751"}}
 Tuple{typeof(Base.collect), Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#_values##0#_values##1"}}
 Tuple{typeof(Base.collect), Base.Generator{Array{Int64, 1}, ProjecturedKernelTest.var"#_collect_frame_rows##2#_collect_frame_rows##3"{NTuple{12, Symbol}, NamedTuple{(:frames, :end_times, :columns), Tuple{Array{Int64, 1}, Array{Float64, 1}, Array{NamedTuple{(:name, :unit, :values), Tuple{Symbol, Symbol, Array{Float64, 1}}}, 1}}}}}}
 Tuple{typeof(Base.collect), Base.Generator{Array{Int64, 1}, ProjecturedKernelTest.var"#test_cell_struct_plan##10#test_cell_struct_plan##11"{Array{Any, 1}}}}
@@ -1839,21 +1884,23 @@ Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.EventModule.K
 Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.FaultModule.FaultRecord, 1}, Walkthrough.var"#14#15"}}
 Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.FaultModule.FaultRecord, 1}, Walkthrough.var"#17#18"}}
 Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.FaultModule.FaultRecord, 1}, Walkthrough.var"#20#21"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.IntentModule.Intent, 1}, ProjecturedKernelTest.var"#test_projection_defaults##0#test_projection_defaults##1"}}
 Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.ReferenceModule.ReferencedDocument{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, 1}, ProjecturedKernelTest.var"#test_referenced_document##2#test_referenced_document##3"}}
-Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}, ProjecturedKernel.ToolModule.var"#180#181"}}
+Tuple{typeof(Base.collect), Base.Generator{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}, ProjecturedKernel.ToolModule.var"#187#188"}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ReferenceModule.var"#@reference_rules##2#@reference_rules##3", Array{Any, 1}}, ProjecturedKernel.ReferenceModule.var"#@reference_rules##0#@reference_rules##1"}}
-Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#102#103", Tuple{Base.UnitRange{Int64}, Nothing}}, ProjecturedKernel.ToolModule.var"#100#101"}}
-Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#102#103", Tuple{Nothing, Nothing}}, ProjecturedKernel.ToolModule.var"#100#101"}}
+Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#109#110", Tuple{Base.UnitRange{Int64}, Nothing}}, ProjecturedKernel.ToolModule.var"#107#108"}}
+Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#109#110", Tuple{Nothing, Nothing}}, ProjecturedKernel.ToolModule.var"#107#108"}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#above_arm#test_reference_evaluation##18"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#at_arm#test_reference_evaluation##14"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#bare_arm#test_reference_evaluation##15"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#below_arm#test_reference_evaluation##16"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#toward_arm#test_reference_evaluation##19"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
 Tuple{typeof(Base.collect), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#test_reference_evaluation##20#test_reference_evaluation##21"{ProjecturedKernelTest.var"#within_arm#test_reference_evaluation##17"}, NTuple{4, ProjecturedKernel.ReferenceModule.ConcreteReference}}, typeof(Base.identity)}}
-Tuple{typeof(Base.collect), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#910#911"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}}
+Tuple{typeof(Base.collect), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#922#923"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}}
 Tuple{typeof(Base.collect), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#_measure_frame_work_at##2#_measure_frame_work_at##3"{ProjecturedKernelTest.FrameScene, Int64, Int64, ProjecturedKernel.EditorModule.Editor, ProjecturedKernelTest.var"#_measure_frame_work_at##0#_measure_frame_work_at##1"{ProjecturedKernelTest.FrameScene, UInt64, ProjecturedKernel.EditorModule.Editor}}}}
 Tuple{typeof(Base.collect), Base.Generator{Base.UnitRange{Int64}, Walkthrough.var"#14#15"}}
 Tuple{typeof(Base.collect), Base.Generator{ProjecturedKernel.ReferenceModule.ReferencedDocument{Array{Any, 1}}, ProjecturedKernelTest.var"#test_referenced_document##0#test_referenced_document##1"}}
+Tuple{typeof(Base.collect), Base.Iterators.PartitionIterator{Base.UnitRange{Int64}}}
 Tuple{typeof(Base.collect), Base.KeySet{String, Base.Dict{String, Any}}}
 Tuple{typeof(Base.collect), Base.UnitRange{Int64}}
 Tuple{typeof(Base.collect), Core.SimpleVector}
@@ -1876,20 +1923,20 @@ Tuple{typeof(Base.collect_to_with_first!), Array{Expr, 1}, Expr, Base.Generator{
 Tuple{typeof(Base.collect_to_with_first!), Array{Expr, 1}, Expr, Base.Generator{Array{ProjecturedKernel.ReferenceModule.PatStep, 1}, typeof(ProjecturedKernel.ReferenceModule._quote_pat_step)}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Expr, 1}, Expr, Base.Generator{Array{ProjecturedKernel.ReferenceModule.ReferenceSyntaxStep, 1}, ProjecturedKernel.ReferenceModule.var"#_gen_build_path##2#_gen_build_path##3"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Float64, 1}, Float64, Base.Generator{Base.UnitRange{Int64}, Walkthrough.var"#14#15"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#738#739"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#750#751"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#indexes_of##0#indexes_of##1"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#test_editor_inbox##60#test_editor_inbox##61"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernelTest.var"#test_cell##118#test_cell##119"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernelTest.var"#test_cell##134#test_cell##135"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{ProjecturedKernel.CellModule.ReactiveCell{Any}, 1}, ProjecturedKernelTest.var"#test_cell##317#test_cell##318"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{ProjecturedKernel.EventModule.WindowInput{E} where E, 1}, ProjecturedKernelTest.var"#930#931"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Int64, 1}, Int64, Base.Generator{Array{ProjecturedKernel.EventModule.WindowInput{E} where E, 1}, ProjecturedKernelTest.var"#942#943"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{NamedTuple{(:frame_time, :feed_time, :report_time, :input_time, :reader_time, :evaluate_time, :print_time, :paint_time, :held_time, :garbage_collection_time, :compile_time, :allocated_bytes), NTuple{12, Float64}}, 1}, NamedTuple{(:frame_time, :feed_time, :report_time, :input_time, :reader_time, :evaluate_time, :print_time, :paint_time, :held_time, :garbage_collection_time, :compile_time, :allocated_bytes), NTuple{12, Float64}}, Base.Generator{Array{Int64, 1}, ProjecturedKernelTest.var"#_collect_frame_rows##2#_collect_frame_rows##3"{NTuple{12, Symbol}, NamedTuple{(:frames, :end_times, :columns), Tuple{Array{Int64, 1}, Array{Float64, 1}, Array{NamedTuple{(:name, :unit, :values), Tuple{Symbol, Symbol, Array{Float64, 1}}}, 1}}}}}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{NamedTuple{(:rows, :count, :is_finished, :work), Tuple{Array{NamedTuple{(:frame_time, :feed_time, :report_time, :input_time, :reader_time, :evaluate_time, :print_time, :paint_time, :held_time, :garbage_collection_time, :compile_time, :allocated_bytes), NTuple{12, Float64}}, 1}, Int64, Bool, Nothing}}, 1}, NamedTuple{(:rows, :count, :is_finished, :work), Tuple{Array{NamedTuple{(:frame_time, :feed_time, :report_time, :input_time, :reader_time, :evaluate_time, :print_time, :paint_time, :held_time, :garbage_collection_time, :compile_time, :allocated_bytes), NTuple{12, Float64}}, 1}, Int64, Bool, Nothing}}, Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#_measure_frame_work_at##2#_measure_frame_work_at##3"{ProjecturedKernelTest.FrameScene, Int64, Int64, ProjecturedKernel.EditorModule.Editor, ProjecturedKernelTest.var"#_measure_frame_work_at##0#_measure_frame_work_at##1"{ProjecturedKernelTest.FrameScene, UInt64, ProjecturedKernel.EditorModule.Editor}}}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernel.ReferenceModule.ReferencedDocument{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, 1}, ProjecturedKernel.ReferenceModule.ReferencedDocument{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.Generator{Base.KeySet{String, Base.Dict{String, Any}}, ProjecturedKernel.ReferenceModule.var"#46#47"{ProjecturedKernel.ReferenceModule.ReferencedDocument{Base.Dict{String, Any}}}}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernelTest.MarkOperation, 1}, ProjecturedKernelTest.MarkOperation, Base.Generator{Array{ProjecturedKernel.IntentModule.Intent, 1}, ProjecturedKernelTest.var"#test_gesture_binding##20#test_gesture_binding##21"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Base.Generator{Array{ProjecturedKernel.ReferenceModule.ReferencedDocument{T} where T, 1}, typeof(ProjecturedKernel.DocumentModule.get_document)}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{ProjecturedKernelTest.ToyNode{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}, ProjecturedKernelTest.ToyNode{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Base.Generator{Array{Any, 1}, typeof(Base.identity)}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#736#737"}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#748#749"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#_values##0#_values##1"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#test_agent_loop##60#test_agent_loop##61"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{String, 1}, String, Base.Generator{Array{Any, 1}, typeof(Base.string)}, Int64}
@@ -1906,7 +1953,7 @@ Tuple{typeof(Base.collect_to_with_first!), Array{Symbol, 1}, Symbol, Base.Genera
 Tuple{typeof(Base.collect_to_with_first!), Array{Symbol, 1}, Symbol, Base.Generator{Array{Any, 1}, ProjecturedKernelTest.var"#test_editor_inbox##72#test_editor_inbox##73"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Symbol, 1}, Symbol, Base.Generator{Array{ProjecturedKernel.EventModule.WindowInput{E} where E, 1}, ProjecturedKernelTest.var"#test_gesture_recognition##3#test_gesture_recognition##4"}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{Int64, String, Int64, Nothing}, 1}, Tuple{Int64, String, Int64, Nothing}, Base.Generator{Array{ProjecturedKernel.EditorModule.BackgroundWorkRecord, 1}, ProjecturedKernelTest.var"#test_editor_background_cell##31#test_editor_background_cell##32"}, Int64}
-Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.ToyLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, 1}, Tuple{ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.ToyLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#910#911"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
+Tuple{typeof(Base.collect_to_with_first!), Array{Tuple{ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.ToyLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, 1}, Tuple{ProjecturedKernel.ReferenceModule.RangeReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernelTest.ToyLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}, Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#922#923"{ProjecturedKernelTest.ToyList{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}, Int64}
 Tuple{typeof(Base.collect_to_with_first!), Array{typeof(DataType), 1}, Type, Base.Generator{Array{ProjecturedKernel.GestureModule.GestureRecognition, 1}, ProjecturedKernelTest.var"#test_gesture_recognition##17#test_gesture_recognition##18"}, Int64}
 Tuple{typeof(Base.convert), Type{Array{Any, 1}}, Array{ProjecturedKernel.DocumentModule.Document, 1}}
 Tuple{typeof(Base.convert), Type{Array{ProjecturedKernelTest.DescriptionItem{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T), 1}}, Array{ProjecturedKernelTest.DescriptionItem{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, 1}}
@@ -1914,6 +1961,7 @@ Tuple{typeof(Base.convert), Type{Array{ProjecturedKernelTest.ToyLeaf{C1, C2, C3}
 Tuple{typeof(Base.convert), Type{Base.Broadcast.Broadcasted{Nothing, Axes, F, Args} where Args<:Tuple where F where Axes}, Base.Broadcast.Broadcasted{Base.Broadcast.DefaultArrayStyle{1}, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.UnitRange{Int64}}}}
 Tuple{typeof(Base.convert), Type{ProjecturedKernelTest.ReferencedLeaf{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}, ProjecturedKernel.ReferenceModule.ReferencedDocument{ProjecturedKernelTest.ReferencedLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
 Tuple{typeof(Base.copy), Memory{Int64}}
+Tuple{typeof(Base.count), Char, String}
 Tuple{typeof(Base.count), Function, Array{Any, 1}}
 Tuple{typeof(Base.count), Function, Array{String, 1}}
 Tuple{typeof(Base.count), String, String}
@@ -2004,13 +2052,14 @@ Tuple{typeof(Base.getproperty), Base.Broadcast.Broadcasted{Base.Broadcast.Defaul
 Tuple{typeof(Base.getproperty), Base.Broadcast.Broadcasted{Nothing, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.Broadcast.Extruded{Base.UnitRange{Int64}, Tuple{Bool}, Tuple{Int64}}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Broadcast.Broadcasted{Nothing, Tuple{Base.OneTo{Int64}}, typeof(Base.string), Tuple{Base.UnitRange{Int64}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Broadcast.Extruded{Base.UnitRange{Int64}, Tuple{Bool}, Tuple{Int64}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.CodeUnits{UInt8, String}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Compiler.MethodLookupResult, Symbol}
 Tuple{typeof(Base.getproperty), Base.Docs.Binding, Symbol}
 Tuple{typeof(Base.getproperty), Base.Docs.DocStr, Symbol}
 Tuple{typeof(Base.getproperty), Base.FilteringRF{ProjecturedKernel.ToolModule.var"#_declared_sentence##6#_declared_sentence##7", Base.MappingRF{ProjecturedKernel.ToolModule.var"#_declared_sentence##4#_declared_sentence##5", Base.BottomRF{typeof(Base.add_sum)}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.FilteringRF{SupervisorTests.var"#76#77"{SupervisorTests.var"#is_live#71"}, Base.MappingRF{SupervisorTests.var"#74#75", Base.BottomRF{typeof(Base.add_sum)}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.FilteringRF{SupervisorTests.var"#_ensure_job_room!##2#_ensure_job_room!##3", Base.MappingRF{SupervisorTests.var"#_ensure_job_room!##0#_ensure_job_room!##1", Base.BottomRF{typeof(Base.add_sum)}}}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Array{Int64, 1}, ProjecturedKernelTest.var"#515#516"{Int64, Int64, Int64, Int64, ProjecturedKernelTest.FrameScene}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Array{Int64, 1}, ProjecturedKernelTest.var"#527#528"{Int64, Int64, Int64, Int64, ProjecturedKernelTest.FrameScene}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, ProjecturedKernelTest.var"#test_gesture_binding##0#test_gesture_binding##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, ProjecturedKernelTest.var"#test_gesture_binding##12#test_gesture_binding##13"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, ProjecturedKernelTest.var"#test_gesture_binding##14#test_gesture_binding##15"}, Symbol}
@@ -2018,10 +2067,10 @@ Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBi
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, ProjecturedKernelTest.var"#test_gesture_binding##32#test_gesture_binding##33"{ProjecturedKernelTest.MarkOperation}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{ProjecturedKernel.GestureBindingModule.GestureBinding, 1}, ProjecturedKernelTest.var"#test_gesture_binding##4#test_gesture_binding##5"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Array{Tuple{Symbol, Symbol, Any}, 1}, ProjecturedKernelTest.var"#test_build_editor##6#test_build_editor##7"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#160#161", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, ProjecturedKernel.EditorModule.var"#158#159"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#163#164", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, ProjecturedKernel.EditorModule.var"#161#162"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#_make_mcp_server##2#_make_mcp_server##3", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, ProjecturedKernel.EditorModule.var"#_make_mcp_server##0#_make_mcp_server##1"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#102#103", Tuple{Nothing, Nothing}}, ProjecturedKernel.ToolModule.var"#100#101"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#178#179"{Nothing}, Nothing}, typeof(Base.identity)}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#109#110", Tuple{Nothing, Nothing}}, ProjecturedKernel.ToolModule.var"#107#108"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#185#186"{Nothing}, Nothing}, typeof(Base.identity)}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#_collect_loaded_modules##0#_collect_loaded_modules##1", Base.ValueIterator{Base.Dict{Base.PkgId, Module}}}, typeof(Base.identity)}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#114#115"{String, Nothing}, Tuple{String, String, String}}, typeof(Base.identity)}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.Iterators.Filter{ProjecturedKernelTest.var"#_build_probe_steps##2#_build_probe_steps##3", Array{Tuple{Symbol, Symbol, Any}, 1}}, ProjecturedKernelTest.var"#_build_probe_steps##0#_build_probe_steps##1"}, Symbol}
@@ -2033,20 +2082,22 @@ Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, Projecture
 Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#test_agent_loop##50#test_agent_loop##51"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#test_cell##124#test_cell##125"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Base.UnitRange{Int64}, ProjecturedKernelTest.var"#test_cell##238#test_cell##239"}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{NTuple{4, Symbol}, ProjecturedKernel.ToolModule.var"#62#63"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Nothing, Base.var"#_bool##0#_bool##1"{ProjecturedKernelTest.var"#test_declared_api##26#test_declared_api##27"}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Nothing, Base.var"#_bool##0#_bool##1"{ProjecturedKernelTest.var"#test_declared_api##28#test_declared_api##29"}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Nothing, Base.var"#_bool##0#_bool##1"{ProjecturedKernelTest.var"#test_search_answer##14#test_search_answer##15"}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Nothing, Base.var"#_bool##0#_bool##1"{ProjecturedKernelTest.var"#test_search_answer##16#test_search_answer##17"}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Pair{String, String}}, Base.var"#694#695"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Symbol, Symbol, Symbol}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Symbol, Symbol, Symbol}, ProjecturedKernelTest.var"#_plain_path##0#_plain_path##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Symbol, Symbol}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Symbol, Symbol}, ProjecturedKernelTest.var"#_plain_path##0#_plain_path##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{Symbol}, ProjecturedKernelTest.var"#_plain_path##0#_plain_path##1"}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Generator{Tuple{}, Test.var"#eval_test_function##0#eval_test_function##1"}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#160#161", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#163#164", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#_make_mcp_server##2#_make_mcp_server##3", Base.Pairs{Symbol, Union{}, Nothing, NamedTuple{(), Tuple{}}}}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#102#103", Tuple{Nothing, Nothing}}, Symbol}
-Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#178#179"{Nothing}, Nothing}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#109#110", Tuple{Nothing, Nothing}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#185#186"{Nothing}, Nothing}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernel.ToolModule.var"#_collect_loaded_modules##0#_collect_loaded_modules##1", Base.ValueIterator{Base.Dict{Base.PkgId, Module}}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernelTest.var"#test_declared_api##20#test_declared_api##21", Nothing}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Iterators.Filter{ProjecturedKernelTest.var"#test_search_answer##10#test_search_answer##11", Nothing}, Symbol}
@@ -2075,6 +2126,7 @@ Tuple{typeof(Base.getproperty), Base.MappingRF{SupervisorTests.var"#_list_queued
 Tuple{typeof(Base.getproperty), Base.MappingRF{SupervisorTests.var"#_list_queued_parts##6#_list_queued_parts##7", Base.BottomRF{typeof(Base.max)}}, Symbol}
 Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.eltype), typeof(Base.promote_type)}, Symbol}
 Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.length), Base.BottomRF{typeof(Base.add_sum)}}, Symbol}
+Tuple{typeof(Base.getproperty), Base.MappingRF{typeof(Base.length), typeof(Base.add_sum)}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedKernel.ToolModule.var"#_find_docstring_texts##0#_find_docstring_texts##1", Base.Order.ForwardOrdering}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedKernel.ToolModule.var"#_rank_api_entries##8#_rank_api_entries##9", Base.Order.ForwardOrdering}, Symbol}
 Tuple{typeof(Base.getproperty), Base.Order.By{ProjecturedKernel.ToolModule.var"#_rank_guide_sections##0#_rank_guide_sections##1", Base.Order.ForwardOrdering}, Symbol}
@@ -2181,6 +2233,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernel.GestureModule.MouseClick, Symb
 Tuple{typeof(Base.getproperty), ProjecturedKernel.GestureModule.MouseDwell, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.GestureModule.RecognitionStep, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.GestureModule._Motion, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.IntentModule.CollectedIntentsOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.IntentModule.Intent, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.ChildrenIoMap, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.IoMapModule.SimpleIoMap, Symbol}
@@ -2190,6 +2243,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernel.LlmModule.LlmTurnEnd, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.CompoundOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.ReplaceReferencedValueOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.ReplaceSelectionOperation, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.ReplaceViewStateOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.OperationModule.SetTimerOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.PerformanceModule.FrameMeasurementSummary, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ReferenceModule.ConcreteReference, Symbol}
@@ -2208,6 +2262,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.BackgroundWork, Sym
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.CodeUnit, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.CodeUnitWaitException, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.EvaluationResult, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.PackageLoadRefusedException, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule.Resource, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule._ApiEntry, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernel.ToolModule._GuideSection, Symbol}
@@ -2225,6 +2280,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ContractOwnCopy{Projecture
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ContractPair{ProjecturedKernel.CellModule.ImmutableCell{Any}, ProjecturedKernel.CellModule.ImmutableCell{Any}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference, ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference}}}, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ContractRefusePolicy, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ContractStopPolicy, Symbol}
+Tuple{typeof(Base.getproperty), ProjecturedKernelTest.DefaultsMoveOperation, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.FrameScene, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.IDmImmutableNative, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.InvBox{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, Symbol}
@@ -2242,6 +2298,7 @@ Tuple{typeof(Base.getproperty), ProjecturedKernelTest.PlainOpWindow, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.TestSuite, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ToyNode{ProjecturedKernel.CellModule.ImmutableCell{String}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernelTest.ToyNode{C1, C2, C3, C4} where C4<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference, ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}, ProjecturedKernel.CellModule.ImmutableCell{Union{Nothing, ProjecturedKernel.ReferenceModule.Reference}}}, Symbol}
 Tuple{typeof(Base.getproperty), ProjecturedKernelTest.ToyWrapperOperation, Symbol}
+Tuple{typeof(Base.getproperty), Random.SamplerTag{Ref{NTuple{4, UInt64}}, Tuple{Random.SamplerType{UInt64}}, NTuple{4, UInt64}}, Symbol}
 Tuple{typeof(Base.getproperty), SupervisorTests._QueuedPart, Symbol}
 Tuple{typeof(Base.getproperty), SupervisorTests._Worker, Symbol}
 Tuple{typeof(Base.getproperty), Test.Returned, Symbol}
@@ -2250,6 +2307,7 @@ Tuple{typeof(Base.getproperty), Walkthrough.Label, Symbol}
 Tuple{typeof(Base.getproperty), Walkthrough.PartScope, Symbol}
 Tuple{typeof(Base.getproperty), Walkthrough.Point, Symbol}
 Tuple{typeof(Base.getproperty), Walkthrough.Tagged, Symbol}
+Tuple{typeof(Base.getproperty), WeakRef, Symbol}
 Tuple{typeof(Base.grow_to!), Array{ArgumentError, 1}, Base.Generator{Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#_end_background_work_record!##4#_end_background_work_record!##5", Array{Any, 1}}, ProjecturedKernel.EditorModule.var"#_end_background_work_record!##2#_end_background_work_record!##3"}, Int64}
 Tuple{typeof(Base.grow_to!), Array{ErrorException, 1}, Base.Generator{Base.Iterators.Filter{ProjecturedKernel.EditorModule.var"#_end_background_work_record!##4#_end_background_work_record!##5", Array{Any, 1}}, ProjecturedKernel.EditorModule.var"#_end_background_work_record!##2#_end_background_work_record!##3"}, Int64}
 Tuple{typeof(Base.grow_to!), Array{String, 1}, Base.Generator{Base.Iterators.Filter{SupervisorTests.var"#read_coverage_map##2#read_coverage_map##3", Array{Base.SubString{String}, 1}}, SupervisorTests.var"#read_coverage_map##0#read_coverage_map##1"}, Int64}
@@ -2281,6 +2339,7 @@ Tuple{typeof(Base.haskey), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:labe
 Tuple{typeof(Base.haskey), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:output,), Tuple{String}}}, Symbol}
 Tuple{typeof(Base.haskey), Base.Pairs{Symbol, String, Nothing, NamedTuple{(:var"call.name",), Tuple{String}}}, Symbol}
 Tuple{typeof(Base.haskey), Base.Pairs{Symbol, Symbol, Nothing, NamedTuple{(:expression,), Tuple{Symbol}}}, Symbol}
+Tuple{typeof(Base.haskey), NamedTuple{(:Dates, :Statistics, :Printf, :Random), NTuple{4, Base.PkgId}}, Symbol}
 Tuple{typeof(Base.haskey), ProjecturedKernel.ReferenceModule.ReferencedDocument{Base.Dict{String, Any}}, String}
 Tuple{typeof(Base.in!), Base.SubString{String}, Base.Set{Base.SubString{String}}}
 Tuple{typeof(Base.in), String, Array{Base.SubString{String}, 1}}
@@ -2466,6 +2525,10 @@ Tuple{typeof(Base.iterate), Base.Dict{Symbol, Any}, Int64}
 Tuple{typeof(Base.iterate), Base.Dict{Symbol, Any}}
 Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.EditorModule.var"#_end_editor_loop!##2#_end_editor_loop!##3"{ProjecturedKernel.EditorModule.Editor}}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.EditorModule.var"#_end_editor_loop!##2#_end_editor_loop!##3"{ProjecturedKernel.EditorModule.Editor}}}
+Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##0#_rewrite_load_statements!##1"{Module}}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##0#_rewrite_load_statements!##1"{Module}}}
+Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##2#_rewrite_load_statements!##3"{Module}}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{Array{Any, 1}, ProjecturedKernel.ToolModule.var"#_rewrite_load_statements!##2#_rewrite_load_statements!##3"{Module}}}
 Tuple{typeof(Base.iterate), Base.Generator{Array{Pair{Symbol, Symbol}, 1}, ProjecturedKernel.ToolModule.var"#_make_scratch_module!##2#_make_scratch_module!##3"}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Array{Pair{Symbol, Symbol}, 1}, ProjecturedKernel.ToolModule.var"#_make_scratch_module!##2#_make_scratch_module!##3"}}
 Tuple{typeof(Base.iterate), Base.Generator{Array{Symbol, 1}, ProjecturedKernel.ReferenceModule.var"#_answer_method##0#_answer_method##1"}, Int64}
@@ -2474,6 +2537,8 @@ Tuple{typeof(Base.iterate), Base.Generator{Array{Symbol, 1}, ProjecturedKernel.T
 Tuple{typeof(Base.iterate), Base.Generator{Array{Symbol, 1}, ProjecturedKernel.ToolModule.var"#_flat_reexport!##0#_flat_reexport!##1"}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Iterators.Zip{Tuple{Tuple{Tuple{Symbol, Base.Regex}}, Array{Test.LogRecord, 1}}}, Test.var"#67#68"}, Tuple{Int64, Int64}}
 Tuple{typeof(Base.iterate), Base.Generator{Base.Iterators.Zip{Tuple{Tuple{Tuple{Symbol, Base.Regex}}, Array{Test.LogRecord, 1}}}, Test.var"#67#68"}}
+Tuple{typeof(Base.iterate), Base.Generator{Tuple{Pair{String, String}}, Base.var"#694#695"}, Int64}
+Tuple{typeof(Base.iterate), Base.Generator{Tuple{Pair{String, String}}, Base.var"#694#695"}}
 Tuple{typeof(Base.iterate), Base.Generator{Tuple{Symbol, Symbol, Symbol}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1"}, Int64}
 Tuple{typeof(Base.iterate), Base.Generator{Tuple{Symbol, Symbol, Symbol}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1"}}
 Tuple{typeof(Base.iterate), Base.Generator{Tuple{Symbol, Symbol, Symbol}, ProjecturedKernelTest.var"#_plain_path##0#_plain_path##1"}, Int64}
@@ -2482,6 +2547,7 @@ Tuple{typeof(Base.iterate), Base.Generator{Tuple{Symbol, Symbol}, ProjecturedKer
 Tuple{typeof(Base.iterate), Base.Generator{Tuple{Symbol, Symbol}, ProjecturedKernelTest.var"#_gr_chords##0#_gr_chords##1"}}
 Tuple{typeof(Base.iterate), Base.IdDict{Any, Any}, Int64}
 Tuple{typeof(Base.iterate), Base.IdDict{Any, Any}}
+Tuple{typeof(Base.iterate), Base.ImmutableDict{Symbol, Any}, Base.ImmutableDict{Symbol, Any}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Array{Any, 1}}, Tuple{Int64}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Base.Iterators.Zip{Tuple{Array{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}, 1}}}}, Tuple{Int64, Tuple{Int64}}}
 Tuple{typeof(Base.iterate), Base.Iterators.Enumerate{Base.Iterators.Zip{Tuple{Array{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}, 1}}}}, Tuple{Int64}}
@@ -2525,6 +2591,7 @@ Tuple{typeof(Base.join), Base.GenericIOBuffer{Memory{UInt8}}, NTuple{4, String},
 Tuple{typeof(Base.join), Base.GenericIOBuffer{Memory{UInt8}}, NTuple{7, String}, Char}
 Tuple{typeof(Base.join), Base.GenericIOBuffer{Memory{UInt8}}, NTuple{8, String}, Char}
 Tuple{typeof(Base.join), Base.GenericIOBuffer{Memory{UInt8}}, Tuple{String, String}, Char}
+Tuple{typeof(Base.keys), Base.CodeUnits{UInt8, String}}
 Tuple{typeof(Base.keys), Base.Dict{Symbol, Int64}}
 Tuple{typeof(Base.keys), ProjecturedKernel.ReferenceModule.ReferencedDocument{Base.Dict{String, Any}}}
 Tuple{typeof(Base.last), Array{Base.SubString{String}, 1}}
@@ -2533,8 +2600,10 @@ Tuple{typeof(Base.last), NTuple{4, Symbol}}
 Tuple{typeof(Base.last), Pair{Base.Regex, String}}
 Tuple{typeof(Base.last), Pair{String, String}}
 Tuple{typeof(Base.last), Tuple{Expr, Expr, Expr}}
+Tuple{typeof(Base.last_byteindex), Base.CodeUnits{UInt8, String}}
 Tuple{typeof(Base.lastindex), Array{ProjecturedKernel.CellModule.ReactiveCell{T} where T, 1}}
 Tuple{typeof(Base.lastindex), Array{ProjecturedKernel.EditorModule.BackgroundWorkRecord, 1}}
+Tuple{typeof(Base.lastindex), Base.CodeUnits{UInt8, String}}
 Tuple{typeof(Base.lastindex), ProjecturedKernel.ReferenceModule.ReferencedDocument{Array{Any, 1}}}
 Tuple{typeof(Base.length), Array{Float32, 1}}
 Tuple{typeof(Base.length), Array{Float64, 1}}
@@ -2671,6 +2740,7 @@ Tuple{typeof(Base.print), Base.GenericIOBuffer{Memory{UInt8}}, QuoteNode}
 Tuple{typeof(Base.print), Base.GenericIOBuffer{Memory{UInt8}}, String, ProjecturedKernel.ReferenceModule.ConcreteReference, Vararg{Any}}
 Tuple{typeof(Base.print), Base.GenericIOBuffer{Memory{UInt8}}, UInt64}
 Tuple{typeof(Base.print), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, Base.Libc.RawFD}
+Tuple{typeof(Base.print), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, Dates.Date}
 Tuple{typeof(Base.print), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, LineNumberNode, Char}
 Tuple{typeof(Base.print), Base.IOStream, Char}
 Tuple{typeof(Base.print), Base.IOStream, Int64}
@@ -2701,6 +2771,7 @@ Tuple{typeof(Base.put!), Base.Channel{Any}, Tuple{Bool, Symbol}}
 Tuple{typeof(Base.put!), Base.Channel{Any}, Tuple{Bool, Task}}
 Tuple{typeof(Base.put!), Base.Channel{Any}, Tuple{Int64, Tuple{Array{ProjecturedKernel.ToolModule._ApiEntry, 1}}}}
 Tuple{typeof(Base.put!), Base.Channel{Any}, Tuple{ProjecturedKernel.ToolModule.CodeUnit, Int64}}
+Tuple{typeof(Base.rand), Random.Xoshiro, Base.UnitRange{Int64}}
 Tuple{typeof(Base.read), Base.PipeEndpoint}
 Tuple{typeof(Base.readlines), Base.GenericIOBuffer{Memory{UInt8}}}
 Tuple{typeof(Base.reduce_first), Function, Type}
@@ -2869,6 +2940,7 @@ Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, Base.Meta.Par
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, ErrorException, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, InterruptException, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ToolModule.MissingEvaluationEditorException, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
+Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernel.ToolModule.PackageLoadRefusedException}
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernelTest.BrokenShowException, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, ProjecturedKernelTest.InterruptedShowException, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
 Tuple{typeof(Base.showerror), Base.GenericIOBuffer{Memory{UInt8}}, StackOverflowError, Array{Union{Ptr{Nothing}, Base.InterpreterIP}, 1}}
@@ -3009,10 +3081,13 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:compute,), Tuple{ProjecturedKernelTest.v
 Tuple{typeof(Core.kwcall), NamedTuple{(:compute,), Tuple{ProjecturedKernelTest.var"#test_meaning_search##8#test_meaning_search##9"}}, typeof(ProjecturedKernelTest._make_toy_meaning_model), String}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Base.DevNull}}, typeof(Base.sprint), Function, Base.ExceptionStack}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Base.DevNull}}, typeof(Core.invokelatest), Function, Function, Vararg{Any}}
+Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Array{Base.UnitRange{Int64}, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Array{Int64, 1}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Base.PipeEndpoint}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Base.RefValue{Int64}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Bool}
+Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Dates.Date}
+Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Float64}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), Int64}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), NTuple{1000, Int64}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:context,), Tuple{Pair{Symbol, Bool}}}, typeof(Base.repr), ProjecturedKernelTest.PictureToy.ToyPicture}
@@ -3140,6 +3215,7 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:policy,), Tuple{Symbol}}, Type{Projectur
 Tuple{typeof(Core.kwcall), NamedTuple{(:primary, :live), Tuple{ProjecturedKernel.ReferenceModule.ConcreteReference, Bool}}, Type{ProjecturedKernel.DocumentModule.SelectionDocument{C1, C2, C3} where C3<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:process_id,), Tuple{Int32}}, Type{ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}, Nothing}
 Tuple{typeof(Core.kwcall), NamedTuple{(:process_id,), Tuple{Int64}}, Type{ProjecturedKernel.AgentModule.AgentSessionInfoUpdate}, Nothing}
+Tuple{typeof(Core.kwcall), NamedTuple{(:read, :write, :append, :truncate), Tuple{Bool, Bool, Nothing, Nothing}}, typeof(Base.open_flags)}
 Tuple{typeof(Core.kwcall), NamedTuple{(:read_child,), Tuple{ProjecturedKernelTest.var"#test_reader_jobs##0#test_reader_jobs##1"}}, typeof(ProjecturedKernel.ProjectionModule.read_child_intent), ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.SimpleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:repeat, :time), Tuple{Bool, Float64}}, Type{ProjecturedKernel.EventModule.KeyDown}, Symbol, ProjecturedKernel.EventModule.ModifierKeys}
 Tuple{typeof(Core.kwcall), NamedTuple{(:rev, :alg), Tuple{Bool, Base.Sort.MergeSortAlg}}, typeof(Base.sortperm), Array{Float64, 1}}
@@ -3237,11 +3313,15 @@ Tuple{typeof(Core.kwcall), NamedTuple{(:traceback,), Tuple{Array{Union{Ptr{Nothi
 Tuple{typeof(Core.kwcall), NamedTuple{(:type, :default), Tuple{Symbol, String}}, typeof(ProjecturedKernel.CellStructModule.add_cell_struct_field!), ProjecturedKernel.CellStructModule.CellStructPlan, Symbol}
 Tuple{typeof(Core.kwcall), NamedTuple{(:use_color,), Tuple{Bool}}, typeof(Base.print_type_bicolor), Base.IOContext{Base.GenericIOBuffer{Memory{UInt8}}}, Core.TypeofVararg}
 Tuple{typeof(Core.kwcall), NamedTuple{(:value,), Tuple{Int64}}, Type{Walkthrough.Tagged}}
-Tuple{typeof(Core.kwcall), NamedTuple{(:window,), Tuple{Symbol}}, ProjecturedKernelTest.var"#test_gesture_recognition##12#test_gesture_recognition##13"{ProjecturedKernelTest.var"#move#936#test_gesture_recognition##14"}, Int64, Float64}
+Tuple{typeof(Core.kwcall), NamedTuple{(:window,), Tuple{Symbol}}, ProjecturedKernelTest.var"#test_gesture_recognition##12#test_gesture_recognition##13"{ProjecturedKernelTest.var"#move#948#test_gesture_recognition##14"}, Int64, Float64}
 Tuple{typeof(Core.kwcall), NamedTuple{(:window,), Tuple{Symbol}}, typeof(ProjecturedKernelTest._gr_up), Symbol, Int64, Int64, Float64}
 Tuple{typeof(Core.kwcall), NamedTuple{(:x,), Tuple{Int64}}, Type{Walkthrough.Point}}
 Tuple{typeof(Core.kwcall), NamedTuple{(:y,), Tuple{Int64}}, Type{Walkthrough.Point}}
 Tuple{typeof(Core.kwcall), NamedTuple{names, T} where T<:Tuple where names, typeof(Base.CoreLogging.handle_message), Test.TestLogger, Vararg{Any, 7}}
+Tuple{typeof(Dates.format), Dates.Date, Dates.DateFormat{:var"yyyy-mm-dd", Tuple{Dates.DatePart{Char(0x79000000)}, Dates.Delim{Char, 1}, Dates.DatePart{Char(0x6d000000)}, Dates.Delim{Char, 1}, Dates.DatePart{Char(0x64000000)}}}}
+Tuple{typeof(Dates.format), Dates.Date, String}
+Tuple{typeof(Dates.today)}
+Tuple{typeof(Printf.format), Printf.Format{Base.CodeUnits{UInt8, String}, Tuple{Printf.Spec{Base.Val{Char(0x66000000)}}}}, Float64}
 Tuple{typeof(ProjecturedKernel.AgentModule._is_error_output), String}
 Tuple{typeof(ProjecturedKernel.AgentModule.is_editor_loop_running), ProjecturedKernel.EditorModule.Editor}
 Tuple{typeof(ProjecturedKernel.AgentModule.make_agent_connection), Base.Val{:definitely_not_registered}}
@@ -3285,7 +3365,6 @@ Tuple{typeof(ProjecturedKernel.CellModule._is_plain_value), NamedTuple{(:number,
 Tuple{typeof(ProjecturedKernel.CellModule._is_plain_value), String}
 Tuple{typeof(ProjecturedKernel.CellModule._recompute_for!), ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}
 Tuple{typeof(ProjecturedKernel.CellModule.get_cell_fault_scope), ProjecturedKernel.CellModule.ReactiveCell{Any}}
-Tuple{typeof(ProjecturedKernel.CellModule.get_cell_fault_scope), ProjecturedKernel.CellModule.UntrackedCell{Int64}}
 Tuple{typeof(ProjecturedKernel.CellModule.has_dependent_cells), ProjecturedKernel.CellModule.ReactiveCell{Any}}
 Tuple{typeof(ProjecturedKernel.CellModule.has_dependent_cells), ProjecturedKernel.CellModule.ReactiveCell{Int64}}
 Tuple{typeof(ProjecturedKernel.CellModule.is_cell_valid), ProjecturedKernel.CellModule.ReactiveCell{Any}}
@@ -3553,6 +3632,7 @@ Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), Proje
 Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernelTest.YieldingInboxOperation}
 Tuple{typeof(ProjecturedKernel.EditorModule._evaluate_operation_guarded!), ProjecturedKernel.EditorModule.Editor, ProjecturedKernelTest._InboxStarterProbe}
 Tuple{typeof(ProjecturedKernel.EditorModule._format_work_input), Int64}
+Tuple{typeof(ProjecturedKernel.EditorModule._format_work_input), NTuple{40, Int64}}
 Tuple{typeof(ProjecturedKernel.EditorModule._format_work_input), String}
 Tuple{typeof(ProjecturedKernel.EditorModule._measure_frame_part), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##0#_run_frame_stages!##1"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.EditorModule.Editor, Symbol}
 Tuple{typeof(ProjecturedKernel.EditorModule._measure_frame_part), ProjecturedKernel.EditorModule.var"#_run_frame_stages!##10#_run_frame_stages!##11"{ProjecturedKernel.EditorModule.Editor}, ProjecturedKernel.EditorModule.Editor, Symbol}
@@ -3635,6 +3715,14 @@ Tuple{typeof(ProjecturedKernel.GestureBindingModule.get_document_gesture_binding
 Tuple{typeof(ProjecturedKernel.GestureBindingModule.get_document_gesture_bindings_own), Type{ProjecturedKernelTest.ProbeAlpha{C1, C2} where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
 Tuple{typeof(ProjecturedKernel.GestureBindingModule.get_document_gesture_bindings_own), Type{ProjecturedKernelTest.ProbeBeta{C1, C2} where C2<:(ProjecturedKernel.CellModule.AbstractCell{T} where T) where C1<:(ProjecturedKernel.CellModule.AbstractCell{T} where T)}}
 Tuple{typeof(ProjecturedKernel.GestureBindingModule.get_document_gesture_bindings_own), Type}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.DefaultsProbeProjection, Nothing, ProjecturedKernel.EventModule.KeyDown}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.EventModule.KeyPress}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseClick}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseDwell}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.OutProbeHolderProjection, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.GestureModule.MouseDwell}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.OutProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseClick}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.OutProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseDwell}
+Tuple{typeof(ProjecturedKernel.GestureBindingModule.read_gesture), ProjecturedKernelTest.RouteProbeBoxProjection, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.GestureModule.MouseDwell}
 Tuple{typeof(ProjecturedKernel.GestureModule.KeyDownPattern), Symbol}
 Tuple{typeof(ProjecturedKernel.GestureModule.KeyPressPattern), Char}
 Tuple{typeof(ProjecturedKernel.GestureModule.KeyUpPattern), Symbol}
@@ -3860,6 +3948,10 @@ Tuple{typeof(ProjecturedKernel.ProjectionModule.is_introduced_reference), Projec
 Tuple{typeof(ProjecturedKernel.ProjectionModule.is_introduced_reference), ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.make_introduced_reference), ProjecturedKernelTest.DefaultsProbeProjection, ProjecturedKernelTest.DefaultsProbeLeaf{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.ConcreteReference}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.make_introduced_reference), ProjecturedKernelTest.IntroducedPathProbeProjection, ProjecturedKernelTest.IntroducedPathProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.ConcreteReference}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.map_operation_backward), ProjecturedKernelTest.DefaultsPrefixProjection, Nothing, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.map_operation_backward), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernelTest.JobProbeOperation}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.map_operation_backward), ProjecturedKernelTest.RerootProbeProjection, Nothing, ProjecturedKernel.OperationModule.SelectNextInsertionOperation}
+Tuple{typeof(ProjecturedKernel.ProjectionModule.map_operation_backward), ProjecturedKernelTest.RerootProbeProjection, Nothing, ProjecturedKernel.OperationModule.ToggleCollapseOperation}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.print_document), ProjecturedKernelTest.BackgroundCellProjection, Nothing, ProjecturedKernelTest.BackgroundCellProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.print_document), ProjecturedKernelTest.BackgroundRecordProjection, Nothing, ProjecturedKernelTest.BackgroundRecordProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ProjectionModule.PrinterContext}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.print_document), ProjecturedKernelTest.BarrierProbeProjection, Nothing, ProjecturedKernelTest.BarrierProbe{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ProjectionModule.PrinterContext}
@@ -3892,30 +3984,13 @@ Tuple{typeof(ProjecturedKernel.ProjectionModule.read_child_intent), ProjecturedK
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_child_intent), ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.IoMapModule.SimpleIoMap, Tuple{ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.FieldReferenceStep{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_child_intent), ProjecturedKernelTest.JobProbeWrapProjection, ProjecturedKernelTest.JobProbeWrapProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.ContentIoMap, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.BarrierProbeProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.DefaultsPrefixProjection, Nothing, ProjecturedKernel.OperationModule.ReplaceSelectionOperation}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.DefaultsProbeProjection, Nothing, ProjecturedKernel.EventModule.KeyDown}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.EscapeClaimingProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.EscapeDecliningProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.FrameDrainProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.ChildrenIoMap}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeClickProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseClick}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.EventModule.KeyPress}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseClick}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseDwell}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.IntentModule.CollectIntents}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernelTest.JobProbeOperation}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeTextProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.EventModule.KeyPress}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.JobProbeWrapProjection, ProjecturedKernelTest.JobProbeWrapProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.ContentIoMap}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.OutProbeHolderProjection, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.GestureModule.MouseDwell}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.OutProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseClick}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.OutProbeLeafProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.GestureModule.MouseDwell}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.RerootProbeProjection, Nothing, ProjecturedKernel.OperationModule.SelectNextInsertionOperation}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.RerootProbeProjection, Nothing, ProjecturedKernel.OperationModule.ToggleCollapseOperation}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.RouteProbeBoxProjection, ProjecturedKernel.IoMapModule.ChildrenIoMap, ProjecturedKernel.GestureModule.MouseDwell}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.RoutedEditProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.TimerProbeProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.TimerProbeProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.EventModule.TimerExpire}
-Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.TimerProbeProjection, ProjecturedKernel.IoMapModule.SimpleIoMap, ProjecturedKernel.EventModule.WindowInput{ProjecturedKernel.EventModule.KeyDown}}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.UnroutedEditProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_intent), ProjecturedKernelTest.WaitKeyProjection, Nothing, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
 Tuple{typeof(ProjecturedKernel.ProjectionModule.read_routed_intent), ProjecturedKernelTest.JobProbeClickProjection, ProjecturedKernelTest.JobProbeBoxProjection, ProjecturedKernel.IntentModule.Intent, ProjecturedKernel.IoMapModule.SimpleIoMap}
@@ -4328,16 +4403,21 @@ Tuple{typeof(ProjecturedKernel.SelectionModule.set_selection!), ProjecturedKerne
 Tuple{typeof(ProjecturedKernel.SelectionModule.set_selection!), ProjecturedKernelTest.ToyHole{ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}, ProjecturedKernel.CellModule.ReactiveCell{Any}}, ProjecturedKernel.ReferenceModule.EmptyReference}
 Tuple{typeof(ProjecturedKernel.ToolModule._add_marked_subtypes!), Base.Dict{Module, Base.Set{Symbol}}, Array{Type, 1}, ProjecturedKernel.ToolModule.var"#collect_marked_api##0#collect_marked_api##1"}
 Tuple{typeof(ProjecturedKernel.ToolModule._add_marked_subtypes!), Base.Dict{Module, Base.Set{Symbol}}, Array{Type, 1}, ProjecturedKernelTest.var"#test_declared_api##64#test_declared_api##65"}
+Tuple{typeof(ProjecturedKernel.ToolModule._admit_package_loads!), Module, Expr}
+Tuple{typeof(ProjecturedKernel.ToolModule._admit_package_loads!), Module, Symbol}
 Tuple{typeof(ProjecturedKernel.ToolModule._api_entry), Module}
 Tuple{typeof(ProjecturedKernel.ToolModule._api_entry), Pair{Module, Tuple{Pair{Symbol, Symbol}}}}
 Tuple{typeof(ProjecturedKernel.ToolModule._api_entry), Pair{Module, Tuple{Symbol, Symbol, Symbol}}}
 Tuple{typeof(ProjecturedKernel.ToolModule._api_name), Pair{Symbol, Symbol}}
 Tuple{typeof(ProjecturedKernel.ToolModule._arg_limit), Int64}
+Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Array{Base.UnitRange{Int64}, 1}}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Array{Int64, 1}}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Base.Docs.Text{String}}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Base.PipeEndpoint}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Base.RefValue{Int64}}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Bool}
+Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Dates.Date}
+Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Float64}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Function}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), NTuple{1000, Int64}}
 Tuple{typeof(ProjecturedKernel.ToolModule._describe_value_for_model), Nothing}
@@ -4351,16 +4431,20 @@ Tuple{typeof(ProjecturedKernel.ToolModule._excerpt), String, Array{ProjecturedKe
 Tuple{typeof(ProjecturedKernel.ToolModule._find_marked_name), Base.Docs.Binding, Base.Docs.MultiDoc}
 Tuple{typeof(ProjecturedKernel.ToolModule._is_schema_variant), Module, Symbol, Type}
 Tuple{typeof(ProjecturedKernel.ToolModule._join_notes), Nothing, String}
+Tuple{typeof(ProjecturedKernel.ToolModule._make_soft_scope), Expr}
 Tuple{typeof(ProjecturedKernel.ToolModule._make_soft_scope), Int64}
 Tuple{typeof(ProjecturedKernel.ToolModule._make_soft_scope), QuoteNode}
 Tuple{typeof(ProjecturedKernel.ToolModule._make_soft_scope), String}
 Tuple{typeof(ProjecturedKernel.ToolModule._make_soft_scope), Symbol}
 Tuple{typeof(ProjecturedKernel.ToolModule._normalize_meaning_columns), Array{Float32, 2}, Int64}
+Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Array{Base.UnitRange{Int64}, 1}}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Array{Int64, 1}}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Base.Docs.Text{String}}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Base.PipeEndpoint}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Base.RefValue{Int64}}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Bool}
+Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Dates.Date}
+Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Float64}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Function}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, Int64}
 Tuple{typeof(ProjecturedKernel.ToolModule._notify_evaluation), ProjecturedKernel.ToolModule.ToolSet, NTuple{1000, Int64}}
@@ -4580,6 +4664,7 @@ Tuple{typeof(ProjecturedKernelTest.test_scripted_agent_connection)}
 Tuple{typeof(ProjecturedKernelTest.test_search_answer)}
 Tuple{typeof(ProjecturedKernelTest.test_search_query)}
 Tuple{typeof(ProjecturedKernelTest.test_selection)}
+Tuple{typeof(ProjecturedKernelTest.test_standard_library)}
 Tuple{typeof(ProjecturedKernelTest.test_suite_runner)}
 Tuple{typeof(ProjecturedKernelTest.test_supervised_runs)}
 Tuple{typeof(ProjecturedKernelTest.test_traversal)}
@@ -4595,6 +4680,7 @@ Tuple{typeof(Serialization.serialize), Serialization.Serializer{Base.GenericIOBu
 Tuple{typeof(Serialization.serialize), Serialization.Serializer{Base.GenericIOBuffer{Memory{UInt8}}}, Array{ProjecturedKernel.ReferenceModule.ReferenceRule, 1}}
 Tuple{typeof(Serialization.serialize), Serialization.Serializer{Base.GenericIOBuffer{Memory{UInt8}}}, Base.Dict{Array{Symbol, 1}, Symbol}}
 Tuple{typeof(Serialization.serialize), Serialization.Serializer{Base.GenericIOBuffer{Memory{UInt8}}}, Expr}
+Tuple{typeof(Statistics.mean), Array{Int64, 1}}
 Tuple{typeof(SupervisorTests.include), String}
 Tuple{typeof(SupervisorTests.run_supervisor_tests)}
 Tuple{typeof(Test.contains_warn), Any, AbstractString}
