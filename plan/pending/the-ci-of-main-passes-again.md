@@ -1,6 +1,6 @@
 # The CI of main passes again
 
-> **Status:** approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
+> **Status:** landed on `main`, not pushed. Approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
 > CI?"). The session that pushed `306018039` fixes the red CI of `main`, as `CLAUDE.md`
 > ("Main is green") says.
 
@@ -41,4 +41,9 @@ The CI run 45710705577 of `306018039` fails in five jobs, the same five as the r
   neutral folder, and Pkg calls the manifest not current: Pkg follows the link to the real
   folder, so it computes another path. So a `Pkg.resolve()` of `environment/all` inside
   `julia-worktree run` writes the wrong paths again; run it outside `bwrap`.
-- [ ] 3. The land and the push, then the CI run of the push.
+- [x] 3. The land on `main` (`0226dcd78`). No run of all the parts came before it: the change
+  moves no code, the guards and the load are checked, and the CI of the push runs the parts.
+- [ ] 4. The push, then the CI run of the push. The push waits for the word of the owner: the
+  approval named the fix, not the push. Before `b3c3b911c` the four jobs of `ProjecturedTest`
+  passed (the run of `23e85358a`), so the CI of the push is the first run of their tests since
+  2026-11-24.
