@@ -1,6 +1,6 @@
 # The CI of main passes again
 
-> **Status:** landed on `main`, not pushed. Approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
+> **Status:** landed on `main` and pushed (`8ffaa313c`); two failures of other work remain in the CI. Approved by the owner, 2026-11-26 ("Yes" to "Do I fix these two faults of the
 > CI?"). The session that pushed `306018039` fixes the red CI of `main`, as `CLAUDE.md`
 > ("Main is green") says.
 
@@ -43,7 +43,21 @@ The CI run 45710705577 of `306018039` fails in five jobs, the same five as the r
   `julia-worktree run` writes the wrong paths again; run it outside `bwrap`.
 - [x] 3. The land on `main` (`0226dcd78`). No run of all the parts came before it: the change
   moves no code, the guards and the load are checked, and the CI of the push runs the parts.
-- [ ] 4. The push, then the CI run of the push. The push waits for the word of the owner: the
-  approval named the fix, not the push. Before `b3c3b911c` the four jobs of `ProjecturedTest`
-  passed (the run of `23e85358a`), so the CI of the push is the first run of their tests since
-  2026-11-24.
+- [x] 4. The push (`8ffaa313c`, the owner: "Yes"), then the CI run of the push, 45782552859:
+  39 jobs pass, among them the static guards, `ProjecturedTest` and `ProjecturedTest
+  (integration 1 of 3)`. Two jobs fail, each on one check that the fault of the load hid
+  since 2026-11-24:
+  - `ProjecturedTest (integration 2 of 3)`: `ApplicationTest.jl:2006`, an Alt+double click
+    on a row of the Files pane selects no file (`nothing == ".../a.json"`).
+  - `ProjecturedTest (integration 3 of 3)`: `ScrollWorkTest.jl:195`, one frame of a scroll
+    of the Files pane makes 13 guards, against the bound 12.
+
+## 3. Found during the work
+
+- The two failures of step 4 are new failures of `main`, as the plan of the JSON views
+  (`plan/done/the-editor-shows-a-json-file-through-its-views.md`) says. The CI of
+  `23e85358a` (2026-11-23) passed both jobs; the CI of `aea74aa7a` (2026-11-24) failed the
+  job of `test_application`. The 18 commits between them hold the land of D12 of the plan
+  "a click reaches the innermost part in every view" (`0309f7d80`, `175de196e`,
+  `97ed6f026`: the label of a node of a tree reads like the text of a control, and a part in
+  the row of a file is the path of the file and then the step of the view).
