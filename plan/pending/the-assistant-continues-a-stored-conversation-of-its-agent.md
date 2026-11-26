@@ -582,6 +582,31 @@ fakes and do not wait for that land.
     worktrees, their depots and their branches, and move this plan to
     `plan/done/`.
 
+    **The runs, 2026-11-26**, on main `6aca93193` and the branch:
+    - All parts (`csc-land`, record `/var/tmp/csc-land.tsv`): 772 parts, 756
+      done, 15 crash, 1 timeout; 4 fail, 0 error. The 15 crashes are workers
+      that a SIGTERM from outside ended; the supervisor sends only SIGKILL and
+      SIGUSR1, the kernel killed no process of the job, and `earlyoom -m 10,5`
+      runs on the machine, while a build of another session took 29 GB and
+      the load average reached 65. Two of the fails are time ratios of
+      `test_kernel_frame_guards` under that load.
+    - The 19 parts that did not pass, again in fresh workers: all done; 2
+      fail, `test_scroll_work` (the Files pane makes 13 guards, the bound is
+      12) and `test_application` (an Alt+double click in the Files pane selects
+      nothing). The stored records of main at `760b801ef` and `adda9c975` hold
+      the same two fails, and main `39c2b7ee4` fixed both checks after the
+      base of the branch.
+    - The fast parts of omnet-julia against the branch (a worktree of its main
+      `11b9281ac`): 265 parts, 263 done and 2 crashes by the same SIGTERM; the
+      2 parts again: done. 0 fail, 0 error. The first try ended when the
+      kernel killed the precompile of `OmnetPresentationExample` at the cap of
+      8 GB; the second ran with 14 GB.
+    - The branch went onto main `314a8d874` by a rebase with no conflict. On
+      it, in fresh workers: `test_application` 425 pass and `test_scroll_work`
+      26 pass, with the fix of main; `test_assistant_list` 79,
+      `test_external_agent_turn` 395, `test_assistant_work` 134,
+      `test_agent_defaults` 26, and the ACP suite 378 pass; 0 fail, 0 error.
+
 ## 7. The limits
 
 - The files of Claude Code are internal. A change of their format can stop the
