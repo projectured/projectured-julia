@@ -434,6 +434,25 @@ This order is a recommendation. No part of it is decided.
 4. **Needs answers of the owner first:** T5 (lists), T9 (what a holder holds), T10 (the rule
    for a failed tool), T8 (the view document of a table), T12 (TD-1).
 
+## The state of the walk
+
+- **T6, the file format half:** done, `plan/done/a-file-format-is-declared-once.md`.
+- **T1:** done, `plan/done/a-reader-is-split-by-its-jobs.md`, landed and pushed in the three
+  repositories (projectured-julia `c08e8e466` on GitHub, 2026-11-27).
+
+**The decisions of the owner, 2026-11-27.** The order of the work is T7, T3, T4, T5, then the
+small points.
+
+| Theme | Decision |
+| --- | --- |
+| T7 | The task output page is fixed. The database adapter (DD-1) is deferred. |
+| T2 | Delayed. |
+| T3 | Needed. |
+| T4 | Needed. |
+| T6, the view half | Deferred to a separate plan. |
+| T5 | Needed, with the first step of the check: share the abilities over one entry, and keep two printers. |
+| The small removals and the CI rows | Yes. |
+
 ## The areas
 
 ### The kernel model: cells, documents, projections, IO maps, operations
