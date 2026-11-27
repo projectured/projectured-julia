@@ -79,8 +79,8 @@ export TaskOutput, append_output_line!, get_left_out_line_count, collect_output_
        describe_task_execution, is_task_running, wait_task_execution, stop_task_execution!,
        get_task_status, finish_task_execution!, TaskFinishFailure, start_process_task!,
        sample_task_usage!
-export TaskStreamLines, TaskStream, make_task_stream, get_task_stream_output, collect_task_stream_rows,
-       find_task_stream_matches, make_task_stream_find_operation, make_task_stream_first_error_operation
+export TaskStreamLines, TaskStream, make_task_stream, get_task_stream_output, make_task_stream_find_operation,
+       make_task_stream_first_error_operation
 export ImitatedProcess, run_with_process_imitation
 export get_default_job_count, start_task, TaskStartFailure, TaskNotStarted,
        TaskGroupSummary, TaskGroupTally, TaskGroupRuntime, TaskGroup, is_concurrent,

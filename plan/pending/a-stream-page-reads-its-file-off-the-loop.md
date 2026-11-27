@@ -134,10 +134,10 @@ test of each step is `test_platform(only = "task")` and the part of the new func
   the start, in the middle and at the end, the screen before the top, a line that has no end
   yet, an empty file, a long line, `\r\n`, a count with a text, a search forward and backward
   and round.
-- [ ] **Step 3. The state in offsets and the background cells** (D1, D4, D6, D8). The tests of
+- [x] **Step 3. The state in offsets and the background cells** (D1, D4, D6, D8). The tests of
   the page use the cells.
-- [ ] **Step 4. The printer and the reader of the wheel and of the scroll bar** (D5, D6, D7,
-  D9).
+- [x] **Step 4. The printer and the reader of the wheel and of the scroll bar** (D5, D6, D7,
+  D9). Steps 3 and 4 are one commit (§7).
 - [ ] **Step 5. The guide.** The section of the stream page in
   [task.md](../../documentation/package/platform/task/task.md) describes the offset and the
   background reads, and its list of limits loses the search that holds the editor task. Then
@@ -170,3 +170,33 @@ part `test_task_stream_reads` (33 pass).
   for 16 MB and 7.8 ms for 64 MB. A count with a filter reads each line and takes 4.8 ms, 18.4 ms
   and 71.6 ms. A jump to a line and a count with a filter are the slow case, about 50 ms at 45 MB,
   so the limit is 32 MB. A file that the page cache does not hold reads at the speed of the disk.
+
+**Steps 3 and 4 are one commit.** The printer reads the state that step 3 changes, so a commit
+of step 3 alone does not load.
+- **The state (D1) has no place of the match.** The place of the current match is in the memory
+  of the source of the stream, with the counts of the searches. A count of the place starts at
+  the nearest of the start, the end and the last match whose place a search counted, so a move
+  by ‹ or › counts the lines between two matches. The document keeps `top_offset`, `top_place`,
+  `top_lead`, `known_offset`, `known_line`, `follow`, `find_text`, `found_offset` and
+  `filter_text`.
+- **A window holds 200 lines** (`_STREAM_WINDOW_SIZE`). The document does not know the height of
+  the screen, so the window holds more lines than a screen shows, and the printer shows the part
+  that fits. The wheel moves through the lines of the window and the lines before it.
+- **One source for each stream**, with a tag on each input (`:window`, `:number`, `:search`), as
+  the git documents do. The cells are made in `make_task_stream`, where the shadow makes its
+  pages. So no state is global.
+- **The window knows the number of its first line** when it reads from the start of the file or
+  reads the last lines (`StreamWindow.number`). A move of the wheel writes the known place of the
+  page, so the numbers of the next window show at once, with no count.
+- **The label shows "searching"** while the search cell is provisional (`is_cell_provisional`).
+  No cell of its own is needed.
+- **The memory of the source has a lock.** The kernel can run two batches of one source at the
+  same time, for example when the text of Find changes while a search reads.
+- **The test of D9 moves the file away.** It does not count the calls of the work: a count needs
+  a hook in the code of the page. With the file moved away, the page still prints the lines of its
+  cells, and the wheel, Find and First error still answer. A read of the file in a print or a
+  reader would find no file.
+- The marks of the lines that show are computed on the loop (D5): `find_task_output_mark`
+  answers from the line alone.
+- The task parts: 13 parts, 1029 pass, 0 fail, 0 error (`test_task_pages` 83,
+  `test_task_stream_reads` 37).

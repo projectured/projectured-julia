@@ -399,10 +399,12 @@ end
 Draw [`TaskStreamLines`](@ref) as the lines of a stream page: a line of counts,
 and a table of the lines that fit the height it is offered, each with its number
 and its text in the colour of its mark, beside a scroll bar. The lines come from
-the file of the stream, so a stream of a million lines costs what shows. A turn
-of the wheel and the scroll bar move the line at the top; while the page follows
-the end, the last lines show. `row_step` is the height of a row with its
-padding and its rule.
+the window that a background cell reads around the offset of the page, so the
+print reads no file, and a stream of a million lines costs what shows. A turn of
+the wheel moves the line at the top through the lines of the window, and the
+scroll bar jumps; while the page follows the end, the last lines show. The bar
+measures lines in a file whose lines the page counts, and bytes in a larger file.
+`row_step` is the height of a row with its padding and its rule.
 """
 @projection UntrackedCell struct TaskStreamLinesToWidget <: Projection
     row_step::Int = 24
@@ -419,15 +421,85 @@ end
     input::Any
     output::Any
     bar::Any
-    rows::Any
+    shown::Any
     visible::Any
 end
 
-# The row at the top: the last rows while the page follows the end, else the row
-# of the view, kept inside the rows.
-function _compute_stream_top_row(lines::TaskStreamLines, count::Int, visible::Int)
+# The lines of the window that show: their indexes in the window, the number of the
+# first line of the window or `nothing` while it is not known, and whether they are
+# the last lines that show.
+struct _StreamShown
+    window::StreamWindow
+    range::UnitRange{Int}
+    first_number::Union{Int,Nothing}
+    is_last::Bool
+end
+
+# The lines that show: the last lines of the window while the page follows the end,
+# else from the line that the offset of the page names, kept inside the window.
+function _compute_stream_shown(lines::TaskStreamLines, visible::Int)
+    window = lines.window
+    count = length(window.offsets)
     last_top = max(1, count - visible + 1)
-    lines.follow ? last_top : clamp(lines.top_row, 1, last_top)
+    top = lines.follow ? last_top : clamp(window.top, 1, last_top)
+    range = count == 0 ? (1:0) : (top:min(count, top + visible - 1))
+    _StreamShown(window, range, _find_stream_first_number(lines, window),
+                 is_stream_window_at_end(window) && top == last_top)
+end
+
+# The number of the first line of the window: from the read, from the known place of
+# the page, or from the count of the background cell, which a read here asks for.
+function _find_stream_first_number(lines::TaskStreamLines, window::StreamWindow)
+    isempty(window.offsets) && return nothing
+    window.number > 0 && return window.number
+    k = findfirst(==(lines.known_offset), window.offsets)
+    k === nothing || return lines.known_line - window.steps[k]
+    j = findfirst(==(lines.known_offset), window.before)
+    j === nothing || return lines.known_line + window.before_steps[j]
+    (offset, line, _) = lines.number
+    offset == first(window.offsets) ? line : nothing
+end
+
+# The place, among the lines that show, of the line at the top, or `nothing` while it
+# is not known.
+function _find_stream_top_place(lines::TaskStreamLines, shown::_StreamShown)
+    isempty(shown.range) && return nothing
+    k = first(shown.range)
+    if isempty(lines.filter_text)
+        shown.first_number === nothing ? nothing : shown.first_number + shown.window.steps[k]
+    else
+        (offset, _, place) = lines.number
+        offset == first(shown.window.offsets) && place > 0 ? place + k - 1 : nothing
+    end
+end
+
+# The count of the lines that show, or `nothing` while a search counts them.
+function _find_stream_shown_count(lines::TaskStreamLines)
+    output = get_task_stream_output(lines)
+    isempty(lines.filter_text) && return output.flushed_count
+    shown = lines.search.shown
+    shown < 0 || is_cell_provisional(getfield(lines, :search)) ? nothing : shown
+end
+
+# The value of the scroll bar and the size of its thumb. In a file whose lines the
+# page counts, the bar measures lines when their count and the place of the top are
+# known; else it measures bytes.
+function _compute_stream_bar(lines::TaskStreamLines, shown::_StreamShown, visible::Int)
+    isempty(shown.range) && return (0.0, 1.0)
+    output = get_task_stream_output(lines)
+    flushed = output.flushed_size
+    total = _find_stream_shown_count(lines)
+    lines_total = something(total, max(1, output.flushed_count))
+    thumb = min(1.0, visible / max(1, lines_total))
+    shown.is_last && return (1.0, thumb)
+    if is_stream_counted(flushed) && total !== nothing && total > 0
+        place = _find_stream_top_place(lines, shown)
+        if place !== nothing
+            last_top = max(1, total - visible + 1)
+            return (last_top == 1 ? 0.0 : clamp((place - 1) / (last_top - 1), 0.0, 1.0), thumb)
+        end
+    end
+    (clamp(shown.window.offsets[first(shown.range)] / max(1, flushed), 0.0, 1.0), thumb)
 end
 
 # The colour of a line by its mark, and of the line of the current match.
@@ -444,35 +516,42 @@ function _format_stream_counts(lines::TaskStreamLines)
         n = get(output.mark_counts, mark, 0)
         n > 0 && push!(parts, string(n, " ", word, n == 1 || mark === :progress ? "" : "s"))
     end
-    isempty(lines.filter_text) || push!(parts, string(length(collect_task_stream_rows(lines)), " shown"))
+    if !isempty(lines.filter_text)
+        shown = _find_stream_shown_count(lines)
+        push!(parts, shown === nothing ? "searching" : string(shown, " shown"))
+    end
     join(parts, " · ")
+end
+
+# The row of the line at index `k` of the window: its number, when the page knows
+# it, and its text in the colour of its mark, or of the current match.
+function _make_stream_row(p, task, field::Symbol, view::_StreamShown, k::Int, found::Int)
+    window = view.window
+    text = window.texts[k]
+    is_found = window.offsets[k] == found
+    number = view.first_number === nothing ? "" : string(view.first_number + window.steps[k])
+    CellVector(Cell[Cell(WidgetLabel(number; text_style = is_found ? p.running_color : p.muted_color)),
+                    Cell(WidgetLabel(text; text_style = _get_stream_line_color(
+                        p, find_task_output_mark(task, field, text), is_found)))])
 end
 
 function print_document(p::TaskStreamLinesToWidget, recursion, lines::TaskStreamLines, ctx)
     height = get_visible_height(ctx)
     step() = max(1, p.row_step)
     visible = Cell(@computation height === nothing ? 40 : max(1, Int(height[]) ÷ step() - 3))
-    rows = Cell(@computation collect_task_stream_rows(lines))
-    top = Cell(@computation _compute_stream_top_row(lines, length(rows[]), visible[]))
+    shown = Cell(@computation _compute_stream_shown(lines, visible[]))
     task = lines.execution[].task
     headers = CellVector(Cell[Cell(WidgetLabel("line")), Cell(WidgetLabel("text"))])
     cells = CellVector(Computation(() -> begin
-        shown = rows[]
-        first_row = top[]
-        numbers = shown[first_row:min(length(shown), first_row + visible[] - 1)]
-        texts = _read_stream_lines(lines.index, numbers)
-        found = lines.found_line
-        Any[CellVector(Cell[Cell(WidgetLabel(string(n); text_style = n == found ? p.running_color : p.muted_color)),
-                            Cell(WidgetLabel(text; text_style = _get_stream_line_color(
-                                p, find_task_output_mark(task, lines.field, text), n == found)))])
-            for (n, text) in zip(numbers, texts)]
+        view = shown[]
+        found = lines.found_offset
+        Any[_make_stream_row(p, task, lines.field, view, k, found) for k in view.range]
     end))
     table = WidgetTable(headers, cells)
+    bar_state = Cell(@computation _compute_stream_bar(lines, shown[], visible[]))
     # Positional: orientation, value, thumb_size, thumb_drag, position, size,
     # visible, margin, border, padding, style, tooltip, selection.
-    bar = WidgetScrollBar(Cell(:vertical),
-                          Cell(@computation compute_scroll_bar_value(top[], length(rows[]), visible[])),
-                          Cell(@computation isempty(rows[]) ? 1.0 : min(1.0, visible[] / length(rows[]))),
+    bar = WidgetScrollBar(Cell(:vertical), Cell(@computation first(bar_state[])), Cell(@computation last(bar_state[])),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(true), Cell(nothing),
                           Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     counts = WidgetLabel(() -> _format_stream_counts(lines))
@@ -480,7 +559,7 @@ function print_document(p::TaskStreamLinesToWidget, recursion, lines::TaskStream
                             vertical_align = :top, gap = 0)
     output = VerticalLayout(Any[counts, LayoutConstraint(body; width = Fill, height = Fill)];
                             horizontal_align = :left, gap = p.label_gap, child_width = Fill)
-    iomap = TaskStreamLinesToWidgetIoMap(p, lines, output, bar, rows, visible)
+    iomap = TaskStreamLinesToWidgetIoMap(p, lines, output, bar, shown, visible)
     follow_widget_output!(output, lines, path -> map_reference_forward(p, iomap, path))
     iomap
 end
@@ -492,27 +571,66 @@ function read_gesture(p::TaskStreamLinesToWidget, iomap::TaskStreamLinesToWidget
                       answer = nothing)
     scroll.dy != 0 && !scroll.modifiers.ctrl ||
         return invoke(read_gesture, Tuple{Projection, Any, Any}, p, iomap, scroll; answer)
-    lines = iomap.input
-    count = length(iomap.rows)
-    visible = iomap.visible
-    _make_stream_scroll_operation(lines, _compute_stream_top_row(lines, count, visible) - 3 * scroll.dy,
-                                  count, visible)
+    _make_stream_move_operation(iomap.input, iomap.shown, -3 * scroll.dy, iomap.visible)
 end
 
-# A write of the value of the scroll bar is a jump to the line at that value.
+# A write of the value of the scroll bar is a jump to the place at that value.
 # Every other answer maps as through any projection.
 function map_operation_backward(p::TaskStreamLinesToWidget, iomap::TaskStreamLinesToWidgetIoMap, operation)
     value = _find_scroll_bar_value(iomap.bar, operation)
     value === nothing && return invoke(map_operation_backward, Tuple{Projection, Any, Any}, p, iomap, operation)
-    count = length(iomap.rows)
-    visible = iomap.visible
-    _make_stream_scroll_operation(iomap.input, compute_scroll_bar_top_row(value, count, visible), count, visible)
+    _make_stream_jump_operation(iomap.input, iomap.shown, value, iomap.visible)
 end
 
-function _make_stream_scroll_operation(lines::TaskStreamLines, top::Int, count::Int, visible::Int)
+# The move of the top by `step` lines that show, through the lines of the window and
+# the lines before it. The page knows the number of the new top when it knew the
+# number of the window, and keeps it as its known place.
+function _make_stream_move_operation(lines::TaskStreamLines, shown::_StreamShown, step::Int, visible::Int)
+    window = shown.window
+    count = length(window.offsets)
+    count == 0 && return nothing
+    top = isempty(shown.range) ? 1 : first(shown.range)
     last_top = max(1, count - visible + 1)
-    top = clamp(top, 1, last_top)
-    _make_stream_view_operation(lines, "top_row" => top, "follow" => top == last_top)
+    target = top + step
+    number = shown.first_number
+    if target >= 1 || isempty(window.before)
+        index = clamp(target, 1, last_top)
+        offset = window.offsets[index]
+        line = number === nothing ? 0 : number + window.steps[index]
+        follow = is_stream_window_at_end(window) && index == last_top
+    else
+        j = min(1 - target, length(window.before))
+        offset = window.before[j]
+        line = number === nothing ? 0 : number - window.before_steps[j]
+        follow = false
+    end
+    known = line > 0 ? ("known_offset" => offset, "known_line" => line) : ()
+    _make_stream_view_operation(lines, "top_offset" => offset, "top_place" => 0, "top_lead" => 0,
+                                "follow" => follow, known...)
+end
+
+# The jump of the scroll bar to `value`. In a file whose lines the page counts, the
+# value names a place among the lines that show, and the background cell finds its
+# line; in a larger file it names a byte. The line at the top before the jump stays
+# the known place of the page when the page knows its number.
+function _make_stream_jump_operation(lines::TaskStreamLines, shown::_StreamShown, value::Real, visible::Int)
+    output = get_task_stream_output(lines)
+    flushed = output.flushed_size
+    known = ()
+    if !isempty(shown.range) && shown.first_number !== nothing
+        k = first(shown.range)
+        known = ("known_offset" => shown.window.offsets[k], "known_line" => shown.first_number + shown.window.steps[k])
+    end
+    total = _find_stream_shown_count(lines)
+    if is_stream_counted(flushed) && total !== nothing && total > 0
+        last_top = max(1, total - visible + 1)
+        place = clamp(round(Int, value * (last_top - 1)) + 1, 1, last_top)
+        return _make_stream_view_operation(lines, known..., "top_offset" => -1, "top_place" => place,
+                                           "top_lead" => 0, "follow" => place == last_top)
+    end
+    offset = clamp(round(Int, value * flushed), 0, flushed)
+    _make_stream_view_operation(lines, known..., "top_offset" => offset, "top_place" => 0, "top_lead" => 0,
+                                "follow" => value >= 1)
 end
 
 # The value that `operation` writes into the scroll bar, or `nothing`.

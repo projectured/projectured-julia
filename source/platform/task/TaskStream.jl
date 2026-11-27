@@ -1,73 +1,8 @@
 # Fragment of `TaskModule` — one stream of one execution as a page: every line
 # that the stream printed, read from its file, with a bar that finds a text, keeps
-# the lines that hold a text, follows the end and goes to the first error.
-
-# ── The lines of a file ──────────────────────────────────────────────────────
-
-# Where each line of the file of a stream starts, read so far: `starts[k]` is the
-# byte at which line `k` starts, and the last entry is the start of the line that
-# has no end yet, so the file holds `length(starts) - 1` whole lines. `searches`
-# keeps the lines that hold a text, with the count of lines that the search read.
-mutable struct _TaskStreamIndex
-    path::Union{String,Nothing}
-    starts::Vector{Int}
-    searches::Dict{String,Tuple{Int,Vector{Int}}}
-end
-
-_TaskStreamIndex() = _TaskStreamIndex(nothing, Int[0], Dict{String,Tuple{Int,Vector{Int}}}())
-
-_get_line_count(index::_TaskStreamIndex) = length(index.starts) - 1
-
-# Read the part of the file that came since the last read, and note where each
-# new line starts. A file that is not there yet, or a stream with no file, has no
-# line.
-function _refresh_stream_index!(index::_TaskStreamIndex, path)
-    if path != index.path
-        index.path = path
-        index.starts = Int[0]
-        empty!(index.searches)
-    end
-    (path === nothing || !isfile(path)) && return index
-    read_from = last(index.starts)
-    filesize(path) > read_from || return index
-    bytes = open(io -> (seek(io, read_from); read(io)), path)
-    for (offset, byte) in enumerate(bytes)
-        byte == UInt8('\n') && push!(index.starts, read_from + offset)
-    end
-    index
-end
-
-# The text of the lines `numbers`, in their order, read from the file.
-function _read_stream_lines(index::_TaskStreamIndex, numbers)
-    isempty(numbers) && return String[]
-    open(index.path) do io
-        texts = String[]
-        for k in numbers
-            seek(io, index.starts[k])
-            push!(texts, chomp(String(read(io, index.starts[k + 1] - index.starts[k]))))
-        end
-        texts
-    end
-end
-
-# The numbers of the lines that hold `text`, the first first. A search goes on
-# from where the last search of the same text ended, so a stream that grows reads
-# each line once.
-function _search_stream_lines(index::_TaskStreamIndex, text::AbstractString)
-    count = _get_line_count(index)
-    (searched, found) = get(index.searches, text, (0, Int[]))
-    if searched < count
-        found = copy(found)
-        open(index.path) do io
-            seek(io, index.starts[searched + 1])
-            for k in (searched + 1):count
-                occursin(text, readline(io)) && push!(found, k)
-            end
-        end
-        index.searches[String(text)] = (count, found)
-    end
-    found
-end
+# the lines that hold a text, follows the end and goes to the first error. The page
+# keeps a byte offset into the file, and background cells read the lines around it,
+# so no print and no reader of the page reads the file.
 
 # ── The lines around an offset ───────────────────────────────────────────────
 
@@ -103,6 +38,9 @@ The lines of the file of a stream around an offset, as
 - `to_end` — when the window holds the last lines that show, the count of the
   lines of the file from the first line that shows to the end, that line
   included; else `-1`.
+- `number` — the number of the first line that shows, when the read knows it: a
+  read from the start of the file counts the lines before it, and a read of the
+  last lines knows it from the count of the lines of the file. Else `0`.
 """
 struct StreamWindow
     offsets::Vector{Int}
@@ -112,9 +50,10 @@ struct StreamWindow
     before::Vector{Int}
     before_steps::Vector{Int}
     to_end::Int
+    number::Int
 end
 
-const EMPTY_STREAM_WINDOW = StreamWindow(Int[], String[], Int[], 1, Int[], Int[], -1)
+const EMPTY_STREAM_WINDOW = StreamWindow(Int[], String[], Int[], 1, Int[], Int[], -1, 0)
 
 """`true` when `window` holds the last lines that show."""
 is_stream_window_at_end(window::StreamWindow) = window.to_end >= 0
@@ -198,7 +137,7 @@ function _collect_stream_lines_before(io::IO, offset::Int, count::Int, filter::A
 end
 
 """
-    read_stream_window(path, flushed, offset, count; filter = "", lead = 0) -> StreamWindow
+    read_stream_window(path, flushed, offset, count; filter = "", lead = 0, flushed_count = -1) -> StreamWindow
 
 The `count` lines that show from the line at `offset` in the file at `path`, of
 which the first `flushed` bytes hold whole lines. A line shows when it holds
@@ -209,13 +148,15 @@ which the first `flushed` bytes hold whole lines. A line shows when it holds
   below the top.
 - When fewer than `count` lines show from there to the end, the window holds the
   last `count` lines that show. An `offset` at `flushed` gives the last lines.
+- `flushed_count`, the count of the lines in the flushed bytes, gives the number
+  of the first line of a window of the last lines.
 
 The window also holds the starts of one window of lines that show before its
 first, for a move up. It reads the file only around the lines it gives, and
 the lines that it passes; a filter that few lines hold can pass many.
 """
 function read_stream_window(path::AbstractString, flushed::Int, offset::Int, count::Int;
-                            filter::AbstractString = "", lead::Int = 0)
+                            filter::AbstractString = "", lead::Int = 0, flushed_count::Int = -1)
     (flushed <= 0 || count <= 0 || !isfile(path)) && return EMPTY_STREAM_WINDOW
     open(path) do io
         start = _find_stream_line_start(io, offset, flushed)
@@ -226,11 +167,16 @@ function read_stream_window(path::AbstractString, flushed::Int, offset::Int, cou
         offsets = Int[]
         texts = String[]
         steps = Int[]
-        passed = -1
+        skipped = 0
+        passed = 0
         _visit_stream_lines_after(io, start, flushed) do line_start, line
-            isempty(offsets) || (passed += 1)
-            if _does_stream_line_show(line, filter)
-                isempty(offsets) && (passed = 0)
+            shows = _does_stream_line_show(line, filter)
+            if isempty(offsets)
+                shows || (skipped += 1; return true)
+            else
+                passed += 1
+            end
+            if shows
                 push!(offsets, line_start)
                 push!(texts, _make_stream_line_text(line))
                 push!(steps, passed)
@@ -239,13 +185,15 @@ function read_stream_window(path::AbstractString, flushed::Int, offset::Int, cou
         end
         to_end = -1
         top = 1
+        number = start == 0 && !isempty(offsets) ? skipped + 1 : 0
         if length(offsets) < count || position(io) >= flushed
             (offsets, texts, steps, to_end) = _read_stream_last_lines(io, flushed, count, filter)
             top = something(findfirst(>=(start), offsets), length(offsets) + 1)
+            number = to_end >= 0 && flushed_count >= 0 ? flushed_count - to_end + 1 : 0
         end
         (before, before_steps) = isempty(offsets) ? (Int[], Int[]) :
                                  _collect_stream_lines_before(io, first(offsets), count, filter)
-        StreamWindow(offsets, texts, steps, top, before, before_steps, to_end)
+        StreamWindow(offsets, texts, steps, top, before, before_steps, to_end, number)
     end
 end
 
@@ -345,27 +293,211 @@ function find_stream_match(path::AbstractString, flushed::Int, offset::Int, text
     end
 end
 
+# ── The background reads of a stream ─────────────────────────────────────────
+
+# The lines that a window of a stream reads: more than any screen shows, so that the
+# page shows a part of them and the wheel moves inside them.
+const _STREAM_WINDOW_SIZE = 200
+
+# The largest file whose lines the page counts: its scroll bar measures lines, and a
+# jump goes to a line. A larger file has a scroll bar that measures bytes.
+const _STREAM_COUNTED_SIZE = 32_000_000
+
+"""`true` when the scroll bar of a stream whose file holds `flushed` bytes measures lines."""
+is_stream_counted(flushed::Int) = flushed <= _STREAM_COUNTED_SIZE
+
+"""
+    StreamSearch
+
+What a search of the file of a stream found, as the page shows it:
+
+- `shown` — the count of the lines that hold the text of the filter, or `-1`
+  with no filter;
+- `count` — the count of the lines that show and hold the text of Find;
+- `place` — the place of the current match among them, or `0` when the page
+  has no current match;
+- `next` and `previous` — the start of the match after the current one and of
+  the match before it, round from the end to the start, or `nothing` with no
+  match.
+"""
+struct StreamSearch
+    shown::Int
+    count::Int
+    place::Int
+    next::Union{Int,Nothing}
+    previous::Union{Int,Nothing}
+end
+
+const EMPTY_STREAM_SEARCH = StreamSearch(-1, 0, 0, nothing, nothing)
+
+# What the searches of a stream found so far, for each text and filter: in
+# `counts`, the bytes that a search read and the count of the lines that held the
+# text in them, so a later search reads only the bytes that came; in `places`, the
+# last match whose place a search counted, so the next count starts there. Two
+# batches of one source can run at the same time, so a search holds the lock.
+mutable struct _StreamMemory
+    const lock::ReentrantLock
+    path::Union{String,Nothing}
+    counts::Dict{Tuple{String,String},Tuple{Int,Int}}
+    places::Dict{Tuple{String,String},Tuple{Int,Int}}
+end
+
+function _forget_other_stream!(memory::_StreamMemory, path::String)
+    memory.path == path && return memory
+    memory.path = path
+    empty!(memory.counts)
+    empty!(memory.places)
+    memory
+end
+
+function _count_stream_lines_so_far!(memory::_StreamMemory, path::String, flushed::Int, text::String,
+                                     filter::String)
+    _forget_other_stream!(memory, path)
+    (read_to, count) = get(memory.counts, (text, filter), (0, 0))
+    if read_to < flushed
+        count += count_stream_lines(path, read_to, flushed; text, filter)
+        # The memory keeps the counts of the current texts only.
+        length(memory.counts) > 8 && empty!(memory.counts)
+        memory.counts[(text, filter)] = (flushed, count)
+    end
+    count
+end
+
+# One input of the source of a stream, by its first element:
+# - `(:window, path, flushed, flushed_count, offset, place, filter, lead)`;
+# - `(:number, path, flushed, flushed_count, offset, known_offset, known_line, filter)`;
+# - `(:search, path, flushed, find, filter, found)`.
+function _answer_stream_input(memory::_StreamMemory, input)
+    kind = first(input)
+    path = input[2]
+    path === nothing && return kind === :window ? EMPTY_STREAM_WINDOW : kind === :number ? (-1, 0, 0) :
+                               EMPTY_STREAM_SEARCH
+    if kind === :window
+        (_, _, flushed, flushed_count, offset, place, filter, lead) = input
+        place > 0 || return read_stream_window(path, flushed, offset, _STREAM_WINDOW_SIZE; filter, lead, flushed_count)
+        (offset, line) = _find_stream_place_offset(path, flushed, place, filter)
+        window = read_stream_window(path, flushed, offset, _STREAM_WINDOW_SIZE; filter, flushed_count)
+        _make_stream_window_with_number(window, offset, line)
+    elseif kind === :number
+        (_, _, flushed, flushed_count, offset, known_offset, known_line, filter) = input
+        _count_stream_line_number(path, flushed, flushed_count, offset, known_offset, known_line, filter)
+    else
+        (_, _, flushed, find, filter, found) = input
+        lock(() -> _search_stream(memory, path, flushed, find, filter, found), memory.lock)
+    end
+end
+
+# The start and the number of the line that shows at `place`: a count from the
+# start, for a file whose lines the page counts.
+function _find_stream_place_offset(path, flushed, place, filter)
+    found = 0
+    number = 0
+    seen = 0
+    open(path) do io
+        _visit_stream_lines_after(io, 0, flushed) do start, line
+            number += 1
+            _does_stream_line_show(line, filter) || return true
+            seen += 1
+            found = start
+            seen < place
+        end
+    end
+    (found, number)
+end
+
+# The window with the number of its first line, from the number of the line at
+# `offset`, when the window holds that line and has no number of its own.
+function _make_stream_window_with_number(window::StreamWindow, offset::Int, line::Int)
+    window.number > 0 && return window
+    k = findfirst(==(offset), window.offsets)
+    k === nothing && return window
+    StreamWindow(window.offsets, window.texts, window.steps, window.top, window.before, window.before_steps,
+                 window.to_end, line - window.steps[k])
+end
+
+# The number of the line at `offset`, and for a file whose lines the page counts its
+# place among the lines that show, or `0`: `(offset, number, place)`. The count
+# starts at the nearest place where the number is known: the start, the end, or the
+# known place of the page.
+function _count_stream_line_number(path, flushed, flushed_count, offset, known_offset, known_line, filter)
+    places = [(0, 1), (flushed, flushed_count + 1)]
+    known_line > 0 && known_offset <= flushed && push!(places, (known_offset, known_line))
+    (from, number) = argmin(place -> abs(first(place) - offset), places)
+    line = from <= offset ? number + count_stream_lines(path, from, offset) :
+           number - count_stream_lines(path, offset, from)
+    place = !is_stream_counted(flushed) ? 0 : isempty(filter) ? line :
+            count_stream_lines(path, 0, offset; filter) + 1
+    (offset, line, place)
+end
+
+function _search_stream(memory, path, flushed, find, filter, found)
+    shown = isempty(filter) ? -1 : _count_stream_lines_so_far!(memory, path, flushed, "", filter)
+    isempty(find) && return StreamSearch(shown, 0, 0, nothing, nothing)
+    count = _count_stream_lines_so_far!(memory, path, flushed, find, filter)
+    count == 0 && return StreamSearch(shown, 0, 0, nothing, nothing)
+    place = _count_stream_match_place!(memory, path, flushed, find, filter, found, count)
+    next = find_stream_match(path, flushed, found, find, 1; filter)
+    previous = find_stream_match(path, flushed, found, find, -1; filter)
+    StreamSearch(shown, count, place, next, previous)
+end
+
+# The place of the match at `found` among the `count` matches, or `0` when `found`
+# names no line that holds the text. The count of the matches before it starts at
+# the nearest place where that count is known: the start, the end, or the last
+# match whose place a search counted.
+function _count_stream_match_place!(memory, path, flushed, find, filter, found, count)
+    (found < 0 || found >= flushed) && return 0
+    holds = open(io -> (seek(io, found); line = readuntil(io, '\n');
+                        occursin(find, line) && _does_stream_line_show(line, filter)), path)
+    holds || return 0
+    key = (find, filter)
+    places = [(0, 0), (flushed, count)]
+    haskey(memory.places, key) && push!(places, memory.places[key])
+    (from, before) = argmin(place -> abs(first(place) - found), places)
+    before_found = from <= found ? before + count_stream_lines(path, from, found; text = find, filter) :
+                   before - count_stream_lines(path, found, from; text = find, filter)
+    memory.places[key] = (found, before_found)
+    before_found + 1
+end
+
+# The source of the reads of one stream, with the counts of its searches.
+function _make_stream_source()
+    memory = _StreamMemory(ReentrantLock(), nothing, Dict{Tuple{String,String},Tuple{Int,Int}}(),
+                           Dict{Tuple{String,String},Tuple{Int,Int}}())
+    BackgroundSource(inputs -> Any[_answer_stream_input(memory, input) for input in inputs];
+                     description = "the lines of a stream")
+end
+
 # ── The documents ────────────────────────────────────────────────────────────
 
 """
-    TaskStreamLines(execution, field)
+    TaskStreamLines(; execution, field, window, number, search)
 
 The lines of one stream of one execution as the stream page shows them, and the
-state of that view.
+state of that view. The page keeps no list of the lines: it keeps a byte offset
+in the file of the stream, and its background cells read the lines around it.
 
 - `execution` — a `Ref` to the shadow of the execution, from which the page reads
   the live lines of the stream: their count, their marks and their file. A
   `Ref`, so a walk and a copy of the documents do not go round through it.
 - `field` — `:output` or `:error_output`.
-- `top_row` — the place, among the lines that show, of the line at the top.
+- `top_offset` — the start of the line at the top, or `-1` while a jump of the
+  scroll bar of a file whose lines the page counts names only its place, which is
+  `top_place`, among the lines that show.
+- `top_lead` — the count of the lines that show above the line at `top_offset`,
+  after a move to a match.
+- `known_offset` and `known_line` — the start and the number of the last line
+  whose number the page knew.
 - `follow` — `true` while the page follows the end of a stream that grows.
-- `find_text` — the text that Find looks for, and `found_line` the number of the
-  line of the current match, or `0`.
+- `find_text` — the text that Find looks for, and `found_offset` the start of the
+  line of the current match, or `-1`.
 - `filter_text` — the text that each line that shows holds, or empty for every
   line.
-- `index` — where each line of the file starts, as the page read it so far.
+- `window`, `number` and `search` — the background cells: the lines around the
+  top ([`StreamWindow`](@ref)), the number of the first line of the window, and
+  what a search found ([`StreamSearch`](@ref)).
 
-All but the execution and the field is view state.
+All but the execution, the field and the cells is view state.
 
 Use it to read the lines of one stream of an execution, and the state of the page that shows them.
 
@@ -380,12 +512,18 @@ For the assistant.
 @document struct TaskStreamLines <: Document
     execution::Any
     field::Symbol
-    top_row::Int = 1
+    top_offset::Int = 0
+    top_place::Int = 0
+    top_lead::Int = 0
+    known_offset::Int = 0
+    known_line::Int = 1
     follow::Bool = true
     find_text::String = ""
-    found_line::Int = 0
+    found_offset::Int = -1
     filter_text::String = ""
-    index::Any = _TaskStreamIndex()
+    window::Any = EMPTY_STREAM_WINDOW
+    number::Any = (-1, 0, 0)
+    search::Any = EMPTY_STREAM_SEARCH
 end
 
 """
@@ -419,12 +557,42 @@ get_document_title(stream::TaskStream) = stream.name
     make_task_stream(shadow, field) -> TaskStream
 
 The page of the stream `field`, `:output` or `:error_output`, of the shadow of an
-execution: its lines, and a bar of the text to find, the text that the lines that
-show hold, the follow of the end, the first error and the file.
+execution: its lines, with the background cells that read them, and a bar of the
+text to find, the text that the lines that show hold, the follow of the end, the
+first error and the file.
 """
 function make_task_stream(shadow, field::Symbol)
-    lines = TaskStreamLines(Ref{Any}(shadow), field)
+    holder = Ref{Any}(nothing)
+    source = _make_stream_source()
+    window = make_background_cell(source, () -> _make_stream_window_input(holder[]); default = EMPTY_STREAM_WINDOW)
+    number = make_background_cell(source, () -> _make_stream_number_input(holder[]); default = (-1, 0, 0))
+    search = make_background_cell(source, () -> _make_stream_search_input(holder[]); default = EMPTY_STREAM_SEARCH)
+    lines = TaskStreamLines(; execution = Ref{Any}(shadow), field, window, number, search)
+    holder[] = lines
     TaskStream(field === :output ? "stdout" : "stderr", _make_task_stream_bar(lines), lines)
+end
+
+# The inputs of the three cells, read on the loop from the state of the page and the
+# shadow of its execution.
+function _make_stream_window_input(lines::TaskStreamLines)
+    output = get_task_stream_output(lines)
+    (path, flushed, count) = (output.path, output.flushed_size, output.flushed_count)
+    lines.follow && return (:window, path, flushed, count, flushed, 0, lines.filter_text, 0)
+    place = lines.top_offset < 0 ? lines.top_place : 0
+    (:window, path, flushed, count, max(0, lines.top_offset), place, lines.filter_text, lines.top_lead)
+end
+
+function _make_stream_number_input(lines::TaskStreamLines)
+    output = get_task_stream_output(lines)
+    window = lines.window
+    isempty(window.offsets) && return (:number, nothing)
+    (:number, output.path, output.flushed_size, output.flushed_count, first(window.offsets), lines.known_offset,
+     lines.known_line, lines.filter_text)
+end
+
+function _make_stream_search_input(lines::TaskStreamLines)
+    output = get_task_stream_output(lines)
+    (:search, output.path, output.flushed_size, lines.find_text, lines.filter_text, lines.found_offset)
 end
 
 # The bar of a stream page: each button answers an operation on the lines, so the
@@ -459,44 +627,13 @@ execution holds them now. A read in a cell follows each sync of the shadow.
 """
 get_task_stream_output(lines::TaskStreamLines) = getproperty(lines.execution[], lines.field)
 
-# The index of the file of the stream, read up to the lines that the shadow has
-# counted so far. A read in a cell follows each sync of the shadow, which writes a
-# new copy of the bounded lines when lines came.
-function _refresh_task_stream!(lines::TaskStreamLines)
-    output = get_task_stream_output(lines)
-    _refresh_stream_index!(lines.index, output.path)
-end
-
-"""
-    collect_task_stream_rows(lines) -> AbstractVector{Int}
-
-The numbers of the lines that show: every line of the file, or the lines that
-hold `filter_text`.
-"""
-function collect_task_stream_rows(lines::TaskStreamLines)
-    index = _refresh_task_stream!(lines)
-    isempty(lines.filter_text) ? (1:_get_line_count(index)) : _search_stream_lines(index, lines.filter_text)
-end
-
-"""
-    find_task_stream_matches(lines) -> Vector{Int}
-
-The numbers of the lines that show and that hold `find_text`; none for an empty
-text.
-"""
-function find_task_stream_matches(lines::TaskStreamLines)
-    isempty(lines.find_text) && return Int[]
-    index = _refresh_task_stream!(lines)
-    found = _search_stream_lines(index, lines.find_text)
-    isempty(lines.filter_text) ? found : sort!(intersect(found, collect_task_stream_rows(lines)))
-end
-
 function _format_stream_matches(lines::TaskStreamLines)
     isempty(lines.find_text) && return ""
-    matches = find_task_stream_matches(lines)
-    isempty(matches) && return "no match"
-    place = findfirst(==(lines.found_line), matches)
-    place === nothing ? string(length(matches), " matches") : string(place, " of ", length(matches))
+    search = lines.search
+    is_cell_provisional(getfield(lines, :search)) && return "searching"
+    search.count == 0 && return "no match"
+    search.place == 0 ? string(search.count, search.count == 1 ? " match" : " matches") :
+        string(search.place, " of ", search.count)
 end
 
 # ── The operations of the bar ────────────────────────────────────────────────
@@ -506,12 +643,10 @@ _make_stream_view_operation(lines::TaskStreamLines, writes::Pair{String}...) =
     ReplaceViewStateOperation(CompoundOperation(Any[ReplaceReferencedValueOperation(lines, name, value)
                                                     for (name, value) in writes]))
 
-# The row at the top that shows line `line` a few lines below the top.
-function _get_top_row_for(lines::TaskStreamLines, line::Int)
-    rows = collect_task_stream_rows(lines)
-    place = something(findfirst(==(line), rows), 1)
-    max(1, place - 3)
-end
+# The move of the top to the line that starts at `offset`, `lead` lines that show
+# below the top, with the follow of the end off.
+_make_stream_show_writes(offset::Int, lead::Int) =
+    ("top_offset" => offset, "top_place" => 0, "top_lead" => lead, "follow" => false)
 
 """
     make_task_stream_find_operation(lines, step) -> Operation or nothing
@@ -519,16 +654,15 @@ end
 The move to the next line that holds `find_text`, for `step = 1`, or to the one
 before, for `step = -1`, after the current match, and round from the end to the
 start. The page shows the line near its top and stops following the end.
-`nothing` when no line that shows holds the text.
+`nothing` when no line that shows holds the text, or while the search reads the
+file.
 """
 function make_task_stream_find_operation(lines::TaskStreamLines, step::Int)
-    matches = find_task_stream_matches(lines)
-    isempty(matches) && return nothing
-    current = lines.found_line
-    place = step > 0 ? findfirst(>(current), matches) : findlast(<(current), matches)
-    line = matches[something(place, step > 0 ? 1 : length(matches))]
-    _make_stream_view_operation(lines, "found_line" => line, "top_row" => _get_top_row_for(lines, line),
-                                "follow" => false)
+    is_cell_provisional(getfield(lines, :search)) && return nothing
+    search = lines.search
+    target = step > 0 ? search.next : search.previous
+    target === nothing && return nothing
+    _make_stream_view_operation(lines, "found_offset" => target, _make_stream_show_writes(target, 3)...)
 end
 
 """
@@ -536,13 +670,16 @@ end
 
 The move to the first line that the kind of the task marks as an error: every
 line shows again, and the page shows the line near its top and stops following
-the end. `nothing` when the stream has no error line.
+the end. The stream knows where that line starts and its number, so the move
+reads no file. `nothing` when the stream has no error line.
 """
 function make_task_stream_first_error_operation(lines::TaskStreamLines)
-    line = get(get_task_stream_output(lines).first_mark_lines, :error, nothing)
-    line === nothing && return nothing
-    _make_stream_view_operation(lines, "filter_text" => "", "found_line" => line,
-                                "top_row" => max(1, line - 3), "follow" => false)
+    output = get_task_stream_output(lines)
+    offset = get(output.first_mark_offsets, :error, nothing)
+    line = get(output.first_mark_lines, :error, nothing)
+    (offset === nothing || line === nothing) && return nothing
+    _make_stream_view_operation(lines, "filter_text" => "", "found_offset" => offset,
+                                "known_offset" => offset, "known_line" => line, _make_stream_show_writes(offset, 3)...)
 end
 
 # The open of the file of the stream in a tab, as any file opens.

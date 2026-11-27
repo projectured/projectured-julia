@@ -82,6 +82,28 @@ _press_task_page(projection, iomap, t; ctrl = false) = read_intent(projection, n
 
 _find_task_page_text(iomap, text) = only(t for t in _collect_task_view_texts(iomap.output) if t[3] == text)
 
+# The final answers of the background cells of a stream page, read with no editor.
+_wait_stream_window(lines) = wait_for_cell!(getfield(lines, :window); editor = nothing)
+_wait_stream_search(lines) = wait_for_cell!(getfield(lines, :search); editor = nothing)
+
+# The byte at which each line of a file starts.
+_collect_stream_line_starts(path) = cumsum([0; sizeof.(readlines(path)) .+ 1])[1:(end - 1)]
+
+# Run frames of `editor` until `done()` holds, at most `seconds`.
+function _run_task_page_frames_until(editor, done; seconds::Real = 30)
+    deadline = time() + seconds
+    while time() < deadline
+        drain_operations!(editor)
+        run_frame!(editor)
+        done() && return true
+        sleep(0.02)
+    end
+    false
+end
+
+_collect_stream_page_words(stream; height = 600) =
+    [t[3] for t in _collect_task_view_texts(last(_print_task_view(stream; height)).output)]
+
 function test_task_pages()
     @testset "task pages" begin
         group = _make_task_page_group()
@@ -184,15 +206,20 @@ function test_task_pages()
             stream = shadow.stdout_page
             @test get_document_title(stream) == "stdout"
             lines = stream.lines
-            @test collect_task_stream_rows(lines) == 1:302
-            words = [t[3] for t in _collect_task_view_texts(last(_print_task_view(stream; height = 600)).output)]
+            # The page follows the end: the window holds the last lines, and the count
+            # of the lines of the file gives the number of its first line.
+            window = _wait_stream_window(lines)
+            @test length(window.texts) == 200 && last(window.texts) == "progress 5" && window.number == 103
+            words = _collect_stream_page_words(stream)
             @test "302 lines · 1 error · 1 progress" in words
             @test "progress 5" in words && "302" in words && !("line 1" in words)
             # The lines that hold a text, and the count of them.
             lines.filter_text = "error"
-            @test collect_task_stream_rows(lines) == [301]
-            words = [t[3] for t in _collect_task_view_texts(last(_print_task_view(stream; height = 600)).output)]
-            @test "error here" in words && !("line 300" in words) && any(w -> endswith(w, "1 shown"), words)
+            @test _wait_stream_window(lines).texts == ["error here"]
+            @test _wait_stream_search(lines).shown == 1
+            words = _collect_stream_page_words(stream)
+            @test "error here" in words && "301" in words && !("line 300" in words)
+            @test any(w -> endswith(w, "1 shown"), words)
             lines.filter_text = ""
         end
 
@@ -200,6 +227,7 @@ function test_task_pages()
         # the catalog, as the page draws them, and does not reflect their fields.
         @testset "the lines of a stream alone draw as the page draws them" begin
             lines = only(getfield(document, :executions)[]).stdout_page.lines
+            _wait_stream_window(lines)
             natural = NaturalToGraphics(; measure = FixedMeasure(10, 18, 6, 0))
             context = with_exact_size(PrinterContext(); width = Cell(Int32(1200)), height = Cell(Int32(600)))
             texts = _collect_task_view_texts(print_document(natural, nothing, lines, context).output)
@@ -224,23 +252,34 @@ function test_task_pages()
         end
 
         @testset "find, the first error and the wheel move the line at the top" begin
-            lines = only(getfield(document, :executions)[]).stdout_page.lines
+            stream = only(getfield(document, :executions)[]).stdout_page
+            lines = stream.lines
             holder = _NavHolder(lines)
+            starts = _collect_stream_line_starts(get_task_stream_output(lines).path)
             lines.find_text = "line 25"
-            @test find_task_stream_matches(lines) == vcat(25, 250:259)
+            search = _wait_stream_search(lines)
+            @test search.count == 11 && search.place == 0
+            @test search.next == starts[25] && search.previous == starts[259]
+            # A move to a match shows its line three lines below the top.
             _nav_apply!(holder, make_task_stream_find_operation(lines, 1))
-            @test lines.found_line == 25 && lines.top_row == 22 && !lines.follow
+            @test lines.found_offset == starts[25] && lines.top_offset == starts[25] && !lines.follow
+            @test first(_wait_stream_window(lines).texts) == "line 22"
+            @test _wait_stream_search(lines).place == 1
             _nav_apply!(holder, make_task_stream_find_operation(lines, 1))
-            @test lines.found_line == 250
+            @test lines.found_offset == starts[250]
+            @test _wait_stream_search(lines).place == 2
             _nav_apply!(holder, make_task_stream_find_operation(lines, -1))
-            @test lines.found_line == 25
+            @test lines.found_offset == starts[25]
+            # The stream knows where its first error starts and its number.
             _nav_apply!(holder, make_task_stream_first_error_operation(lines))
-            @test lines.found_line == 301 && lines.top_row == 298
+            @test lines.found_offset == starts[301] && lines.known_offset == starts[301] && lines.known_line == 301
+            window = _wait_stream_window(lines)
+            @test window.texts[window.top] == "line 298"
             lines.find_text = "absent"
+            _wait_stream_search(lines)
             @test make_task_stream_find_operation(lines, 1) === nothing
             # A notch of the wheel down moves the top by three lines, and at the last
             # lines the page follows the end again.
-            stream = only(getfield(document, :executions)[]).stdout_page
             projection, iomap = _print_task_view(stream; height = 600)
             point = _find_task_page_text(iomap, "302")
             answer = read_intent(projection, nothing, Intent(MouseScroll(0, -1, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation
@@ -248,12 +287,40 @@ function test_task_pages()
             _nav_apply!(holder, answer)
             @test lines.follow
             _nav_apply!(holder, read_intent(projection, nothing, Intent(MouseScroll(0, 5, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation)
-            @test !lines.follow && lines.top_row < 298
+            @test !lines.follow && lines.top_offset < starts[298]
+            # The window knew the number of its first line, so the new top keeps its number.
+            @test lines.known_offset == lines.top_offset && starts[lines.known_line] == lines.top_offset
             # Ctrl and the wheel zoom, and move no line.
-            top = lines.top_row
+            top = lines.top_offset
             answer = read_intent(projection, nothing, Intent(MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0)), iomap).operation
             answer === nothing || _nav_apply!(holder, answer)
-            @test lines.top_row == top
+            @test lines.top_offset == top
+        end
+
+        # The page reads its file only through its background cells. With the file
+        # moved away, the page still prints the lines that its cells read, and the
+        # wheel, Find and First error still answer: a read of the file in the print
+        # or in a reader would find no file.
+        @testset "the page reads no file in a print or a reader" begin
+            stream = only(getfield(document, :executions)[]).stdout_page
+            lines = stream.lines
+            (lines.follow, lines.filter_text, lines.find_text) = (true, "", "line 25")
+            _wait_stream_window(lines)
+            _wait_stream_search(lines)
+            path = get_task_stream_output(lines).path
+            moved = path * ".moved"
+            mv(path, moved)
+            try
+                projection, iomap = _print_task_view(stream; height = 600)
+                words = [t[3] for t in _collect_task_view_texts(iomap.output)]
+                @test "progress 5" in words && "302" in words
+                point = _find_task_page_text(iomap, "302")
+                @test read_intent(projection, nothing, Intent(MouseScroll(0, 1, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation isa Operation
+                @test make_task_stream_find_operation(lines, 1) isa Operation
+                @test make_task_stream_first_error_operation(lines) isa Operation
+            finally
+                mv(moved, path)
+            end
         end
 
         # The pages in a window, as a person reaches them: the page of the group in
@@ -285,7 +352,8 @@ function test_task_pages()
                 _nav_press!(editor, backend, KeyPress(character, string(character), ModifierKeys(); time = 0.0))
             end
             @test lines.find_text == "line 25"
-            @test _nav_has_text(backend, "11 matches")
+            # The search runs on a background task, and a later frame shows its count.
+            @test _run_task_page_frames_until(editor, () -> _nav_has_text(backend, "11 matches"))
         end
     end
 end
@@ -321,6 +389,10 @@ function test_task_stream_reads()
             @test w.texts == texts[91:100] && w.to_end == 10 && w.offsets[w.top] == start_of(95)
             w = window(flushed, 10)
             @test w.texts == texts[91:100] && w.top == 11
+            # The read knows the number of the first line from the start of the file,
+            # or from the count of the lines for a window of the last lines.
+            @test window(0, 10).number == 1 && window(start_of(40), 10).number == 0
+            @test window(start_of(95), 10; flushed_count = 100).number == 91
             # A lead of three lines shows the line three lines below the top.
             w = window(start_of(50), 10; lead = 3)
             @test first(w.texts) == "line 47" && w.texts[4] == "error fifty"
@@ -329,6 +401,8 @@ function test_task_stream_reads()
         @testset "a filter shows the lines that hold its text" begin
             w = window(0, 10; filter = "error")
             @test w.texts == ["error fifty", "error eighty"] && w.steps == [0, 30] && w.to_end == 51
+            @test window(0, 10; filter = "error", flushed_count = 100).number == 50
+            @test window(0, 1; filter = "error").number == 50
             w = window(start_of(60), 1; filter = "error")
             @test w.texts == ["error eighty"] && w.before == [start_of(50)] && w.before_steps == [30]
             @test !TaskModule.is_stream_window_at_end(w)
