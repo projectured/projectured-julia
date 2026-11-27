@@ -2399,12 +2399,21 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       bar (4) and on the bar of the expression above the table (21), where the
       Alt+double click selects the column or the view. The marks are by the kind,
       so they stay; their cause names the edge of a column now.
-    - A cost, found in the review: the path of a move goes into `rows[r]`, and
-      `DataFrameViewRows` keeps each row document that a path reaches, for the
-      life of the view (`getindex` by `get!`). Before, only a click reached a
-      row. A kept row is 460 bytes (100000 rows reached: 46 MB of live memory).
-      The count of rows of the frame bounds it, and nothing releases it before
-      the view goes.
+    - A fault of this change, found in the review, not fixed yet: the path of a
+      move goes into `rows[r]`, and two steps of the kernel read each node of it
+      (`annotate_reference_types` for its types, `replace_path_chain!` for the
+      chain of the mouse target). `DataFrameViewRows` keeps each row document
+      that a read reaches, for the life of the view (`getindex` by `get!`).
+      Nothing reads a kept row for a move; the table lights from the mouse target
+      of the view. A kept row is 460 bytes of live memory (100000 rows reached:
+      46 MB), and nothing releases it before the view goes.
+    - Two needs of the kept row: the walk that moves the caret in an open cell
+      (`_sync_selection!`) keeps a path only through the same document, and a row
+      that opens as a page is the same object as `view.rows[r]`
+      (`DataFrameViewRowToWidgetTest.jl:87`, `:126` and the menu of a row).
+      Tried and taken back (2026-11-27): `rows[r]` keeps a row only while it has
+      an open cell. A move then keeps no row, but the three tests of the row page
+      fail, and an error `String(::Nothing)` follows in the first (not studied).
   - [x] O6. The throws of the module appearance (61 lines) and of the combined
     simulation widget (87 lines): the path of the content of the tab,
     `….PaneTab.content::ACModuleAppearance`, matches no document after the first
