@@ -94,14 +94,24 @@ Each item here is a proposed decision. The approval of the plan approves them.
   each screen. That is the work for what shows.
 - **D6. The operations of the bar and of the wheel read only the answers of the cells.**
   - The wheel moves by the offsets of the window, which holds one screen before the top.
-  - The scroll bar has the value `top_offset / flushed`. A jump writes the offset of that
-    fraction of the file, and the window goes to the start of the next line.
+  - The scroll bar has the value of D7. A jump writes the offset of the place that the value
+    names, and the window goes to the start of the next line.
   - ‹ and › write the offset that the cell of Find holds. The place of the match moves by one,
     or goes round.
   - While an answer is not ready, a button gives no operation, and the label shows
     "searching".
-- **D7. The scroll bar measures bytes.** A part of the file with long lines takes more of the
-  bar.
+- **D7. The scroll bar measures lines in a small file, and bytes in a large file.** The owner
+  asked on 2026-11-27: "this should be true only for large files, no?"
+  - **A file up to a size limit:** the bar measures lines, or the lines that hold the filter
+    text. Its value is the number of the top line in the count of lines. The background task
+    counts the lines of the whole file, and a jump finds the offset of its line by a count from
+    the start. In a small file both are short.
+  - **A larger file:** the bar measures bytes, with the value `top_offset / flushed`. A part of
+    the file with long lines takes more of the bar.
+  - **The limit** is a constant. Step 2 sets it from a measurement: the largest file whose count
+    of lines the background task does in about 50 ms on this machine.
+  - **A stream that grows past the limit** changes its measure one time. At that moment, the
+    thumb of the bar can move a little.
 - **D8. The exports change.** `collect_task_stream_rows` and `find_task_stream_matches` go:
   they give a list of every line or of every match, and the page keeps no such list. Their
   tests use the new cells with `wait_for_cell!`. A removed export needs the minor version step
@@ -119,7 +129,7 @@ test of each step is `test_platform(only = "task")` and the part of the new func
 
 - [ ] **Step 1. The writer records the flushed bytes and lines, and the offset of the first
   line of each mark** (D2). Test: a process with known output, and the numbers after it ends.
-- [ ] **Step 2. The reads around an offset** (D3), with tests on a temporary file: a window at
+- [ ] **Step 2. The reads around an offset** (D3), the measurement of the limit of D7, with tests on a temporary file: a window at
   the start, in the middle and at the end, the screen before the top, a line that has no end
   yet, an empty file, a long line, `\r\n`, a count with a text, a search forward and backward
   and round.
