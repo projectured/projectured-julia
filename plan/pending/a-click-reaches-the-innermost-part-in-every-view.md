@@ -1,9 +1,10 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-27): in progress.** Steps 1 to 5, 6a and 6b are done. Steps
-> 6 to 9 are on main of both repositories and pushed (projectured 180ee1857, omnet
-> d52659a7f). O5 of step 7 waits for the owner, and so do steps 7 and 8; step 9
-> waits for the check by hand of the owner in the omnet IDE. The owner asked for the study
+> **Status (2026-11-27): in progress.** Steps 1 to 5, 6a, 6b, 7 and 8 are done.
+> Steps 6 to 9 are on main of both repositories and pushed up to projectured
+> 180ee1857 and omnet d52659a7f; D14 (O5) is on the local mains, not pushed
+> (projectured bba836f74, omnet 4ba5785e6). Step 9 waits for the check by hand of
+> the owner in the omnet IDE. The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -2270,7 +2271,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   gives the place for a new value its own Escape row, the checks are the same:
   `test_pane_gestures` 128, `test_escape_quitting` 12, `test_gallery_wrappers`
   15, `test_json` 832 pass, and `test_application` has only the usage label.
-- [ ] 7. **The omnet views.** Remove the maps that answer the whole page or
+- [x] 7. **The omnet views.** (Done 2026-11-27, O1 to O7.) Remove the maps that answer the whole page or
   `nothing`; a value that a field holds maps to its field; the result table
   picks a row on a plain click only. One commit for each group of views.
 
@@ -2352,7 +2353,7 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     Done (omnet 55b124186): a pick only for a path that ends at the row, and the
     default backward map. `test_result_frame_click` 7 (an Alt+click in the text
     of a cell gives the caret by the step of the view, and picks no row).
-  - [ ] O5. The data frame view (projectured, `DataFrameViewToWidget`): a move
+  - [x] O5. The data frame view (projectured, `DataFrameViewToWidget`): a move
     on a column header names a path in the widgets of the view,
     `….column_headers[N]…`, and the Alt+double click selects the column
     `.columns[N]` (`legacy/scalar_differences`, `legacy/result_file` and the
@@ -2414,6 +2415,20 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       Tried and taken back (2026-11-27): `rows[r]` keeps a row only while it has
       an open cell. A move then keeps no row, but the three tests of the row page
       fail, and an error `String(::Nothing)` follows in the first (not studied).
+    - The owner chose (2026-11-27, "option C") that the fault stays until the
+      general design of the memory of the documents that a view makes exists.
+      Rejected: A, a weak reference to each row, with an open cell held, and a
+      rule that clears the dead entries; B, a kernel rule that a move reads no
+      node of its path past the view, which reaches every view.
+    - Landed on the local mains (2026-11-27, owner: "land and record then find"),
+      not pushed: projectured bba836f74 (with the call list of
+      `ProjecturedDataFramesTest` recorded again, 629 pass), omnet 4ba5785e6. The
+      runs of all parts before the land: projectured 784 parts, 783 done, 0 fail,
+      0 error; `test_application` took more than 600 s under the load of the run,
+      and alone 337 s, 425 pass, 0 fail (the same counts as the land before);
+      omnet 272 parts done, 0 fail, 0 error, and the rest 125 pass, 0 fail.
+
+    Done 2026-11-27.
   - [x] O6. The throws of the module appearance (61 lines) and of the combined
     simulation widget (87 lines): the path of the content of the tab,
     `….PaneTab.content::ACModuleAppearance`, matches no document after the first
@@ -2481,7 +2496,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     `test_ide_atoms` and `test_legacy_atoms` give 3 pass and 2 broken each,
     because their setup throws on omnet main on the changed constructors above,
     and the test marks that as broken, so their atoms do not run.
-- [ ] 8. **The test in the suites (P6).** Each failure that is left is
+- [x] 8. **The test in the suites (P6).** (Done 2026-11-27, with the marks after
+  D14.) Each failure that is left is
   `@test_broken`, with its cause.
 
   Two rules of the owner that the click test must take first (2026-11-13): on a
