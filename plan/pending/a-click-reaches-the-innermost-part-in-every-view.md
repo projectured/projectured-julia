@@ -2808,16 +2808,56 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       `test_legacy_atom_clicks` and `test_legacy_example_clicks` (the examples of
       `OmnetLegacyExample`, the pages of a run, a result and a project), each in
       the suite of the package that owns the atoms or the examples. The IDE and the
-      legacy parts keep the catch of their atom tests: the catalog of their atoms
-      throws on omnet main.
+      legacy parts build the catalog atom by atom, because nine atoms of omnet main
+      5d6ccad0f throw `MethodError` in their constructors (the five atoms of the
+      tests of a project, the two runners and the two of the INI files), and one
+      catch around the whole catalog, as their atom tests have, would test no atom:
+      such an atom of the list is one broken assertion, and any other throw is an
+      error.
+    - The parts of the umbrella suite: seven of `test_catalog_clicks` (six groups of
+      domains and one part for every other domain) and five of `test_part_clicks`,
+      each about ten minutes of a walk alone and with a limit of 1800 s, so a new
+      domain or example has its part.
     Rejected: a helper in `ProjecturedPlatformTest` that builds the catalog of the
     atoms for each caller, because that package does not depend on
     `ProjecturedExample`.
+  - The marks come from two walks of the rebased branches, with the new kinds
+    (scratch `step6/run19`, three processes, and `step7omnet/run6`): projectured
+    1615 lines in 547 examples, omnet 956 lines in 115 examples. Each pair of an
+    example and a kind is the same as in the walks before the rebase (run 18 and
+    run 5), and only one count changes (`explorer/explorer` 18 → 22 lines of
+    `:double_not_drawn`), so a mark by the kind does not come and go between runs.
+    The tables are written from the walks (`step6/marks.py`), one pair for each
+    kind with its cause, and one pair for each throw with its message: the five
+    lone spans and the gutter of a text (`WordWrapping` prints only a block), the
+    screen document (its natural view draws a canvas, and the walk reads the
+    windows of a screen) and the run entry of omnet (`_get_configuration`, a fault
+    of omnet main).
+  - Found in the first run of the parts: five atoms draw no element in the window
+    (`julia/empty`, `julia/insertion`, `math/space`, `collection/list_node`,
+    `widget/progress_ring`), so the walk pressed nothing and gave no line, and the
+    check of a pressed point failed. The walk gives the line "the document draws no
+    element in the window" now (`:no_element`), and a mark names the five.
+  - Result: the twelve parts of the umbrella suite end in their limits, the longest
+    973 s (`test_catalog_clicks(appearance)`, 472 s of it a compile), and with the
+    line of the five atoms they give no fail and no error; the four omnet parts
+    204 pass, 0 fail, 0 error, 84 broken; `test_cosim_presentation` 23340 pass and
+    4 broken, against 23314 and 4 in the record of omnet main f52add012.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
   `clipboard.md`, and `keyboard-and-mouse-guide.md`. The owner checks the page of
   a run and a result page in the omnet IDE.
+
+  Done in the work (2026-11-27): `testing-guide.md` has the section "The click
+  test" (the walk, the kinds, the marks, the parts) and a row of the two sweeps;
+  `keyboard-and-mouse-guide.md` says that an item of a menu and a name of the menu
+  bar take no caret on an Alt+click. The other guides already say the rules of the
+  plan, from the steps before: `keyboard-and-mouse-guide.md` the click, the
+  Alt+click and the Alt+double click (D9, D10, D12), `widget.md` the controls and
+  the menus, `reference.md` D13. `test-anatomy.md` of omnet-julia describes the
+  checks of a simulation run, is sealed by section and names no atom, and no omnet
+  document names the atom tests, so no omnet guide changes.
 
 When this plan is done, Q1 and the model of
 [a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md),
