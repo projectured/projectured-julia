@@ -589,8 +589,8 @@ kind, or in another example, is a failure. `grep -rn "@click-broken"` lists them
 The suites run the click test in parts of their own, at the level `:slow`:
 `test_catalog_clicks(; only, skip)` over the variant `:natural` of each atom of the
 catalog, and `test_part_clicks(; only, skip)` over `examples`, each in parts over groups
-of names. In omnet-julia, the suite of each package that owns atoms or examples runs
-them the same way.
+of names. A test package of another repository runs them the same way over its own
+atoms and examples.
 
 ## A test that checks the root of a built editor
 
