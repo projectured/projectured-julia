@@ -1,10 +1,10 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-27): in progress.** Steps 1 to 5, 6a, 6b, 7 and 8 are done.
-> Steps 6 to 9 are on main of both repositories and pushed up to projectured
-> 180ee1857 and omnet d52659a7f; D14 (O5) is on the local mains, not pushed
-> (projectured bba836f74, omnet 4ba5785e6). Step 9 waits for the check by hand of
-> the owner in the omnet IDE. The owner asked for the study
+> **Status (2026-11-27): done.** Each step is done, on main of both repositories
+> and pushed (projectured 2937837ce, omnet 4ba5785e6). The owner checked the
+> omnet IDE by hand (step 9). One fault stays open by the choice of the owner
+> (option C of O5): a move over a data frame table keeps the row that it reads,
+> until the general design of the memory of the documents that a view makes. The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -178,7 +178,7 @@ Alt+click on (:               <the document> … <the call> ‹.open›
   (`LayoutList.jl:323`) and the anchored layout (`LayoutToGraphics.jl:2603`).
 - **Containers that stop at a cell.** A table and an accordion map a point to
   a cell or a header, and not on into what it holds
-  ([the-work-that-the-forward-image-found.md](the-work-that-the-forward-image-found.md) §1).
+  ([the-work-that-the-forward-image-found.md](../pending/the-work-that-the-forward-image-found.md) §1).
 - **A drawn part has no object.** The default backward map names a drawn part
   with a `ProjectionReferenceStep`, which evaluates to its output path, a
   reference (`source/kernel/projection/ProjectionReferenceStep.jl:137`). So
@@ -1250,7 +1250,9 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
 
   The landing of 2026-11-19 (main 8356082d0, not pushed; the owner: "yes")
   holds step 5 and the walk fix, rebased with no conflict over main 0a4f46451.
-- [ ] 6. **The causes in projectured-julia.** Fix each cause that step 4
+- [x] 6. **The causes in projectured-julia.** (Done 2026-11-24: the throws, the
+  move over a drawn part, D12, T1 to T5 and C1 to C4; what is left is marked in
+  step 8.) Fix each cause that step 4
   found in its general rule, one commit for each cause: the views and layouts
   of §4, and the table and the accordion, which go on into a cell and a header.
   The table, the list and the tree follow D12: a plain click on the text of a
@@ -2941,7 +2943,8 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     and both pushed. The test call list of `ProjecturedKernelTest` records again,
     because it is the one changed test package that keeps a list; the test
     packages of omnet keep no list.
-- [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
+- [x] 9. **The documents and the live check.** (Done 2026-11-27: the owner,
+  "I already checked the IDE".) `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
   `clipboard.md`, and `keyboard-and-mouse-guide.md`. The owner checks the page of
@@ -2957,11 +2960,11 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   checks of a simulation run, is sealed by section and names no atom, and no omnet
   document names the atom tests, so no omnet guide changes.
 
-When this plan is done, Q1 and the model of
-[a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md),
+With this plan, Q1 and the model of
+[a-view-names-the-domain-part-under-a-point.md](../pending/a-view-names-the-domain-part-under-a-point.md),
 and §1 of
-[the-work-that-the-forward-image-found.md](the-work-that-the-forward-image-found.md),
-are done too.
+[the-work-that-the-forward-image-found.md](../pending/the-work-that-the-forward-image-found.md),
+are done too; each of those plans says so.
 
 ## 7. Not in this plan
 

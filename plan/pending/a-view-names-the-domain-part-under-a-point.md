@@ -8,6 +8,10 @@
 >
 > The owner kept it separate when the pointer work finished (2026-10-02, "keep it
 > separate").
+>
+> Q1 and the model of this plan are done by
+> [a-click-reaches-the-innermost-part-in-every-view.md](../done/a-click-reaches-the-innermost-part-in-every-view.md)
+> (done 2026-11-27).
 
 ## 1. The purpose
 

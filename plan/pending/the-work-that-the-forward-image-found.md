@@ -1,6 +1,9 @@
 # The work that the forward image found
 
 Status: pending. Owner request 2026-09-29: "put it in a new plan".
+§1 is done by
+[a-click-reaches-the-innermost-part-in-every-view.md](../done/a-click-reaches-the-innermost-part-in-every-view.md)
+(done 2026-11-27).
 Paused (owner 2026-10-02: "I want to finish the pointer work") after §2 and the
 facts of §1 and §3: the open pointer work comes first, and §1 and §3 wait.
 The order (owner 2026-10-02, "Agreed", on Claude's proposal): after the decided
