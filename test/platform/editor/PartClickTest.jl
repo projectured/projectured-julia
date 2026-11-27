@@ -453,7 +453,7 @@ function _pc_check_point!(session, element)
         elseif !_pc_is_within(base, plain.selection)
             push!(session.failures, "$at: a plain click selects $(format(plain.selection)), outside the document")
         elseif _pc_is_place(plain.selection) && !_pc_is_within(deepest, plain.selection)
-            push!(session.failures, "$at: the caret $(format(plain.selection)) is not inside $(format(deepest))")
+            push!(session.failures, "$at: the caret of the plain click $(format(plain.selection)) is not inside $(format(deepest))")
         end
     end
     # An Alt+click puts the caret on the character under the point, whatever the
@@ -473,7 +473,7 @@ function _pc_check_point!(session, element)
             caret = alt.selection
             _pc_count!(session, :carets)
             _pc_is_within(deepest, caret) ||
-                push!(session.failures, "$at: the caret $(format(caret)) is not inside $(format(deepest))")
+                push!(session.failures, "$at: the caret of the Alt+click $(format(caret)) is not inside $(format(deepest))")
             editor = session.editor
             image = try
                 map_reference_forward(editor.projection, editor.iomap, annotate_reference_types(editor.document, caret))
@@ -483,13 +483,13 @@ function _pc_check_point!(session, element)
             box = image === nothing ? nothing :
                 (try find_reference_box(session.output, image; visible = true) catch; nothing end)
             if box === nothing
-                push!(session.failures, "$at: the caret $(format(caret)) is not drawn")
+                push!(session.failures, "$at: the caret of the Alt+click $(format(caret)) is not drawn")
             else
                 cx = box.x - session.window_box.x
                 caret_x = cx
                 one = max(2, top.box.width ÷ max(1, length(String(_pc_read_value(top.node.text)))))
                 abs(cx - x) <= one + 1 ||
-                    push!(session.failures, "$at: the caret is drawn at x = $cx, not at the character")
+                    push!(session.failures, "$at: the caret of the Alt+click is drawn at x = $cx, not at the character")
             end
         end
     end
@@ -563,6 +563,8 @@ function walk_part_clicks(document, projection; width = 1200, height = 800, limi
     opened isa String && return [opened]
     session, shown = opened
     counts[:elements] = length(shown)
+    # A walk that presses no element checks nothing, so it gives the reason as a line.
+    isempty(shown) && return ["$label: the document draws no element in the window, so no element is pressed"]
     k = 0
     while k < min(length(shown), limit)
         k += 1
@@ -663,18 +665,111 @@ end
 Run [`walk_part_clicks`](@ref) on `example`, print each failure, and assert that
 the walk pressed a point and that no answer is outside the innermost part.
 `broken` is a predicate of a line of failure, or `nothing`: the failures that it
-names are known, and they count as one broken assertion.
+names are known, and they count as one broken assertion. A mark of the catalog makes
+the predicate with [`find_part_click_mark`](@ref).
 """
 function test_part_click(example; limit = 200, broken = nothing)
     @testset "a click reaches the innermost part: $(example.name)" begin
         counts = Dict{Symbol,Int}()
-        failures = walk_part_clicks(example.make_document(), example.make_projection();
-                                    label = example.name, limit, counts,
-                                    remake = () -> (example.make_document(), example.make_projection()))
+        # An example whose document or editor does not build gives one line of failure,
+        # as a press that throws does, so a mark can name it.
+        failures = try
+            walk_part_clicks(example.make_document(), example.make_projection();
+                             label = example.name, limit, counts,
+                             remake = () -> (example.make_document(), example.make_projection()))
+        catch exception
+            ["$(example.name): throws " * first(sprint(showerror, exception), 300)]
+        end
         known = broken === nothing ? String[] : filter(broken, failures)
         foreach(line -> println("  ", line), setdiff(failures, known))
-        @test get(counts, :points, 0) > 0
+        # A walk that pressed no point gives the reason as a line of failure.
+        @test get(counts, :points, 0) > 0 || !isempty(failures)
         @test isempty(setdiff(failures, known))
         isempty(known) || @test_broken isempty(known)
     end
 end
+
+# The kinds of a line of failure, in the order that a line is tried: the first text that
+# the line holds gives its kind.
+const _PC_FAILURE_KINDS = (
+    "a plain click does nothing" => :plain_does_nothing,
+    ", outside the document" => :plain_outside_document,
+    "the caret of the plain click" => :plain_caret_outside,
+    "an Alt+click acts" => :alt_acts,
+    "an Alt+click gives no caret" => :alt_no_caret,
+    "is not drawn" => :alt_caret_not_drawn,
+    "not at the character" => :alt_caret_off,
+    "the caret of the Alt+click" => :alt_caret_outside,
+    "an Alt+double click selects no part" => :double_no_part,
+    "no ring or band" => :double_not_drawn,
+    ", the part of the caret" => :double_not_caret_part,
+    "an Alt+double click selects" => :double_outside,
+    "a move names no part" => :move_no_part,
+    "the part of the Alt+double click" => :move_differs,
+    "has no forward image" => :no_image,
+    "draws no element" => :no_element,
+    "is not in the editor" => :not_in_editor,
+    "removes the document from the editor" => :press_removes_document,
+    "moves what is drawn" => :press_moves_drawing,
+    "does not build again" => :no_rebuild,
+    ": throws " => :throws,
+)
+
+"""
+    classify_part_click_failure(line) -> Symbol
+
+The kind of a line of failure of [`walk_part_clicks`](@ref): the gesture and what it
+answered. A mark of a known failure names its kind, so a failure of another kind is a
+failure.
+
+- A plain click on a text: `:plain_does_nothing`, `:plain_outside_document` (it selects
+  a part outside the document), `:plain_caret_outside` (its caret is outside the
+  innermost part).
+- An Alt+click: `:alt_acts`, `:alt_no_caret`, `:alt_caret_outside`,
+  `:alt_caret_not_drawn`, `:alt_caret_off` (the caret is drawn off the character).
+- An Alt+double click: `:double_no_part`, `:double_outside` (it selects a part outside
+  the innermost part), `:double_not_caret_part` (it selects a part that does not hold
+  the caret of the Alt+click), `:double_not_drawn` (no ring or band shows the part).
+- A move: `:move_no_part`, `:move_differs` (it names another part than the Alt+double
+  click selects).
+- The walk: `:no_image`, `:no_element` (the document draws no element in the
+  window), `:not_in_editor`, `:press_removes_document`,
+  `:press_moves_drawing`, `:no_rebuild`, `:throws`, and `:other`.
+"""
+function classify_part_click_failure(line::AbstractString)
+    for (text, kind) in _PC_FAILURE_KINDS
+        occursin(text, line) && return kind
+    end
+    :other
+end
+
+"""
+    find_part_click_mark(marks, name) -> predicate or nothing
+
+The known failures of the click test for the example `name`, as the field `click` of
+the marks of `test_catalog_examples` takes them, or `nothing`. `marks` is a list of
+pairs `signature => names`, and the example `name` knows the failures of that
+signature when `names` holds its name, or a start of it that ends with `/`, such as
+`"widget/"` for each atom of the widgets. A signature is a kind of
+[`classify_part_click_failure`](@ref), or a text that the line holds, such as the
+message of an exception:
+
+```julia
+const _CLICK_MARKS = (
+    # @click-broken the cause of the failures of this kind in these examples.
+    :double_not_drawn => ("widget/fact_group/natural", "task/group/natural"),
+    "throws FieldError: type GraphicsCanvas has no field `windows`" => ("widget/screen_document/",),
+)
+_click_broken(name) = find_part_click_mark(_CLICK_MARKS, name)
+```
+"""
+function find_part_click_mark(marks, name)
+    signatures = [first(mark) for mark in marks if any(entry -> _pc_is_named(name, entry), last(mark))]
+    isempty(signatures) && return nothing
+    line -> any(signature -> _pc_has_signature(line, signature), signatures)
+end
+
+_pc_is_named(name, entry) = name == entry || endswith(entry, "/") && startswith(name, entry)
+
+_pc_has_signature(line, kind::Symbol) = classify_part_click_failure(line) === kind
+_pc_has_signature(line, text::AbstractString) = occursin(text, line)
