@@ -1208,14 +1208,6 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         rendered === nothing && return
         surface, left, ascent = rendered
         texture = SDL_CreateTextureFromSurface(renderer, surface)
-        # The software renderer draws a scaled texture that a clip cuts from the
-        # cut part of its source, so a linear sample at the edge of the clip takes
-        # other texels than an uncut draw: a rectangle of a partial paint that cuts
-        # a text would draw other pixels than a full paint. A nearest sample of a
-        # text that the supersample scales by a whole number is the same under any
-        # clip.
-        _is_software_renderer(renderer) &&
-            SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest)
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
         SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
         SDL_FreeSurface(surface)
@@ -1236,6 +1228,16 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     # two paints that cut it at other edges would draw other pixels. Else the rect
     # is in logical pixels as real numbers, and the renderer scale maps it to device
     # pixels.
+    #
+    # On whole texels the texture samples nearest. Each texel then fills a block of
+    # `k` by `k` pixels of the target, and the copy of the target to the window,
+    # which averages each such block, gives back the texel: the window shows the
+    # glyphs as the hinting fitted them to its pixels. A linear sample would mix
+    # each texel with its neighbours twice, once here and once in that copy, and
+    # blur each stem that the hinting put on a pixel. A nearest sample is also the
+    # same under any clip, so a partial paint draws the pixels of a full one.
+    # A text at a scale that is not whole texels samples linear, except on the
+    # software renderer, which cuts a clipped texture before it samples it.
     baseline = Float64(elem.y + oy + entry.box_ascent)
     scale_x, scale_y = _get_render_scale(renderer)
     k = _find_texel_scale(scale_x, ratio)
@@ -1243,6 +1245,7 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         dest = Ref(SDL_Rect(Cint(k * (round(Int, (elem.x + ox) * ratio) - entry.left)),
                             Cint(k * (round(Int, baseline * ratio) - entry.ascent)),
                             Cint(k * entry.dw), Cint(k * entry.dh)))
+        SDL_SetTextureScaleMode(entry.texture, SDL_ScaleModeNearest)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderCopy(renderer, entry.texture, C_NULL, dest)
         SDL_RenderSetScale(renderer, Cfloat(scale_x), Cfloat(scale_y))
@@ -1250,6 +1253,8 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         dest = Ref(SDL_FRect(Cfloat(elem.x + ox - entry.left / ratio),
                              Cfloat(baseline - entry.ascent / ratio),
                              Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
+        SDL_SetTextureScaleMode(entry.texture, _is_software_renderer(renderer) ?
+                                SDL_ScaleModeNearest : SDL_ScaleModeLinear)
         SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
     end
 end
