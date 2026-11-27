@@ -4233,11 +4233,38 @@ function read_intent(p::WidgetMenuToGraphicsCanvas, recursion, change::Intent,
     gesture = change.gesture
     change.operation === nothing || return Intent(gesture, nothing)
     gesture isa KeyDown && return read_child_intent(p, recursion, change, iomap, nothing)
-    gesture isa MouseMove && return Intent(gesture, _read_children_move(iomap, gesture))
+    gesture isa MouseMove &&
+        return Intent(gesture, join_move_answers(_read_children_move(iomap, gesture),
+                                                 _read_menu_bar_move(iomap, gesture)))
     gesture isa Union{MouseClick, MouseDwell, MouseScroll} && !_outside_widget(iomap, gesture) ||
         return Intent(gesture, nothing)
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           slot -> _get_widget_element_steps(iomap.input.elements, slot))
+end
+
+# A move of the pointer onto a name of a menu bar that has a menu: the open of that
+# menu below the name, in place of the menu of another name of the bar, as a
+# `SwitchPopupOperation`. So while a menu of the bar is open, the menu follows the
+# pointer along the bar, and with none open a move opens nothing. `nothing` for a
+# vertical menu, and for a point on no enabled name that has a menu.
+function _read_menu_bar_move(iomap::WidgetChildrenIoMap, evt::MouseMove)
+    bar = iomap.input
+    (bar.orientation === :horizontal && !_outside_widget(iomap, evt)) || return nothing
+    for entry in Iterators.reverse(getfield(iomap, :child_iomaps)[]::Vector)
+        point = _find_widget_child_point(entry, evt.x, evt.y)
+        point === nothing && continue
+        item_iomap = last(entry)
+        item_iomap isa WidgetMenuItemToGraphicsCanvasIoMap || return nothing
+        item = get_iomap_input(item_iomap)
+        (item.visible !== false && item.submenu !== nothing && _menu_item_enabled(item)) || return nothing
+        others = Any[element.submenu for element in bar.elements
+                     if element isa WidgetMenuItem && element !== item && element.submenu !== nothing]
+        isempty(others) && return nothing
+        (x, y) = point
+        opened = _open_submenu_popup(item_iomap.projection, item.submenu, item_iomap)
+        return SwitchPopupOperation(others, shift_operation_position(opened, evt.x - x, evt.y - y))
+    end
+    nothing
 end
 
 # The keys of a menu move its highlight and choose its item.

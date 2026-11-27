@@ -55,7 +55,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
                            read_projection_gesture
 
 export ChangeScreenPointerShapeOperation, make_screen_pointer_shape_operation
-export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
+export OpenWindowOperation, OpenPopupOperation, SwitchPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
 export EscapeQuittingProjection, EscapeQuittingIoMap

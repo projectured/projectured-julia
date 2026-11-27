@@ -285,6 +285,29 @@ end
 OperationModule.is_self_contained_operation(::CloseWindowOperation) = true
 
 """
+    SwitchPopupOperation(replaced, operation)
+
+`operation`, the open of a popup, applied only in place of an open window of the
+same id that shows one of the documents of `replaced`, compared by identity, and
+dropped otherwise. A name of a menu bar answers a move of the pointer onto it with
+the open of its own menu, and `replaced` holds the menus of the other names, so the
+menu follows the pointer along the bar while one of them is open, and a move with
+no menu of the bar open opens nothing.
+
+It holds the open as a `WrappingOperation`, so every reader on the way up moves the
+place of the popup as it moves the place of a bare open. The window manager decides
+it against the windows of its screen.
+"""
+struct SwitchPopupOperation <: WrappingOperation
+    replaced::Vector{Any}
+    operation::Any
+end
+
+OperationModule.get_wrapped_operation(operation::SwitchPopupOperation) = operation.operation
+OperationModule.rewrap_operation(operation::SwitchPopupOperation, inner) =
+    SwitchPopupOperation(operation.replaced, inner)
+
+"""
     ChangeScreenPointerShapeOperation(shape)
 
 Give the pointer `shape`, one of `POINTER_SHAPES`, over every window of the

@@ -22,6 +22,12 @@ one-word tooltip is small and a long menu grows taller to fit its items.
   tooltip that a command opened, it stands below the part instead, so it does
   not cover it.
 
+## Moving along the menu bar
+
+While a menu of the menu bar is open, moving the pointer onto another name of the
+bar opens that name's menu in its place. With no menu open, moving the pointer
+over the bar opens nothing.
+
 ## How it closes
 
 - A menu, the list of a dropdown field, and a context menu close on Escape and

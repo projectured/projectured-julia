@@ -181,6 +181,9 @@ end
 # of a choice, comes after it and wins. An open that takes the selection puts the
 # selection of the new window last.
 function _apply_window_ops(iomap, change, inner)
+    switched = _decide_popup_switches(iomap.input, inner.operation)
+    switched === inner.operation ||
+        (inner = Intent(inner.gesture, switched, inner.description, inner.domain, inner.route))
     op = inner.operation
     operations = op isa CompoundOperation ? op.operations : Any[op]
     any(o -> o isa Union{OpenWindowOperation, CloseWindowOperation}, operations) || return inner
@@ -197,6 +200,29 @@ function _apply_window_ops(iomap, change, inner)
         end
     end
     Intent(change.gesture, _join_window_answers(given_back, rest, taken))
+end
+
+# `operation` with each `SwitchPopupOperation` in it decided against `screen`: the
+# open that it holds where the screen shows one of its replaced documents in the
+# window of that id, and nothing where it does not. A switch can sit inside the
+# compound of a move, with the parts that the pointer enters and leaves.
+_decide_popup_switches(screen, operation) = operation
+_decide_popup_switches(screen, operation::SwitchPopupOperation) =
+    _is_popup_switch_allowed(screen, operation) ? get_wrapped_operation(operation) : nothing
+function _decide_popup_switches(screen, operation::CompoundOperation)
+    members = Any[_decide_popup_switches(screen, member) for member in operation.operations]
+    all(member === original for (member, original) in zip(members, operation.operations)) &&
+        return operation
+    _join_window_answers(members)
+end
+
+function _is_popup_switch_allowed(screen, operation::SwitchPopupOperation)
+    opened = get_wrapped_operation(operation)
+    opened isa OpenWindowOperation || return false
+    window = _find_window(screen, opened.id)
+    window === nothing && return false
+    content = window.content
+    any(replaced -> replaced === content, operation.replaced)
 end
 
 # The operations in order, without the ones that are `nothing`, as one answer:
@@ -361,6 +387,12 @@ end
 function evaluate_operation(editor, op::OpenWindowOperation)
     selection = _open_screen_window!(_find_editor_screen(editor), op)
     selection === nothing || evaluate_operation(editor, selection)
+    nothing
+end
+
+function evaluate_operation(editor, operation::SwitchPopupOperation)
+    decided = _decide_popup_switches(_find_editor_screen(editor), operation)
+    decided === nothing || evaluate_operation(editor, decided)
     nothing
 end
 

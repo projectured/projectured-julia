@@ -353,5 +353,51 @@ end
     @test popup.x == Int(main.x) + (800 - 480) ÷ 2
 end
 
+@testset "shell: while a menu of the bar is open, a move onto another name opens its menu" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    bar = only(document for document in search_documents(screen, node -> node isa WidgetMenu)
+               if document.orientation === :horizontal)
+    menu_of(label) = only(item.submenu for item in bar.elements if string(item.action.label) == label)
+    popups() = [window for window in screen.windows if window.style === :popup]
+    place(label) = _cm_place_of(_cm_drawn_window(editor, screen, id), label)
+    move!(label, time) = (point = place(label);
+                          _ww_press!(editor, backend, WindowInput(id, MouseMove(point[1] + 2, point[2] + 2; time))))
+    # With no menu open, a move along the bar opens nothing.
+    move!("File", 1.0); move!("View", 1.1)
+    @test isempty(popups())
+    # A click opens the menu of File, and a move onto View opens the menu of View in
+    # its place, where a click on View opens it; a move back onto File opens the
+    # menu of File again.
+    file = place("File"); view = place("View")
+    popup_place() = (run_frame!(editor); window = _cm_output_window(editor, screen, :widget_popup);
+                     (Int(window.x), Int(window.y)))
+    _cm_click!(editor, backend, :left, file[1] + 2, file[2] + 2, 2.0; window = id)
+    @test only(popups()).content === menu_of("File")
+    move!("View", 3.0)
+    @test only(popups()).content === menu_of("View")
+    moved_to = popup_place()
+    _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 3.2)))
+    _cm_click!(editor, backend, :left, view[1] + 2, view[2] + 2, 3.4; window = id)
+    @test only(popups()).content === menu_of("View")
+    @test popup_place() == moved_to
+    move!("File", 4.0)
+    @test only(popups()).content === menu_of("File")
+    # A move within the name of the open menu keeps the same window open.
+    opened = only(popups())
+    move!("File", 4.1)
+    @test only(popups()) === opened
+    # Another popup, the command palette, is no menu of the bar, so a move along the
+    # bar leaves it open.
+    _ww_press!(editor, backend, WindowInput(id, KeyDown(:escape, ModifierKeys(); time = 5.0)))
+    @test isempty(popups())
+    _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p; shift = true)))
+    @test only(popups()).content isa WidgetChoiceList
+    move!("View", 6.0)
+    @test only(popups()).content isa WidgetChoiceList
+end
+
 end # @testset
 end
