@@ -289,3 +289,95 @@ function test_task_pages()
         end
     end
 end
+
+# The reads of the file of a stream around a byte offset, which the background
+# source of a stream page runs: a window of lines and the lines before it, a
+# filter, a count, a search round the end, and the edges of a file.
+function test_task_stream_reads()
+    @testset "task stream reads" begin
+        folder = mktempdir()
+        path = joinpath(folder, "stream.txt")
+        texts = ["line $i" for i in 1:100]
+        texts[50] = "error fifty"
+        texts[80] = "error eighty"
+        # The last line has no end yet, so it is not in the flushed bytes.
+        write(path, join(texts, "\n") * "\n" * "a line with no end yet")
+        flushed = sum(sizeof, texts) + length(texts)
+        start_of(k) = sum((sizeof(texts[j]) + 1 for j in 1:(k - 1)); init = 0)
+        window(offset, count; keywords...) = TaskModule.read_stream_window(path, flushed, offset, count; keywords...)
+
+        @testset "a window at the start, in the middle and at the end" begin
+            w = window(0, 10)
+            @test w.texts == texts[1:10] && w.offsets == start_of.(1:10) && w.steps == 0:9
+            @test isempty(w.before) && !TaskModule.is_stream_window_at_end(w) && w.top == 1
+            w = window(start_of(40), 10)
+            @test w.texts == texts[40:49]
+            @test w.before == start_of.(39:-1:30) && w.before_steps == 1:10
+            # An offset inside a line names the next line.
+            @test first(window(start_of(40) + 2, 10).texts) == "line 41"
+            # Near the end the window holds the last lines, and the line that has no
+            # end stays out.
+            w = window(start_of(95), 10)
+            @test w.texts == texts[91:100] && w.to_end == 10 && w.offsets[w.top] == start_of(95)
+            w = window(flushed, 10)
+            @test w.texts == texts[91:100] && w.top == 11
+            # A lead of three lines shows the line three lines below the top.
+            w = window(start_of(50), 10; lead = 3)
+            @test first(w.texts) == "line 47" && w.texts[4] == "error fifty"
+        end
+
+        @testset "a filter shows the lines that hold its text" begin
+            w = window(0, 10; filter = "error")
+            @test w.texts == ["error fifty", "error eighty"] && w.steps == [0, 30] && w.to_end == 51
+            w = window(start_of(60), 1; filter = "error")
+            @test w.texts == ["error eighty"] && w.before == [start_of(50)] && w.before_steps == [30]
+            @test !TaskModule.is_stream_window_at_end(w)
+            @test isempty(window(0, 10; filter = "absent").texts)
+        end
+
+        @testset "a count of the lines, and a search round the end" begin
+            count_lines(from, to; keywords...) = TaskModule.count_stream_lines(path, from, to; keywords...)
+            @test count_lines(0, flushed) == 100
+            @test count_lines(start_of(10), start_of(20)) == 10
+            @test count_lines(0, flushed; filter = "error") == 2
+            @test count_lines(start_of(51), flushed; filter = "error") == 1
+            @test count_lines(0, flushed; text = "error", filter = "eighty") == 1
+            find(offset, step; keywords...) = TaskModule.find_stream_match(path, flushed, offset, "error", step; keywords...)
+            @test find(-1, 1) == start_of(50) && find(-1, -1) == start_of(80)
+            @test find(start_of(50), 1) == start_of(80) && find(start_of(80), 1) == start_of(50)
+            @test find(start_of(80), -1) == start_of(50) && find(start_of(50), -1) == start_of(80)
+            @test find(start_of(10), 1) == start_of(50) && find(start_of(60), -1) == start_of(50)
+            @test find(-1, 1; filter = "eighty") == start_of(80)
+            @test TaskModule.find_stream_match(path, flushed, -1, "absent", 1) === nothing
+        end
+
+        @testset "a read before an offset crosses the blocks of the read" begin
+            big = joinpath(folder, "big.txt")
+            rows = ["row $i" for i in 1:20000]
+            write(big, join(rows, "\n") * "\n")
+            big_size = filesize(big)
+            row_start(k) = sum((sizeof(rows[j]) + 1 for j in 1:(k - 1)); init = 0)
+            w = TaskModule.read_stream_window(big, big_size, big_size, 5)
+            @test w.texts == rows[19996:20000] && w.to_end == 5
+            w = TaskModule.read_stream_window(big, big_size, row_start(15000), 3)
+            @test w.texts == rows[15000:15002] && w.before == row_start.(14999:-1:14997)
+            @test TaskModule.count_stream_lines(big, 0, big_size) == 20000
+            @test TaskModule.find_stream_match(big, big_size, -1, "row 3", -1) == row_start(3999)
+        end
+
+        @testset "a long line, a carriage return, an empty file and no file" begin
+            long = joinpath(folder, "long.txt")
+            write(long, "a"^10000 * "\nshort\r\n")
+            w = TaskModule.read_stream_window(long, filesize(long), 0, 5)
+            @test w.texts[1] == "a"^TaskModule._STREAM_LINE_LIMIT * "…" && w.texts[2] == "short"
+            @test w.offsets == [0, 10001]
+            empty_path = joinpath(folder, "empty.txt")
+            touch(empty_path)
+            @test TaskModule.read_stream_window(empty_path, 0, 0, 5) === TaskModule.EMPTY_STREAM_WINDOW
+            missing_file = joinpath(folder, "none.txt")
+            @test TaskModule.read_stream_window(missing_file, 10, 0, 5) === TaskModule.EMPTY_STREAM_WINDOW
+            @test TaskModule.count_stream_lines(missing_file, 0, 10) == 0
+            @test TaskModule.find_stream_match(missing_file, 10, -1, "a", 1) === nothing
+        end
+    end
+end

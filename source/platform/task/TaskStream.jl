@@ -69,6 +69,282 @@ function _search_stream_lines(index::_TaskStreamIndex, text::AbstractString)
     found
 end
 
+# ── The lines around an offset ───────────────────────────────────────────────
+
+# A stream page keeps no list of the lines of its file. A background source reads
+# the lines around a byte offset, and stops at the size that the writer flushed
+# (`TaskOutput.flushed_size`), which ends at the end of a line. So a read sees whole
+# lines only. A line shows when it holds the text of the filter, or always when
+# that text is empty.
+
+# The most bytes of a line that a window keeps for the screen.
+const _STREAM_LINE_LIMIT = 4096
+
+# The bytes that a read before an offset takes at a time.
+const _STREAM_BLOCK_SIZE = 65536
+
+"""
+    StreamWindow
+
+The lines of the file of a stream around an offset, as
+[`read_stream_window`](@ref) reads them.
+
+- `offsets` and `texts` — the start and the text of each line that shows, the
+  first first. A text longer than the screen keeps its first bytes.
+- `steps` — for each line that shows, the count of the lines of the file from
+  the first line that shows to it: `0` for the first. With a filter, it counts
+  the lines that do not show too.
+- `top` — the index in `offsets` of the line that the offset names: `1` when
+  the window starts there. A window that holds the last lines can start before
+  that line, and at the end of the file `top` is one past the last line.
+- `before` and `before_steps` — the starts of the lines that show before the
+  first, at most one window of them, the nearest first, and for each the count of
+  the lines of the file from it to the first line that shows.
+- `to_end` — when the window holds the last lines that show, the count of the
+  lines of the file from the first line that shows to the end, that line
+  included; else `-1`.
+"""
+struct StreamWindow
+    offsets::Vector{Int}
+    texts::Vector{String}
+    steps::Vector{Int}
+    top::Int
+    before::Vector{Int}
+    before_steps::Vector{Int}
+    to_end::Int
+end
+
+const EMPTY_STREAM_WINDOW = StreamWindow(Int[], String[], Int[], 1, Int[], Int[], -1)
+
+"""`true` when `window` holds the last lines that show."""
+is_stream_window_at_end(window::StreamWindow) = window.to_end >= 0
+
+# The text of a line for the screen: the line with no carriage return at its end,
+# cut at the limit of the screen.
+function _make_stream_line_text(line::String)
+    line = endswith(line, '\r') ? String(chop(line)) : line
+    ncodeunits(line) <= _STREAM_LINE_LIMIT && return line
+    line[1:prevind(line, _STREAM_LINE_LIMIT + 1)] * "…"
+end
+
+_does_stream_line_show(line::AbstractString, filter::AbstractString) = isempty(filter) || occursin(filter, line)
+
+# Visit each line from `offset`, the first first, up to `limit`:
+# `visit(start, line)` gets the start of the line and its text with no line
+# break, and answers `false` to stop.
+function _visit_stream_lines_after(visit, io::IO, offset::Int, limit::Int)
+    seek(io, offset)
+    while position(io) < limit
+        start = position(io)
+        visit(start, readuntil(io, '\n')) || return
+    end
+end
+
+# Visit each line before `offset`, which is the start of a line, the nearest first,
+# with a read of blocks backward: `visit(start, stop)` gets the bytes from `start`
+# to `stop` of the line, its line break included, and answers `false` to stop.
+function _visit_stream_lines_before(visit, io::IO, offset::Int)
+    line_end = offset
+    # The byte before `offset` is the line break of the line before.
+    unread = offset - 1
+    while unread > 0
+        first_byte = max(0, unread - _STREAM_BLOCK_SIZE)
+        seek(io, first_byte)
+        block = read(io, unread - first_byte)
+        for i in length(block):-1:1
+            block[i] == UInt8('\n') || continue
+            start = first_byte + i
+            visit(start, line_end) || return
+            line_end = start
+        end
+        unread = first_byte
+    end
+    offset > 0 && visit(0, line_end)
+    nothing
+end
+
+# The text of the line from `start` to `stop`, with no line break.
+function _read_stream_line(io::IO, start::Int, stop::Int)
+    seek(io, start)
+    String(read(io, stop - start - 1))
+end
+
+# The start of the line at `offset` when a line starts there, else the start of
+# the next line. A jump of the scroll bar can name any byte.
+function _find_stream_line_start(io::IO, offset::Int, limit::Int)
+    offset <= 0 && return 0
+    offset >= limit && return limit
+    seek(io, offset - 1)
+    read(io, UInt8) == UInt8('\n') && return offset
+    readuntil(io, '\n')
+    min(position(io), limit)
+end
+
+# The starts of up to `count` lines that show before `offset`, the nearest first,
+# with the count of the lines of the file from each to `offset`.
+function _collect_stream_lines_before(io::IO, offset::Int, count::Int, filter::AbstractString)
+    starts = Int[]
+    steps = Int[]
+    passed = 0
+    count > 0 && _visit_stream_lines_before(io, offset) do start, stop
+        passed += 1
+        if isempty(filter) || _does_stream_line_show(_read_stream_line(io, start, stop), filter)
+            push!(starts, start)
+            push!(steps, passed)
+        end
+        length(starts) < count
+    end
+    (starts, steps)
+end
+
+"""
+    read_stream_window(path, flushed, offset, count; filter = "", lead = 0) -> StreamWindow
+
+The `count` lines that show from the line at `offset` in the file at `path`, of
+which the first `flushed` bytes hold whole lines. A line shows when it holds
+`filter`, or always for an empty `filter`.
+
+- An `offset` inside a line names the next line.
+- `lead` lines that show before that line come first, so the line shows that far
+  below the top.
+- When fewer than `count` lines show from there to the end, the window holds the
+  last `count` lines that show. An `offset` at `flushed` gives the last lines.
+
+The window also holds the starts of one window of lines that show before its
+first, for a move up. It reads the file only around the lines it gives, and
+the lines that it passes; a filter that few lines hold can pass many.
+"""
+function read_stream_window(path::AbstractString, flushed::Int, offset::Int, count::Int;
+                            filter::AbstractString = "", lead::Int = 0)
+    (flushed <= 0 || count <= 0 || !isfile(path)) && return EMPTY_STREAM_WINDOW
+    open(path) do io
+        start = _find_stream_line_start(io, offset, flushed)
+        if lead > 0
+            (leading, _) = _collect_stream_lines_before(io, start, lead, filter)
+            isempty(leading) || (start = last(leading))
+        end
+        offsets = Int[]
+        texts = String[]
+        steps = Int[]
+        passed = -1
+        _visit_stream_lines_after(io, start, flushed) do line_start, line
+            isempty(offsets) || (passed += 1)
+            if _does_stream_line_show(line, filter)
+                isempty(offsets) && (passed = 0)
+                push!(offsets, line_start)
+                push!(texts, _make_stream_line_text(line))
+                push!(steps, passed)
+            end
+            length(offsets) < count
+        end
+        to_end = -1
+        top = 1
+        if length(offsets) < count || position(io) >= flushed
+            (offsets, texts, steps, to_end) = _read_stream_last_lines(io, flushed, count, filter)
+            top = something(findfirst(>=(start), offsets), length(offsets) + 1)
+        end
+        (before, before_steps) = isempty(offsets) ? (Int[], Int[]) :
+                                 _collect_stream_lines_before(io, first(offsets), count, filter)
+        StreamWindow(offsets, texts, steps, top, before, before_steps, to_end)
+    end
+end
+
+# The last `count` lines that show, the first first, their steps from the first,
+# and the count of the lines of the file from the first to the end.
+function _read_stream_last_lines(io::IO, flushed::Int, count::Int, filter::AbstractString)
+    starts = Int[]
+    stops = Int[]
+    positions = Int[]
+    passed = 0
+    _visit_stream_lines_before(io, flushed) do start, stop
+        passed += 1
+        if _does_stream_line_show(_read_stream_line(io, start, stop), filter)
+            push!(starts, start)
+            push!(stops, stop)
+            push!(positions, passed)
+        end
+        length(starts) < count
+    end
+    isempty(starts) && return (Int[], String[], Int[], -1)
+    reverse!(starts)
+    reverse!(stops)
+    reverse!(positions)
+    texts = [_make_stream_line_text(_read_stream_line(io, start, stop)) for (start, stop) in zip(starts, stops)]
+    to_end = first(positions)
+    (starts, texts, [to_end - p for p in positions], to_end)
+end
+
+"""
+    count_stream_lines(path, from, to; text = "", filter = "") -> Int
+
+The count of the lines that start at a byte from `from` to before `to` in the
+file at `path`, that hold `text` and that show under `filter`. An empty text and
+an empty filter count every line. `from` and `to` are starts of lines, or `to` is
+the flushed size.
+"""
+function count_stream_lines(path::AbstractString, from::Int, to::Int; text::AbstractString = "",
+                            filter::AbstractString = "")
+    (to <= from || !isfile(path)) && return 0
+    open(path) do io
+        seek(io, from)
+        count = 0
+        if isempty(text) && isempty(filter)
+            remaining = to - from
+            while remaining > 0
+                block = read(io, min(remaining, _STREAM_BLOCK_SIZE))
+                isempty(block) && break
+                count += Base.count(==(UInt8('\n')), block)
+                remaining -= length(block)
+            end
+        else
+            _visit_stream_lines_after(io, from, to) do _, line
+                (isempty(text) || occursin(text, line)) && _does_stream_line_show(line, filter) && (count += 1)
+                true
+            end
+        end
+        count
+    end
+end
+
+"""
+    find_stream_match(path, flushed, offset, text, step; filter = "") -> Int or nothing
+
+The start of the next line after the line at `offset`, for `step = 1`, or of the
+line before it, for `step = -1`, that holds `text` and shows under `filter`,
+round from the end to the start. An `offset` of `-1` names no line: the first
+match comes for `step = 1` and the last for `step = -1`. `nothing` when no line
+holds `text`.
+"""
+function find_stream_match(path::AbstractString, flushed::Int, offset::Int, text::AbstractString, step::Int;
+                           filter::AbstractString = "")
+    (isempty(text) || flushed <= 0 || !isfile(path)) && return nothing
+    holds(line) = occursin(text, line) && _does_stream_line_show(line, filter)
+    open(path) do io
+        found = nothing
+        if step > 0
+            from = offset < 0 ? 0 : (seek(io, offset); readuntil(io, '\n'); position(io))
+            for (first_byte, last_byte) in ((from, flushed), (0, from))
+                _visit_stream_lines_after(io, first_byte, last_byte) do start, line
+                    holds(line) && (found = start)
+                    found === nothing
+                end
+                found === nothing || break
+            end
+        else
+            from = offset < 0 ? flushed : offset
+            for (end_byte, floor) in ((from, 0), (flushed, from))
+                _visit_stream_lines_before(io, end_byte) do start, stop
+                    start < floor && return false
+                    holds(_read_stream_line(io, start, stop)) && (found = start)
+                    found === nothing
+                end
+                found === nothing || break
+            end
+        end
+        found
+    end
+end
+
 # ── The documents ────────────────────────────────────────────────────────────
 
 """

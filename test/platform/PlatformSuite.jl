@@ -429,6 +429,7 @@ const test_platform = TestSuite("ProjecturedPlatform", [
     test_task_views,
     test_task_group_table,
     test_task_pages,
+    test_task_stream_reads,
     test_task_group_verbs,
     test_task_work_item,
     test_task_list_pane,

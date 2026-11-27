@@ -127,9 +127,10 @@ Each item here is a proposed decision. The approval of the plan approves them.
 Each step is one commit on the branch, in a worktree of `workspace/bin/julia-worktree`. The
 test of each step is `test_platform(only = "task")` and the part of the new functions.
 
-- [ ] **Step 1. The writer records the flushed bytes and lines, and the offset of the first
+- [x] **Step 1. The writer records the flushed bytes and lines, and the offset of the first
   line of each mark** (D2). Test: a process with known output, and the numbers after it ends.
-- [ ] **Step 2. The reads around an offset** (D3), the measurement of the limit of D7, with tests on a temporary file: a window at
+  Done in `3f1c813d4`: 12 task parts, 980 pass, 0 fail, 0 error.
+- [x] **Step 2. The reads around an offset** (D3), the measurement of the limit of D7, with tests on a temporary file: a window at
   the start, in the middle and at the end, the screen before the top, a line that has no end
   yet, an empty file, a long line, `\r\n`, a count with a text, a search forward and backward
   and round.
@@ -152,4 +153,20 @@ test of each step is `test_platform(only = "task")` and the part of the new func
 
 ## 7. What the work found
 
-(Empty until the work starts.)
+**Step 1.** The writer counts the bytes that it writes: `println` adds one line break to a line
+that `eachline` gave with no line break, so a line takes `sizeof(line) + 1` bytes. The flushed
+bytes and lines are recorded after each flush and once more after the file closes. The sync of
+the shadow also copies a stream when only its flushed size changed, because the last record comes
+with no new line.
+
+**Step 2.** The reads are in the section "The lines around an offset" of `TaskStream.jl`, with the
+part `test_task_stream_reads` (33 pass).
+- A window holds a field `top`: the index of the line that the offset names. A window that holds
+  the last lines can start before that line, so the page needs the index.
+- The reads are not exported. They are names of `TaskModule`, and the test calls them so.
+- **The limit of D7 is 32 MB** (`_STREAM_COUNTED_SIZE = 32_000_000`). The measurement, 2026-11-27:
+  one Julia process on one core, a file in `/var/tmp` that the page cache holds, lines of about
+  70 bytes, and the shortest of 3 runs. A count of the line breaks takes 0.5 ms for 4 MB, 1.5 ms
+  for 16 MB and 7.8 ms for 64 MB. A count with a filter reads each line and takes 4.8 ms, 18.4 ms
+  and 71.6 ms. A jump to a line and a count with a filter are the slow case, about 50 ms at 45 MB,
+  so the limit is 32 MB. A file that the page cache does not hold reads at the speed of the disk.
