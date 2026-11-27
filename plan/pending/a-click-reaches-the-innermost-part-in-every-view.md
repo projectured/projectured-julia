@@ -2843,6 +2843,27 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     line of the five atoms they give no fail and no error; the four omnet parts
     204 pass, 0 fail, 0 error, 84 broken; `test_cosim_presentation` 23340 pass and
     4 broken, against 23314 and 4 in the record of omnet main f52add012.
+  - The runs of all parts before a land, with no network (2026-11-27, projectured
+    36537ff00 and omnet bea376eb4; records `/var/tmp/ic-scratch/land-*.tsv`):
+    - omnet: 272 parts, 880934 pass, 0 fail, 1 error, 407 broken; the rest
+      (guards, build, native samples) 124 pass, 89 broken. The error is an
+      unexpected pass in `test_ide_gestures_compile_little`: the build of the image
+      of omnet_ide writes no warning about stale recorded calls of
+      ProjecturedJulia any more, because projectured main 2b326cc4b records its
+      lists again. The check is a `@test` again (omnet d52659a7f); the part alone
+      4 pass, 0 fail, 3 broken.
+    - projectured: 784 parts, 3521854 pass, 3 fail, 0 error, 3821 broken, 1
+      timeout. `test_documentation` 2 fail: the new paragraph of the testing guide
+      named a private repository; it names none now (c1fe17596), and the part
+      passes. `test_part_clicks(xml, fsm)` took more than 1800 s under the load of
+      the run, where it took 430 s alone; `fsm` is a part of its own now (108 s
+      alone), and `xml` is in the part of the natural examples (100 s alone)
+      (fe5564cbb). `test_editor_memory_cycle` 1 fail: a holder in the IO maps of
+      the second window grows (132 KB, then 79 KB). Alone on the same code it gave
+      a fail of another kind once (the known growth of the root does not show) and
+      passed twice (the root grows by 115/384 KB and by 561/464 KB), so this check
+      of main varies from run to run; it is no fault that the branch makes in each
+      run, and it waits for the owner.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
