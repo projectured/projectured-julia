@@ -25,6 +25,8 @@ A key press goes to the view under the selection, and each view says which keys 
 | right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
 | F2, while a menu is open | add the menu of the part around it |
 | Shift + F2, while a menu is open | show one menu fewer |
+| Down, Up, Home, End, Enter, while a menu is open | light the next, the previous, the first or the last item of the menu; Enter runs the lit item and closes the menu |
+| Left, Right, while a menu of the menu bar is open | open the menu of the name before or after it on the bar |
 | rest the pointer | a tooltip says what the thing under it is |
 | click | do what the part under the pointer does: a button presses, a tab opens its page, a checkbox or a switch toggles, a link opens its target, a menu item runs, a chevron opens or closes its group, the text of a table header selects its column or row, a row of a list or a tree selects its row; on a text with no such use, put the caret where you click; on a part with no text and no use, select the part as a whole; on the padding of a row, a cell or a card, select that row, cell or card |
 | double click on a file in the Files pane | open that file |

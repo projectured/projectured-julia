@@ -141,7 +141,8 @@ end
 # so a left press anywhere triggers it. To open a popup is not an edit, so the
 # popup comes marked as view state.
 
-_menu_popup(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+# The open names the item as its opener, and is marked as view state inside that.
+_menu_popup(op) = op isa WrappingOperation ? _menu_popup(get_wrapped_operation(op)) : op
 
 # The IO map of `document` in the IO map tree of a print: the example projection
 # is a chain, so the widget's own IO map sits inside the IO map of the print. The
@@ -168,7 +169,8 @@ end
     iomap = print_document(proj, item)
 
     op = read_intent(proj, nothing, Intent(MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)), iomap).operation
-    @test op isa ReplaceViewStateOperation
+    @test op isa RecordPopupOpenerOperation && op.opener === item
+    @test get_wrapped_operation(op) isa ReplaceViewStateOperation
     popup = _menu_popup(op)
     @test popup isa OpenPopupOperation
     @test popup.id === :widget_popup

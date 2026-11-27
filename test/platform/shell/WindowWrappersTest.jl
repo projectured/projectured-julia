@@ -399,5 +399,96 @@ end
     @test only(popups()).content isa WidgetChoiceList
 end
 
+@testset "shell: the keys of the window go to an open menu of the bar first" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    bar = only(document for document in search_documents(screen, node -> node isa WidgetMenu)
+               if document.orientation === :horizontal)
+    help = only(item.submenu for item in bar.elements if string(item.action.label) == "Help")
+    popups() = [window for window in screen.windows if window.style === :popup]
+    press!(key, time) = _ww_press!(editor, backend, WindowInput(id, KeyDown(key, ModifierKeys(); time)))
+    open_help!(time) = (point = _cm_place_of(_cm_drawn_window(editor, screen, id), "Help");
+                        _cm_click!(editor, backend, :left, point[1] + 2, point[2] + 2, time; window = id))
+    # The items that the keys light: the enabled commands, in order.
+    lit = [index for (index, item) in enumerate(help.elements)
+           if item isa WidgetMenuItem && item.submenu === nothing && item.enabled !== false]
+    palette = findfirst(index -> string(help.elements[index].action.label) == "Command palette", lit)
+    selection = _ww_selection(editor)
+    open_help!(1.0)
+    @test only(popups()).content === help && help.highlighted == 0
+    # Down lights the first item, and the selection of the window stays.
+    press!(:down, 2.0)
+    @test help.highlighted == lit[1]
+    @test _ww_selection(editor) == selection
+    press!(:end, 2.1); @test help.highlighted == lit[end]
+    press!(:home, 2.2); @test help.highlighted == lit[1]
+    for step in 2:palette
+        press!(:down, 2.2 + step / 10)
+    end
+    @test help.highlighted == lit[palette]
+    # Enter runs the lit item: the palette opens in the place of the menu.
+    press!(:return, 3.0)
+    drain_operations!(editor)
+    run_frame!(editor)
+    @test only(popups()).content isa WidgetChoiceList
+    press!(:escape, 4.0)
+    @test isempty(popups())
+    # The menu opens again with no item lit.
+    open_help!(5.0)
+    @test only(popups()).content === help && help.highlighted == 0
+end
+
+@testset "shell: Left and Right move the open menu along the bar" begin
+    editor, backend = _ww_editor(PrimitiveString("x"); window = (; width = 800, height = 600),
+                                 shell = true, command_palette = true)
+    screen = get_wrapped_document(editor.document)
+    id = screen.windows[1].id
+    bar = only(document for document in search_documents(screen, node -> node isa WidgetMenu)
+               if document.orientation === :horizontal)
+    names = [string(item.action.label) for item in bar.elements
+             if item isa WidgetMenuItem && item.submenu !== nothing]
+    menu_of(label) = only(item.submenu for item in bar.elements if string(item.action.label) == label)
+    popups() = [window for window in screen.windows if window.style === :popup]
+    press!(key, time) = _ww_press!(editor, backend, WindowInput(id, KeyDown(key, ModifierKeys(); time)))
+    place(label) = _cm_place_of(_cm_drawn_window(editor, screen, id), label)
+    click!(label, time) = (point = place(label);
+                           _cm_click!(editor, backend, :left, point[1] + 2, point[2] + 2, time; window = id))
+    popup_place() = (run_frame!(editor); window = _cm_output_window(editor, screen, :widget_popup);
+                     (Int(window.x), Int(window.y)))
+    @test length(names) >= 3 && names[1] == "File"
+    selection = _ww_selection(editor)
+    click!("File", 1.0)
+    # Right opens the menu of the next name, where a click on that name opens it,
+    # and the selection of the window stays.
+    press!(:right, 2.0)
+    @test only(popups()).content === menu_of(names[2])
+    @test _ww_selection(editor) == selection
+    by_key = popup_place()
+    press!(:escape, 2.5)
+    click!(names[2], 3.0)
+    @test popup_place() == by_key
+    # Each Right moves one name on, and past the last name it comes round to the first.
+    for (step, name) in enumerate(vcat(names[3:end], names[1]))
+        press!(:right, 3.0 + step / 10)
+        @test only(popups()).content === menu_of(name)
+    end
+    # Left from the first name opens the menu of the last.
+    press!(:left, 4.0)
+    @test only(popups()).content === menu_of(names[end])
+    # A menu that the pointer opened moves on from its own name.
+    point = place(names[2])
+    _ww_press!(editor, backend, WindowInput(id, MouseMove(point[1] + 2, point[2] + 2; time = 5.0)))
+    @test only(popups()).content === menu_of(names[2])
+    press!(:right, 5.1)
+    @test only(popups()).content === menu_of(names[3])
+    # The command palette names no opener, so an arrow stays in it.
+    press!(:escape, 6.0)
+    _ww_press!(editor, backend, WindowInput(id, _ww_ctrl(:p; shift = true)))
+    press!(:right, 6.5)
+    @test only(popups()).content isa WidgetChoiceList
+end
+
 end # @testset
 end

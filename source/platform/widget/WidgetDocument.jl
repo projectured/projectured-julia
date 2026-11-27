@@ -866,11 +866,17 @@ it, and a row lights across it.
 A vertical menu answers the keys of a list: Down and Up light the next and the
 previous enabled item, Home and End the first and the last, and Return chooses the
 lit item as a click does. `highlighted` is the index in `elements` of the lit item,
-or 0 for none. It is view state, so a key that moves it is no edit.
+or 0 for none. It is view state, so a key that moves it is no edit. A menu in a
+popup gets these keys from the window under it, which keeps the focus (the window
+manager gives a key to the open popup first), and an item that opens it as its
+submenu opens it with no item lit.
 
 A horizontal menu is a menu bar. While the menu of one of its names is open, a move
 of the pointer onto another name that has a menu opens that menu in its place
-(`SwitchPopupOperation`); with no menu of the bar open, a move opens nothing.
+(`SwitchPopupOperation`); with no menu of the bar open, a move opens nothing. The
+open of a menu names its name as the opener (`RecordPopupOpenerOperation`), so a
+Left or a Right that the open menu does not answer comes back to the bar, by a
+route through that name, and opens the menu of the name before or after it.
 """
 @document struct WidgetMenu <: WidgetDocument
     elements::CellVector = CellVector()

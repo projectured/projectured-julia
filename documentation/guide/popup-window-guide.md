@@ -28,6 +28,15 @@ While a menu of the menu bar is open, moving the pointer onto another name of th
 bar opens that name's menu in its place. With no menu open, moving the pointer
 over the bar opens nothing.
 
+## Keys while it is open
+
+The window under a menu keeps the focus, but its keys go to the open menu first.
+Down and Up light the next and the previous item, Home and End the first and the
+last, and Enter runs the lit item and closes the menu. A menu opens with no item
+lit. In a menu of the menu bar, Left and Right open the menu of the name before or
+after, and past the last name they come round to the first. A key that the menu
+does not take goes on to the window under it.
+
 ## How it closes
 
 - A menu, the list of a dropdown field, and a context menu close on Escape and

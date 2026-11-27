@@ -80,6 +80,11 @@ projected.
   window took it, when the window opened with a `selection`
   (`OpenWindowOperation`). The selection goes back there when the window closes
   while it holds the selection. It is the state of a view. Default `nothing`.
+- `opener` — `nothing`, or the document of the part, in a window under this one,
+  that opened it, when its open named one (`RecordPopupOpenerOperation`). A key
+  that the content of the popup does not answer, Left or Right, goes to that part,
+  so a menu of a menu bar gives way to the menu of the next name. It is the state
+  of a view. Default `nothing`.
 """
 @document struct WindowDocument
     id::Symbol = :default
@@ -97,11 +102,12 @@ projected.
     placement::Any = nothing
     content::Document
     selection_before::Any = nothing
+    opener::Any = nothing
 end
 
 # Where a window stands is the state of a view of the screen, and a function that
 # a file can not write; so is the selection that the window gives back.
-get_view_state_fields(::Type{<:WindowDocument}) = (:placement, :selection_before)
+get_view_state_fields(::Type{<:WindowDocument}) = (:placement, :selection_before, :opener)
 
 """
     is_window_placed(window::WindowDocument) -> Bool
@@ -306,6 +312,27 @@ end
 OperationModule.get_wrapped_operation(operation::SwitchPopupOperation) = operation.operation
 OperationModule.rewrap_operation(operation::SwitchPopupOperation, inner) =
     SwitchPopupOperation(operation.replaced, inner)
+
+"""
+    RecordPopupOpenerOperation(opener, operation)
+
+`operation`, the open of a popup, that names `opener`, the document of the part
+that opens it. The window manager applies the open and keeps `opener` in the
+`opener` of the window, and a Left or a Right that the content of the popup does
+not answer then goes to that part by its path. A name of a menu bar names itself,
+so the arrows move the open menu along the bar.
+
+It holds the open as a `WrappingOperation`, so every reader on the way up moves the
+place of the popup as it moves the place of a bare open.
+"""
+struct RecordPopupOpenerOperation <: WrappingOperation
+    opener::Any
+    operation::Any
+end
+
+OperationModule.get_wrapped_operation(operation::RecordPopupOpenerOperation) = operation.operation
+OperationModule.rewrap_operation(operation::RecordPopupOpenerOperation, inner) =
+    RecordPopupOpenerOperation(operation.opener, inner)
 
 """
     ChangeScreenPointerShapeOperation(shape)

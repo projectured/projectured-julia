@@ -131,7 +131,13 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
             return Intent(change.gesture, something(_join_window_answers(closed), DoNothingOperation()))
     end
 
-    inner = read_intent(p.inner, recursion, change, iomap.inner_iomap)
+    # A key of a window under an open popup goes first to the content of the
+    # popup: the window under it keeps the focus, so the popup gets no key of its
+    # own. A menu answers Down, Up, Home, End and Return. A key that the popup does
+    # not answer goes on to the window.
+    popup_key = window_input isa WindowInput ? _read_popup_key(p, recursion, iomap, window_input) : nothing
+    inner = popup_key === nothing ? read_intent(p.inner, recursion, change, iomap.inner_iomap) :
+            Intent(change.gesture, popup_key)
     answer = _apply_window_ops(iomap, change, inner)
     isempty(given_back) ||
         (answer = Intent(answer.gesture, _join_window_answers(given_back, Any[answer.operation])))
@@ -186,12 +192,19 @@ function _apply_window_ops(iomap, change, inner)
         (inner = Intent(inner.gesture, switched, inner.description, inner.domain, inner.route))
     op = inner.operation
     operations = op isa CompoundOperation ? op.operations : Any[op]
-    any(o -> o isa Union{OpenWindowOperation, CloseWindowOperation}, operations) || return inner
+    any(o -> o isa Union{OpenWindowOperation, CloseWindowOperation, RecordPopupOpenerOperation},
+        operations) || return inner
     given_back, rest, taken = Any[], Any[], Any[]
-    for o in operations
-        if o isa OpenWindowOperation
+    for o in _unwrap_popup_openers(operations)
+        if o isa Pair
+            opened = last(o)
+            selection = _apply_open!(iomap, opened)
+            selection === nothing || push!(taken, selection)
+            _write_window_opener!(iomap.input, opened.id, first(o))
+        elseif o isa OpenWindowOperation
             selection = _apply_open!(iomap, o)
             selection === nothing || push!(taken, selection)
+            _write_window_opener!(iomap.input, o.id, nothing)
         elseif o isa CloseWindowOperation
             selection = _apply_close!(iomap, o)
             selection === nothing || push!(given_back, selection)
@@ -200,6 +213,78 @@ function _apply_window_ops(iomap, change, inner)
         end
     end
     Intent(change.gesture, _join_window_answers(given_back, rest, taken))
+end
+
+# `operations` with each `RecordPopupOpenerOperation` among them, or among the
+# members of a compound that one holds, as the pair of its opener and its open.
+function _unwrap_popup_openers(operations)
+    unwrapped = Any[]
+    for operation in operations
+        if operation isa RecordPopupOpenerOperation
+            inner = get_wrapped_operation(operation)
+            members = inner isa CompoundOperation ? inner.operations : Any[inner]
+            for member in members
+                push!(unwrapped, member isa OpenWindowOperation ? (operation.opener => member) : member)
+            end
+        else
+            push!(unwrapped, operation)
+        end
+    end
+    unwrapped
+end
+
+# The window `id` of `screen` keeps `opener`, the document of the part that opened
+# it, or `nothing` when its open named none.
+function _write_window_opener!(screen, id::Symbol, opener)
+    window = _find_window(screen, id)
+    window === nothing || window.opener === opener || (window.opener = opener)
+    nothing
+end
+
+# The answer of the content of the open popup to a key down of another window, or
+# `nothing` when no popup that dismisses itself is open or its content does not
+# answer the key. A Left or a Right that the content does not answer goes to the
+# part that opened the popup, by its path, when the popup keeps one.
+function _read_popup_key(p::WindowManagingProjection, recursion, iomap::WindowManagingIoMap,
+                         window_input::WindowInput)
+    event = window_input.event
+    event isa KeyDown || return nothing
+    popup = _find_key_popup(iomap.input, window_input.window_id)
+    popup === nothing && return nothing
+    answer = read_intent(p.inner, recursion, Intent(WindowInput(popup.id, event), nothing),
+                         iomap.inner_iomap)
+    answer isa Intent && answer.operation isa Operation && return answer.operation
+    (event.key in (:left, :right) && event.modifiers == ModifierKeys()) || return nothing
+    route = _find_opener_route(iomap.input, popup)
+    route === nothing && return nothing
+    answer = read_intent(p.inner, recursion, Intent(event, nothing, "", "", route), iomap.inner_iomap)
+    answer isa Intent && answer.operation isa Operation ? answer.operation : nothing
+end
+
+# The path from `screen` to the part that opened `popup`, in a window that is no
+# popup, or `nothing` when the popup keeps no opener or no such window holds it.
+function _find_opener_route(screen::ScreenDocument, popup::WindowDocument)
+    opener = popup.opener
+    opener === nothing && return nothing
+    for (index, window) in enumerate(screen.windows)
+        (window isa WindowDocument && window.style !== :popup) || continue
+        path = find_document_path(window.content, opener)
+        path === nothing && continue
+        return concat_references(Reference(FieldReferenceStep("windows"), ElementReferenceStep(index),
+                                           FieldReferenceStep("content")), path)
+    end
+    nothing
+end
+
+# The popup that dismisses itself and is open over the window `id`: the last one
+# that the screen holds, or `nothing`.
+function _find_key_popup(screen, id::Symbol)
+    screen isa ScreenDocument || return nothing
+    for window in Iterators.reverse(collect(screen.windows))
+        window isa WindowDocument && window.id !== id && window.style === :popup &&
+            window.auto_dismiss === true && return window
+    end
+    nothing
 end
 
 # `operation` with each `SwitchPopupOperation` in it decided against `screen`: the
@@ -213,16 +298,32 @@ function _decide_popup_switches(screen, operation::CompoundOperation)
     members = Any[_decide_popup_switches(screen, member) for member in operation.operations]
     all(member === original for (member, original) in zip(members, operation.operations)) &&
         return operation
-    _join_window_answers(members)
+    # The open of a switch can come with the operations around it, such as the
+    # write of the view state of the menu that it opens, in a compound of its own.
+    _join_window_answers(Any[part for member in members
+                             for part in (member isa CompoundOperation ? member.operations : (member,))])
 end
 
 function _is_popup_switch_allowed(screen, operation::SwitchPopupOperation)
-    opened = get_wrapped_operation(operation)
-    opened isa OpenWindowOperation || return false
+    opened = _find_window_open(get_wrapped_operation(operation))
+    opened === nothing && return false
     window = _find_window(screen, opened.id)
     window === nothing && return false
     content = window.content
     any(replaced -> replaced === content, operation.replaced)
+end
+
+# The `OpenWindowOperation` that `operation` is or holds among its members, or
+# `nothing`.
+_find_window_open(operation) = nothing
+_find_window_open(operation::OpenWindowOperation) = operation
+_find_window_open(operation::RecordPopupOpenerOperation) = _find_window_open(get_wrapped_operation(operation))
+function _find_window_open(operation::CompoundOperation)
+    for member in operation.operations
+        opened = _find_window_open(member)
+        opened === nothing || return opened
+    end
+    nothing
 end
 
 # The operations in order, without the ones that are `nothing`, as one answer:
@@ -385,8 +486,18 @@ end
 # the tooltip window, or from a verb, such as the one that opens a file dialog. The
 # selection that the window takes or gives back is applied after it.
 function evaluate_operation(editor, op::OpenWindowOperation)
-    selection = _open_screen_window!(_find_editor_screen(editor), op)
+    screen = _find_editor_screen(editor)
+    selection = _open_screen_window!(screen, op)
+    _write_window_opener!(screen, op.id, nothing)
     selection === nothing || evaluate_operation(editor, selection)
+    nothing
+end
+
+function evaluate_operation(editor, operation::RecordPopupOpenerOperation)
+    inner = get_wrapped_operation(operation)
+    evaluate_operation(editor, inner)
+    opened = _find_window_open(inner)
+    opened === nothing || _write_window_opener!(_find_editor_screen(editor), opened.id, operation.opener)
     nothing
 end
 

@@ -3937,11 +3937,18 @@ end
 # Open the item's `submenu` as a popup below the item: the box of the item in its
 # own frame, which each reader above moves into its own frame, as the
 # `WidgetSelect` dropdown does. The popup window takes the extent of what the
-# submenu draws, and goes above the item when the display has no room below.
+# submenu draws, and goes above the item when the display has no room below. The
+# menu opens with no item lit, whatever the keys lit when it was open before. The
+# open names the item as the opener of the popup, so a Left or a Right that the menu
+# does not answer comes back to the item, and the bar around it moves the menu.
 function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
-    ReplaceViewStateOperation(
+    opened = ReplaceViewStateOperation(
         OpenPopupOperation(; id=:widget_popup, anchor_size=(iomap.control_width, iomap.control_height),
                            gap=p.popup_gap, auto_dismiss=true, content=submenu))
+    submenu isa WidgetMenu && submenu.highlighted != 0 &&
+        (opened = CompoundOperation(Any[opened, ReplaceViewStateOperation(
+                                                    ReplaceReferencedValueOperation(submenu, "highlighted", 0))]))
+    RecordPopupOpenerOperation(get_iomap_input(iomap), opened)
 end
 
 # ── WidgetToolbarItem ───────────────────────────────────────────────────────
@@ -4229,7 +4236,10 @@ map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
 # to the item that the route names, as by default.
 function read_intent(p::WidgetMenuToGraphicsCanvas, recursion, change::Intent,
                      iomap::WidgetChildrenIoMap)
-    change.route === nothing || return read_routed_child(recursion, change, iomap)
+    if change.route !== nothing
+        moved = _read_menu_bar_arrow(iomap, change)
+        return moved === nothing ? read_routed_child(recursion, change, iomap) : Intent(change.gesture, moved)
+    end
     gesture = change.gesture
     change.operation === nothing || return Intent(gesture, nothing)
     gesture isa KeyDown && return read_child_intent(p, recursion, change, iomap, nothing)
@@ -4240,6 +4250,41 @@ function read_intent(p::WidgetMenuToGraphicsCanvas, recursion, change::Intent,
         return Intent(gesture, nothing)
     _read_widget_child_at(p, recursion, change, iomap, getfield(iomap, :child_iomaps)[]::Vector,
                           slot -> _get_widget_element_steps(iomap.input.elements, slot))
+end
+
+# A Left or a Right that comes to a menu bar by a route through one of its names,
+# the name whose menu is open: the open of the menu of the next name to the right
+# or to the left that has one, past the end round to the other end, below that
+# name. The window manager sends the arrow there when the open menu does not answer
+# it, because the open names its name as the opener. `nothing` for any other change.
+function _read_menu_bar_arrow(iomap::WidgetChildrenIoMap, change::Intent)
+    bar, key = iomap.input, change.gesture
+    (bar.orientation === :horizontal && change.operation === nothing && key isa KeyDown &&
+     key.key in (:left, :right) && key.modifiers == ModifierKeys()) || return nothing
+    # The route names the item in two steps, the field `elements` and the element.
+    # The window manager makes it fresh from the document, so each step evaluates.
+    items = collect(bar.elements)
+    node, route, current = bar, change.route, nothing
+    while current === nothing && route isa ConcreteReference && node !== nothing
+        node = unwrap_cell(evaluate_reference_step(get_reference_head(route), node))
+        route = get_reference_tail(route)
+        current = findfirst(item -> item === node, items)
+        node isa Union{WidgetMenu, CellVector} || break
+    end
+    current === nothing && return nothing
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    for offset in 1:(length(items) - 1)
+        item = items[mod1(current + (key.key === :right ? offset : -offset), length(items))]
+        (item isa WidgetMenuItem && item.visible !== false && item.submenu !== nothing &&
+         _menu_item_enabled(item)) || continue
+        index = findfirst(entry -> get_iomap_input(last(entry)) === item, entries)
+        index === nothing && continue
+        item_iomap = last(entries[index])
+        item_iomap isa WidgetMenuItemToGraphicsCanvasIoMap || continue
+        (x, y) = get_child_frame_offset(entries[index])
+        return shift_operation_position(_open_submenu_popup(item_iomap.projection, item.submenu, item_iomap), x, y)
+    end
+    nothing
 end
 
 # A move of the pointer onto a name of a menu bar that has a menu: the open of that
