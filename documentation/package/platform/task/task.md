@@ -624,18 +624,40 @@ navigator around the page opens it, and Ctrl+press opens it in a new tab.
   and Open as a file; each field is an `ObjectField` of the lines, and each
   button answers an operation on them (`make_task_stream_find_operation`,
   `make_task_stream_first_error_operation`). The lines
-  (`TaskStreamLines`, drawn by `TaskStreamLinesToWidget`) read the file of the
-  stream: an index of where each line starts grows as the file grows, so a
-  stream of a million lines costs the lines that fit the height. Each line shows
-  its number and its text in the colour of its mark, and the line of the current
-  match in the colour of a task that runs. A turn of the wheel moves the top by
-  three lines a notch, and the scroll bar jumps; at the last lines the page
-  follows the end again. A search reads the file on the editor task, once for
-  each text, and goes on from where it ended when the file grows.
+  (`TaskStreamLines`, drawn by `TaskStreamLinesToWidget`) come from the file of
+  the stream, and no print and no reader of the page reads that file. The page
+  keeps no list of the lines. It keeps a byte offset into the file, the start of
+  the line at the top, and three background cells of the document read around it,
+  each with a source of its own, so a long count or search never holds a window
+  back:
+  - the window: 200 lines from the top, and the starts of one window of lines
+    before it (`read_stream_window`);
+  - the number of the first line of the window, when the page does not know it:
+    a count of the line breaks from the nearest place where the number is known,
+    which is the start, the end, or the last line whose number the page knew
+    (`count_stream_lines`);
+  - the search: the count of the lines that hold the text of the filter, and the
+    count of the matches of Find, the place of the current one, and the next and
+    the previous one (`find_stream_match`). The file only grows at its end, so
+    what a search found stays true: when the file grows, a search reads only the
+    new bytes.
 
-The stream page has these limits: a line longer than the page is cut, no key
-moves the lines (the wheel and the scroll bar do), the page copies no line, and a
-search of a stream of many megabytes holds the editor task while it reads.
+  The writer of the stream records in its `TaskOutput` the bytes and the lines
+  that it flushed, and where the first line of each mark starts. So a read stops
+  at whole lines, the page follows the end with no count, and First error reads no
+  file. A stream of a million lines costs the lines that fit the height. Each line
+  shows its number and its text in the colour of its mark, and the line of the
+  current match in the colour of a task that runs. A turn of the wheel moves the
+  top by three lines a notch through the lines of the window, and the scroll bar
+  jumps; at the last lines the page follows the end again. The bar measures lines
+  in a file of up to 32 MB, whose lines a count reads in a short time, and bytes in
+  a larger file. A new window shows one frame after a move, and the page shows the
+  last window until then.
+
+The stream page has these limits: a line longer than the page is cut, and the
+window keeps the first 4096 bytes of a line; no key moves the lines (the wheel and
+the scroll bar do); the page copies no line; and a filter that few lines hold
+makes a window read far on the background task.
 
 ## The verbs
 
