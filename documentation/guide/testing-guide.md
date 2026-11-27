@@ -380,6 +380,7 @@ that it does not hold compiles while the part runs, and a list of which more tha
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 | `test_catalog()` | Runs printer/reader/repl (+ position-navigation on `:graphics`) over the **generated** atomic-example catalog — see below. Run by `test_all`. |
+| `test_catalog_clicks()`, `test_part_clicks()` | Run the click test over the variant `:natural` of each atom of the catalog, and over every example — see "The click test". Run by `test_all`, in parts. |
 
 `test_kernel()` also runs the tool, llm and agent suites under
 [test/kernel/tool/](../../test/kernel/tool/DeclaredApiTest.jl) (the declared API a model
@@ -555,6 +556,41 @@ julia> examples = catalog(atoms; natural = true)
 julia> test_catalog_examples(examples; testers = (CATALOG_TESTERS..., test_part_click))
 julia> test_atom_coverage(atoms; roots = ("Omnet",), no_atom = Set{String}())
 ```
+
+## The click test
+
+`test_part_click(example)` of `ProjecturedPlatformTest` builds the editor that the app
+builds for the example, and presses the centre of each drawn element, up to 200 of
+them. At each point it sends a plain click, an Alt+click, an Alt+double click and a
+move, and it checks that each one reaches the innermost part that drew the point: the
+plain click does what the part does, or puts the caret at the character; the Alt+click
+puts the caret there; the Alt+double click selects the innermost part, and a ring or a
+band shows it; the move names the same part. `walk_part_clicks(document, projection)`
+does the same walk and gives the failures as a `Vector{String}`, one line for each.
+
+`classify_part_click_failure(line)` gives the kind of a line, such as `:alt_no_caret`
+for an Alt+click that gives no caret, or `:double_not_drawn` for an Alt+double click
+whose part shows no ring. A mark names the known failures of an example by a kind, or
+by a text of the line, such as the message of an exception, and the comment
+`@click-broken` above it names the cause:
+
+```julia
+const _CLICK_MARKS = (
+    # @click-broken the cause of the failures of this kind in these examples.
+    :double_not_drawn => ("widget/fact_group/natural", "task/group/natural"),
+)
+test_part_click(example; broken = find_part_click_mark(_CLICK_MARKS, example.name))
+```
+
+A name in a mark is a whole name, or a start that ends with `/`, such as `"widget/"`.
+The known failures of an example count as one broken assertion; a failure of another
+kind, or in another example, is a failure. `grep -rn "@click-broken"` lists them.
+
+The suites run the click test in parts of their own, at the level `:slow`:
+`test_catalog_clicks(; only, skip)` over the variant `:natural` of each atom of the
+catalog, and `test_part_clicks(; only, skip)` over `examples`, each in parts over groups
+of names. In omnet-julia, the suite of each package that owns atoms or examples runs
+them the same way.
 
 ## A test that checks the root of a built editor
 

@@ -20,7 +20,7 @@ A key press goes to the view under the selection, and each view says which keys 
 | Ctrl + A | in a text, select the whole text; in code, select the whole document |
 | Alt + Up, Alt + Down | widen the selection to the part that holds it, or narrow it to the first part inside |
 | Alt + Left, Alt + Right | move the selection to the part before or after it |
-| Alt + click | put the caret at the character under the pointer, in any text; it never acts, so a button does not press |
+| Alt + click | put the caret at the character under the pointer, in any text but an item of a menu or a name of the menu bar, which take no caret; it never acts, so a button does not press |
 | Alt + double click | select the innermost part under the pointer as a whole: a value, a cell, a header, a row, a file; it never acts; where the pointer is on no part, it selects the container around it |
 | right click | open the menu of the part under the pointer, at the pointer; the selection stays where it was |
 | F2, while a menu is open | add the menu of the part around it |
