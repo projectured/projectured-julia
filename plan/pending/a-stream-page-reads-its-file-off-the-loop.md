@@ -1,6 +1,6 @@
 # A stream page reads its file off the loop
 
-Status: PROPOSED, waits for the approval of the owner.
+Status: APPROVED by the owner on 2026-11-27 ("yes"). The work runs on the branch `stream-offset`.
 
 Theme T7 of the review of the architecture
 ([architecture-review/README.md](architecture-review/README.md), finding WL-2 in

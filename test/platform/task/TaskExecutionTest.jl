@@ -112,6 +112,23 @@ function test_task_execution()
             @test lines.count == 1500
         end
 
+        # The writer of the file knows what it wrote: the bytes and the lines that
+        # the file holds after the last flush, and where the first line of each mark
+        # starts.
+        @testset "the writer records the flushed lines and where the first line of each mark starts" begin
+            execution = _start_probe_process("echo one; echo 'two warning'; echo three; echo 'progress 1%'")
+            wait_task_execution(execution)
+            lines = execution.output
+            @test lines.flushed_size == filesize(lines.path) == 4 + 12 + 6 + 12
+            @test lines.flushed_count == 4
+            @test lines.first_mark_offsets == Dict(:warning => 4, :progress => 22)
+            @test copy(lines).first_mark_offsets == lines.first_mark_offsets
+            @test copy(lines).flushed_size == lines.flushed_size
+            # A stream with no file has no offset.
+            plain = append_output_line!(TaskOutput(), "a warning"; mark = :warning)
+            @test plain.first_mark_offsets == Dict{Symbol,Int}() && plain.flushed_size == 0
+        end
+
         @testset "a shadow follows its execution, and a sync writes only what changed" begin
             execution = wait_task_execution(_start_probe_process("echo out; echo err >&2; exit 3"))
             shadow = make_task_execution_shadow(execution)

@@ -19,7 +19,12 @@ prints without end cannot fill the memory.
   has no file.
 - `mark_counts` holds the count of the lines of each mark, and `first_mark_lines`
   the number of the first line of each mark, as the kind of the task marks them
-  ([`find_task_output_mark`](@ref)).
+  ([`find_task_output_mark`](@ref)). `first_mark_offsets` holds the byte in the
+  file at which that line starts, for a stream that has a file.
+- `flushed_size` is the count of the bytes of the file that the writer flushed,
+  and `flushed_count` the count of the lines in them. The flushed bytes end at the
+  end of a line, so a reader of the file that stops at `flushed_size` reads whole
+  lines only.
 """
 mutable struct TaskOutput
     head::Vector{String}
@@ -30,15 +35,21 @@ mutable struct TaskOutput
     path::Union{String,Nothing}
     mark_counts::Dict{Symbol,Int}
     first_mark_lines::Dict{Symbol,Int}
+    first_mark_offsets::Dict{Symbol,Int}
+    flushed_size::Int
+    flushed_count::Int
 end
 
 TaskOutput(; head::Integer = 100, tail::Integer = 1000) =
-    TaskOutput(String[], String[], Int(head), Int(tail), 0, nothing, Dict{Symbol,Int}(), Dict{Symbol,Int}())
+    TaskOutput(String[], String[], Int(head), Int(tail), 0, nothing, Dict{Symbol,Int}(), Dict{Symbol,Int}(),
+               Dict{Symbol,Int}(), 0, 0)
 
-"""Add one line to `lines`, with its `mark` or `nothing`. The line goes to the head
-while the head has room, and to the tail after that; the tail lets its oldest line
-go when it is full."""
-function append_output_line!(lines::TaskOutput, line::AbstractString; mark::Union{Symbol,Nothing} = nothing)
+"""Add one line to `lines`, with its `mark` or `nothing`, and the byte `offset` at
+which it starts in the file of the stream, or `nothing` when the stream has no
+file. The line goes to the head while the head has room, and to the tail after
+that; the tail lets its oldest line go when it is full."""
+function append_output_line!(lines::TaskOutput, line::AbstractString; mark::Union{Symbol,Nothing} = nothing,
+                             offset::Union{Int,Nothing} = nothing)
     lines.count += 1
     if length(lines.head) < lines.head_limit
         push!(lines.head, String(line))
@@ -49,7 +60,16 @@ function append_output_line!(lines::TaskOutput, line::AbstractString; mark::Unio
     if mark !== nothing
         lines.mark_counts[mark] = get(lines.mark_counts, mark, 0) + 1
         get!(lines.first_mark_lines, mark, lines.count)
+        offset === nothing || get!(lines.first_mark_offsets, mark, offset)
     end
+    lines
+end
+
+# Record that the file of the stream of `lines` holds `size` flushed bytes, which
+# are `count` whole lines.
+function _record_flushed_output!(lines::TaskOutput, size::Int, count::Int)
+    lines.flushed_size = size
+    lines.flushed_count = count
     lines
 end
 
@@ -81,7 +101,8 @@ end
 """A copy of the kept lines, the count and the marks, which no later line changes."""
 Base.copy(lines::TaskOutput) =
     TaskOutput(copy(lines.head), copy(lines.tail), lines.head_limit, lines.tail_limit, lines.count,
-               lines.path, copy(lines.mark_counts), copy(lines.first_mark_lines))
+               lines.path, copy(lines.mark_counts), copy(lines.first_mark_lines), copy(lines.first_mark_offsets),
+               lines.flushed_size, lines.flushed_count)
 
 # ── The files of the streams ─────────────────────────────────────────────────
 
@@ -316,8 +337,8 @@ get_document_title(shadow::ACTaskExecution) =
 
 Bring the shadow of an execution up to date, under the lock of the execution,
 on the editor task. A field is written only when its value changed, and a stream
-only when lines came since the last sync or it got its file, as a copy that no
-later line changes.
+only when lines came since the last sync, its file flushed more lines, or it got
+its file, as a copy that no later line changes.
 """
 function sync_document!(shadow::ACTaskExecution, execution::TaskExecution, policy, depth::Int)
     lock(execution.runtime.lock) do
@@ -328,7 +349,8 @@ function sync_document!(shadow::ACTaskExecution, execution::TaskExecution, polic
         for name in (:output, :error_output)
             lines = getfield(execution, name)
             shown = getproperty(shadow, name)
-            (lines.count == shown.count && lines.path == shown.path) || setproperty!(shadow, name, copy(lines))
+            (lines.count == shown.count && lines.flushed_size == shown.flushed_size && lines.path == shown.path) ||
+                setproperty!(shadow, name, copy(lines))
         end
     end
     shadow
@@ -536,28 +558,45 @@ end
 # with the mark that the kind of the task gives each line, and write each line to
 # the file of the stream. The file is flushed at most five times a second while
 # lines come, so a page that reads it while the process runs is at most that far
-# behind, and once more at the end.
+# behind, and once more at the end. The reader counts the bytes and the lines that
+# it wrote, so after each flush the stream records how much of the file holds
+# whole lines, and each line knows the byte at which it starts.
 function _read_task_stream(stream, execution::TaskExecution, field::Symbol, read_line)
     path = lock(() -> getfield(execution, field).path, execution.runtime.lock)
     file = path === nothing ? nothing : _open_output_file!(path)
     flushed = time()
+    written = 0
+    count = 0
     try
         for line in eachline(stream)
+            offset = file === nothing ? nothing : written
+            is_flushed = false
             if file !== nothing
                 println(file, line)
+                written += sizeof(line) + 1
+                count += 1
                 now = time()
-                now - flushed > 0.2 && (flush(file); flushed = now)
+                if now - flushed > 0.2
+                    flush(file)
+                    flushed = now
+                    is_flushed = true
+                end
             end
             update_task_execution!(execution) do e
                 mark = find_task_output_mark(e.task, field, line)
-                append_output_line!(getfield(e, field), line; mark)
+                lines = getfield(e, field)
+                append_output_line!(lines, line; mark, offset)
+                is_flushed && _record_flushed_output!(lines, written, count)
                 read_line === nothing || read_line(e, line)
             end
         end
     catch exception
         @warn "a reader of the output of a task failed" exception
     finally
-        file === nothing || close(file)
+        if file !== nothing
+            close(file)
+            update_task_execution!(e -> _record_flushed_output!(getfield(e, field), written, count), execution)
+        end
     end
 end
 
