@@ -1,6 +1,9 @@
 # A click reaches the innermost part in every view
 
-> **Status (2026-11-10): in progress, step 5; steps 1 to 4 are done.** The owner asked for the study
+> **Status (2026-11-27): in progress.** Steps 1 to 5, 6a and 6b are done. Steps
+> 6 to 9 are on main of both repositories and pushed (projectured 180ee1857, omnet
+> d52659a7f). O5 of step 7 waits for the owner, and so do steps 7 and 8; step 9
+> waits for the check by hand of the owner in the omnet IDE. The owner asked for the study
 > and this plan on 2026-11-09, decided D1, D2 and D3 the same day, agreed with
 > P1 to P6, and approved the plan for implementation ("yes"), with P7. The work
 > is on the branch `innermost-click` in the worktree
@@ -2864,6 +2867,12 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
       passed twice (the root grows by 115/384 KB and by 561/464 KB), so this check
       of main varies from run to run; it is no fault that the branch makes in each
       run, and it waits for the owner.
+  - **The land of step 8 and step 9 so far** (2026-11-27, owner: "yes land and
+    push"). projectured main c08e8e466 → 180ee1857 (17 commits) and omnet main
+    5d6ccad0f → d52659a7f (7 commits), each a fast-forward with no other commit,
+    and both pushed. The test call list of `ProjecturedKernelTest` records again,
+    because it is the one changed test package that keeps a list; the test
+    packages of omnet keep no list.
 - [ ] 9. **The documents and the live check.** `testing-guide.md` (the new
   tester and the atoms of a package), `test-anatomy.md` of omnet-julia (its
   atoms), `mouse-target.md`, `selection.md`, `focus.md`, `widget.md`,
