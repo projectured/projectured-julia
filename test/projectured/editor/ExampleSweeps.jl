@@ -741,10 +741,10 @@ const _EXAMPLE_CLICK_MARKS = (
 # each about ten minutes of a walk in a process alone (2026-11-26). One more part takes
 # every other example, so a new example has its part.
 const _EXAMPLE_CLICK_GROUPS = (
-    ("xml", "fsm"),
+    ("fsm",),
     ("formula",),
     ("research", "workflow"),
-    ("natural", "mixed", "json", "graphics"),
+    ("natural", "mixed", "json", "graphics", "xml"),
 )
 
 """
