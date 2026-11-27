@@ -962,7 +962,9 @@ Two rules make this order possible:
    - **4c. The JSON content keeps no selection.** The kernel hook, the step
      `.viewed`, the caret place in an operation, the key tables of the content,
      and the tests that put a caret into a JSON content. Then the review of the
-     owner.
+     owner. The plan is `plan/pending/the-json-content-keeps-no-selection.md`.
+     Its steps come from a measurement in a copy of `main` on 2026-11-27, which
+     left out the two fields of the JSON content and ran all the suites.
 5. **The state to keep, and the store of the editor.** The store writes the views.
    A printer gives a widget the cell of the view for each state to keep. The
    eighteen types with `get_view_state_fields` move that state to a view.
