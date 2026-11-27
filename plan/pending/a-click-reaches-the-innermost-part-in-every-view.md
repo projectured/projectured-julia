@@ -368,6 +368,15 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
   `get_document_family`. So a path stays the same when a document is copied from
   one form to the other. Rejected (A): a path records the type of the node as it
   is, the mutable form.
+- **D14 (owner, 2026-11-27). A move on a data frame table names the part of the
+  view.** The owner chose B ("I agree with B") to the question of O5 in step 7: a
+  move on a header, a row or a cell names the column, the row or the cell of the
+  view, as an Alt+double click there selects it, and the table lights the image
+  of that part in the table, as it shows the selection of the view. The edge of a
+  column and the scroll bar are controls with no part in the view, so a move
+  there keeps its path in the table, and the table lights it from there.
+  Rejected (A): a move on the table names the widget that the view drew, and the
+  click test keeps the mark of the result tables.
 - **Q2. How a widget knows which part a drawn text shows** (answered by D5,
   asked 2026-11-10). A plain click on the title of a card
   must give `.title{k}`, and a move and the caret must agree with it. Three
@@ -2362,6 +2371,40 @@ propsals"). P7 was proposed by the assistant and approved with the plan on
     (`test_dataframes` 625 and 1 fail at `DataFrameColumnWidthTest.jl:72`), and
     it is reverted. How the table lights a header, a cell and an edge from a
     path of the view is a question for the owner.
+
+    The owner chose B (D14). Work (branch `innermost-click-o5`):
+    - `_read_table_mouse_target` maps a move as the view maps an Alt+double
+      click, by one helper for both (`_find_view_part`). The table names the
+      whole part under the pointer for both, so a header and each field and
+      control in it give the column, a row header its row, a cell the cell, and
+      the corner the view. A place with no part in the view keeps its path in
+      the table. Each part of a compound goes through it, as a selection does
+      (`_convert_table_write`).
+    - `_get_table_mouse_target` gives the table the image of the part of the view
+      by `_find_table_image`, the map that also gives the selection of the table,
+      and the path in the table for a place with no part in the view. So the edge
+      lights as before.
+    - The table widget lights a column for a mouse target of a whole column
+      `columns[c]` (`_find_wt_lit_reference`), and no band for the edge
+      `columns[c].policy`.
+    - Tests: a move on the header `name` names `columns[2]` and lights column
+      2, a move on the cell `item 1` names a path in `rows[1]` and lights row 1
+      (`test_data_frame_column_width`); a whole column lights, the edge does not
+      (`test_widget_table`). `test_dataframes` 629 pass, 0 fail; with
+      `test_widget_table`, 650 pass.
+    - The walk of the eleven omnet examples with lines of `:move_differs` in a
+      result table (scratch `step7omnet/run7`): `legacy/result_file` 74 → 30 and
+      `legacy/scalar_differences` 50 → 14, and no other line changes in any of
+      the eleven. The 44 lines that stay are on the edge of a column (19), on the
+      bar (4) and on the bar of the expression above the table (21), where the
+      Alt+double click selects the column or the view. The marks are by the kind,
+      so they stay; their cause names the edge of a column now.
+    - A cost, found in the review: the path of a move goes into `rows[r]`, and
+      `DataFrameViewRows` keeps each row document that a path reaches, for the
+      life of the view (`getindex` by `get!`). Before, only a click reached a
+      row. A kept row is 460 bytes (100000 rows reached: 46 MB of live memory).
+      The count of rows of the frame bounds it, and nothing releases it before
+      the view goes.
   - [x] O6. The throws of the module appearance (61 lines) and of the combined
     simulation widget (87 lines): the path of the content of the tab,
     `….PaneTab.content::ACModuleAppearance`, matches no document after the first
