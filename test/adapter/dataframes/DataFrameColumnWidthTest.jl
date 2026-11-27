@@ -77,6 +77,22 @@ function test_data_frame_column_width()
                     target.tail.tail isa ConcreteReference && target.tail.tail.head == FieldReferenceStep("policy"))
         end
 
+        # A move names the part of the view that an Alt+double click there selects,
+        # and the table lights the image of that part.
+        @testset "a move on a header names its column, and on a cell its row" begin
+            column = ConcreteReference(FieldReferenceStep("columns"),
+                                       ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+            send!(MouseMove(name_x + 20, name_y + 2; time = 0.7))
+            @test strip_reference_types(view.mouse_target) == column
+            table = table_iomap.input
+            @test WidgetModule._find_wt_lit_reference(table, get_mouse_target(table)) == WidgetModule._wt_col_ref(2)
+            (item_x, item_y) = label_at("item 1")
+            send!(MouseMove(item_x + 2, item_y + 2; time = 0.8))
+            steps = collect(get_reference_steps(strip_reference_types(view.mouse_target)))
+            @test steps[1:2] == [FieldReferenceStep("rows"), RangeReferenceStep(0, 1)]
+            @test WidgetModule._find_wt_lit_reference(table, get_mouse_target(table)) == WidgetModule._wt_row_ref(1)
+        end
+
         @testset "a drag of the edge sets the width, and the view keeps it by name" begin
             send!(MouseDown(:left, edge, name_y + 2, none; time = 1.0))
             send!(MouseMove(edge + 40, name_y + 2, MouseButtons(:left), none; time = 1.1))

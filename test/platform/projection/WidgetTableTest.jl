@@ -82,6 +82,13 @@ end
     @test WidgetModule._find_wt_lit_reference(w, get_mouse_target(w)) != lit
 end
 
+@testset "a mouse target of a whole column lights the column, and the edge of a column lights no band" begin
+    w = _mktable()
+    column = WidgetModule._wt_col_ref(1)
+    @test WidgetModule._find_wt_lit_reference(w, column) == column
+    @test WidgetModule._find_wt_lit_reference(w, WidgetModule._wt_edge_ref(1)) === nothing
+end
+
 @testset "the light band renders (faint overlay follows the mouse target)" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
     _ = _rects(io)

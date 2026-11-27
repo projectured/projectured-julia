@@ -715,7 +715,7 @@ const _EXAMPLE_CLICK_MARKS = (
     ),
     # @click-broken a move names another part than the Alt+double click selects, because
     #   the view names the part under the pointer by a rule of its own, such as a scroll
-    #   bar or a header of a data frame (O5 of step 7)
+    #   bar or the edge of a column of a data frame, which have no part in the view
     :move_differs => (
         "assistant_work", "chart_inspector", "filesystem", "graph",
           "layout_fill_in_scroll_area", "layout_rows_in_slot_and_page",

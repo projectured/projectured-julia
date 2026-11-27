@@ -22,14 +22,17 @@ _make_pattern_reference(range::RangeReferenceStep) =
 _make_expression_reference(range::RangeReferenceStep) =
     Reference(FieldReferenceStep("query"), FieldReferenceStep("expression"), range)
 
-# The text of the query that the selection of `view` is in, as `(place, range)`:
-# the place of a filter in the query, `:pattern` or `:expression`, and the range
-# `(start, stop)` of the selection in the text; `nothing` when the selection is
-# in no text of the query.
-function _find_query_text_selection(view)
-    selection = view.selection
-    selection === nothing && return nothing
-    steps = get_reference_steps(strip_reference_types(selection))
+# The text of the query that the selection of `view` is in, as `(place, range)`
+# (`_find_query_text_place`).
+_find_query_text_selection(view) = _find_query_text_place(view.selection)
+
+# The text of the query that `path`, a path of the view, is in, as `(place,
+# range)`: the place of a filter in the query, `:pattern` or `:expression`, and
+# the range `(start, stop)` of the path in the text; `nothing` when the path is in
+# no text of the query.
+function _find_query_text_place(path)
+    path === nothing && return nothing
+    steps = get_reference_steps(strip_reference_types(path))
     (length(steps) >= 3 && steps[1] == FieldReferenceStep("query") && steps[end] isa RangeReferenceStep) ||
         return nothing
     range = (steps[end].start, steps[end].stop)

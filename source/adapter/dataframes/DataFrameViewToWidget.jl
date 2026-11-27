@@ -163,23 +163,28 @@ function _make_view_table(p::DataFrameViewToWidget, view::DataFrameView, bar::Wi
                         getfield(view, :top_row), Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, false)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, false)))
-    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
+    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view, false))
     table
 end
 
-# The part of the table under the pointer: the mouse target of the view names a
-# part of the output of the view, and the part of the table is that path from the
-# table on. So the table lights the row, the column or the edge of a column under
-# the pointer, as it lights its selection from the selection of the view.
-function _get_table_mouse_target(view::DataFrameView)
+# The part of the table under the pointer, from the mouse target of the view: the
+# image in the table of the column, the row, the cell or the view that a move
+# names, as the table shows the selection of the view; and for a place
+# that has no part in the view, such as the edge of a column or the bar, its path
+# in the table, which the view keeps. So the table lights the row, the column or
+# the edge of a column under the pointer.
+function _get_table_mouse_target(view::DataFrameView, column_list::Bool)
     target = view.mouse_target
-    target isa Reference ? _find_table_path(target) : nothing
+    target isa Reference || return nothing
+    drawn = _find_table_path(target)
+    drawn === nothing ? _find_table_image(view, target, column_list) : drawn
 end
 
 # The mouse target of the bar: the empty path while the part of the table under
 # the pointer is the bar.
 function _get_bar_mouse_target(view::DataFrameView)
-    target = _get_table_mouse_target(view)
+    target = view.mouse_target
+    target = target isa Reference ? _find_table_path(target) : nothing
     target isa ConcreteReference && target.head == FieldReferenceStep("vertical_scroll_bar") ?
         EmptyReference() : nothing
 end
@@ -258,28 +263,34 @@ function _make_column_list_table(p::DataFrameViewToWidget, view::DataFrameView, 
                         getfield(view, :top_row), Cell(nothing), Cell(nothing), Cell(bar), Cell(:auto),
                         Cell(@computation _get_table_open_cells(view, true)), Cell(nothing),
                         Cell(@computation _get_table_selection(view, true)))
-    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view))
+    set_cell_computation!(getfield(table, :mouse_target), () -> _get_table_mouse_target(view, true))
     table
 end
 
-# The selection of the table that shows the selection of `view`: the column,
-# the row or the cell of the frame that it names, where the table shows it; the
-# field of a filter or of the pattern, with its caret; and the whole table for
-# the whole view.
+# The selection of the table that shows the selection of `view`
+# (`_find_table_image`).
 function _get_table_selection(view::DataFrameView, column_list::Bool)
     selection = view.selection
-    selection === nothing && return nothing
-    selection = strip_reference_types(selection)
-    selection isa EmptyReference && return EmptyReference()
-    found = _find_query_text_selection(view)
+    selection === nothing ? nothing : _find_table_image(view, selection, column_list)
+end
+
+# The image in the table of `path`, a path of `view`: the column, the row or the
+# cell of the frame that it names, where the table shows it; the field of a
+# filter or of the pattern, with its range; and the whole table for the whole
+# view. `nothing` for the text of the expression, which the bar above the table
+# shows, and for any other path.
+function _find_table_image(view::DataFrameView, path::Reference, column_list::Bool)
+    path = strip_reference_types(path)
+    path isa EmptyReference && return EmptyReference()
+    found = _find_query_text_place(path)
     if found !== nothing
         found[1] === :expression && return nothing
         field = make_field_child_reference(_make_content_range_reference(found[2]))
         found[1] === :pattern && return ConcreteReference(FieldReferenceStep("corner"), field)
         return _make_header_reference(view, view.query.column_filters[found[1]].column, field, column_list)
     end
-    (selection isa ConcreteReference && selection.head isa FieldReferenceStep) || return nothing
-    _find_table_part_path(view, selection, column_list)
+    (path isa ConcreteReference && path.head isa FieldReferenceStep) || return nothing
+    _find_table_part_path(view, path, column_list)
 end
 
 # The open cells of the table, `(row, column, reason)` in the numbers of the
@@ -484,12 +495,9 @@ function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::Rep
     expression = _find_expression_path(operation.path)
     expression === nothing ||
         return ReplaceSelectionOperation(annotate_reference_types(iomap.input, expression))
-    path = _find_table_path(operation.path)
-    path === nothing && return nothing
-    target = _find_view_path(iomap, path, head)
+    target = _find_view_part(iomap, operation.path, head)
     target === nothing && return nothing
     view = iomap.input
-    target = _find_whole_read_only_cell(view, _drop_whole_cell_value(target))
     open = _make_open_cell_operation(view, target)
     selection = ReplaceSelectionOperation(open === nothing && _find_cell_tail(target) === nothing ?
                                           annotate_reference_types(view, target) : target)
@@ -508,6 +516,31 @@ function _read_table_selection(iomap::DataFrameViewToWidgetIoMap, operation::Rep
     (commit.edits && row !== nothing) &&
         _push_anchor_write!(operations, view, row, _compute_kept_rows_after_write(view, left[1], left[2], commit.value))
     _make_cell_step(operations, commit.edits)
+end
+
+# The part of the view that `path`, a path in the grid of the view, reaches, as
+# a selection there names it (`_find_view_path`), with the rows of the table
+# counted from the head at the place `head` among the kept rows, and a place in
+# a cell that takes no key as the whole cell (`_find_whole_read_only_cell`);
+# `nothing` for a path that has no place in the view.
+function _find_view_part(iomap::DataFrameViewToWidgetIoMap, path, head::Int)
+    table = _find_table_path(path)
+    target = table === nothing ? nothing : _find_view_path(iomap, table, head)
+    target === nothing ? nothing : _find_whole_read_only_cell(iomap.input, _drop_whole_cell_value(target))
+end
+
+# The part of the view under the pointer, as a move names it. The table names the
+# whole part under the pointer, as for an Alt+double click, so the move names the
+# part that an Alt+double click there selects: the column for its header and for
+# each field and control in it, the row for its header, the cell for a cell, and
+# the view for the corner. The rows of the table count from the head at the place
+# `head` among the kept rows. A place that has no part in the view, such as the
+# edge of a column or the bar, keeps its path in the table, and the table lights it
+# from there (`_get_table_mouse_target`).
+function _read_table_mouse_target(iomap::DataFrameViewToWidgetIoMap, operation::ReplaceMouseTargetOperation,
+                                  head::Int)
+    target = _find_view_part(iomap, operation.path, head)
+    target === nothing ? operation : ReplaceMouseTargetOperation(annotate_reference_types(iomap.input, target))
 end
 
 # `path`, a path of the view, or the cell `rows[r][c]` when `path` selects
@@ -756,9 +789,9 @@ end
 # columns, no write of `cells` or of `columns`, which the view builds again from
 # its anchors. A selection goes to its place in the view, or to no operation, as
 # a selection alone does, with the rows of the table counted from the head at
-# the place `head`; so a press on a cell that is not open opens it first. The
-# width of a
-# column goes to the view. The table starts the drag of the edge of a column
+# the place `head`; so a press on a cell that is not open opens it first. A move
+# names its part of the view in the same way (`_read_table_mouse_target`). The
+# width of a column goes to the view. The table starts the drag of the edge of a column
 # from the view, which the table is a part of: the parts of the drag come back
 # to the view by its path, and the view gives them to the table. The drag of the
 # thumb of the bar of the view comes back to the view the same way.
@@ -769,6 +802,7 @@ function _convert_table_write(iomap::DataFrameViewToWidgetIoMap, operation, colu
         return jump_to_row(iomap.input, compute_scroll_bar_top_row(bar[2], count, Int(iomap.visible)))
     end
     operation isa ReplaceSelectionOperation && return _read_table_selection(iomap, operation, head)
+    operation isa ReplaceMouseTargetOperation && return _read_table_mouse_target(iomap, operation, head)
     cell = _convert_cell_operation(iomap, operation, head)
     cell === nothing || return cell
     operation isa DropTableCellOperation && operation.table === iomap.table &&

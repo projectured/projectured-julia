@@ -14212,9 +14212,10 @@ end
 
 # ── The light (whole row) ────────────────────────────────────────────────────
 # The light marks the *row* of a place in the table (a body cell or a row header →
-# that row); a column header → its column, which a press there selects; the
-# corner → none. The reference of the row or the column of the place that
-# `target` names, or nothing.
+# that row); a column header → its column, which a press there selects; a whole
+# column → that column, as a view of the table names the column under the pointer;
+# the corner and the edge of a column (`columns[c].policy`) → none. The reference
+# of the row or the column of the place that `target` names, or nothing.
 function _find_wt_lit_reference(w::WidgetTable, target)
     cell = _wt_cell_prefix(w, target)
     cell === nothing || cell[1] < 1 || return _wt_row_ref(cell[1])
@@ -14227,6 +14228,8 @@ function _find_wt_lit_reference(w::WidgetTable, target)
     row > 0 && return _wt_row_ref(row)
     column = _widget_element_selected(target, "column_headers")
     column > 0 && return _wt_col_ref(column)
+    column = _widget_element_selected(target, "columns")
+    column > 0 && target.tail.tail isa EmptyReference && return _wt_col_ref(column)
     nothing
 end
 
