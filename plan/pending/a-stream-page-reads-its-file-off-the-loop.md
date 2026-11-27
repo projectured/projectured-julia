@@ -200,3 +200,34 @@ of step 3 alone does not load.
   answers from the line alone.
 - The task parts: 13 parts, 1029 pass, 0 fail, 0 error (`test_task_pages` 83,
   `test_task_stream_reads` 37).
+
+**The review of steps 1 to 4** (a code reviewer, 2026-11-27) found 9 faults. Each one held when I
+checked it against the code, and each one is fixed:
+1. Two notches of the wheel before the new window came moved the top once, and a notch after a
+   jump undid the jump. A move now starts at the top that the page holds: while the window is
+   provisional, it finds the top by its start in the window, and it gives no move when the window
+   does not hold the top yet.
+2. A read looped without end when the file was shorter than the flushed size, such as a file that
+   a person saved through "Open as a file". A visit of the lines now stops at the end of the file.
+3. At each flush, the search scanned again for the next match and the match before, and the
+   window waited for that batch. The search memory now keeps, for the current match, the next
+   match in the bytes read so far and the match before it, and each count keeps its first and its
+   last match. A flush reads only the new bytes. The window, the numbers and the search have one
+   source each, so one batch never holds another.
+4. At each flush the number of the top line was counted again. The number memory keeps the
+   numbers that a count found, so a later count of the same line gives it at once, and a count
+   of another line starts at the nearest of them.
+5. One read of a file that was gone broke all three cells. A source answers the empty answer for
+   a stream whose file is gone.
+6. The bar could show the place of an older filter. The answer of the number cell holds its
+   filter, and the bar uses its place only for the filter of the page. A jump reads the value in
+   the measure that the bar shows (`_compute_stream_bar` gives the count of lines only when the
+   bar measures lines).
+7. `_find_stream_line_start` and `_find_stream_place_offset` never answer `nothing`, so they are
+   `_compute_stream_line_start` and `_compute_stream_place`.
+8. The docstring of `StreamWindow.top` now names the lead.
+9. Each table of the memories keeps at most 8 entries (`_STREAM_MEMORY_SIZE`).
+
+New tests: a file shorter than its flushed size, a search of a file that grows, and two notches
+of the wheel before the new window. The task parts with new workers: 13 parts, 1040 pass, 0 fail,
+0 error (`test_task_pages` 86, `test_task_stream_reads` 45).

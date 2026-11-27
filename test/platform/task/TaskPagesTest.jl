@@ -290,6 +290,13 @@ function test_task_pages()
             @test !lines.follow && lines.top_offset < starts[298]
             # The window knew the number of its first line, so the new top keeps its number.
             @test lines.known_offset == lines.top_offset && starts[lines.known_line] == lines.top_offset
+            # Two notches before the new window comes move the top by six lines: the
+            # second move starts at the top that the first one wrote.
+            moved = lines.known_line
+            for _ in 1:2
+                _nav_apply!(holder, read_intent(projection, nothing, Intent(MouseScroll(0, 1, point[1], point[2], ModifierKeys(), 0.0)), iomap).operation)
+            end
+            @test lines.top_offset == starts[moved - 6] && lines.known_line == moved - 6
             # Ctrl and the wheel zoom, and move no line.
             top = lines.top_offset
             answer = read_intent(projection, nothing, Intent(MouseScroll(0, 5, point[1], point[2], ModifierKeys(ctrl=true), 0.0)), iomap).operation
@@ -452,6 +459,30 @@ function test_task_stream_reads()
             @test TaskModule.read_stream_window(missing_file, 10, 0, 5) === TaskModule.EMPTY_STREAM_WINDOW
             @test TaskModule.count_stream_lines(missing_file, 0, 10) == 0
             @test TaskModule.find_stream_match(missing_file, 10, -1, "a", 1) === nothing
+            # A file that is shorter than its flushed size, such as a file that a
+            # person saved, ends each read at its end.
+            short = joinpath(folder, "short.txt")
+            write(short, "a\n")
+            @test TaskModule.count_stream_lines(short, 0, 10; text = "b") == 0
+            @test isempty(TaskModule.read_stream_window(short, 10, 0, 5; filter = "b").texts)
+            @test TaskModule.find_stream_match(short, 10, -1, "b", 1) === nothing
+        end
+
+        # A search reads only the bytes that came since the last search: the counts,
+        # the next match and the match before stay what it found, and the next match
+        # is searched in the new bytes.
+        @testset "a search of a file that grows reads the new bytes" begin
+            memory = TaskModule._StreamSearchMemory()
+            part = start_of(61)
+            search = TaskModule._search_stream!(memory, path, part, "error", "", start_of(50))
+            @test (search.count, search.place, search.next, search.previous) == (1, 1, start_of(50), start_of(50))
+            search = TaskModule._search_stream!(memory, path, flushed, "error", "", start_of(50))
+            @test (search.count, search.place, search.next, search.previous) == (2, 1, start_of(80), start_of(80))
+            @test memory.counts[("error", "")].read_to == flushed
+            search = TaskModule._search_stream!(memory, path, flushed, "error", "", start_of(80))
+            @test (search.place, search.next, search.previous) == (2, start_of(50), start_of(50))
+            # The filter alone counts the lines that show.
+            @test TaskModule._search_stream!(memory, path, flushed, "", "line 1", -1).shown == 12
         end
     end
 end
