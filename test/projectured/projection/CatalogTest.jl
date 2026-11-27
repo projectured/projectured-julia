@@ -110,11 +110,188 @@ _catalog_throws_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) 
 # a per-state caret step whose selection can't re-apply (same broken entries).
 _catalog_nav_state_broken(name) = any(p -> occursin(p, name), _CATALOG_NAV_BROKEN) ? ((_p, _msg) -> true) : nothing
 
+# The known failures of the click test, by signature, as `find_part_click_mark` takes
+# them: a kind of `classify_part_click_failure`, or a text of the line, and the
+# examples where it is known. Each comment names the cause; a failure of another
+# signature, or in another example, is a failure. Enumerate them with
+# `grep "@click-broken"`.
+const _CATALOG_CLICK_MARKS = (
+    # @click-broken a plain click on a text that is no control does nothing: the view
+    #   maps the point to no part, or to the part that was selected, such as a badge in
+    #   the title of a card or a text that a view computes
+    :plain_does_nothing => (
+        "arrangement/document/natural", "assistant/work/natural",
+          "backgroundwork/log/natural", "conversation/evaluator_form/natural",
+          "explorer/explorer/natural", "fileformat/open_file_list/natural",
+          "math/assignment/natural", "math/big_operator/natural",
+          "math/binary_operation/natural", "math/case/natural", "math/cases/natural",
+          "math/derivative/natural", "math/differential/natural", "math/function/natural",
+          "math/matrix/natural", "math/parenthesized/natural", "math/radical/natural",
+          "math/symbol/natural", "math/unary_operation/natural",
+          "navigator/navigator/natural", "pivot/part_table/natural",
+          "research/analysis/natural", "research/answer/natural",
+          "research/decision/natural", "research/evidence/natural",
+          "research/experiment/natural", "research/hypothesis/natural",
+          "research/map/natural", "research/question/natural", "research/result/natural",
+          "research/source/natural", "research/study/natural", "rst/section/natural",
+          "systemprocess/tree/natural", "task/group/natural", "task/group_list/natural",
+          "task/stream/natural", "task/task/natural", "widget/card/natural",
+          "widget/choice_list/natural", "widget/dialog/natural",
+          "widget/insertion/natural", "widget/select/natural", "widget/shell/natural",
+          "widget/spin_box/natural", "widget/split_pane/natural",
+          "widget/status_bar/natural", "widget/title_pane/natural",
+          "widget/toggle_group/natural", "widget/tooltip/natural",
+          "workflow/decision/natural", "workflow/entry/natural", "workflow/list/natural",
+          "workflow/step/natural", "workflow/workflow/natural", "workplan/plan/natural",
+    ),
+    # @click-broken the caret of a plain click lies outside the innermost part that drew
+    #   the text
+    :plain_caret_outside => (
+        "syntax/leaf/natural", "text/view/natural",
+    ),
+    # @click-broken an Alt+click on a text gives a whole part and no caret, because the
+    #   view draws the text from a value that no field holds, such as a label that the
+    #   view computes, a tick of an axis or a glyph that a view adds
+    :alt_no_caret => (
+        "arrangement/document/natural", "assistant/agent_work/natural",
+          "assistant/work/natural", "backgroundwork/log/natural",
+          "conversation/evaluator_form/natural", "conversation/evaluator_toplevel/natural",
+          "explorer/explorer/natural", "fileformat/open_file_list/natural",
+          "link/url/natural", "math/assignment/natural", "math/big_operator/natural",
+          "math/binary_operation/natural", "math/case/natural", "math/cases/natural",
+          "math/derivative/natural", "math/differential/natural", "math/function/natural",
+          "math/matrix/natural", "math/parenthesized/natural", "math/radical/natural",
+          "math/symbol/natural", "math/unary_operation/natural",
+          "navigator/navigator/natural", "pivot/table/natural", "research/map/natural",
+          "rst/section/natural", "statistics/frame_statistics/natural",
+          "task/group/natural", "task/group_list/natural", "widget/card/natural",
+          "widget/dialog/natural", "widget/insertion/natural", "widget/option/natural",
+          "widget/radio_group/natural", "widget/select/natural", "widget/shell/natural",
+          "widget/spin_box/natural", "widget/split_pane/natural",
+          "widget/status_bar/natural", "widget/title_pane/natural",
+          "widget/toggle/natural", "widget/tooltip/natural", "workflow/list/natural",
+          "workplan/plan/natural",
+    ),
+    # @click-broken the caret of an Alt+click lies outside the innermost part that drew
+    #   the text
+    :alt_caret_outside => (
+        "explorer/explorer/natural", "syntax/leaf/natural", "systemprocess/tree/natural",
+          "text/view/natural", "tree/tree/natural", "widget/tabbed_pane/natural",
+          "workplan/plan/natural",
+    ),
+    # @click-broken the caret of an Alt+click has no drawn image, because the forward
+    #   map of the view takes no caret in that text
+    :alt_caret_not_drawn => (
+        "explorer/explorer/natural", "fileformat/open_file_list/natural",
+          "mcplog/log/natural", "pivot/table/natural", "widget/choice_list/natural",
+          "widget/text/natural", "widget/textarea/natural", "workflow/step/natural",
+    ),
+    # @click-broken an Alt+double click selects a part around the innermost part that
+    #   drew the point, because the view names a whole row, card or page there
+    :double_outside => (
+        "arrangement/document/natural", "backgroundwork/log/natural",
+          "book/paragraph/natural", "explorer/explorer/natural", "graph/graph/natural",
+          "graphics/canvas/natural", "graphics/rect/natural", "pane/group/natural",
+          "pane/split/natural", "research/map/natural", "systemprocess/tree/natural",
+          "task/group/natural", "text/view/natural", "tree/tree/natural",
+          "widget/dialog/natural", "widget/split_pane/natural",
+          "widget/tabbed_pane/natural", "widget/title_pane/natural",
+          "workplan/plan/natural",
+    ),
+    # @click-broken an Alt+double click selects a part that does not hold the caret of
+    #   the Alt+click
+    :double_not_caret_part => (
+        "book/paragraph/natural", "fileformat/view/natural", "pivot/part_table/natural",
+          "pivot/table/natural", "rst/directive_option/natural",
+          "statistics/frame_statistics/natural",
+    ),
+    # @click-broken a whole part that a view drew shows no ring or band when an
+    #   Alt+double click selects it, because a part that a projection step names draws
+    #   no mark (the plan "a projection step evaluates to what it names")
+    :double_not_drawn => (
+        "assistant/list/natural", "assistant/terminal_command/natural",
+          "backgroundwork/log/natural", "explorer/dashboard/natural",
+          "explorer/explorer/natural", "explorer/search/natural",
+          "explorer/section/natural", "fileformat/open_file_list/natural",
+          "fileformat/view/natural", "filesystem/directory/natural",
+          "filesystem/file/natural", "formula/environment/natural", "graph/graph/natural",
+          "help/entry/natural", "math/fraction/natural", "mcplog/log/natural",
+          "pane/group/natural", "pane/split/natural", "pivot/part_table/natural",
+          "pivot/table/natural", "roster/roster/natural",
+          "statistics/frame_statistics/natural", "task/execution/natural",
+          "task/group/natural", "task/group_list/natural", "task/task/natural",
+          "tooltip/content/natural", "widget/choice_list/natural", "widget/dialog/natural",
+          "widget/menu/natural", "widget/menu_item/natural", "widget/scroll_pane/natural",
+          "widget/shell/natural", "widget/split_pane/natural",
+          "widget/tabbed_pane/natural", "widget/toolbar/natural",
+          "widget/toolbar_item/natural", "widget/transform_pane/natural",
+          "workflow/list/natural", "workspace/folder/natural",
+    ),
+    # @click-broken a move names another part than the Alt+double click selects, because
+    #   the view names the part under the pointer by a rule of its own, such as a scroll
+    #   bar or a header of a data frame (O5 of step 7)
+    :move_differs => (
+        "appearance/appearance/natural", "assistant/agent_work/natural",
+          "assistant/work/natural", "backgroundwork/log/natural", "book/paragraph/natural",
+          "explorer/explorer/natural", "filesystem/directory/natural",
+          "graph/graph/natural", "mcplog/log/natural", "pane/group/natural",
+          "pane/split/natural", "pivot/part_table/natural", "pivot/table/natural",
+          "research/map/natural", "research/study/natural", "roster/roster/natural",
+          "statistics/frame_statistics/natural", "task/group/natural",
+          "task/group_list/natural", "task/stream/natural", "task/task/natural",
+          "widget/dialog/natural", "widget/scroll_pane/natural",
+          "widget/split_pane/natural", "widget/tabbed_pane/natural",
+          "widget/title_pane/natural", "widget/toggle_group/natural",
+          "workflow/journal/natural", "workflow/list/natural", "workplan/plan/natural",
+          "workspace/folder/natural",
+    ),
+    # @click-broken the document has no forward image in the window, so the walk presses
+    #   no element
+    :no_image => (
+        "arrangement/chips/natural", "assistant/assistant/natural", "book/book/natural",
+          "book/chapter/natural", "book/list/natural", "filesystem/chooser/natural",
+          "inspector/selection/natural", "markdown/image/natural", "markdown/text/natural",
+          "pivot/chart_cell/natural", "rst/text/natural", "settings/settings/natural",
+          "statistics/frame_time_series/natural", "terminal/terminal/natural",
+          "widget/reference_inspector/natural", "workspace/explorer/natural",
+          "workspace/workspace/natural",
+    ),
+    # @click-broken the natural view of the example draws no element in the window, so
+    #   the walk presses none: an empty part of Julia code draws nothing by design; the
+    #   other four are not studied
+    :no_element => (
+        "collection/list_node/natural", "julia/empty/natural", "julia/insertion/natural",
+          "math/space/natural", "widget/progress_ring/natural",
+    ),
+    # @click-broken a press takes the document out of the editor, so the walk stops
+    #   there; not studied
+    :press_removes_document => (
+        "arrangement/document/natural",
+    ),
+    # @click-broken the natural view of a screen document draws a canvas, and the walk
+    #   reads the windows of a screen
+    "throws FieldError: type ProjecturedPlatform.GraphicsModule.GraphicsCanvas has no field `windows`" => (
+        "widget/screen_document/natural",
+    ),
+    # @click-broken the natural view of a lone span or a gutter of a text wraps it in
+    #   WordWrapping, which prints only a block, so the example does not build
+    "throws MethodError: no method matching print_document(::ProjecturedPlatform.TextModule.WordWrapping" => (
+        "text/bare_graphics/natural", "text/bare_line/natural",
+          "text/bare_spacing/natural", "text/bare_string/natural", "text/gutter/natural",
+    ),
+)
+_catalog_click_broken(name) = find_part_click_mark(_CATALOG_CLICK_MARKS, name)
+
+# The atoms whose click walk does not end in the memory of a worker.
+# @click-broken task/stream_lines: the walk of 200 points needs 9 GiB (step 1 of the
+#   plan "a click reaches the innermost part in every view").
+const _CATALOG_CLICK_ENDLESS = ("task/stream_lines/natural",)
+
 # The known failures of the catalog by the kind of tester, as `test_catalog_examples`
 # takes them.
 const _CATALOG_MARKS = (print = _catalog_print_broken, edit = _catalog_edit_broken,
                         seed = _catalog_seed_broken, throws = _catalog_throws_broken,
-                        state = _catalog_nav_state_broken)
+                        state = _catalog_nav_state_broken, click = _catalog_click_broken)
 
 """
     test_catalog(; domain=nothing, document=nothing, terminal=nothing, only_runnable=false,
@@ -131,6 +308,58 @@ function test_catalog(; domain = nothing, document = nothing, terminal = nothing
     test_catalog_examples(select_by_name(catalog(; domain, document, terminal, only_runnable);
                                          only, skip); testers,
                           marks = _CATALOG_MARKS)
+end
+
+# The groups of domains of the parts of the click test of the catalog, each about ten
+# minutes of a walk in a process alone (2026-11-26). One more part takes every other
+# domain, so a new domain has its part.
+const _CATALOG_CLICK_GROUPS = (
+    ("appearance",),
+    ("widget", "pane", "layout", "tooltip", "dragging", "dragtracking", "gesture", "gesturetracking"),
+    ("fsm", "process"),
+    ("julia", "rst", "xml", "json", "yaml", "syntax"),
+    ("sql", "graph", "dbcatalog", "database", "markdown"),
+    ("research", "assistant", "conversation", "task", "workflow"),
+)
+
+"""
+    make_catalog_click_parts() -> Vector{TestPart}
+
+The parts of the suite that run [`test_catalog_clicks`](@ref): one for each group of
+`_CATALOG_CLICK_GROUPS`, and one for every other domain.
+"""
+function make_catalog_click_parts()
+    pattern(domains) = Regex("^(" * join(domains, "|") * ")/")
+    parts = [TestPart(() -> test_catalog_clicks(; only = pattern(group));
+                      name = "test_catalog_clicks($(join(group, ", ")))", level = :slow, limit = 1800)
+             for group in _CATALOG_CLICK_GROUPS]
+    others = pattern(Iterators.flatten(_CATALOG_CLICK_GROUPS))
+    push!(parts, TestPart(() -> test_catalog_clicks(; skip = others);
+                          name = "test_catalog_clicks(other domains)", level = :slow, limit = 1800))
+    parts
+end
+
+"""
+    test_catalog_clicks(; only = nothing, skip = nothing)
+
+The click test (`test_part_click`) over the variant of the app, `:natural`, of each
+atom of the catalog: a plain click, an Alt+click, an Alt+double click and a move on
+each drawn element reach the innermost part, with the known failures of this file.
+The suite runs it in parts, each over a group of domains, so each part ends in its
+limit.
+"""
+function test_catalog_clicks(; only = nothing, skip = nothing)
+    examples = select_by_name(catalog(; terminal = :natural, natural = true); only, skip)
+    @testset "CatalogClicks" begin
+        test_catalog_examples(filter(example -> !(example.name in _CATALOG_CLICK_ENDLESS), examples);
+                              testers = (test_part_click,), marks = _CATALOG_MARKS)
+        for example in examples
+            example.name in _CATALOG_CLICK_ENDLESS || continue
+            @testset "$(example.name)" begin
+                @test_broken false
+            end
+        end
+    end
 end
 
 """

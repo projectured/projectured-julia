@@ -633,6 +633,155 @@ function test_text_navigation_invariants_all(; only = nothing, skip = nothing)
 end
 
 
+# ── a click reaches the innermost part ───────────────────────────────────────
+
+# The known failures of the click test of the examples, by signature, as
+# `find_part_click_mark` takes them; `_CATALOG_CLICK_MARKS` says the form. Each
+# comment names the cause. Enumerate them with `grep "@click-broken"`.
+const _EXAMPLE_CLICK_MARKS = (
+    # @click-broken a plain click on a text that is no control does nothing: the view
+    #   maps the point to no part, or to the part that was selected, such as a badge in
+    #   the title of a card or a text that a view computes
+    :plain_does_nothing => (
+        "assistant_work", "filesystem_widget", "research", "research_contested",
+          "research_framed", "research_grounded", "research_planned",
+          "sequencechart_inspector", "system_process_tree", "widget", "widget_card",
+          "widget_collapsible_card", "widget_disabled", "widget_focus", "widget_offered",
+          "widget_select", "widget_shell", "widget_split_pane", "widget_title_pane",
+          "widget_toggle_group", "widget_tooltip", "work_plan", "workflow",
+          "workflow_complete", "workflow_elements", "workflow_explored", "workflow_goal",
+          "workflow_open_decision", "workflow_recorded", "workflow_steps",
+          "workflow_substeps",
+    ),
+    # @click-broken the caret of a plain click lies outside the innermost part that drew
+    #   the text
+    :plain_caret_outside => (
+        "formula", "formula_queue",
+    ),
+    # @click-broken an Alt+click on a text gives a whole part and no caret, because the
+    #   view draws the text from a value that no field holds, such as a label that the
+    #   view computes, a tick of an axis or a glyph that a view adds
+    :alt_no_caret => (
+        "assistant_work", "chart", "chart_inspector", "filesystem", "math_table",
+          "natural", "pivot", "sequencechart_inspector", "sequencechart_pair", "syntax",
+          "widget", "widget_card", "widget_collapsible_card", "widget_disabled",
+          "widget_offered", "widget_radio_group", "widget_select", "widget_shell",
+          "widget_split_pane", "widget_title_pane", "widget_toggle", "widget_tooltip",
+          "work_plan",
+    ),
+    # @click-broken the caret of an Alt+click lies outside the innermost part that drew
+    #   the text
+    :alt_caret_outside => (
+        "document_tree", "formula", "formula_queue", "system_process_tree", "widget",
+          "widget_tabbed_pane", "work_plan",
+    ),
+    # @click-broken the caret of an Alt+click has no drawn image, because the forward
+    #   map of the view takes no caret in that text
+    :alt_caret_not_drawn => (
+        "formula_report", "pivot", "widget", "widget_text", "widget_textarea",
+          "workflow_goal",
+    ),
+    # @click-broken the caret of an Alt+click is drawn off the character under the point
+    :alt_caret_off => (
+        "graphics_image", "json", "json_insertion", "json_sorted", "natural",
+    ),
+    # @click-broken an Alt+double click selects a part around the innermost part that
+    #   drew the point, because the view names a whole row, card or page there
+    :double_outside => (
+        "document_tree", "graph", "graphics_image", "json", "json_sorted",
+          "layout_fill_in_scroll_area", "layout_row_edge", "layout_rows_in_slot_and_page",
+          "layout_scroll_area_in_page", "layout_shares", "layout_text_above_table",
+          "natural", "rotating_vector", "syntax", "system_process_tree", "widget",
+          "widget_split_pane", "widget_tabbed_pane", "widget_title_pane", "work_plan",
+          "workflow_recorded",
+    ),
+    # @click-broken an Alt+double click selects a part that does not hold the caret of
+    #   the Alt+click
+    :double_not_caret_part => (
+        "filesystem", "filtering", "pivot", "sorting",
+    ),
+    # @click-broken a whole part that a view drew shows no ring or band when an
+    #   Alt+double click selects it, because a part that a projection step names draws
+    #   no mark (the plan "a projection step evaluates to what it names")
+    :double_not_drawn => (
+        "chart", "chart_inspector", "filtering", "formula_queue", "graph",
+          "layout_fill_in_scroll_area", "layout_row_edge", "layout_rows_in_slot_and_page",
+          "layout_scroll_area_in_page", "layout_shares", "layout_text_above_table",
+          "natural", "pivot", "sequencechart_inspector", "sequencechart_pair", "sorting",
+          "widget", "widget_menu", "widget_menu_item", "widget_offered",
+          "widget_scroll_pane", "widget_shell", "widget_split_pane", "widget_tabbed_pane",
+          "widget_table_frozen", "widget_toolbar", "widget_toolbar_item",
+          "widget_transform_pane",
+    ),
+    # @click-broken a move names another part than the Alt+double click selects, because
+    #   the view names the part under the pointer by a rule of its own, such as a scroll
+    #   bar or a header of a data frame (O5 of step 7)
+    :move_differs => (
+        "assistant_work", "chart_inspector", "filesystem", "graph",
+          "layout_fill_in_scroll_area", "layout_rows_in_slot_and_page",
+          "layout_scroll_area_in_page", "layout_text_above_table", "pivot", "research",
+          "research_contested", "research_framed", "research_grounded", "research_planned",
+          "sequencechart_inspector", "syntax", "widget", "widget_disabled", "widget_focus",
+          "widget_offered", "widget_scroll_pane", "widget_split_pane",
+          "widget_tabbed_pane", "widget_table_frozen", "widget_title_pane",
+          "widget_toggle_group", "work_plan", "workflow_journal",
+    ),
+    # @click-broken the document has no forward image in the window, so the walk presses
+    #   no element
+    :no_image => (
+        "assistant", "book", "chart_bar", "chart_histogram", "chart_line", "chart_scatter",
+          "chart_strip", "conversation_editor", "conversation_widget", "files", "focusing",
+          "fsm_alternating_bit_diagram", "fsm_diagram", "math", "sequencechart",
+          "sequencechart_linear", "sequencechart_vertical", "text_filtering",
+          "text_highlighting",
+    ),
+)
+
+# The groups of the parts of the click test of the examples, by the start of a name,
+# each about ten minutes of a walk in a process alone (2026-11-26). One more part takes
+# every other example, so a new example has its part.
+const _EXAMPLE_CLICK_GROUPS = (
+    ("xml", "fsm"),
+    ("formula",),
+    ("research", "workflow"),
+    ("natural", "mixed", "json", "graphics"),
+)
+
+"""
+    make_example_click_parts() -> Vector{TestPart}
+
+The parts of the suite that run [`test_part_clicks`](@ref): one for each group of
+`_EXAMPLE_CLICK_GROUPS`, and one for every other example.
+"""
+function make_example_click_parts()
+    pattern(starts) = Regex("^(" * join(starts, "|") * ")")
+    parts = [TestPart(() -> test_part_clicks(; only = pattern(group));
+                      name = "test_part_clicks($(join(group, ", ")))", level = :slow, limit = 1800)
+             for group in _EXAMPLE_CLICK_GROUPS]
+    others = pattern(Iterators.flatten(_EXAMPLE_CLICK_GROUPS))
+    push!(parts, TestPart(() -> test_part_clicks(; skip = others);
+                          name = "test_part_clicks(other examples)", level = :slow, limit = 1800))
+    parts
+end
+
+"""
+    test_part_clicks(; only = nothing, skip = nothing)
+
+The click test (`test_part_click`) over each example: a plain click, an Alt+click,
+an Alt+double click and a move on each drawn element reach the innermost part, with
+the known failures of this file. The suite runs it in parts, each over a group of
+examples, so each part ends in its limit.
+"""
+function test_part_clicks(; only = nothing, skip = nothing)
+    @testset "PartClicks" begin
+        for example in select_by_name(examples; only, skip)
+            @testset "$(example.name)" begin
+                test_part_click(example; broken = find_part_click_mark(_EXAMPLE_CLICK_MARKS, example.name))
+            end
+        end
+    end
+end
+
 # ── JSON content clicks ──────────────────────────────────────────────────────
 
 function test_json_content_clicks_clean_all()

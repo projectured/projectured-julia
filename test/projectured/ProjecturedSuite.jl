@@ -520,6 +520,11 @@ const test_integration = TestSuite("integration", [
     # The generated atomic-example catalog: printer/reader/repl/position-navigation
     # over every discovered `domain/name/variant` pair, routed by terminal.
     TestPart(test_catalog; level = :slow, limit = 1800),
+    # A click reaches the innermost part: the click test over the variant of the app
+    # of each atom of the catalog, and over every example, in parts of about ten
+    # minutes.
+    make_catalog_click_parts()...,
+    make_example_click_parts()...,
     # Is the catalog exhaustive? The printers are the list of what it owes.
     test_catalog_coverage,
     TestPart(test_natural_renders_every_atom; level = :slow),
@@ -705,6 +710,7 @@ export test_table, test_table_selection, test_table_navigation, test_table_cell_
 export test_pivot_data_frame, test_formula_examples
 export test_graph_projection, test_conversation_transcript, test_assistant_conversation_video
 export test_examples, test_position_navigations, test_position_navigations_complete
+export test_part_clicks
 export test_printer, test_printers, test_text_runs_hold_no_break, test_text_blocks_hold_only_lines,
        test_example, test_position_navigation
 export measure_printer_locality, explore_selection_locality, test_selection_locality, test_selection_localities, LocalityReport, LocalityCell, is_selection_cell
@@ -714,7 +720,7 @@ export explore_position_selections, collect_position_selections, collect_tree_se
 export test_recursion_contract, test_recursion_contracts, walk_recursion_contract, walk_reference_roundtrip, probe_delegation
 export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
-export test_catalog, test_catalog_typeins
+export test_catalog, test_catalog_clicks, test_catalog_typeins
 export test_catalog_coverage, get_catalog_coverage_gap
 export test_natural_renders_every_atom, test_natural_round_trips_every_atom,
        test_natural_notation, test_natural_registry
