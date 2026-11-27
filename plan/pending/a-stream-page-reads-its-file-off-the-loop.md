@@ -143,6 +143,16 @@ test of each step is `test_platform(only = "task")` and the part of the new func
   background reads, and its list of limits loses the search that holds the editor task. Then
   the run before the land, the land with the approval of the owner, the record of the lists
   of the packages that the land changes, and this plan moves to `plan/done/`.
+  - [x] The guide: `209970c2f`.
+  - [x] The run before the land, 2026-11-27, on the branch rebased over main `e7de4c2c0`, with no
+    network: 785 parts, all done; 3,522,145 pass, 0 fail, 0 error, 3823 broken; 1 h 55 min. The
+    branch adds and removes no `@test_broken` and no `@test_skip`. The broken counts differ from
+    the record `36537ff00` of 03:50 only in parts that main renamed or added (the click plan).
+  - [x] The fast parts of omnet-julia against the branch (its `CLAUDE.md`), in a worktree of its
+    main with no network: 265 parts, all done; 42,897 pass, 0 fail, 0 error, 265 broken. The
+    first try stopped in a precompile that ran out of its 9 GB; the second had 20 GB.
+  - [ ] The land, with the approval of the owner.
+  - [ ] The record of the lists of the test packages whose files the land changes (`ProjecturedPlatformTest`).
 
 ## 6. Not in this plan
 
