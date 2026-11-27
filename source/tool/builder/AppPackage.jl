@@ -296,7 +296,8 @@ package of the same `name` and `uuid` in its place.
   this version, so a version that no dependent accepts stops the resolve.
 - `keeps` — `"<name>" => "<uuid>"` of the dependencies of the real one that the
   binary still needs: a library that another JLL links and does not name. The
-  stand-in loads them, so a package that loads the stand-in loads them first.
+  stand-in loads them, and its `eager_mode()` opens their libraries, so a JLL
+  that loads the stand-in finds them open before it opens its own.
 - `named_by` — the packages that name the JLL and use none of its libraries.
   [`check_stand_ins`](@ref) stops when another package names it, because that
   package can need a library that the stand-in does not hold.
@@ -328,6 +329,12 @@ function _write_stand_in_package(directory, stand_in::StandIn)
     kept = isempty(stand_in.keeps) ? "" :
         "# The libraries that are still needed from the real one.\n" *
         join(("import " * name for (name, _) in stand_in.keeps), "\n") * "\n"
+    # The `__init__` of a JLL of `JLLWrappers` calls `eager_mode()` of each JLL
+    # that it names, before it opens its own library. A JLL of `LazyJLLWrappers`
+    # opens its libraries only there or at their first call, so an import alone
+    # leaves them closed, and a library that links one of them by its soname does
+    # not load. So the stand-in passes the call on to each package that it keeps.
+    opened = join(("    $(name).eager_mode()\n" for (name, _) in stand_in.keeps))
     write_if_changed(joinpath(directory, "src", "$(stand_in.name).jl"), """
         # Written by `ProjecturedBuilder`: a stand-in for the JLL package
         # `$(stand_in.name)` $(stand_in.version). It has the same name and uuid, and
@@ -337,6 +344,10 @@ function _write_stand_in_package(directory, stand_in::StandIn)
         const PATH_list = String[]
         const LIBPATH_list = String[]
         is_available() = false
+        # Opens the libraries of the packages that it keeps, as the real one does.
+        function eager_mode()
+        $(opened)    return nothing
+        end
         end
         """)
 end
