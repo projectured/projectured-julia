@@ -1,6 +1,7 @@
 # A stream page reads its file off the loop
 
-Status: APPROVED by the owner on 2026-11-27 ("yes"). The work runs on the branch `stream-offset`.
+Status: DONE. Approved by the owner on 2026-11-27 ("yes"), landed on main and pushed on 2026-11-27
+(`e7de4c2c0..4609fa568`).
 
 Theme T7 of the review of the architecture
 ([architecture-review/README.md](architecture-review/README.md), finding WL-2 in
@@ -138,7 +139,7 @@ test of each step is `test_platform(only = "task")` and the part of the new func
   the page use the cells.
 - [x] **Step 4. The printer and the reader of the wheel and of the scroll bar** (D5, D6, D7,
   D9). Steps 3 and 4 are one commit (§7).
-- [ ] **Step 5. The guide.** The section of the stream page in
+- [x] **Step 5. The guide.** The section of the stream page in
   [task.md](../../documentation/package/platform/task/task.md) describes the offset and the
   background reads, and its list of limits loses the search that holds the editor task. Then
   the run before the land, the land with the approval of the owner, the record of the lists
@@ -151,8 +152,11 @@ test of each step is `test_platform(only = "task")` and the part of the new func
   - [x] The fast parts of omnet-julia against the branch (its `CLAUDE.md`), in a worktree of its
     main with no network: 265 parts, all done; 42,897 pass, 0 fail, 0 error, 265 broken. The
     first try stopped in a precompile that ran out of its 9 GB; the second had 20 GB.
-  - [ ] The land, with the approval of the owner.
-  - [ ] The record of the lists of the test packages whose files the land changes (`ProjecturedPlatformTest`).
+  - [x] The land, with the approval of the owner ("Yes"): a fast-forward of main to `4609fa568`,
+    pushed to GitHub.
+  - [x] The record of the lists: none is needed. `ProjecturedPlatformTest`, the one test package
+    whose files the land changes, has no compile list (`record-test-calls.jl --changed e7de4c2c0
+    --list` names no package), and no list of a package names a function that the land removes.
 
 ## 6. Not in this plan
 

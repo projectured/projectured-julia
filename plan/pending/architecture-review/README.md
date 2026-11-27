@@ -439,6 +439,9 @@ This order is a recommendation. No part of it is decided.
 - **T6, the file format half:** done, `plan/done/a-file-format-is-declared-once.md`.
 - **T1:** done, `plan/done/a-reader-is-split-by-its-jobs.md`, landed and pushed in the three
   repositories (projectured-julia `c08e8e466` on GitHub, 2026-11-27).
+- **T7, the task output page:** done, `plan/done/a-stream-page-reads-its-file-off-the-loop.md`,
+  landed and pushed (`4609fa568`, 2026-11-27). The database adapter (DD-1) stays deferred. The
+  next theme in the order is T3.
 
 **The decisions of the owner, 2026-11-27.** The order of the work is T7, T3, T4, T5, then the
 small points.
